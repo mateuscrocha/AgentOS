@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,7 +14,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, FileText } from "lucide-react";
+import { Calendar, FileText, Users, MessageSquare, Activity } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Event {
   id: string;
@@ -182,17 +183,58 @@ export default function GroupEvents() {
     },
   ];
 
+  const tabs = [
+    { label: "Visão Geral", href: `/group/${groupId}`, end: true },
+    { label: "Members", href: `/group/${groupId}/members`, icon: Users },
+    { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
+    { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
+  ];
+
   return (
     <AdminLayout title="Eventos do Grupo" subtitle={group?.name || "Carregando..."}>
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in">
         <Breadcrumbs
           items={[
             { label: "Sistema", href: "/system" },
             ...(org ? [{ label: org.name, href: `/org/${org.id}` }] : []),
             ...(group ? [{ label: group.name, href: `/group/${group.id}` }] : []),
-            { label: "Eventos" },
+            { label: "Atividade" },
           ]}
         />
+
+        {/* Header with tabs */}
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center gap-3 p-4 border-b border-border">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+              <Activity className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-card-foreground">Atividade</h2>
+              <p className="text-sm text-muted-foreground">
+                Eventos de auditoria do grupo
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-1 p-2 bg-secondary/30">
+            {tabs.map((tab) => (
+              <NavLink
+                key={tab.href}
+                to={tab.href}
+                end={tab.end}
+                className={({ isActive }) => cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  isActive 
+                    ? "bg-card text-foreground shadow-sm" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+                )}
+              >
+                {tab.icon && <tab.icon className="h-4 w-4" />}
+                {tab.label}
+              </NavLink>
+            ))}
+          </div>
+        </div>
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4">

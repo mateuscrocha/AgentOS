@@ -5,7 +5,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, NavLink } from "react-router-dom";
-import { Users, MessageSquare, Filter, Eye } from "lucide-react";
+import { Users, MessageSquare, Filter, Eye, Activity } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -55,6 +55,7 @@ const GroupMessages = () => {
     { label: "Visão Geral", href: `/group/${groupId}`, end: true },
     { label: "Members", href: `/group/${groupId}/members`, icon: Users },
     { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
+    { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
   ];
 
   // Fetch group info for breadcrumbs
