@@ -8,6 +8,7 @@ interface StatsCardProps {
   changeType?: "positive" | "negative" | "neutral";
   icon: LucideIcon;
   description?: string;
+  onClick?: () => void;
 }
 
 export function StatsCard({ 
@@ -16,10 +17,19 @@ export function StatsCard({
   change, 
   changeType = "neutral", 
   icon: Icon,
-  description 
+  description,
+  onClick
 }: StatsCardProps) {
+  const Component = onClick ? 'button' : 'div';
+  
   return (
-    <div className="rounded-xl border border-border bg-card p-6 shadow-card animate-fade-in">
+    <Component 
+      onClick={onClick}
+      className={cn(
+        "rounded-xl border border-border bg-card p-6 shadow-card animate-fade-in text-left w-full",
+        onClick && "hover:bg-secondary/50 transition-colors cursor-pointer"
+      )}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
@@ -42,6 +52,6 @@ export function StatsCard({
           <Icon className="h-6 w-6 text-primary" />
         </div>
       </div>
-    </div>
+    </Component>
   );
 }

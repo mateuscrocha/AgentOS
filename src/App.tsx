@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthGuard } from "./components/auth/AuthGuard";
 import Index from "./pages/Index";
 import System from "./pages/System";
 import Org from "./pages/Org";
@@ -12,7 +13,7 @@ import GroupMessages from "./pages/GroupMessages";
 import Account from "./pages/Account";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
-import AccessDenied from "./pages/AccessDenied";
+import NoAccess from "./pages/NoAccess";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,18 +24,21 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/system" element={<System />} />
-          <Route path="/org/:orgId" element={<Org />} />
-          <Route path="/group/:groupId" element={<Group />} />
-          <Route path="/group/:groupId/members" element={<GroupMembers />} />
-          <Route path="/group/:groupId/messages" element={<GroupMessages />} />
-          <Route path="/account" element={<Account />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthGuard>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/system" element={<System />} />
+            <Route path="/org/:orgId" element={<Org />} />
+            <Route path="/group/:groupId" element={<Group />} />
+            <Route path="/group/:groupId/members" element={<GroupMembers />} />
+            <Route path="/group/:groupId/messages" element={<GroupMessages />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/no-access" element={<NoAccess />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthGuard>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

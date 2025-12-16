@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import { Bot, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Email inválido");
@@ -10,12 +11,19 @@ const passwordSchema = z.string().min(6, "Senha deve ter pelo menos 6 caracteres
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [authLoading, isAuthenticated, navigate]);
 
   const validateInputs = () => {
     try {
@@ -45,10 +53,7 @@ const Auth = () => {
           password,
         });
         if (error) throw error;
-        toast({
-          title: "Login realizado",
-          description: "Bem-vindo de volta!",
-        });
+        toast.success("Login realizado com sucesso!");
         navigate("/");
       } else {
         const redirectUrl = `${window.location.origin}/`;
@@ -60,10 +65,7 @@ const Auth = () => {
           },
         });
         if (error) throw error;
-        toast({
-          title: "Conta criada",
-          description: "Verifique seu email para confirmar o cadastro.",
-        });
+        toast.success("Conta criada! Verifique seu email para confirmar o cadastro.");
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro inesperado";

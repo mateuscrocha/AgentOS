@@ -1,25 +1,168 @@
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
-import { UserCircle, Mail, Shield, Key, LogOut } from "lucide-react";
+import { useUserRoles } from "@/hooks/use-user-roles";
+import { supabase } from "@/integrations/supabase/client";
+import { UserCircle, Mail, Shield, Key, LogOut, Save, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { z } from "zod";
+
+const nameSchema = z.string().min(1, "Nome é obrigatório").max(100, "Nome deve ter no máximo 100 caracteres");
+const passwordSchema = z.string().min(6, "Senha deve ter pelo menos 6 caracteres");
 
 const Account = () => {
   const { user, loading, signOut, isAuthenticated } = useAuth();
+  const { roles, isSystemAdmin } = useUserRoles();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  
+  // Profile state
+  const [name, setName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState("");
+  
+  // Password state
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+
+  // Fetch profile
+  const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user!.id)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      // Create profile if doesn't exist
+      if (!data) {
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({ id: user!.id, name: user?.user_metadata?.full_name || '' })
+          .select()
+          .single();
+        
+        if (insertError) throw insertError;
+        return newProfile;
+      }
+      
+      return data;
+    },
+    enabled: isAuthenticated && !!user?.id,
+  });
+
+  // Set initial name from profile
+  useEffect(() => {
+    if (profile?.name) {
+      setName(profile.name);
+    }
+  }, [profile]);
+
+  // Get role display
+  const getRoleDisplay = () => {
+    if (isSystemAdmin) return 'SYSTEM_ADMIN';
+    if (roles && roles.length > 0) {
+      const uniqueRoles = [...new Set(roles.map(r => r.role))];
+      return uniqueRoles.join(', ');
+    }
+    return 'Nenhum';
+  };
+
+  const handleSaveName = async () => {
+    setNameError("");
+    
+    try {
+      nameSchema.parse(name.trim());
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        setNameError(e.errors[0].message);
+        return;
+      }
+    }
+
+    setSavingName(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name: name.trim() })
+        .eq('id', user!.id);
+
+      if (error) {
+        if (error.code === '42501' || error.message.includes('policy')) {
+          toast.error("Sem permissão para editar seu perfil");
+        } else {
+          toast.error(error.message);
+        }
+        return;
+      }
+
+      toast.success("Nome atualizado com sucesso");
+      refetchProfile();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atualizar nome");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError("");
+
+    // Validation
+    try {
+      passwordSchema.parse(newPassword);
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        setPasswordError(e.errors[0].message);
+        return;
+      }
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("As senhas não coincidem");
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      toast.success("Senha alterada com sucesso");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      if (err.message.includes("should be different")) {
+        setPasswordError("A nova senha deve ser diferente da atual");
+      } else {
+        setPasswordError(err.message || "Erro ao alterar senha");
+      }
+    } finally {
+      setSavingPassword(false);
+    }
+  };
 
   const handleLogout = async () => {
     await signOut();
-    toast({
-      title: "Logout realizado",
-      description: "Você foi desconectado com sucesso.",
-    });
+    toast.success("Logout realizado com sucesso");
     navigate('/auth');
   };
 
-  if (loading) {
+  if (loading || profileLoading) {
     return (
       <AdminLayout title="Minha Conta" subtitle="Carregando...">
         <LoadingState message="Carregando dados do usuário..." />
@@ -32,7 +175,7 @@ const Account = () => {
       title="Minha Conta" 
       subtitle="Gerencie suas informações pessoais e segurança"
     >
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in max-w-4xl">
         {/* Profile header */}
         <div className="flex items-center gap-4 p-6 rounded-xl border border-border bg-card">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
@@ -40,130 +183,175 @@ const Account = () => {
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-semibold text-card-foreground">
-              {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário'}
+              {profile?.name || user?.email?.split('@')[0] || 'Usuário'}
             </h2>
             <p className="text-sm text-muted-foreground">{user?.email || 'Não autenticado'}</p>
             <div className="flex gap-2 mt-2">
-              {isAuthenticated ? (
+              {isAuthenticated && (
                 <>
                   <span className="px-2 py-0.5 rounded-full bg-success/10 text-success text-xs font-medium">
                     Autenticado
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                    Admin
+                    {getRoleDisplay()}
                   </span>
                 </>
-              ) : (
-                <span className="px-2 py-0.5 rounded-full bg-warning/10 text-warning text-xs font-medium">
-                  Não autenticado
-                </span>
               )}
             </div>
           </div>
-          {isAuthenticated ? (
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </button>
-          ) : (
-            <button 
-              onClick={() => navigate('/auth')}
-              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
-              Fazer Login
-            </button>
-          )}
+          <Button 
+            variant="destructive"
+            onClick={handleLogout}
+            className="flex items-center gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Sair
+          </Button>
         </div>
         
-        {/* Account sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Personal info */}
+          {/* Personal info - editable */}
           <div className="rounded-xl border border-border bg-card p-6">
             <div className="flex items-center gap-2 mb-4">
               <Mail className="h-5 w-5 text-muted-foreground" />
               <h3 className="font-semibold text-card-foreground">Informações Pessoais</h3>
             </div>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">ID</span>
-                <span className="text-card-foreground font-mono text-xs">
-                  {user?.id ? user.id.slice(0, 8) + '...' : '-'}
-                </span>
+            
+            <div className="space-y-4">
+              {/* ID - read only */}
+              <div>
+                <Label className="text-muted-foreground text-xs">ID</Label>
+                <p className="text-sm text-card-foreground font-mono">
+                  {user?.id || '-'}
+                </p>
               </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Email</span>
-                <span className="text-card-foreground">{user?.email || '-'}</span>
+
+              {/* Email - read only */}
+              <div>
+                <Label className="text-muted-foreground text-xs">Email</Label>
+                <p className="text-sm text-card-foreground">{user?.email || '-'}</p>
               </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Nome</span>
-                <span className="text-card-foreground">
-                  {user?.user_metadata?.full_name || '-'}
-                </span>
+
+              {/* Name - editable */}
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Seu nome"
+                    className={nameError ? "border-destructive" : ""}
+                  />
+                  <Button 
+                    onClick={handleSaveName} 
+                    disabled={savingName || name === profile?.name}
+                    size="sm"
+                  >
+                    {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {nameError && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {nameError}
+                  </p>
+                )}
               </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Criado em</span>
-                <span className="text-card-foreground">
+
+              {/* Role - read only */}
+              <div>
+                <Label className="text-muted-foreground text-xs">Role Global</Label>
+                <p className="text-sm text-card-foreground">{getRoleDisplay()}</p>
+              </div>
+
+              {/* Created at - read only */}
+              <div>
+                <Label className="text-muted-foreground text-xs">Criado em</Label>
+                <p className="text-sm text-card-foreground">
                   {user?.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '-'}
-                </span>
+                </p>
               </div>
             </div>
           </div>
           
-          {/* Security */}
+          {/* Security - password change */}
           <div className="rounded-xl border border-border bg-card p-6">
             <div className="flex items-center gap-2 mb-4">
               <Shield className="h-5 w-5 text-muted-foreground" />
               <h3 className="font-semibold text-card-foreground">Segurança</h3>
             </div>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Provider</span>
-                <span className="text-card-foreground capitalize">
-                  {user?.app_metadata?.provider || 'email'}
-                </span>
+            
+            <div className="space-y-4">
+              {/* Password error */}
+              {passwordError && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                  <p className="text-sm text-destructive">{passwordError}</p>
+                </div>
+              )}
+
+              {/* New password */}
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Nova Senha</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Email verificado</span>
-                <span className={user?.email_confirmed_at ? 'text-success' : 'text-warning'}>
-                  {user?.email_confirmed_at ? 'Sim' : 'Não'}
-                </span>
+
+              {/* Confirm password */}
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
               </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Último login</span>
-                <span className="text-card-foreground">
-                  {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString('pt-BR') : '-'}
-                </span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Role</span>
-                <span className="text-card-foreground">
-                  {user?.role || 'authenticated'}
-                </span>
+
+              <Button 
+                onClick={handleChangePassword} 
+                disabled={savingPassword || !newPassword || !confirmPassword}
+                className="w-full"
+              >
+                {savingPassword && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                <Key className="h-4 w-4 mr-2" />
+                Alterar Senha
+              </Button>
+
+              {/* Session info */}
+              <div className="pt-4 border-t border-border space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Último login</span>
+                  <span className="text-card-foreground">
+                    {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString('pt-BR') : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Provider</span>
+                  <span className="text-card-foreground capitalize">
+                    {user?.app_metadata?.provider || 'email'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        
-        {/* API Keys section placeholder */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Key className="h-5 w-5 text-muted-foreground" />
-              <h3 className="font-semibold text-card-foreground">API Keys</h3>
-            </div>
-            <button 
-              disabled
-              className="px-3 py-1.5 rounded-lg bg-primary/50 text-primary-foreground text-sm font-medium cursor-not-allowed"
-            >
-              Nova Key
-            </button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Funcionalidade de API Keys será implementada em breve.
-          </p>
         </div>
       </div>
     </AdminLayout>
