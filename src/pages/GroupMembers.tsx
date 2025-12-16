@@ -9,6 +9,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import AccessDenied from "./AccessDenied";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +34,7 @@ const GroupMembers = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   const tabs = [
     { label: "Visão Geral", href: `/group/${groupId}`, end: true },
@@ -61,8 +64,27 @@ const GroupMembers = () => {
       if (error) throw error;
       return { items: data ?? [], count: count ?? 0 };
     },
-    enabled: !!groupId,
+    enabled: !!groupId && isAuthenticated,
   });
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <AdminLayout title="Members" subtitle="Verificando acesso...">
+        <LoadingState message="Verificando permissões..." />
+      </AdminLayout>
+    );
+  }
+
+  // Check access via error
+  const errorCode = (error as any)?.code;
+  if (error && (error.message?.includes('permission') || errorCode === 'PGRST301')) {
+    return (
+      <AccessDenied 
+        message="Você não tem permissão para acessar os membros deste grupo."
+      />
+    );
+  }
 
   const columns = [
     { key: 'name', header: 'Nome' },

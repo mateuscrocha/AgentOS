@@ -12,6 +12,7 @@ import GroupMessages from "./pages/GroupMessages";
 import Account from "./pages/Account";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
+import AccessDenied from "./pages/AccessDenied";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

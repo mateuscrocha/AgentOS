@@ -4,10 +4,16 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useParams, useNavigate } from "react-router-dom";
-import { Building2, Users, ArrowLeft } from "lucide-react";
+import { Building2, Users, ArrowLeft, Edit } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
+import { useUserRoles } from "@/hooks/use-user-roles";
+import { useAuth } from "@/hooks/use-auth";
+import AccessDenied from "./AccessDenied";
+import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
+import { EditGroupModal } from "@/components/modals/EditGroupModal";
+import { Button } from "@/components/ui/button";
 
 const PAGE_SIZE = 10;
 
@@ -24,9 +30,13 @@ const Org = () => {
   const { orgId } = useParams();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isSystemAdmin, canEditOrg, canEditGroup, isLoading: rolesLoading } = useUserRoles();
+  const [editOrgOpen, setEditOrgOpen] = useState(false);
+  const [editGroup, setEditGroup] = useState<GroupItem | null>(null);
 
   // Fetch organization details
-  const { data: org, isLoading: orgLoading, error: orgError } = useQuery({
+  const { data: org, isLoading: orgLoading, error: orgError, refetch: refetchOrg } = useQuery({
     queryKey: ['organization', orgId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -38,7 +48,7 @@ const Org = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!orgId,
+    enabled: !!orgId && isAuthenticated,
   });
 
   // Fetch groups for this organization
@@ -58,8 +68,49 @@ const Org = () => {
       if (error) throw error;
       return { items: data ?? [], count: count ?? 0 };
     },
-    enabled: !!orgId,
+    enabled: !!orgId && isAuthenticated,
   });
+
+  // Loading state while checking auth/roles
+  if (authLoading || rolesLoading) {
+    return (
+      <AdminLayout title="Organização" subtitle="Verificando acesso...">
+        <LoadingState message="Verificando permissões..." />
+      </AdminLayout>
+    );
+  }
+
+  if (orgLoading) {
+    return (
+      <AdminLayout title="Organização" subtitle="Carregando...">
+        <LoadingState message="Carregando detalhes da organização..." />
+      </AdminLayout>
+    );
+  }
+
+  // Check access - RLS will return null if no access
+  if (orgError || !org) {
+    // Distinguish between "not found" and "no access"
+    const errorCode = (orgError as any)?.code;
+    if (orgError?.message?.includes('permission') || errorCode === 'PGRST301') {
+      return (
+        <AccessDenied 
+          message="Você não tem permissão para acessar esta organização."
+        />
+      );
+    }
+    return (
+      <AdminLayout title="Organização" subtitle="Erro">
+        <ErrorState 
+          title="Organização não encontrada"
+          message="Não foi possível carregar os detalhes desta organização. Você pode não ter acesso."
+          retry={() => navigate('/system')}
+        />
+      </AdminLayout>
+    );
+  }
+
+  const userCanEditOrg = canEditOrg(orgId!);
 
   const groupColumns = [
     { key: 'name', header: 'Nome' },
@@ -77,27 +128,29 @@ const Org = () => {
       header: 'Criado em',
       render: (group: GroupItem) => new Date(group.created_at).toLocaleDateString('pt-BR')
     },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-10',
+      render: (group: GroupItem) => {
+        const canEdit = canEditGroup(group.id, orgId);
+        if (!canEdit) return null;
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditGroup(group);
+            }}
+            className="h-8 w-8 p-0"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+        );
+      }
+    },
   ];
-
-  if (orgLoading) {
-    return (
-      <AdminLayout title="Organização" subtitle="Carregando...">
-        <LoadingState message="Carregando detalhes da organização..." />
-      </AdminLayout>
-    );
-  }
-
-  if (orgError || !org) {
-    return (
-      <AdminLayout title="Organização" subtitle="Erro">
-        <ErrorState 
-          title="Organização não encontrada"
-          message="Não foi possível carregar os detalhes desta organização."
-          retry={() => navigate('/system')}
-        />
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout 
@@ -125,13 +178,26 @@ const Org = () => {
               Criada em {new Date(org.created_at).toLocaleDateString('pt-BR')}
             </p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            org.status === 'active' ? 'bg-success/10 text-success' :
-            org.status === 'inactive' ? 'bg-muted text-muted-foreground' :
-            'bg-destructive/10 text-destructive'
-          }`}>
-            {org.status === 'active' ? 'Ativo' : org.status === 'inactive' ? 'Inativo' : 'Suspenso'}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              org.status === 'active' ? 'bg-success/10 text-success' :
+              org.status === 'inactive' ? 'bg-muted text-muted-foreground' :
+              'bg-destructive/10 text-destructive'
+            }`}>
+              {org.status === 'active' ? 'Ativo' : org.status === 'inactive' ? 'Inativo' : 'Suspenso'}
+            </span>
+            {userCanEditOrg && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditOrgOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Editar
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Groups list */}
@@ -170,6 +236,22 @@ const Org = () => {
           )}
         </div>
       </div>
+
+      {/* Edit organization modal */}
+      <EditOrganizationModal
+        organization={org}
+        open={editOrgOpen}
+        onOpenChange={setEditOrgOpen}
+        onSuccess={() => refetchOrg()}
+      />
+
+      {/* Edit group modal */}
+      <EditGroupModal
+        group={editGroup}
+        open={!!editGroup}
+        onOpenChange={(open) => !open && setEditGroup(null)}
+        onSuccess={() => refetchGroups()}
+      />
     </AdminLayout>
   );
 };

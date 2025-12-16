@@ -4,10 +4,15 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useNavigate } from "react-router-dom";
-import { Layers, Building2, Users } from "lucide-react";
+import { Layers, Building2, Users, Edit } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
+import { useUserRoles } from "@/hooks/use-user-roles";
+import { useAuth } from "@/hooks/use-auth";
+import AccessDenied from "./AccessDenied";
+import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
+import { Button } from "@/components/ui/button";
 
 const PAGE_SIZE = 10;
 
@@ -21,6 +26,9 @@ interface Organization {
 const System = () => {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
+  const [editOrg, setEditOrg] = useState<Organization | null>(null);
 
   // Fetch organizations with pagination
   const { data: orgsData, isLoading: orgsLoading, error: orgsError, refetch: refetchOrgs } = useQuery({
@@ -38,6 +46,7 @@ const System = () => {
       if (error) throw error;
       return { items: data ?? [], count: count ?? 0 };
     },
+    enabled: isAuthenticated,
   });
 
   // Fetch recent groups
@@ -53,7 +62,26 @@ const System = () => {
       if (error) throw error;
       return data ?? [];
     },
+    enabled: isAuthenticated,
   });
+
+  // Loading state while checking auth/roles
+  if (authLoading || rolesLoading) {
+    return (
+      <AdminLayout title="Sistema" subtitle="Verificando acesso...">
+        <LoadingState message="Verificando permissões..." />
+      </AdminLayout>
+    );
+  }
+
+  // Check if user is SYSTEM_ADMIN
+  if (!isSystemAdmin) {
+    return (
+      <AccessDenied 
+        message="A página /system é restrita a administradores do sistema (SYSTEM_ADMIN)."
+      />
+    );
+  }
 
   const orgColumns = [
     { key: 'name', header: 'Nome' },
@@ -74,6 +102,24 @@ const System = () => {
       key: 'created_at', 
       header: 'Criado em',
       render: (org: Organization) => new Date(org.created_at).toLocaleDateString('pt-BR')
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-10',
+      render: (org: Organization) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditOrg(org);
+          }}
+          className="h-8 w-8 p-0"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+      )
     },
   ];
 
@@ -175,6 +221,14 @@ const System = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit organization modal */}
+      <EditOrganizationModal
+        organization={editOrg}
+        open={!!editOrg}
+        onOpenChange={(open) => !open && setEditOrg(null)}
+        onSuccess={() => refetchOrgs()}
+      />
     </AdminLayout>
   );
 };
