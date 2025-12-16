@@ -16,7 +16,7 @@ interface UserRole {
 export function useUserRoles() {
   const { user, isAuthenticated } = useAuth();
 
-  const { data: roles, isLoading, error } = useQuery({
+  const { data: roles, isLoading, isPending, error } = useQuery({
     queryKey: ['user-roles', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -29,6 +29,10 @@ export function useUserRoles() {
     },
     enabled: isAuthenticated && !!user?.id,
   });
+
+  // Use isPending to know if we're still waiting for initial data
+  // isLoading is false when query is disabled, isPending is true until first data
+  const isRolesLoading = isPending || isLoading;
 
   const isSystemAdmin = roles?.some(r => r.role === 'SYSTEM_ADMIN') ?? false;
   
@@ -67,7 +71,7 @@ export function useUserRoles() {
 
   return {
     roles,
-    isLoading,
+    isLoading: isRolesLoading,
     error,
     isSystemAdmin,
     hasOrgAccess,
