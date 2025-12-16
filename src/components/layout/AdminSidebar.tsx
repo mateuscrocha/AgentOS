@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { NavLink, useLocation, useParams } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Building2,
   Users, 
-  MessageSquare, 
   Settings, 
   ChevronLeft,
   ChevronRight,
@@ -12,20 +11,24 @@ import {
   Shield,
   Database,
   UserCircle,
-  Layers
+  Layers,
+  Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUserRoles } from "@/hooks/use-user-roles";
 
 interface NavItem {
   icon: React.ElementType;
   label: string;
   href: string;
   badge?: number;
+  requiresSystemAdmin?: boolean;
 }
 
 const mainNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Layers, label: "Sistema", href: "/system" },
+  { icon: Activity, label: "Events", href: "/system/events", requiresSystemAdmin: true },
 ];
 
 const contextNavItems: NavItem[] = [
@@ -41,9 +44,12 @@ const bottomNavItems: NavItem[] = [
 export function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { isSystemAdmin } = useUserRoles();
 
   const isActive = (href: string) => {
     if (href === "/") return location.pathname === "/";
+    if (href === "/system/events") return location.pathname === "/system/events";
+    if (href === "/system") return location.pathname === "/system";
     return location.pathname.startsWith(href.split("/").slice(0, 2).join("/"));
   };
 
@@ -102,7 +108,9 @@ export function AdminSidebar() {
         {!collapsed && (
           <span className="text-xs font-medium text-muted-foreground px-3 py-2">Principal</span>
         )}
-        {mainNavItems.map(renderNavItem)}
+        {mainNavItems
+          .filter(item => !item.requiresSystemAdmin || isSystemAdmin)
+          .map(renderNavItem)}
       </nav>
 
       {/* Context Navigation */}
