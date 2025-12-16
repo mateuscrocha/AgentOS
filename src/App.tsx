@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NoAccess from "./pages/NoAccess";
 import NotFound from "./pages/NotFound";
+import DevTestUsers from "./pages/DevTestUsers";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/no-access" element={<NoAccess />} />
+            <Route path="/dev/test-users" element={<DevTestUsers />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthGuard>
