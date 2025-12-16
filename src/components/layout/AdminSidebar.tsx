@@ -31,10 +31,7 @@ const mainNavItems: NavItem[] = [
   { icon: Activity, label: "Events", href: "/system/events", requiresSystemAdmin: true },
 ];
 
-const contextNavItems: NavItem[] = [
-  { icon: Building2, label: "Organização", href: "/org/demo" },
-  { icon: Users, label: "Grupo", href: "/group/demo" },
-];
+// Context nav items removed - navigation to orgs/groups should be via /system
 
 const bottomNavItems: NavItem[] = [
   { icon: UserCircle, label: "Minha Conta", href: "/account" },
@@ -113,13 +110,7 @@ export function AdminSidebar() {
           .map(renderNavItem)}
       </nav>
 
-      {/* Context Navigation */}
-      <nav className="flex flex-col gap-1 px-3">
-        {!collapsed && (
-          <span className="text-xs font-medium text-muted-foreground px-3 py-2">Contexto</span>
-        )}
-        {contextNavItems.map(renderNavItem)}
-      </nav>
+      {/* Context Navigation removed - use /system for org/group navigation */}
 
       {/* Spacer */}
       <div className="flex-1" />
