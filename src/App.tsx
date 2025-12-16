@@ -1,3 +1,7 @@
+/**
+ * Admin V4 - Core Frozen após Passo 10
+ * @see FREEZE.md para detalhes sobre mudanças permitidas
+ */
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
