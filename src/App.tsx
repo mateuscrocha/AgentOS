@@ -11,6 +11,7 @@ import GroupMembers from "./pages/GroupMembers";
 import GroupMessages from "./pages/GroupMessages";
 import Account from "./pages/Account";
 import Settings from "./pages/Settings";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/group/:groupId/messages" element={<GroupMessages />} />
           <Route path="/account" element={<Account />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
