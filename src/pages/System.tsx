@@ -1,8 +1,82 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { PageSkeleton } from "@/components/ui/page-skeleton";
-import { Layers } from "lucide-react";
+import { DataTable } from "@/components/ui/data-table";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useNavigate } from "react-router-dom";
+import { Layers, Building2, Users } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+
+const PAGE_SIZE = 10;
+
+interface Organization {
+  id: string;
+  name: string;
+  status: string;
+  created_at: string;
+}
 
 const System = () => {
+  const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+
+  // Fetch organizations with pagination
+  const { data: orgsData, isLoading: orgsLoading, error: orgsError, refetch: refetchOrgs } = useQuery({
+    queryKey: ['organizations', page],
+    queryFn: async () => {
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      
+      const { data, error, count } = await supabase
+        .from('organizations')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      
+      if (error) throw error;
+      return { items: data ?? [], count: count ?? 0 };
+    },
+  });
+
+  // Fetch recent groups
+  const { data: recentGroups, isLoading: groupsLoading } = useQuery({
+    queryKey: ['recent-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('groups')
+        .select('id, name, organization_id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const orgColumns = [
+    { key: 'name', header: 'Nome' },
+    { 
+      key: 'status', 
+      header: 'Status',
+      render: (org: Organization) => (
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+          org.status === 'active' ? 'bg-success/10 text-success' :
+          org.status === 'inactive' ? 'bg-muted text-muted-foreground' :
+          'bg-destructive/10 text-destructive'
+        }`}>
+          {org.status === 'active' ? 'Ativo' : org.status === 'inactive' ? 'Inativo' : 'Suspenso'}
+        </span>
+      )
+    },
+    { 
+      key: 'created_at', 
+      header: 'Criado em',
+      render: (org: Organization) => new Date(org.created_at).toLocaleDateString('pt-BR')
+    },
+  ];
+
   return (
     <AdminLayout 
       title="Sistema" 
@@ -19,9 +93,87 @@ const System = () => {
             <p className="text-sm text-muted-foreground">Gerencie organizações, configurações globais e métricas</p>
           </div>
         </div>
-        
-        {/* Skeleton placeholder */}
-        <PageSkeleton variant="cards" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Organizations list */}
+          <div className="lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Organizações
+              </h3>
+            </div>
+            
+            {orgsLoading ? (
+              <LoadingState message="Carregando organizações..." />
+            ) : orgsError ? (
+              <ErrorState 
+                message="Falha ao carregar organizações"
+                retry={() => refetchOrgs()}
+              />
+            ) : orgsData?.items.length === 0 ? (
+              <EmptyState
+                icon={Building2}
+                title="Nenhuma organização"
+                message="Não há organizações cadastradas no sistema."
+              />
+            ) : (
+              <DataTable
+                columns={orgColumns}
+                data={orgsData?.items ?? []}
+                keyExtractor={(org) => org.id}
+                onRowClick={(org) => navigate(`/org/${org.id}`)}
+                page={page}
+                pageSize={PAGE_SIZE}
+                totalCount={orgsData?.count}
+                onPageChange={setPage}
+              />
+            )}
+          </div>
+
+          {/* Recent groups */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+              <Users className="h-4 w-4" />
+              Grupos Recentes
+            </h3>
+            
+            <div className="rounded-xl border border-border bg-card">
+              {groupsLoading ? (
+                <LoadingState message="Carregando grupos..." className="py-8" />
+              ) : recentGroups?.length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title="Nenhum grupo"
+                  message="Não há grupos cadastrados."
+                  className="py-8"
+                />
+              ) : (
+                <div className="divide-y divide-border">
+                  {recentGroups?.map((group) => (
+                    <button
+                      key={group.id}
+                      onClick={() => navigate(`/group/${group.id}`)}
+                      className="w-full flex items-center gap-3 p-4 hover:bg-secondary/50 transition-colors text-left"
+                    >
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                        <Users className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-card-foreground truncate">
+                          {group.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(group.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </AdminLayout>
   );
