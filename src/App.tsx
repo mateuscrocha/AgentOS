@@ -4,8 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import Groups from "./pages/Groups";
-import Messages from "./pages/Messages";
+import System from "./pages/System";
+import Org from "./pages/Org";
+import Group from "./pages/Group";
+import GroupMembers from "./pages/GroupMembers";
+import GroupMessages from "./pages/GroupMessages";
+import Account from "./pages/Account";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -19,8 +23,12 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/groups" element={<Groups />} />
-          <Route path="/messages" element={<Messages />} />
+          <Route path="/system" element={<System />} />
+          <Route path="/org/:orgId" element={<Org />} />
+          <Route path="/group/:groupId" element={<Group />} />
+          <Route path="/group/:groupId/members" element={<GroupMembers />} />
+          <Route path="/group/:groupId/messages" element={<GroupMessages />} />
+          <Route path="/account" element={<Account />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
