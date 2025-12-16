@@ -4,11 +4,13 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useParams, NavLink } from "react-router-dom";
-import { Users, MessageSquare, Filter, Eye, X } from "lucide-react";
+import { Users, MessageSquare, Filter, Eye } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import AccessDenied from "./AccessDenied";
 import {
   Dialog,
   DialogContent,
@@ -18,11 +20,23 @@ import {
 
 const PAGE_SIZE = 10;
 
-interface Message {
+interface MessageFeed {
+  message_id: string;
+  group_id: string;
+  created_at: string;
+  message_type: string;
+  content_preview: string | null;
+  member_id: string | null;
+  member_name: string;
+  provider_message_id: string | null;
+}
+
+interface MessageDetail {
   id: string;
   content: string | null;
   message_type: string;
   member_id: string | null;
+  member_name: string;
   created_at: string;
   provider_message_id: string | null;
 }
@@ -33,7 +47,8 @@ const GroupMessages = () => {
   const { groupId } = useParams();
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<string>("");
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<MessageDetail | null>(null);
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   const tabs = [
     { label: "Visão Geral", href: `/group/${groupId}`, end: true },
@@ -41,15 +56,16 @@ const GroupMessages = () => {
     { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
   ];
 
-  // Fetch messages
+  // Fetch messages from view
   const { data: messagesData, isLoading, error, refetch } = useQuery({
-    queryKey: ['group-messages', groupId, page, typeFilter],
+    queryKey: ['group-messages-feed', groupId, page, typeFilter],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       
+      // Try view first
       let query = supabase
-        .from('messages')
+        .from('v_messages_feed')
         .select('*', { count: 'exact' })
         .eq('group_id', groupId)
         .order('created_at', { ascending: false });
@@ -60,46 +76,132 @@ const GroupMessages = () => {
       
       const { data, error, count } = await query.range(from, to);
       
-      if (error) throw error;
-      return { items: data ?? [], count: count ?? 0 };
+      if (error) {
+        // Fallback to manual query if view doesn't exist
+        console.warn('v_messages_feed not available, using fallback', error);
+        
+        let fallbackQuery = supabase
+          .from('messages')
+          .select('*', { count: 'exact' })
+          .eq('group_id', groupId)
+          .order('created_at', { ascending: false });
+        
+        if (typeFilter) {
+          fallbackQuery = fallbackQuery.eq('message_type', typeFilter);
+        }
+        
+        const { data: msgData, error: msgError, count: msgCount } = await fallbackQuery.range(from, to);
+        
+        if (msgError) throw msgError;
+        
+        // Fetch member names for each message (fallback - not ideal but works)
+        const items: MessageFeed[] = await Promise.all((msgData ?? []).map(async (m) => {
+          let memberName = 'Unknown';
+          if (m.member_id) {
+            const { data: member } = await supabase
+              .from('members')
+              .select('name')
+              .eq('id', m.member_id)
+              .maybeSingle();
+            if (member) memberName = member.name;
+          }
+          return {
+            message_id: m.id,
+            group_id: m.group_id,
+            created_at: m.created_at,
+            message_type: m.message_type,
+            content_preview: m.content?.slice(0, 160) ?? null,
+            member_id: m.member_id,
+            member_name: memberName,
+            provider_message_id: m.provider_message_id,
+          };
+        }));
+        
+        return { items, count: msgCount ?? 0 };
+      }
+      
+      return { 
+        items: (data ?? []) as MessageFeed[], 
+        count: count ?? 0 
+      };
     },
-    enabled: !!groupId,
+    enabled: !!groupId && isAuthenticated,
   });
+
+  const handleViewDetail = async (m: MessageFeed) => {
+    // Fetch full content for detail view
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('id', m.message_id)
+      .maybeSingle();
+    
+    if (data) {
+      setSelectedMessage({
+        id: data.id,
+        content: data.content,
+        message_type: data.message_type,
+        member_id: data.member_id,
+        member_name: m.member_name,
+        created_at: data.created_at,
+        provider_message_id: data.provider_message_id,
+      });
+    }
+  };
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <AdminLayout title="Messages" subtitle="Verificando acesso...">
+        <LoadingState message="Verificando permissões..." />
+      </AdminLayout>
+    );
+  }
+
+  // Check access via error
+  const errorCode = (error as any)?.code;
+  if (error && (error.message?.includes('permission') || errorCode === 'PGRST301')) {
+    return (
+      <AccessDenied
+        message="Você não tem permissão para acessar as mensagens deste grupo."
+      />
+    );
+  }
 
   const columns = [
     { 
       key: 'created_at', 
       header: 'Data',
-      render: (m: Message) => (
+      render: (m: MessageFeed) => (
         <span className="text-xs">
           {new Date(m.created_at).toLocaleString('pt-BR')}
         </span>
       )
     },
     { 
+      key: 'member_name', 
+      header: 'Membro',
+      render: (m: MessageFeed) => (
+        <span className="text-sm font-medium">
+          {m.member_name}
+        </span>
+      )
+    },
+    { 
       key: 'message_type', 
       header: 'Tipo',
-      render: (m: Message) => (
+      render: (m: MessageFeed) => (
         <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
           {m.message_type}
         </span>
       )
     },
     { 
-      key: 'member_id', 
-      header: 'Member ID',
-      render: (m: Message) => (
-        <span className="text-xs font-mono text-muted-foreground">
-          {m.member_id ? m.member_id.slice(0, 8) + '...' : '-'}
-        </span>
-      )
-    },
-    { 
-      key: 'content', 
+      key: 'content_preview', 
       header: 'Conteúdo',
-      render: (m: Message) => (
+      render: (m: MessageFeed) => (
         <span className="text-sm line-clamp-1 max-w-[200px]">
-          {m.content || `[${m.message_type}]`}
+          {m.content_preview || `[${m.message_type}]`}
         </span>
       )
     },
@@ -107,11 +209,11 @@ const GroupMessages = () => {
       key: 'actions',
       header: '',
       className: 'w-10',
-      render: (m: Message) => (
+      render: (m: MessageFeed) => (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setSelectedMessage(m);
+            handleViewDetail(m);
           }}
           className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
         >
@@ -220,8 +322,8 @@ const GroupMessages = () => {
           <DataTable
             columns={columns}
             data={messagesData?.items ?? []}
-            keyExtractor={(m) => m.id}
-            onRowClick={(m) => setSelectedMessage(m)}
+            keyExtractor={(m) => m.message_id}
+            onRowClick={(m) => handleViewDetail(m)}
             page={page}
             pageSize={PAGE_SIZE}
             totalCount={messagesData?.count}
@@ -248,14 +350,12 @@ const GroupMessages = () => {
                       {new Date(selectedMessage.created_at).toLocaleString('pt-BR')}
                     </p>
                   </div>
-                  {selectedMessage.member_id && (
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Member ID</span>
-                      <p className="font-medium text-card-foreground font-mono text-xs">
-                        {selectedMessage.member_id}
-                      </p>
-                    </div>
-                  )}
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Membro</span>
+                    <p className="font-medium text-card-foreground">
+                      {selectedMessage.member_name}
+                    </p>
+                  </div>
                   {selectedMessage.provider_message_id && (
                     <div className="col-span-2">
                       <span className="text-muted-foreground">Provider Message ID</span>
