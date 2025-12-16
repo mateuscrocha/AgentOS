@@ -3,6 +3,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, NavLink } from "react-router-dom";
 import { Users, MessageSquare, Search, X, Eye } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -41,6 +42,29 @@ const GroupMembers = () => {
     { label: "Members", href: `/group/${groupId}/members`, icon: Users },
     { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
   ];
+
+  // Fetch group info for breadcrumbs
+  const { data: groupInfo } = useQuery({
+    queryKey: ['group-info', groupId],
+    queryFn: async () => {
+      const { data: group } = await supabase
+        .from('groups')
+        .select('name, organization_id')
+        .eq('id', groupId)
+        .maybeSingle();
+      
+      if (!group) return null;
+
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', group.organization_id)
+        .maybeSingle();
+
+      return { groupName: group.name, orgName: org?.name, orgId: group.organization_id };
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
 
   // Fetch members
   const { data: membersData, isLoading, error, refetch } = useQuery({
@@ -129,6 +153,16 @@ const GroupMembers = () => {
       subtitle={`Membros do grupo`}
     >
       <div className="space-y-6 animate-fade-in">
+        {/* Breadcrumbs */}
+        <Breadcrumbs
+          items={[
+            { label: "System", href: "/system" },
+            { label: groupInfo?.orgName || "Org", href: `/org/${groupInfo?.orgId}` },
+            { label: groupInfo?.groupName || "Grupo", href: `/group/${groupId}` },
+            { label: "Members" },
+          ]}
+        />
+
         {/* Header with tabs */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="flex items-center gap-3 p-4 border-b border-border">

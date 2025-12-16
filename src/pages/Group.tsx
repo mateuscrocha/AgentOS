@@ -1,8 +1,9 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, useNavigate, NavLink } from "react-router-dom";
-import { Users, MessageSquare, ArrowLeft, Clock, Edit } from "lucide-react";
+import { Users, MessageSquare, Clock, Edit } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -87,6 +88,20 @@ const Group = () => {
     enabled: !!groupId && isAuthenticated,
   });
 
+  // Fetch org name for breadcrumb
+  const { data: orgData } = useQuery({
+    queryKey: ['org-name', overview?.organization_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', overview!.organization_id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!overview?.organization_id,
+  });
+
   const tabs = [
     { label: "Visão Geral", href: `/group/${groupId}`, end: true },
     { label: "Members", href: `/group/${groupId}/members`, icon: Users },
@@ -147,14 +162,14 @@ const Group = () => {
       subtitle={overview.group_name}
     >
       <div className="space-y-6 animate-fade-in">
-        {/* Back button */}
-        <button
-          onClick={() => navigate(`/org/${overview.organization_id}`)}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar para Organização
-        </button>
+        {/* Breadcrumbs */}
+        <Breadcrumbs
+          items={[
+            { label: "System", href: "/system" },
+            { label: orgData?.name || "Org", href: `/org/${overview.organization_id}` },
+            { label: overview.group_name },
+          ]}
+        />
 
         {/* Group header with tabs */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">

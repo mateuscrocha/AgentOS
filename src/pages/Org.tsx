@@ -3,8 +3,9 @@ import { DataTable } from "@/components/ui/data-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, useNavigate } from "react-router-dom";
-import { Building2, Users, ArrowLeft, Edit } from "lucide-react";
+import { Building2, Users, Edit } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -158,14 +159,13 @@ const Org = () => {
       subtitle={org.name}
     >
       <div className="space-y-6 animate-fade-in">
-        {/* Back button */}
-        <button
-          onClick={() => navigate('/system')}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar para Sistema
-        </button>
+        {/* Breadcrumbs */}
+        <Breadcrumbs
+          items={[
+            { label: "System", href: "/system" },
+            { label: org.name },
+          ]}
+        />
 
         {/* Organization header */}
         <div className="flex items-center gap-4 p-6 rounded-xl border border-border bg-card">
