@@ -3,7 +3,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, useNavigate, NavLink } from "react-router-dom";
-import { Users, MessageSquare, Clock, Edit } from "lucide-react";
+import { Users, MessageSquare, Clock, Edit, Activity } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -106,6 +106,7 @@ const Group = () => {
     { label: "Visão Geral", href: `/group/${groupId}`, end: true },
     { label: "Members", href: `/group/${groupId}/members`, icon: Users },
     { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
+    { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
   ];
 
   // Loading state while checking auth/roles
