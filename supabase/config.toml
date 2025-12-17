@@ -1,1 +1,7 @@
 project_id = "ceugwdfpbvziiumnxknt"
+
+[functions.validate-whatsapp-group]
+verify_jwt = false
+
+[functions.provision-onboarding]
+verify_jwt = false
