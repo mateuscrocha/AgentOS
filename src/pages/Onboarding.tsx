@@ -38,6 +38,8 @@ interface GroupValidation {
     is_admin: boolean;
     provider_member_id: string;
   }>;
+  data_incomplete?: boolean;
+  data_incomplete_reason?: string;
 }
 
 const STEPS: Step[] = ['intro', 'name', 'email', 'whatsapp', 'password', 'organization', 'invite_link', 'summary'];
@@ -135,7 +137,7 @@ export default function Onboarding() {
       case 'organization':
         return formData.organization_name.trim().length >= 2;
       case 'invite_link':
-        return groupValidation?.is_valid === true && groupValidation?.is_boris_in_group === true;
+        return groupValidation?.is_valid === true && groupValidation?.is_boris_in_group === true && !groupValidation?.data_incomplete;
       case 'summary':
         return true;
       default:
@@ -460,7 +462,30 @@ export default function Onboarding() {
                 </motion.div>
               )}
 
-              {groupValidation?.is_valid && groupValidation?.is_boris_in_group && (
+              {groupValidation?.is_valid && groupValidation?.is_boris_in_group && groupValidation?.data_incomplete && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-2"
+                >
+                  <ChatBubble>
+                    <span className="text-amber-600">⚠️ Encontrei o Bóris no grupo, mas não consegui obter todas as informações.</span>
+                  </ChatBubble>
+                  <ChatBubble delay={0.2}>
+                    <p className="text-sm">{groupValidation.data_incomplete_reason}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Por favor, tente validar novamente.
+                    </p>
+                  </ChatBubble>
+                  <Button onClick={validateGroup} variant="outline" className="w-full" disabled={isValidating}>
+                    {isValidating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    🔄 Tentar novamente
+                  </Button>
+                </motion.div>
+              )}
+
+              {groupValidation?.is_valid && groupValidation?.is_boris_in_group && !groupValidation?.data_incomplete && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
