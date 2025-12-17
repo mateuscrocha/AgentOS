@@ -291,6 +291,63 @@ export type Database = {
           },
         ]
       }
+      message_reactions: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          emoji: string
+          group_id: string
+          id: string
+          member_id: string | null
+          message_id: string
+          metadata: Json | null
+          provider: string | null
+          provider_message_id: string | null
+          provider_reaction_key: string | null
+          raw_provider: Json | null
+          reacted_at: string
+          removed_at: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          emoji: string
+          group_id: string
+          id?: string
+          member_id?: string | null
+          message_id: string
+          metadata?: Json | null
+          provider?: string | null
+          provider_message_id?: string | null
+          provider_reaction_key?: string | null
+          raw_provider?: Json | null
+          reacted_at?: string
+          removed_at?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          emoji?: string
+          group_id?: string
+          id?: string
+          member_id?: string | null
+          message_id?: string
+          metadata?: Json | null
+          provider?: string | null
+          provider_message_id?: string | null
+          provider_reaction_key?: string | null
+          raw_provider?: Json | null
+          reacted_at?: string
+          removed_at?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string | null
@@ -670,6 +727,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_message_reactions: {
+        Row: {
+          emoji: string | null
+          group_id: string | null
+          member_avatar: string | null
+          member_display_name: string | null
+          member_id: string | null
+          member_name: string | null
+          member_phone: string | null
+          message_id: string | null
+          provider_message_id: string | null
+          reacted_at: string | null
+          reaction_id: string | null
+          reaction_status: string | null
+          removed_at: string | null
+        }
+        Relationships: []
+      }
+      v_message_reactions_summary: {
+        Row: {
+          count: number | null
+          emoji: string | null
+          message_id: string | null
+          reactors: Json[] | null
+        }
+        Relationships: []
       }
       v_messages_feed: {
         Row: {
