@@ -4,7 +4,6 @@ import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -117,8 +116,15 @@ export default function Onboarding() {
 
   const goNext = () => {
     const currentIndex = STEPS.indexOf(currentStep);
-    if (currentIndex < STEPS.length - 1) {
+    if (currentIndex < STEPS.length - 1 && isCurrentStepValid()) {
       setCurrentStep(STEPS[currentIndex + 1]);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && isCurrentStepValid() && currentStep !== 'summary' && currentStep !== 'invite_link') {
+      e.preventDefault();
+      goNext();
     }
   };
 
@@ -181,7 +187,7 @@ export default function Onboarding() {
   };
 
   const handleSubmit = async () => {
-    if (!groupValidation || !groupValidation.is_valid || !groupValidation.is_boris_in_group) {
+    if (!groupValidation || !groupValidation.is_valid || !groupValidation.is_boris_in_group || groupValidation.data_incomplete) {
       toast.error('Validação do grupo necessária');
       return;
     }
@@ -306,6 +312,8 @@ export default function Onboarding() {
                 placeholder="Seu nome"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onKeyDown={handleKeyDown}
+                maxLength={100}
                 autoFocus
                 className="text-lg"
               />
@@ -329,6 +337,8 @@ export default function Onboarding() {
                 placeholder="seu@email.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onKeyDown={handleKeyDown}
+                maxLength={255}
                 autoFocus
                 className="text-lg"
               />
@@ -354,6 +364,8 @@ export default function Onboarding() {
                 placeholder="+55 11 99999-9999"
                 value={formData.whatsapp_phone}
                 onChange={(e) => setFormData({ ...formData, whatsapp_phone: e.target.value })}
+                onKeyDown={handleKeyDown}
+                maxLength={20}
                 autoFocus
                 className="text-lg"
               />
@@ -379,6 +391,8 @@ export default function Onboarding() {
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onKeyDown={handleKeyDown}
+                maxLength={72}
                 autoFocus
                 className="text-lg"
               />
@@ -401,6 +415,8 @@ export default function Onboarding() {
                 placeholder="Nome da organização"
                 value={formData.organization_name}
                 onChange={(e) => setFormData({ ...formData, organization_name: e.target.value })}
+                onKeyDown={handleKeyDown}
+                maxLength={100}
                 autoFocus
                 className="text-lg"
               />
@@ -428,6 +444,7 @@ export default function Onboarding() {
                   setGroupValidation(null);
                   setValidationError(null);
                 }}
+                maxLength={100}
                 autoFocus
                 className="text-lg"
               />
