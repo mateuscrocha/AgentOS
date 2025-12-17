@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
@@ -21,6 +21,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ReactionBadges } from "@/components/messages/ReactionBadges";
+import { ReactionDetails } from "@/components/messages/ReactionDetails";
 
 const PAGE_SIZE = 10;
 
@@ -36,6 +38,18 @@ interface MessageFeed {
   media_url: string | null;
   media_mime_type: string | null;
   thumbnail_url: string | null;
+}
+
+interface ReactionSummary {
+  message_id: string;
+  emoji: string;
+  count: number;
+  reactors: {
+    member_id: string | null;
+    member_name: string | null;
+    member_avatar: string | null;
+    reacted_at: string;
+  }[];
 }
 
 interface MessageDetail {
@@ -458,6 +472,45 @@ const GroupMessages = () => {
     enabled: !!groupId && isAuthenticated,
   });
 
+  // Fetch reactions summary for all messages in the current page
+  const { data: reactionsData } = useQuery({
+    queryKey: ['message-reactions', groupId, messagesData?.items?.map(m => m.message_id)],
+    queryFn: async () => {
+      if (!messagesData?.items?.length) return {};
+      
+      const messageIds = messagesData.items.map(m => m.message_id);
+      
+      const { data, error } = await supabase
+        .from('v_message_reactions_summary')
+        .select('*')
+        .in('message_id', messageIds);
+      
+      if (error) {
+        console.warn('v_message_reactions_summary not available', error);
+        return {};
+      }
+
+      // Group by message_id
+      const grouped: Record<string, ReactionSummary[]> = {};
+      for (const r of data || []) {
+        if (!grouped[r.message_id]) {
+          grouped[r.message_id] = [];
+        }
+        grouped[r.message_id].push({
+          message_id: r.message_id,
+          emoji: r.emoji,
+          count: Number(r.count),
+          reactors: (r.reactors as any[]) || [],
+        });
+      }
+      return grouped;
+    },
+    enabled: !!groupId && isAuthenticated && !!messagesData?.items?.length,
+  });
+
+  // Memoized reactions map for quick lookup
+  const reactionsMap = useMemo(() => reactionsData || {}, [reactionsData]);
+
   const handleViewDetail = async (m: MessageFeed) => {
     // Fetch full content for detail view
     const { data } = await supabase
@@ -542,7 +595,14 @@ const GroupMessages = () => {
     { 
       key: 'content_preview', 
       header: 'Conteúdo',
-      render: (m: MessageFeed) => <MessageContentPreview message={m} />
+      render: (m: MessageFeed) => (
+        <div>
+          <MessageContentPreview message={m} />
+          <ReactionBadges 
+            reactions={(reactionsMap[m.message_id] || []).map(r => ({ emoji: r.emoji, count: r.count }))} 
+          />
+        </div>
+      )
     },
     {
       key: 'actions',
@@ -729,6 +789,11 @@ const GroupMessages = () => {
                     <MessageDetailView message={selectedMessage} />
                   </div>
                 </div>
+                
+                {/* Reactions section */}
+                <ReactionDetails 
+                  reactions={reactionsMap[selectedMessage.id] || []}
+                />
               </div>
             )}
           </DialogContent>
