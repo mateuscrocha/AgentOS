@@ -40,7 +40,7 @@ serve(async (req) => {
 
     const payload: ProvisionGroupPayload = await req.json();
     
-    console.log('Provisioning new group:', JSON.stringify({
+    console.log('Adding new group:', JSON.stringify({
       organization_id: payload.organization_id,
       group_name: payload.group.name,
       participants_count: payload.participants.length,
@@ -114,7 +114,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: `Este grupo já está cadastrado como "${existingGroup.name}"` 
+          message: `Este grupo já está incluído como "${existingGroup.name}"` 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -134,20 +134,20 @@ serve(async (req) => {
       .single();
 
     if (groupError) {
-      console.error('Error creating group:', groupError);
+      console.error('Error adding group:', groupError);
       if (groupError.message?.includes('row-level security')) {
         return new Response(
-          JSON.stringify({ success: false, message: 'Você não tem permissão para criar grupos nesta organização' }),
+          JSON.stringify({ success: false, message: 'Você não tem permissão para incluir grupos nesta organização' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       return new Response(
-        JSON.stringify({ success: false, message: 'Failed to create group: ' + groupError.message }),
+        JSON.stringify({ success: false, message: 'Falha ao incluir grupo: ' + groupError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Created group:', group.id);
+    console.log('Group added:', group.id);
 
     // Create Members from participants - RLS will enforce permission
     if (payload.participants && payload.participants.length > 0) {
@@ -168,7 +168,7 @@ serve(async (req) => {
         console.error('Error creating members:', membersError);
         // Continue anyway, members are not critical
       } else {
-        console.log('Created members:', membersToInsert.length);
+        console.log('Members added:', membersToInsert.length);
       }
     }
 
@@ -184,7 +184,7 @@ serve(async (req) => {
     const { error: eventError } = await supabaseAdmin
       .from('events')
       .insert({
-        event_type: 'GROUP_CREATED',
+        event_type: 'GROUP_ADDED',
         entity_type: 'group',
         entity_id: group.id,
         user_id: user.id,
@@ -201,13 +201,13 @@ serve(async (req) => {
       // Continue anyway
     }
 
-    console.log('Group provisioning completed successfully');
+    console.log('Group added successfully');
 
     return new Response(
       JSON.stringify({
         success: true,
         group_id: group.id,
-        message: 'Group created successfully',
+        message: 'Grupo incluído com sucesso',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
