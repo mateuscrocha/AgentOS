@@ -134,29 +134,62 @@ export type Database = {
         Row: {
           content: string | null
           created_at: string
+          from_me: boolean | null
           group_id: string
           id: string
+          is_edit: boolean | null
+          media_caption: string | null
+          media_mime_type: string | null
+          media_url: string | null
           member_id: string | null
           message_type: string
           provider_message_id: string | null
+          raw_payload: Json | null
+          reference_message_id: string | null
+          sender_name: string | null
+          sender_phone: string | null
+          status: string | null
+          thumbnail_url: string | null
         }
         Insert: {
           content?: string | null
           created_at?: string
+          from_me?: boolean | null
           group_id: string
           id?: string
+          is_edit?: boolean | null
+          media_caption?: string | null
+          media_mime_type?: string | null
+          media_url?: string | null
           member_id?: string | null
           message_type?: string
           provider_message_id?: string | null
+          raw_payload?: Json | null
+          reference_message_id?: string | null
+          sender_name?: string | null
+          sender_phone?: string | null
+          status?: string | null
+          thumbnail_url?: string | null
         }
         Update: {
           content?: string | null
           created_at?: string
+          from_me?: boolean | null
           group_id?: string
           id?: string
+          is_edit?: boolean | null
+          media_caption?: string | null
+          media_mime_type?: string | null
+          media_url?: string | null
           member_id?: string | null
           message_type?: string
           provider_message_id?: string | null
+          raw_payload?: Json | null
+          reference_message_id?: string | null
+          sender_name?: string | null
+          sender_phone?: string | null
+          status?: string | null
+          thumbnail_url?: string | null
         }
         Relationships: [
           {
@@ -305,12 +338,16 @@ export type Database = {
         Row: {
           content_preview: string | null
           created_at: string | null
+          from_me: boolean | null
           group_id: string | null
+          media_url: string | null
           member_id: string | null
           member_name: string | null
           message_id: string | null
           message_type: string | null
           provider_message_id: string | null
+          sender_phone: string | null
+          status: string | null
         }
         Relationships: [
           {
