@@ -57,16 +57,62 @@ serve(async (req) => {
     const data = await response.json();
     console.log('n8n response:', JSON.stringify(data));
 
-    // Return the validation result
+    // Check if Bóris is NOT in the group (returns { checkBotEnabled: false })
+    if (data && typeof data === 'object' && !Array.isArray(data) && data.checkBotEnabled === false) {
+      console.log('Bóris is NOT in the group');
+      return new Response(
+        JSON.stringify({
+          is_valid: true,
+          is_boris_in_group: false,
+          provider: 'zapi',
+          provider_group_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if response is an array (Bóris IS in the group)
+    if (Array.isArray(data) && data.length > 0) {
+      const groupData = data[0];
+      console.log('Bóris IS in the group:', groupData.name || groupData.subject);
+      
+      // Map participants to our format
+      const participants = (groupData.participants || []).map((p: { phone: string; isAdmin?: boolean; isSuperAdmin?: boolean; lid?: string }) => ({
+        phone: p.phone,
+        name: p.phone, // Use phone as name since n8n doesn't return names
+        is_admin: p.isAdmin || p.isSuperAdmin || false,
+        provider_member_id: p.lid || p.phone,
+      }));
+
+      return new Response(
+        JSON.stringify({
+          is_valid: true,
+          is_boris_in_group: true,
+          provider: 'zapi',
+          provider_group_id: groupData.phone || '',
+          group_name: groupData.name || groupData.subject || '',
+          participants_count: participants.length,
+          participants,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Unknown response format
+    console.error('Unknown n8n response format:', data);
     return new Response(
       JSON.stringify({
-        is_valid: data.is_valid ?? false,
-        is_boris_in_group: data.is_boris_in_group ?? false,
-        provider: data.provider ?? 'zapi',
-        provider_group_id: data.provider_group_id ?? '',
-        group_name: data.group_name ?? '',
-        participants_count: data.participants_count ?? 0,
-        participants: data.participants ?? [],
+        is_valid: false,
+        is_boris_in_group: false,
+        provider: 'zapi',
+        provider_group_id: '',
+        group_name: '',
+        participants_count: 0,
+        participants: [],
+        error: 'Unknown response format from validation service',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
