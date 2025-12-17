@@ -87,15 +87,32 @@ serve(async (req) => {
         provider_member_id: p.lid || p.phone,
       }));
 
+      const groupName = groupData.name || groupData.subject || '';
+      const providerId = groupData.phone || '';
+      
+      // Check if essential data is missing
+      const missingFields: string[] = [];
+      if (!groupName) missingFields.push('nome do grupo');
+      if (!providerId) missingFields.push('identificador do grupo');
+      if (participants.length === 0) missingFields.push('lista de participantes');
+      
+      const dataIncomplete = missingFields.length > 0;
+      let dataIncompleteReason = '';
+      if (dataIncomplete) {
+        dataIncompleteReason = `Não foi possível obter: ${missingFields.join(', ')}. Isso pode acontecer quando o grupo está muito grande ou a conexão está instável.`;
+      }
+
       return new Response(
         JSON.stringify({
           is_valid: true,
           is_boris_in_group: true,
           provider: 'zapi',
-          provider_group_id: groupData.phone || '',
-          group_name: groupData.name || groupData.subject || '',
+          provider_group_id: providerId,
+          group_name: groupName,
           participants_count: participants.length,
           participants,
+          data_incomplete: dataIncomplete,
+          data_incomplete_reason: dataIncompleteReason || undefined,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
