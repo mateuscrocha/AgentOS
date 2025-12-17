@@ -99,13 +99,13 @@ serve(async (req) => {
 
     console.log('Created organization:', org.id);
 
-    // 2. Create Group
+    // 2. Create Group (provider is always 'whatsapp' per DB constraint)
     const { data: group, error: groupError } = await supabase
       .from('groups')
       .insert({
         name: payload.group.name,
         organization_id: org.id,
-        provider: payload.group.provider || 'whatsapp',
+        provider: 'whatsapp',
         provider_group_id: payload.group.provider_group_id,
       })
       .select('id')
