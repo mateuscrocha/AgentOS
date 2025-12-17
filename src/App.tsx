@@ -22,6 +22,8 @@ import Auth from "./pages/Auth";
 import NoAccess from "./pages/NoAccess";
 import NotFound from "./pages/NotFound";
 import DevTestUsers from "./pages/DevTestUsers";
+import Onboarding from "./pages/Onboarding";
+import OnboardingError from "./pages/OnboardingError";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +35,11 @@ const App = () => (
       <BrowserRouter>
         <AuthGuard>
           <Routes>
+            {/* Public onboarding routes */}
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/onboarding/error" element={<OnboardingError />} />
+            
+            {/* Auth and protected routes */}
             <Route path="/" element={<Index />} />
             <Route path="/system" element={<System />} />
             <Route path="/system/events" element={<SystemEvents />} />
