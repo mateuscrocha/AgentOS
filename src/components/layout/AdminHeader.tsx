@@ -1,6 +1,7 @@
-import { User, LogOut, ChevronDown } from "lucide-react";
+import { User, LogOut, ChevronDown, Shield, Building2, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
+import { useUserRoles } from "@/hooks/use-user-roles";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 interface AdminHeaderProps {
   title: string;
@@ -20,6 +22,7 @@ interface AdminHeaderProps {
 export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
   const navigate = useNavigate();
   const { user, signOut, isAuthenticated } = useAuth();
+  const { getRoleLabel, isSystemAdmin, isOrgAdmin, isGroupManager } = useUserRoles();
 
   // Fetch profile for name
   const { data: profile } = useQuery({
@@ -37,6 +40,22 @@ export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
 
   const displayName = profile?.name || user?.email?.split('@')[0] || 'Usuário';
   const displayEmail = user?.email || '';
+  const roleLabel = getRoleLabel();
+
+  // Determine role icon and color
+  const getRoleIcon = () => {
+    if (isSystemAdmin) return <Shield className="h-3 w-3" />;
+    if (isOrgAdmin) return <Building2 className="h-3 w-3" />;
+    if (isGroupManager) return <Users className="h-3 w-3" />;
+    return <User className="h-3 w-3" />;
+  };
+
+  const getRoleBadgeVariant = () => {
+    if (isSystemAdmin) return "destructive";
+    if (isOrgAdmin) return "default";
+    if (isGroupManager) return "secondary";
+    return "outline";
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -63,18 +82,32 @@ export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
                   <User className="h-4 w-4 text-primary-foreground" />
                 </div>
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium text-foreground">{displayName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{displayName}</p>
+                    {roleLabel && (
+                      <Badge variant={getRoleBadgeVariant()} className="text-[10px] px-1.5 py-0 h-4 flex items-center gap-1">
+                        {getRoleIcon()}
+                        <span className="hidden lg:inline">{roleLabel}</span>
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{displayEmail}</p>
                 </div>
                 <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <div className="px-2 py-1.5 md:hidden">
+            <DropdownMenuContent align="end" className="w-64">
+              <div className="px-2 py-1.5">
                 <p className="text-sm font-medium">{displayName}</p>
                 <p className="text-xs text-muted-foreground">{displayEmail}</p>
+                {roleLabel && (
+                  <Badge variant={getRoleBadgeVariant()} className="mt-1 text-xs flex items-center gap-1 w-fit">
+                    {getRoleIcon()}
+                    {roleLabel}
+                  </Badge>
+                )}
               </div>
-              <DropdownMenuSeparator className="md:hidden" />
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate('/account')}>
                 <User className="h-4 w-4 mr-2" />
                 Minha Conta
