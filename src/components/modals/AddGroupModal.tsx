@@ -128,12 +128,12 @@ export function AddGroupModal({
         throw new Error(data?.message || error?.message || 'Erro ao criar grupo');
       }
 
-      toast.success('Grupo criado com sucesso!');
+      toast.success('Grupo incluído com sucesso!');
       handleOpenChange(false);
       onSuccess(data.group_id);
     } catch (error: any) {
-      console.error('Error creating group:', error);
-      toast.error(error.message || 'Erro ao criar grupo');
+      console.error('Error adding group:', error);
+      toast.error(error.message || 'Erro ao incluir grupo');
     } finally {
       setIsSubmitting(false);
     }
@@ -262,14 +262,14 @@ export function AddGroupModal({
               disabled={!isValid || isSubmitting}
             >
               {isSubmitting ? (
-                <>
+              <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Criando...
+                  Incluindo...
                 </>
               ) : (
                 <>
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Criar Grupo
+                  Incluir Grupo
                 </>
               )}
             </Button>
