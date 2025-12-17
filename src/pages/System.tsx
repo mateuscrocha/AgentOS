@@ -4,7 +4,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useNavigate } from "react-router-dom";
-import { Layers, Building2, Users, Edit } from "lucide-react";
+import { Layers, Building2, Users, Edit, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -13,7 +13,17 @@ import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
 import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
 import { Button } from "@/components/ui/button";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 const PAGE_SIZE = 10;
 
 interface Organization {
@@ -29,6 +39,30 @@ const System = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
   const [editOrg, setEditOrg] = useState<Organization | null>(null);
+  const [deleteOrg, setDeleteOrg] = useState<Organization | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteOrganization = async () => {
+    if (!deleteOrg) return;
+    
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .delete()
+        .eq('id', deleteOrg.id);
+      
+      if (error) throw error;
+      
+      toast.success(`Organização "${deleteOrg.name}" excluída com sucesso`);
+      setDeleteOrg(null);
+      refetchOrgs();
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao excluir organização");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Fetch organizations with pagination
   const { data: orgsData, isLoading: orgsLoading, error: orgsError, refetch: refetchOrgs } = useQuery({
@@ -106,19 +140,32 @@ const System = () => {
     {
       key: 'actions',
       header: '',
-      className: 'w-10',
+      className: 'w-20',
       render: (org: Organization) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            setEditOrg(org);
-          }}
-          className="h-8 w-8 p-0"
-        >
-          <Edit className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditOrg(org);
+            }}
+            className="h-8 w-8 p-0"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteOrg(org);
+            }}
+            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       )
     },
   ];
@@ -229,6 +276,42 @@ const System = () => {
         onOpenChange={(open) => !open && setEditOrg(null)}
         onSuccess={() => refetchOrgs()}
       />
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteOrg} onOpenChange={(open) => !open && setDeleteOrg(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Excluir Organização
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Você está prestes a excluir a organização <strong>"{deleteOrg?.name}"</strong>.
+              </p>
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                <strong>⚠️ Atenção:</strong> Esta ação é irreversível e irá excluir permanentemente:
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Todos os grupos desta organização</li>
+                  <li>Todos os membros desses grupos</li>
+                  <li>Todas as mensagens armazenadas</li>
+                  <li>Todos os eventos e logs relacionados</li>
+                  <li>Todas as permissões de usuários vinculadas</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteOrganization}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Excluir Permanentemente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };
