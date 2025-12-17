@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.provision-onboarding]
 verify_jwt = false
+
+[functions.provision-group]
+verify_jwt = false

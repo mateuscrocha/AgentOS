@@ -5,7 +5,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, useNavigate } from "react-router-dom";
-import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Phone } from "lucide-react";
+import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Phone, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
 import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
 import { EditGroupModal } from "@/components/modals/EditGroupModal";
+import { AddGroupModal } from "@/components/modals/AddGroupModal";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -62,6 +63,7 @@ const Org = () => {
   const { isSystemAdmin, canEditOrg, canEditGroup, isLoading: rolesLoading } = useUserRoles();
   const [editOrgOpen, setEditOrgOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<GroupItem | null>(null);
+  const [addGroupOpen, setAddGroupOpen] = useState(false);
 
   // Fetch organization details
   const { data: org, isLoading: orgLoading, error: orgError, refetch: refetchOrg } = useQuery({
@@ -154,6 +156,7 @@ const Org = () => {
   }
 
   const userCanEditOrg = canEditOrg(orgId!);
+  const userCanCreateGroup = userCanEditOrg; // Same permission for creating groups
 
   const groupColumns = [
     { key: 'name', header: 'Nome' },
@@ -411,6 +414,16 @@ const Org = () => {
               <Users className="h-4 w-4" />
               Grupos ({groupsData?.count ?? 0})
             </h3>
+            {userCanCreateGroup && (
+              <Button
+                onClick={() => setAddGroupOpen(true)}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Adicionar Grupo
+              </Button>
+            )}
           </div>
           
           {groupsLoading ? (
@@ -455,6 +468,18 @@ const Org = () => {
         open={!!editGroup}
         onOpenChange={(open) => !open && setEditGroup(null)}
         onSuccess={() => refetchGroups()}
+      />
+
+      {/* Add group modal */}
+      <AddGroupModal
+        organizationId={orgId!}
+        organizationName={org.name}
+        open={addGroupOpen}
+        onOpenChange={setAddGroupOpen}
+        onSuccess={(groupId) => {
+          refetchGroups();
+          navigate(`/group/${groupId}`);
+        }}
       />
     </AdminLayout>
   );

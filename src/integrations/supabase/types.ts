@@ -803,6 +803,10 @@ export type Database = {
       }
     }
     Functions: {
+      can_create_group: {
+        Args: { _org_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_edit_group: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
