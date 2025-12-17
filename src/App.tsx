@@ -24,6 +24,7 @@ import NotFound from "./pages/NotFound";
 import DevTestUsers from "./pages/DevTestUsers";
 import Onboarding from "./pages/Onboarding";
 import OnboardingError from "./pages/OnboardingError";
+import Users from "./pages/Users";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ const App = () => (
             {/* Auth and protected routes */}
             <Route path="/" element={<Index />} />
             <Route path="/system" element={<System />} />
+            <Route path="/system/users" element={<Users />} />
             <Route path="/system/events" element={<SystemEvents />} />
             <Route path="/org/:orgId" element={<Org />} />
             <Route path="/group/:groupId" element={<Group />} />
