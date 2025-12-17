@@ -7,64 +7,64 @@
 
 @layer base {
   :root {
-    /* Core palette - Dark professional theme with Orange accent */
-    --background: 220 15% 12%;
-    --foreground: 0 0% 98%;
+    /* Core palette - Light theme with warm yellow background */
+    --background: 45 100% 96%;
+    --foreground: 220 15% 15%;
 
-    --card: 220 14% 15%;
-    --card-foreground: 0 0% 98%;
+    --card: 45 60% 98%;
+    --card-foreground: 220 15% 15%;
 
-    --popover: 220 14% 17%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
 
     /* Brand - Vibrant Orange accent */
-    --primary: 25 88% 54%;
+    --primary: 25 88% 50%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Muted surfaces */
-    --secondary: 220 12% 20%;
-    --secondary-foreground: 0 0% 90%;
+    /* Secondary - Soft cream surfaces */
+    --secondary: 45 40% 92%;
+    --secondary-foreground: 220 15% 20%;
 
     /* Muted elements */
-    --muted: 220 12% 22%;
-    --muted-foreground: 220 10% 55%;
+    --muted: 45 30% 90%;
+    --muted-foreground: 220 10% 45%;
 
     /* Accent - Gold/Yellow highlight */
-    --accent: 38 80% 65%;
+    --accent: 38 80% 55%;
     --accent-foreground: 220 15% 12%;
 
     /* Status colors */
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 71% 45%;
+    --success: 142 71% 40%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 220 15% 12%;
 
     /* Borders and inputs */
-    --border: 220 12% 22%;
-    --input: 220 12% 18%;
-    --ring: 25 88% 54%;
+    --border: 45 30% 85%;
+    --input: 45 40% 92%;
+    --ring: 25 88% 50%;
 
     --radius: 0.75rem;
 
-    /* Sidebar specific - Dark charcoal */
-    --sidebar-background: 220 15% 10%;
-    --sidebar-foreground: 0 0% 75%;
-    --sidebar-primary: 25 88% 54%;
+    /* Sidebar specific - Warm cream */
+    --sidebar-background: 45 50% 94%;
+    --sidebar-foreground: 220 12% 35%;
+    --sidebar-primary: 25 88% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 12% 16%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 220 12% 18%;
-    --sidebar-ring: 25 88% 54%;
+    --sidebar-accent: 45 40% 88%;
+    --sidebar-accent-foreground: 220 15% 15%;
+    --sidebar-border: 45 30% 82%;
+    --sidebar-ring: 25 88% 50%;
 
     /* Custom tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(25 88% 54%), hsl(38 80% 65%));
-    --gradient-accent: linear-gradient(135deg, hsl(220 14% 15%), hsl(220 12% 20%));
-    --shadow-glow: 0 0 40px hsl(25 88% 54% / 0.2);
-    --shadow-card: 0 4px 24px hsl(220 15% 5% / 0.5);
+    --gradient-primary: linear-gradient(135deg, hsl(25 88% 50%), hsl(38 80% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(45 60% 98%), hsl(45 40% 92%));
+    --shadow-glow: 0 0 40px hsl(25 88% 50% / 0.15);
+    --shadow-card: 0 4px 24px hsl(45 30% 50% / 0.1);
   }
 
   .light {
