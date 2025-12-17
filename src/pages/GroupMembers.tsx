@@ -18,16 +18,36 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
 const PAGE_SIZE = 10;
 
 interface Member {
   id: string;
   name: string;
-  phone: string | null;
+  phone_e164: string | null;
+  display_name: string | null;
+  lid: string | null;
   is_admin: boolean;
+  is_super_admin: boolean;
+  is_owner: boolean;
   created_at: string;
+  updated_at: string;
+  provider: string;
   provider_member_id: string | null;
+  profile_pic_url: string | null;
+  joined_at: string | null;
+  left_at: string | null;
+  last_seen_message_at: string | null;
+  status: string;
+  deleted_at: string | null;
+  metadata: Record<string, any> | null;
+  raw_provider: Record<string, any> | null;
 }
 
 const GroupMembers = () => {
@@ -78,16 +98,17 @@ const GroupMembers = () => {
         .from('members')
         .select('*', { count: 'exact' })
         .eq('group_id', groupId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
       
       if (search) {
-        query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
+        query = query.or(`name.ilike.%${search}%,phone_e164.ilike.%${search}%,display_name.ilike.%${search}%`);
       }
       
       const { data, error, count } = await query.range(from, to);
       
       if (error) throw error;
-      return { items: data ?? [], count: count ?? 0 };
+      return { items: (data ?? []) as Member[], count: count ?? 0 };
     },
     enabled: !!groupId && isAuthenticated,
   });
@@ -113,22 +134,47 @@ const GroupMembers = () => {
 
   const columns = [
     { key: 'name', header: 'Nome' },
-    { key: 'phone', header: 'Telefone', render: (m: Member) => m.phone || '-' },
+    { key: 'phone_e164', header: 'Telefone', render: (m: Member) => m.phone_e164 || '-' },
     { 
-      key: 'is_admin', 
-      header: 'Admin',
+      key: 'role', 
+      header: 'Papel',
       render: (m: Member) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          m.is_admin ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-        }`}>
-          {m.is_admin ? 'Sim' : 'Não'}
-        </span>
+        <div className="flex gap-1 flex-wrap">
+          {m.is_owner && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-accent/10 text-accent">
+              Owner
+            </span>
+          )}
+          {m.is_super_admin && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+              Super Admin
+            </span>
+          )}
+          {m.is_admin && !m.is_super_admin && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+              Admin
+            </span>
+          )}
+          {!m.is_admin && !m.is_super_admin && !m.is_owner && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+              Membro
+            </span>
+          )}
+        </div>
       )
     },
     { 
-      key: 'created_at', 
-      header: 'Criado em',
-      render: (m: Member) => new Date(m.created_at).toLocaleDateString('pt-BR')
+      key: 'status', 
+      header: 'Status',
+      render: (m: Member) => (
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+          m.left_at ? 'bg-destructive/10 text-destructive' :
+          m.status === 'active' ? 'bg-success/10 text-success' : 
+          'bg-muted text-muted-foreground'
+        }`}>
+          {m.left_at ? 'Saiu' : m.status === 'active' ? 'Ativo' : m.status}
+        </span>
+      )
     },
     {
       key: 'actions',
@@ -251,44 +297,148 @@ const GroupMembers = () => {
           />
         )}
 
-        {/* Member detail dialog */}
+        {/* Member detail dialog - Organized in sections */}
         <Dialog open={!!selectedMember} onOpenChange={() => setSelectedMember(null)}>
-          <DialogContent className="bg-card border-border">
+          <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-card-foreground">Detalhes do Membro</DialogTitle>
             </DialogHeader>
             {selectedMember && (
-              <div className="space-y-4">
+              <div className="space-y-6">
+                {/* Header with avatar */}
                 <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
-                    <Users className="h-7 w-7 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-card-foreground">{selectedMember.name}</h3>
-                    <p className="text-sm text-muted-foreground">{selectedMember.phone || 'Sem telefone'}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Admin</span>
-                    <p className="font-medium text-card-foreground">{selectedMember.is_admin ? 'Sim' : 'Não'}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Criado em</span>
-                    <p className="font-medium text-card-foreground">
-                      {new Date(selectedMember.created_at).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                  {selectedMember.provider_member_id && (
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Provider ID</span>
-                      <p className="font-medium text-card-foreground font-mono text-xs">
-                        {selectedMember.provider_member_id}
-                      </p>
+                  {selectedMember.profile_pic_url ? (
+                    <img 
+                      src={selectedMember.profile_pic_url} 
+                      alt={selectedMember.name}
+                      className="h-16 w-16 rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10">
+                      <Users className="h-8 w-8 text-primary" />
                     </div>
                   )}
+                  <div>
+                    <h3 className="font-semibold text-lg text-card-foreground">{selectedMember.name}</h3>
+                    {selectedMember.display_name && selectedMember.display_name !== selectedMember.name && (
+                      <p className="text-sm text-muted-foreground">{selectedMember.display_name}</p>
+                    )}
+                    <div className="flex gap-1 mt-1">
+                      {selectedMember.is_owner && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-accent/10 text-accent">Owner</span>
+                      )}
+                      {selectedMember.is_super_admin && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">Super Admin</span>
+                      )}
+                      {selectedMember.is_admin && !selectedMember.is_super_admin && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">Admin</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
+
+                {/* Section: Identidade/Contato */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Identidade / Contato</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm p-4 rounded-lg bg-secondary/30">
+                    <div>
+                      <span className="text-muted-foreground">Telefone (E.164)</span>
+                      <p className="font-medium text-card-foreground">{selectedMember.phone_e164 || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">LID</span>
+                      <p className="font-medium text-card-foreground font-mono text-xs">{selectedMember.lid || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Status/Sincronização */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Status / Sincronização</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm p-4 rounded-lg bg-secondary/30">
+                    <div>
+                      <span className="text-muted-foreground">Status</span>
+                      <p className="font-medium text-card-foreground">{selectedMember.status}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Entrou em</span>
+                      <p className="font-medium text-card-foreground">
+                        {selectedMember.joined_at ? new Date(selectedMember.joined_at).toLocaleString('pt-BR') : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Saiu em</span>
+                      <p className="font-medium text-card-foreground">
+                        {selectedMember.left_at ? new Date(selectedMember.left_at).toLocaleString('pt-BR') : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Última msg vista</span>
+                      <p className="font-medium text-card-foreground">
+                        {selectedMember.last_seen_message_at ? new Date(selectedMember.last_seen_message_at).toLocaleString('pt-BR') : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Criado em</span>
+                      <p className="font-medium text-card-foreground">
+                        {new Date(selectedMember.created_at).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Atualizado em</span>
+                      <p className="font-medium text-card-foreground">
+                        {new Date(selectedMember.updated_at).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Provedor */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Provedor</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm p-4 rounded-lg bg-secondary/30">
+                    <div>
+                      <span className="text-muted-foreground">Provider</span>
+                      <p className="font-medium text-card-foreground capitalize">{selectedMember.provider}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Provider Member ID</span>
+                      <p className="font-medium text-card-foreground font-mono text-xs break-all">
+                        {selectedMember.provider_member_id || '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Metadados (collapsible) */}
+                {(selectedMember.metadata && Object.keys(selectedMember.metadata).length > 0) && (
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors">
+                      <ChevronDown className="h-4 w-4" />
+                      Metadados
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-3">
+                      <pre className="p-4 rounded-lg bg-secondary/30 text-xs overflow-auto max-h-48 text-card-foreground">
+                        {JSON.stringify(selectedMember.metadata, null, 2)}
+                      </pre>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+
+                {/* Section: Raw Provider (collapsible) */}
+                {(selectedMember.raw_provider && Object.keys(selectedMember.raw_provider).length > 0) && (
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors">
+                      <ChevronDown className="h-4 w-4" />
+                      Raw Provider
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-3">
+                      <pre className="p-4 rounded-lg bg-secondary/30 text-xs overflow-auto max-h-48 text-card-foreground">
+                        {JSON.stringify(selectedMember.raw_provider, null, 2)}
+                      </pre>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
               </div>
             )}
           </DialogContent>

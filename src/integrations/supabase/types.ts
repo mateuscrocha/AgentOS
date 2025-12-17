@@ -44,32 +44,154 @@ export type Database = {
         }
         Relationships: []
       }
-      groups: {
+      group_members: {
         Row: {
           created_at: string
+          deleted_at: string | null
+          granted_at: string | null
+          granted_by_user_id: string | null
+          group_id: string
           id: string
+          is_active: boolean | null
+          metadata: Json | null
+          revoked_at: string | null
+          role_in_group: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          granted_at?: string | null
+          granted_by_user_id?: string | null
+          group_id: string
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          revoked_at?: string | null
+          role_in_group?: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          granted_at?: string | null
+          granted_by_user_id?: string | null
+          group_id?: string
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          revoked_at?: string | null
+          role_in_group?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_granted_by_user_id_fkey"
+            columns: ["granted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          counts_cache: Json | null
+          created_at: string
+          created_at_provider: string | null
+          deleted_at: string | null
+          description: string | null
+          id: string
+          invite_link: string | null
+          invite_link_status: string | null
+          is_active: boolean | null
+          is_archived: boolean | null
+          last_sync_at: string | null
+          metadata: Json | null
           name: string
           organization_id: string
           provider: string
           provider_group_id: string | null
+          provider_phone: string | null
+          raw_provider: Json | null
+          status: string | null
+          sync_error: string | null
+          sync_status: string | null
           updated_at: string
         }
         Insert: {
+          counts_cache?: Json | null
           created_at?: string
+          created_at_provider?: string | null
+          deleted_at?: string | null
+          description?: string | null
           id?: string
+          invite_link?: string | null
+          invite_link_status?: string | null
+          is_active?: boolean | null
+          is_archived?: boolean | null
+          last_sync_at?: string | null
+          metadata?: Json | null
           name: string
           organization_id: string
           provider?: string
           provider_group_id?: string | null
+          provider_phone?: string | null
+          raw_provider?: Json | null
+          status?: string | null
+          sync_error?: string | null
+          sync_status?: string | null
           updated_at?: string
         }
         Update: {
+          counts_cache?: Json | null
           created_at?: string
+          created_at_provider?: string | null
+          deleted_at?: string | null
+          description?: string | null
           id?: string
+          invite_link?: string | null
+          invite_link_status?: string | null
+          is_active?: boolean | null
+          is_archived?: boolean | null
+          last_sync_at?: string | null
+          metadata?: Json | null
           name?: string
           organization_id?: string
           provider?: string
           provider_group_id?: string | null
+          provider_phone?: string | null
+          raw_provider?: Json | null
+          status?: string | null
+          sync_error?: string | null
+          sync_status?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -85,32 +207,71 @@ export type Database = {
       members: {
         Row: {
           created_at: string
+          deleted_at: string | null
+          display_name: string | null
           group_id: string
           id: string
           is_admin: boolean
+          is_owner: boolean | null
+          is_super_admin: boolean | null
+          joined_at: string | null
+          last_seen_message_at: string | null
+          left_at: string | null
+          lid: string | null
+          metadata: Json | null
           name: string
-          phone: string | null
+          phone_e164: string | null
+          profile_pic_url: string | null
+          provider: string | null
           provider_member_id: string | null
+          raw_provider: Json | null
+          status: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
+          display_name?: string | null
           group_id: string
           id?: string
           is_admin?: boolean
+          is_owner?: boolean | null
+          is_super_admin?: boolean | null
+          joined_at?: string | null
+          last_seen_message_at?: string | null
+          left_at?: string | null
+          lid?: string | null
+          metadata?: Json | null
           name: string
-          phone?: string | null
+          phone_e164?: string | null
+          profile_pic_url?: string | null
+          provider?: string | null
           provider_member_id?: string | null
+          raw_provider?: Json | null
+          status?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
+          display_name?: string | null
           group_id?: string
           id?: string
           is_admin?: boolean
+          is_owner?: boolean | null
+          is_super_admin?: boolean | null
+          joined_at?: string | null
+          last_seen_message_at?: string | null
+          left_at?: string | null
+          lid?: string | null
+          metadata?: Json | null
           name?: string
-          phone?: string | null
+          phone_e164?: string | null
+          profile_pic_url?: string | null
+          provider?: string | null
           provider_member_id?: string | null
+          raw_provider?: Json | null
+          status?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -134,62 +295,116 @@ export type Database = {
         Row: {
           content: string | null
           created_at: string
+          deleted_at: string | null
+          delivered_at: string | null
+          delivery_status: string | null
+          direction: string | null
+          edited_at: string | null
           from_me: boolean | null
           group_id: string
           id: string
+          is_deleted: boolean | null
           is_edit: boolean | null
+          last_read_at: string | null
           media_caption: string | null
+          media_duration_sec: number | null
           media_mime_type: string | null
+          media_size_bytes: number | null
           media_url: string | null
           member_id: string | null
+          message_ts: string | null
           message_type: string
+          metadata: Json | null
+          provider: string | null
+          provider_chat_id: string | null
           provider_message_id: string | null
-          raw_payload: Json | null
+          raw_provider: Json | null
+          read_count: number | null
           reference_message_id: string | null
+          reply_to_provider_message_id: string | null
           sender_name: string | null
           sender_phone: string | null
           status: string | null
+          text: string | null
           thumbnail_url: string | null
+          type: string | null
+          updated_at: string | null
         }
         Insert: {
           content?: string | null
           created_at?: string
+          deleted_at?: string | null
+          delivered_at?: string | null
+          delivery_status?: string | null
+          direction?: string | null
+          edited_at?: string | null
           from_me?: boolean | null
           group_id: string
           id?: string
+          is_deleted?: boolean | null
           is_edit?: boolean | null
+          last_read_at?: string | null
           media_caption?: string | null
+          media_duration_sec?: number | null
           media_mime_type?: string | null
+          media_size_bytes?: number | null
           media_url?: string | null
           member_id?: string | null
+          message_ts?: string | null
           message_type?: string
+          metadata?: Json | null
+          provider?: string | null
+          provider_chat_id?: string | null
           provider_message_id?: string | null
-          raw_payload?: Json | null
+          raw_provider?: Json | null
+          read_count?: number | null
           reference_message_id?: string | null
+          reply_to_provider_message_id?: string | null
           sender_name?: string | null
           sender_phone?: string | null
           status?: string | null
+          text?: string | null
           thumbnail_url?: string | null
+          type?: string | null
+          updated_at?: string | null
         }
         Update: {
           content?: string | null
           created_at?: string
+          deleted_at?: string | null
+          delivered_at?: string | null
+          delivery_status?: string | null
+          direction?: string | null
+          edited_at?: string | null
           from_me?: boolean | null
           group_id?: string
           id?: string
+          is_deleted?: boolean | null
           is_edit?: boolean | null
+          last_read_at?: string | null
           media_caption?: string | null
+          media_duration_sec?: number | null
           media_mime_type?: string | null
+          media_size_bytes?: number | null
           media_url?: string | null
           member_id?: string | null
+          message_ts?: string | null
           message_type?: string
+          metadata?: Json | null
+          provider?: string | null
+          provider_chat_id?: string | null
           provider_message_id?: string | null
-          raw_payload?: Json | null
+          raw_provider?: Json | null
+          read_count?: number | null
           reference_message_id?: string | null
+          reply_to_provider_message_id?: string | null
           sender_name?: string | null
           sender_phone?: string | null
           status?: string | null
+          text?: string | null
           thumbnail_url?: string | null
+          type?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -217,46 +432,123 @@ export type Database = {
       }
       organizations: {
         Row: {
+          billing_status: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
           created_at: string
+          deleted_at: string | null
           id: string
+          metadata: Json | null
           name: string
+          owner_user_id: string | null
+          plan: string | null
+          settings: Json | null
+          slug: string | null
           status: string
+          trial_ends_at: string | null
+          trial_started_at: string | null
           updated_at: string
         }
         Insert: {
+          billing_status?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
+          metadata?: Json | null
           name: string
+          owner_user_id?: string | null
+          plan?: string | null
+          settings?: Json | null
+          slug?: string | null
           status?: string
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
         }
         Update: {
+          billing_status?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
+          metadata?: Json | null
           name?: string
+          owner_user_id?: string | null
+          plan?: string | null
+          settings?: Json | null
+          slug?: string | null
           status?: string
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
+          deleted_at: string | null
           id: string
+          is_active: boolean | null
+          last_login_at: string | null
+          locale: string | null
+          metadata: Json | null
           name: string | null
+          phone_e164: string | null
+          role_global: string | null
+          status: string | null
+          timezone: string | null
           updated_at: string
+          whatsapp_verified_at: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
+          deleted_at?: string | null
           id: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          locale?: string | null
+          metadata?: Json | null
           name?: string | null
+          phone_e164?: string | null
+          role_global?: string | null
+          status?: string | null
+          timezone?: string | null
           updated_at?: string
+          whatsapp_verified_at?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          locale?: string | null
+          metadata?: Json | null
           name?: string | null
+          phone_e164?: string | null
+          role_global?: string | null
+          status?: string | null
+          timezone?: string | null
           updated_at?: string
+          whatsapp_verified_at?: string | null
         }
         Relationships: []
       }
@@ -313,16 +605,61 @@ export type Database = {
     Views: {
       v_group_overview: {
         Row: {
+          counts_cache: Json | null
+          description: string | null
           group_id: string | null
           group_name: string | null
+          invite_link_status: string | null
+          is_active: boolean | null
+          is_archived: boolean | null
           last_message_at: string | null
           last_message_member_name: string | null
           last_message_preview: string | null
+          last_sync_at: string | null
           members_count: number | null
           messages_count: number | null
           organization_id: string | null
           provider: string | null
           provider_group_id: string | null
+          sync_status: string | null
+        }
+        Insert: {
+          counts_cache?: Json | null
+          description?: string | null
+          group_id?: string | null
+          group_name?: string | null
+          invite_link_status?: string | null
+          is_active?: boolean | null
+          is_archived?: boolean | null
+          last_message_at?: never
+          last_message_member_name?: never
+          last_message_preview?: never
+          last_sync_at?: string | null
+          members_count?: never
+          messages_count?: never
+          organization_id?: string | null
+          provider?: string | null
+          provider_group_id?: string | null
+          sync_status?: string | null
+        }
+        Update: {
+          counts_cache?: Json | null
+          description?: string | null
+          group_id?: string | null
+          group_name?: string | null
+          invite_link_status?: string | null
+          is_active?: boolean | null
+          is_archived?: boolean | null
+          last_message_at?: never
+          last_message_member_name?: never
+          last_message_preview?: never
+          last_sync_at?: string | null
+          members_count?: never
+          messages_count?: never
+          organization_id?: string | null
+          provider?: string | null
+          provider_group_id?: string | null
+          sync_status?: string | null
         }
         Relationships: [
           {
@@ -338,16 +675,23 @@ export type Database = {
         Row: {
           content_preview: string | null
           created_at: string | null
+          delivery_status: string | null
+          direction: string | null
           from_me: boolean | null
           group_id: string | null
+          media_mime_type: string | null
           media_url: string | null
+          member_avatar: string | null
+          member_display_name: string | null
           member_id: string | null
           member_name: string | null
           message_id: string | null
           message_type: string | null
+          provider: string | null
           provider_message_id: string | null
           sender_phone: string | null
           status: string | null
+          type: string | null
         }
         Relationships: [
           {
