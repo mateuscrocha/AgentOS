@@ -76,12 +76,12 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<Step>('intro');
   const [formData, setFormData] = useState<FormData>({
-    name: '',
-    email: '',
+    name: 'mateus rocha',
+    email: 'mateuscrocha@gmail.com',
     whatsapp_phone: '',
-    password: '',
+    password: '12345678',
     organization_name: '',
-    invite_link: '',
+    invite_link: 'https://chat.whatsapp.com/DuTfQbVfvCi31PzKiO12rF',
   });
   const [groupValidation, setGroupValidation] = useState<GroupValidation | null>(null);
   const [isValidating, setIsValidating] = useState(false);
