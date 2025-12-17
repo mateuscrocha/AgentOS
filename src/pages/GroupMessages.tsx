@@ -5,7 +5,10 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, NavLink } from "react-router-dom";
-import { Users, MessageSquare, Filter, Eye, Activity } from "lucide-react";
+import { 
+  Users, MessageSquare, Filter, Eye, Activity, 
+  Image, Mic, Video, FileText, MapPin, Smile, Download 
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -30,19 +33,306 @@ interface MessageFeed {
   member_id: string | null;
   member_name: string;
   provider_message_id: string | null;
+  media_url: string | null;
+  media_mime_type: string | null;
+  thumbnail_url: string | null;
 }
 
 interface MessageDetail {
   id: string;
   content: string | null;
+  text: string | null;
   message_type: string;
   member_id: string | null;
   member_name: string;
   created_at: string;
   provider_message_id: string | null;
+  media_url: string | null;
+  media_mime_type: string | null;
+  media_caption: string | null;
+  media_duration_sec: number | null;
+  media_size_bytes: number | null;
+  thumbnail_url: string | null;
 }
 
 const MESSAGE_TYPES = ['text', 'image', 'audio', 'video', 'document', 'sticker', 'location'];
+
+// Format duration in seconds to mm:ss
+const formatDuration = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+// Format file size in bytes to human readable
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// Get icon for message type
+const getMessageTypeIcon = (type: string) => {
+  switch (type) {
+    case 'image': return Image;
+    case 'audio': return Mic;
+    case 'video': return Video;
+    case 'document': return FileText;
+    case 'sticker': return Smile;
+    case 'location': return MapPin;
+    default: return MessageSquare;
+  }
+};
+
+// Preview component for table cell
+const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
+  switch (message.message_type) {
+    case 'image':
+      return (
+        <div className="flex items-center gap-2">
+          {message.media_url ? (
+            <img 
+              src={message.media_url} 
+              alt="preview" 
+              className="w-10 h-10 rounded object-cover bg-muted"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+              <Image className="h-5 w-5 text-muted-foreground" />
+            </div>
+          )}
+          <span className="text-muted-foreground text-sm">[Imagem]</span>
+        </div>
+      );
+
+    case 'sticker':
+      return (
+        <div className="flex items-center gap-2">
+          {message.media_url ? (
+            <img 
+              src={message.media_url} 
+              alt="sticker" 
+              className="w-10 h-10 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="w-10 h-10 rounded bg-muted/50 flex items-center justify-center">
+              <Smile className="h-5 w-5 text-muted-foreground" />
+            </div>
+          )}
+          <span className="text-muted-foreground text-sm">[Sticker]</span>
+        </div>
+      );
+
+    case 'audio':
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
+            <Mic className="h-5 w-5 text-primary" />
+          </div>
+          <span className="text-muted-foreground text-sm">[Áudio]</span>
+        </div>
+      );
+
+    case 'video':
+      return (
+        <div className="flex items-center gap-2">
+          {message.thumbnail_url ? (
+            <div className="relative">
+              <img 
+                src={message.thumbnail_url} 
+                alt="video thumbnail" 
+                className="w-10 h-10 rounded object-cover bg-muted"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-5 h-5 rounded-full bg-black/60 flex items-center justify-center">
+                  <Video className="h-3 w-3 text-white" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
+              <Video className="h-5 w-5 text-primary" />
+            </div>
+          )}
+          <span className="text-muted-foreground text-sm">[Vídeo]</span>
+        </div>
+      );
+
+    case 'document':
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded bg-accent/20 flex items-center justify-center">
+            <FileText className="h-5 w-5 text-accent-foreground" />
+          </div>
+          <span className="text-muted-foreground text-sm">[Documento]</span>
+        </div>
+      );
+
+    case 'location':
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded bg-success/10 flex items-center justify-center">
+            <MapPin className="h-5 w-5 text-success" />
+          </div>
+          <span className="text-muted-foreground text-sm">[Localização]</span>
+        </div>
+      );
+
+    default:
+      return (
+        <span className="text-sm line-clamp-1 max-w-[200px]">
+          {message.content_preview || `[${message.message_type}]`}
+        </span>
+      );
+  }
+};
+
+// Detail view component for dialog
+const MessageDetailView = ({ message }: { message: MessageDetail }) => {
+  const textContent = message.content || message.text;
+
+  switch (message.message_type) {
+    case 'image':
+      return (
+        <div className="space-y-3">
+          {message.media_url && (
+            <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="block">
+              <img 
+                src={message.media_url} 
+                alt="Imagem" 
+                className="max-w-full max-h-[400px] rounded-lg object-contain bg-muted mx-auto cursor-zoom-in hover:opacity-90 transition-opacity"
+              />
+            </a>
+          )}
+          {message.media_caption && (
+            <p className="text-sm text-card-foreground">{message.media_caption}</p>
+          )}
+          {message.media_size_bytes && (
+            <p className="text-xs text-muted-foreground">
+              Tamanho: {formatFileSize(message.media_size_bytes)}
+            </p>
+          )}
+        </div>
+      );
+
+    case 'sticker':
+      return (
+        <div className="flex justify-center">
+          {message.media_url && (
+            <a href={message.media_url} target="_blank" rel="noopener noreferrer">
+              <img 
+                src={message.media_url} 
+                alt="Sticker" 
+                className="max-w-[200px] max-h-[200px] object-contain cursor-zoom-in hover:scale-105 transition-transform"
+              />
+            </a>
+          )}
+        </div>
+      );
+
+    case 'audio':
+      return (
+        <div className="space-y-3">
+          {message.media_url && (
+            <audio controls className="w-full" src={message.media_url}>
+              Seu navegador não suporta áudio.
+            </audio>
+          )}
+          <div className="flex gap-4 text-xs text-muted-foreground">
+            {message.media_duration_sec && (
+              <span>Duração: {formatDuration(message.media_duration_sec)}</span>
+            )}
+            {message.media_size_bytes && (
+              <span>Tamanho: {formatFileSize(message.media_size_bytes)}</span>
+            )}
+          </div>
+        </div>
+      );
+
+    case 'video':
+      return (
+        <div className="space-y-3">
+          {message.media_url && (
+            <video 
+              controls 
+              className="w-full max-h-[400px] rounded-lg bg-black"
+              poster={message.thumbnail_url || undefined}
+              src={message.media_url}
+            >
+              Seu navegador não suporta vídeo.
+            </video>
+          )}
+          {message.media_caption && (
+            <p className="text-sm text-card-foreground">{message.media_caption}</p>
+          )}
+          <div className="flex gap-4 text-xs text-muted-foreground">
+            {message.media_duration_sec && (
+              <span>Duração: {formatDuration(message.media_duration_sec)}</span>
+            )}
+            {message.media_size_bytes && (
+              <span>Tamanho: {formatFileSize(message.media_size_bytes)}</span>
+            )}
+          </div>
+        </div>
+      );
+
+    case 'document':
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary/50">
+            <FileText className="h-10 w-10 text-primary" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-card-foreground truncate">
+                {message.media_caption || 'Documento'}
+              </p>
+              <div className="flex gap-3 text-xs text-muted-foreground">
+                {message.media_mime_type && <span>{message.media_mime_type}</span>}
+                {message.media_size_bytes && <span>{formatFileSize(message.media_size_bytes)}</span>}
+              </div>
+            </div>
+            {message.media_url && (
+              <a 
+                href={message.media_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+              </a>
+            )}
+          </div>
+        </div>
+      );
+
+    case 'location':
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-success/10">
+            <MapPin className="h-10 w-10 text-success" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-card-foreground">Localização compartilhada</p>
+              {textContent && (
+                <p className="text-xs text-muted-foreground">{textContent}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+
+    default:
+      return (
+        <div className="p-3 rounded-lg bg-secondary/50 text-sm text-card-foreground whitespace-pre-wrap">
+          {textContent || `[Mensagem do tipo ${message.message_type}]`}
+        </div>
+      );
+  }
+};
 
 const GroupMessages = () => {
   const { groupId } = useParams();
@@ -139,16 +429,31 @@ const GroupMessages = () => {
             member_id: m.member_id,
             member_name: memberName,
             provider_message_id: m.provider_message_id,
+            media_url: m.media_url,
+            media_mime_type: m.media_mime_type,
+            thumbnail_url: m.thumbnail_url,
           };
         }));
         
         return { items, count: msgCount ?? 0 };
       }
       
-      return { 
-        items: (data ?? []) as MessageFeed[], 
-        count: count ?? 0 
-      };
+      // Map view data to MessageFeed
+      const items: MessageFeed[] = (data ?? []).map((d: any) => ({
+        message_id: d.message_id,
+        group_id: d.group_id,
+        created_at: d.created_at,
+        message_type: d.message_type,
+        content_preview: d.content_preview,
+        member_id: d.member_id,
+        member_name: d.member_name || d.member_display_name || 'Unknown',
+        provider_message_id: d.provider_message_id,
+        media_url: d.media_url,
+        media_mime_type: d.media_mime_type,
+        thumbnail_url: d.thumbnail_url,
+      }));
+      
+      return { items, count: count ?? 0 };
     },
     enabled: !!groupId && isAuthenticated,
   });
@@ -165,11 +470,18 @@ const GroupMessages = () => {
       setSelectedMessage({
         id: data.id,
         content: data.content,
+        text: data.text,
         message_type: data.message_type,
         member_id: data.member_id,
         member_name: m.member_name,
         created_at: data.created_at,
         provider_message_id: data.provider_message_id,
+        media_url: data.media_url,
+        media_mime_type: data.media_mime_type,
+        media_caption: data.media_caption,
+        media_duration_sec: data.media_duration_sec,
+        media_size_bytes: data.media_size_bytes,
+        thumbnail_url: data.thumbnail_url,
       });
     }
   };
@@ -215,20 +527,22 @@ const GroupMessages = () => {
     { 
       key: 'message_type', 
       header: 'Tipo',
-      render: (m: MessageFeed) => (
-        <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
-          {m.message_type}
-        </span>
-      )
+      render: (m: MessageFeed) => {
+        const Icon = getMessageTypeIcon(m.message_type);
+        return (
+          <div className="flex items-center gap-1.5">
+            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
+              {m.message_type}
+            </span>
+          </div>
+        );
+      }
     },
     { 
       key: 'content_preview', 
       header: 'Conteúdo',
-      render: (m: MessageFeed) => (
-        <span className="text-sm line-clamp-1 max-w-[200px]">
-          {m.content_preview || `[${m.message_type}]`}
-        </span>
-      )
+      render: (m: MessageFeed) => <MessageContentPreview message={m} />
     },
     {
       key: 'actions',
@@ -377,24 +691,32 @@ const GroupMessages = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Tipo</span>
-                    <p className="font-medium text-card-foreground capitalize">{selectedMessage.message_type}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      {(() => {
+                        const Icon = getMessageTypeIcon(selectedMessage.message_type);
+                        return <Icon className="h-4 w-4 text-muted-foreground" />;
+                      })()}
+                      <span className="font-medium text-card-foreground capitalize">
+                        {selectedMessage.message_type}
+                      </span>
+                    </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Data</span>
-                    <p className="font-medium text-card-foreground">
+                    <p className="font-medium text-card-foreground mt-1">
                       {new Date(selectedMessage.created_at).toLocaleString('pt-BR')}
                     </p>
                   </div>
                   <div className="col-span-2">
                     <span className="text-muted-foreground">Membro</span>
-                    <p className="font-medium text-card-foreground">
+                    <p className="font-medium text-card-foreground mt-1">
                       {selectedMessage.member_name}
                     </p>
                   </div>
                   {selectedMessage.provider_message_id && (
                     <div className="col-span-2">
                       <span className="text-muted-foreground">Provider Message ID</span>
-                      <p className="font-medium text-card-foreground font-mono text-xs">
+                      <p className="font-medium text-card-foreground font-mono text-xs mt-1">
                         {selectedMessage.provider_message_id}
                       </p>
                     </div>
@@ -403,8 +725,8 @@ const GroupMessages = () => {
                 
                 <div>
                   <span className="text-sm text-muted-foreground">Conteúdo</span>
-                  <div className="mt-2 p-3 rounded-lg bg-secondary/50 text-sm text-card-foreground whitespace-pre-wrap">
-                    {selectedMessage.content || `[Mensagem do tipo ${selectedMessage.message_type}]`}
+                  <div className="mt-2">
+                    <MessageDetailView message={selectedMessage} />
                   </div>
                 </div>
               </div>
