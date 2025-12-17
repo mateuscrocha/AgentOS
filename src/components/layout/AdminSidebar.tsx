@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/hooks/use-user-roles";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
 interface NavItem {
   icon: React.ElementType;
@@ -42,12 +45,43 @@ export function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { isSystemAdmin } = useUserRoles();
+  const { isAuthenticated } = useAuth();
+
+  // Fetch recent organizations
+  const { data: organizations } = useQuery({
+    queryKey: ['sidebar-organizations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('id, name')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data;
+    },
+    enabled: isAuthenticated,
+  });
+
+  // Fetch recent groups
+  const { data: groups } = useQuery({
+    queryKey: ['sidebar-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('groups')
+        .select('id, name, organization_id')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data;
+    },
+    enabled: isAuthenticated,
+  });
 
   const isActive = (href: string) => {
     if (href === "/") return location.pathname === "/";
     if (href === "/system/events") return location.pathname === "/system/events";
     if (href === "/system") return location.pathname === "/system";
-    return location.pathname.startsWith(href.split("/").slice(0, 2).join("/"));
+    return location.pathname.startsWith(href);
   };
 
   const renderNavItem = (item: NavItem) => {
@@ -110,7 +144,65 @@ export function AdminSidebar() {
           .map(renderNavItem)}
       </nav>
 
-      {/* Context Navigation removed - use /system for org/group navigation */}
+      {/* Quick Access - Organizations */}
+      {organizations && organizations.length > 0 && (
+        <nav className="flex flex-col gap-1 px-3">
+          {!collapsed && (
+            <span className="text-xs font-medium text-muted-foreground px-3 py-2">Organizações</span>
+          )}
+          {organizations.map((org) => {
+            const href = `/org/${org.id}`;
+            const active = isActive(href);
+            return (
+              <NavLink
+                key={org.id}
+                to={href}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                  active
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                )}
+              >
+                <Building2 className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+                {!collapsed && (
+                  <span className="truncate animate-fade-in">{org.name}</span>
+                )}
+              </NavLink>
+            );
+          })}
+        </nav>
+      )}
+
+      {/* Quick Access - Groups */}
+      {groups && groups.length > 0 && (
+        <nav className="flex flex-col gap-1 px-3 mt-1">
+          {!collapsed && (
+            <span className="text-xs font-medium text-muted-foreground px-3 py-2">Grupos</span>
+          )}
+          {groups.map((group) => {
+            const href = `/group/${group.id}`;
+            const active = isActive(href);
+            return (
+              <NavLink
+                key={group.id}
+                to={href}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                  active
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                )}
+              >
+                <Users className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+                {!collapsed && (
+                  <span className="truncate animate-fade-in">{group.name}</span>
+                )}
+              </NavLink>
+            );
+          })}
+        </nav>
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />
