@@ -71,6 +71,20 @@ interface MessageDetail {
 
 const MESSAGE_TYPES = ['text', 'image', 'audio', 'video', 'document', 'sticker', 'location'];
 
+// Translate message type to Portuguese
+const translateMessageType = (type: string): string => {
+  const translations: Record<string, string> = {
+    'text': 'Texto',
+    'image': 'Imagem',
+    'audio': 'Áudio',
+    'video': 'Vídeo',
+    'document': 'Documento',
+    'sticker': 'Figurinha',
+    'location': 'Localização',
+  };
+  return translations[type] || type;
+};
+
 // Format duration in seconds to mm:ss
 const formatDuration = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
@@ -201,7 +215,7 @@ const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
     default:
       return (
         <span className="text-sm line-clamp-1 max-w-[200px]">
-          {message.content_preview || `[${message.message_type}]`}
+          {message.content_preview || `[${translateMessageType(message.message_type)}]`}
         </span>
       );
   }
@@ -342,7 +356,7 @@ const MessageDetailView = ({ message }: { message: MessageDetail }) => {
     default:
       return (
         <div className="p-3 rounded-lg bg-secondary/50 text-sm text-card-foreground whitespace-pre-wrap">
-          {textContent || `[Mensagem do tipo ${message.message_type}]`}
+          {textContent || `[Mensagem do tipo ${translateMessageType(message.message_type)}]`}
         </div>
       );
   }
@@ -585,8 +599,8 @@ const GroupMessages = () => {
         return (
           <div className="flex items-center gap-1.5">
             <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
-              {m.message_type}
+            <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium">
+              {translateMessageType(m.message_type)}
             </span>
           </div>
         );
@@ -701,13 +715,13 @@ const GroupMessages = () => {
                   setPage(1);
                 }}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors",
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
                   typeFilter === type 
                     ? "bg-primary text-primary-foreground" 
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                 )}
               >
-                {type}
+                {translateMessageType(type)}
               </button>
             ))}
           </div>
@@ -756,8 +770,8 @@ const GroupMessages = () => {
                         const Icon = getMessageTypeIcon(selectedMessage.message_type);
                         return <Icon className="h-4 w-4 text-muted-foreground" />;
                       })()}
-                      <span className="font-medium text-card-foreground capitalize">
-                        {selectedMessage.message_type}
+                      <span className="font-medium text-card-foreground">
+                        {translateMessageType(selectedMessage.message_type)}
                       </span>
                     </div>
                   </div>
