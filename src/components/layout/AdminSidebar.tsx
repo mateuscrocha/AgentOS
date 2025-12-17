@@ -26,51 +26,69 @@ interface NavItem {
   href: string;
   badge?: number;
   requiresSystemAdmin?: boolean;
+  requiresOrgAdmin?: boolean;
 }
 
 const mainNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: Layers, label: "Sistema", href: "/system" },
+  { icon: Layers, label: "Sistema", href: "/system", requiresSystemAdmin: true },
   { icon: Activity, label: "Events", href: "/system/events", requiresSystemAdmin: true },
 ];
 
-// Context nav items removed - navigation to orgs/groups should be via /system
-
 const bottomNavItems: NavItem[] = [
   { icon: UserCircle, label: "Minha Conta", href: "/account" },
-  { icon: Settings, label: "Configurações", href: "/settings" },
+  { icon: Settings, label: "Configurações", href: "/settings", requiresSystemAdmin: true },
 ];
 
 export function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { isSystemAdmin } = useUserRoles();
+  const { isSystemAdmin, isOrgAdmin, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
   const { isAuthenticated } = useAuth();
 
-  // Fetch recent organizations
+  const accessibleOrgIds = getAccessibleOrgIds();
+  const accessibleGroupIds = getAccessibleGroupIds();
+
+  // Fetch organizations based on role
   const { data: organizations } = useQuery({
-    queryKey: ['sidebar-organizations'],
+    queryKey: ['sidebar-organizations', isSystemAdmin, accessibleOrgIds],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('organizations')
         .select('id, name')
-        .order('created_at', { ascending: false })
-        .limit(5);
+        .order('created_at', { ascending: false });
+      
+      // Non-system admins see only their orgs (already filtered by RLS, but for sidebar we show all accessible)
+      if (!isSystemAdmin && accessibleOrgIds.length > 0) {
+        query = query.in('id', accessibleOrgIds);
+      }
+      
+      const { data, error } = await query.limit(5);
       if (error) throw error;
       return data;
     },
     enabled: isAuthenticated,
   });
 
-  // Fetch recent groups
+  // Fetch groups based on role
   const { data: groups } = useQuery({
-    queryKey: ['sidebar-groups'],
+    queryKey: ['sidebar-groups', isSystemAdmin, accessibleGroupIds, accessibleOrgIds],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('groups')
         .select('id, name, organization_id')
-        .order('created_at', { ascending: false })
-        .limit(5);
+        .order('created_at', { ascending: false });
+      
+      // Non-system admins: filter by accessible groups or by org access
+      if (!isSystemAdmin) {
+        if (accessibleGroupIds.length > 0) {
+          query = query.in('id', accessibleGroupIds);
+        } else if (accessibleOrgIds.length > 0) {
+          query = query.in('organization_id', accessibleOrgIds);
+        }
+      }
+      
+      const { data, error } = await query.limit(5);
       if (error) throw error;
       return data;
     },
@@ -84,7 +102,15 @@ export function AdminSidebar() {
     return location.pathname.startsWith(href);
   };
 
+  const shouldShowItem = (item: NavItem) => {
+    if (item.requiresSystemAdmin && !isSystemAdmin) return false;
+    if (item.requiresOrgAdmin && !isOrgAdmin && !isSystemAdmin) return false;
+    return true;
+  };
+
   const renderNavItem = (item: NavItem) => {
+    if (!shouldShowItem(item)) return null;
+    
     const active = isActive(item.href);
     return (
       <NavLink
@@ -139,16 +165,16 @@ export function AdminSidebar() {
         {!collapsed && (
           <span className="text-xs font-medium text-muted-foreground px-3 py-2">Principal</span>
         )}
-        {mainNavItems
-          .filter(item => !item.requiresSystemAdmin || isSystemAdmin)
-          .map(renderNavItem)}
+        {mainNavItems.map(renderNavItem)}
       </nav>
 
-      {/* Quick Access - Organizations */}
+      {/* Quick Access - Organizations (for ORG_ADMIN+ or when user has org access) */}
       {organizations && organizations.length > 0 && (
         <nav className="flex flex-col gap-1 px-3">
           {!collapsed && (
-            <span className="text-xs font-medium text-muted-foreground px-3 py-2">Organizações</span>
+            <span className="text-xs font-medium text-muted-foreground px-3 py-2">
+              {isSystemAdmin ? "Organizações" : "Minhas Organizações"}
+            </span>
           )}
           {organizations.map((org) => {
             const href = `/org/${org.id}`;
@@ -178,7 +204,9 @@ export function AdminSidebar() {
       {groups && groups.length > 0 && (
         <nav className="flex flex-col gap-1 px-3 mt-1">
           {!collapsed && (
-            <span className="text-xs font-medium text-muted-foreground px-3 py-2">Grupos</span>
+            <span className="text-xs font-medium text-muted-foreground px-3 py-2">
+              {isSystemAdmin ? "Grupos" : "Meus Grupos"}
+            </span>
           )}
           {groups.map((group) => {
             const href = `/group/${group.id}`;
@@ -225,18 +253,20 @@ export function AdminSidebar() {
         </div>
       </div>
 
-      {/* Security badge */}
-      <div className="px-3 mb-2">
-        <div className={cn(
-          "flex items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/30 p-2",
-          collapsed && "justify-center"
-        )}>
-          <Shield className="h-4 w-4 text-warning shrink-0" />
-          {!collapsed && (
-            <span className="text-xs text-muted-foreground animate-fade-in">RLS Pendente</span>
-          )}
+      {/* Security badge - only for system admins */}
+      {isSystemAdmin && (
+        <div className="px-3 mb-2">
+          <div className={cn(
+            "flex items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/30 p-2",
+            collapsed && "justify-center"
+          )}>
+            <Shield className="h-4 w-4 text-warning shrink-0" />
+            {!collapsed && (
+              <span className="text-xs text-muted-foreground animate-fade-in">Admin</span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Bottom Navigation */}
       <nav className="flex flex-col gap-1 p-3 border-t border-sidebar-border">
