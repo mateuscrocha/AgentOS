@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, Mail, Phone, Lock, Building2, Link2, 
   CheckCircle, Loader2, ArrowLeft, Edit2, ChevronRight,
-  Users
+  Users, MailCheck
 } from 'lucide-react';
 
 type Step = 'intro' | 'name' | 'email' | 'whatsapp' | 'password' | 'organization' | 'invite_link' | 'summary';
@@ -88,6 +88,7 @@ export default function Onboarding() {
   const [isValidating, setIsValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -263,9 +264,8 @@ export default function Onboarding() {
       if (session) {
         navigate(`/group/${provisionData.group_id}`);
       } else {
-        // Se não estiver logado, redirecionar para login
-        toast.info('Por favor, faça login para continuar.');
-        navigate('/auth');
+        // Mostrar tela de confirmação de email
+        setShowEmailConfirmation(true);
       }
 
     } catch (error: any) {
@@ -585,6 +585,55 @@ export default function Onboarding() {
         return null;
     }
   };
+
+  // Email confirmation screen
+  if (showEmailConfirmation) {
+    return (
+      <PublicLayout progress={100}>
+        <Card className="shadow-lg border-muted/50">
+          <CardContent className="pt-8 pb-8">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+              className="text-center space-y-6"
+            >
+              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <MailCheck className="w-8 h-8 text-primary" />
+              </div>
+              
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold">Confirme seu email</h2>
+                <p className="text-muted-foreground">
+                  Enviamos um link de confirmação para:
+                </p>
+                <p className="font-medium text-primary">{formData.email}</p>
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground space-y-2">
+                <p>📧 Verifique sua caixa de entrada</p>
+                <p>📁 Confira também a pasta de spam</p>
+                <p>🔗 Clique no link para ativar sua conta</p>
+              </div>
+
+              <div className="pt-4 space-y-3">
+                <Button 
+                  onClick={() => navigate('/auth')}
+                  className="w-full"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Ir para o login
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Após confirmar o email, faça login para acessar o sistema.
+                </p>
+              </div>
+            </motion.div>
+          </CardContent>
+        </Card>
+      </PublicLayout>
+    );
+  }
 
   return (
     <PublicLayout progress={progress}>
