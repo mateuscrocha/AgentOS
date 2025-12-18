@@ -165,7 +165,7 @@ const Group = () => {
 
         {/* Help Sheet */}
         <Sheet open={helpOpen} onOpenChange={setHelpOpen}>
-          <SheetContent side="right" className="sm:max-w-sm">
+          <SheetContent side="right" className="sm:max-w-sm overflow-y-auto">
             <SheetHeader>
               <SheetTitle>Como ler este dashboard</SheetTitle>
               <SheetDescription>
@@ -201,6 +201,33 @@ const Group = () => {
                 <p className="text-sm text-muted-foreground">
                   Evite conclusões por um único pico. Observe o padrão do período.
                 </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-card-foreground">Explicações por KPI e gráfico</p>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p><strong className="text-card-foreground">Mensagens (período):</strong> total de mensagens no intervalo escolhido. Não indica qualidade do conteúdo.</p>
+                  <p><strong className="text-card-foreground">Membros ativos:</strong> quem enviou ao menos uma mensagem no período. Não significa atividade diária constante.</p>
+                  <p><strong className="text-card-foreground">Taxa de participação:</strong> percentual do grupo que participou no período. Não mede profundidade ou qualidade da conversa.</p>
+                  <p><strong className="text-card-foreground">Crescimento líquido:</strong> entradas menos saídas no período. Não mostra motivos das mudanças.</p>
+                  <p><strong className="text-card-foreground">Ritmo da Conversa (gráfico):</strong> evolução de mensagens por dia para perceber picos e calmarias. Útil para padrão temporal, não para avaliar conteúdo.</p>
+                  <p><strong className="text-card-foreground">Horário mais ativo:</strong> faixa de hora com maior volume. Indica concentração de atividade, não necessidade de resposta.</p>
+                  <p><strong className="text-card-foreground">Mensagens no pico:</strong> quantidade de mensagens na hora mais ativa. Mostra intensidade pontual, não pressão constante.</p>
+                  <p><strong className="text-card-foreground">Qualidade da Participação (gráfico):</strong> compara contribuição de quem mais enviou mensagens. Serve para visualizar distribuição, não para ranquear pessoas.</p>
+                  <p><strong className="text-card-foreground">Concentração de mensagens:</strong> quanto da conversa vem de poucos participantes. Não indica se isso é bom ou ruim por si só.</p>
+                  <p><strong className="text-card-foreground">Taxa de silêncio:</strong> percentual de membros sem mensagem no período. Não implica desinteresse; pode refletir apenas observação.</p>
+                  <p><strong className="text-card-foreground">Top 5 participantes / Membro mais ativo:</strong> quem mais contribuiu em volume. Não é medida de valor individual ou qualidade.</p>
+                  <p><strong className="text-card-foreground">Crescimento do Grupo (entradas/saídas):</strong> barras de mudanças de membros. Não avalia motivos pessoais ou operacionais.</p>
+                  <p><strong className="text-card-foreground">Membros atuais:</strong> total de membros ao fim do período. Contextualiza tamanho, não engajamento.</p>
+                  <p><strong className="text-card-foreground">Dias com atividade:</strong> dias que tiveram mensagens. Mostra frequência geral, não constância individual.</p>
+                  <p><strong className="text-card-foreground">Mensagens por membro ativo:</strong> média de mensagens entre quem participou. Não reflete distribuição entre todos os membros.</p>
+                  <p><strong className="text-card-foreground">Dias com excesso de mensagens:</strong> dias acima da média diária do grupo. Indica intensidade, não problema.</p>
+                  <p><strong className="text-card-foreground">Distribuição da atividade:</strong> leitura se a conversa está concentrada ou distribuída. É descritivo, sem pontuação ou julgamento.</p>
+                  <p><strong className="text-card-foreground">Membros sem participação recente:</strong> membros sem mensagens no período. Não define desinteresse e pode ser circunstancial.</p>
+                  <p><strong className="text-card-foreground">O que engajou no grupo:</strong> mensagens que receberam reações. Mostra estímulos de engajamento, não validações de conteúdo.</p>
+                  <p><strong className="text-card-foreground">Distribuição de engajamento (gráfico):</strong> percentuais de recorrentes, esporádicos e inativos. Descreve perfis de participação, sem julgamento.</p>
+                  <p><strong className="text-card-foreground">Participação dos admins:</strong> percentual das mensagens enviadas por admins. Indica presença de liderança na conversa, não qualidade.</p>
+                  <p><strong className="text-card-foreground">Admins: total, ativos e inativos:</strong> contagem e status de administradores. Mostra estrutura de liderança, sem implicar responsabilidade pelo volume.</p>
+                </div>
               </div>
             </div>
           </SheetContent>
