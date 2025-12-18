@@ -69,6 +69,7 @@ export function AlertsSection({
               title="Membros sem participação recente"
               description="Membros que não enviaram mensagens no período selecionado"
               severity="info"
+              helpText="Membros sem mensagens no período selecionado. Isso não indica desinteresse por si só."
             >
               <div className="space-y-2 mt-2">
                 <div className="flex items-center gap-2 text-sm">
