@@ -20,6 +20,8 @@ import AccessDenied from "./AccessDenied";
     AdminsSection,
   } from "@/components/group-dashboard";
 import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { HelpCircle } from "lucide-react";
 
 const Group = () => {
   const { groupId } = useParams();
@@ -30,6 +32,7 @@ const Group = () => {
   // Period filter state
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
+  const [helpOpen, setHelpOpen] = useState(false);
   
   const currentRange = getDateRange(selectedPeriod, customRange);
 
@@ -143,13 +146,65 @@ const Group = () => {
               { label: group.name },
             ]}
           />
-          
-          <PeriodFilter
-            value={selectedPeriod}
-            customRange={customRange}
-            onChange={handlePeriodChange}
-          />
+
+          <div className="flex items-center gap-3">
+            <PeriodFilter
+              value={selectedPeriod}
+              customRange={customRange}
+              onChange={handlePeriodChange}
+            />
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="flex items-center gap-2 text-xs text-primary hover:underline"
+            >
+              <HelpCircle className="h-4 w-4" />
+              Como ler este dashboard
+            </button>
+          </div>
         </div>
+
+        {/* Help Sheet */}
+        <Sheet open={helpOpen} onOpenChange={setHelpOpen}>
+          <SheetContent side="right" className="sm:max-w-sm">
+            <SheetHeader>
+              <SheetTitle>Como ler este dashboard</SheetTitle>
+              <SheetDescription>
+                Orientação rápida para interpretar os dados sem ansiedade.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="space-y-5 mt-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-card-foreground">Para que serve este dashboard</p>
+                <p className="text-sm text-muted-foreground">
+                  Este painel mostra o comportamento do grupo no período.
+                  Ajuda a observar padrões e intensidade, sem julgar pessoas.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-card-foreground">Como ler os dados</p>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>1. Pulso do Grupo: resumo de volume e participação.</p>
+                  <p>2. Ritmo da Conversa: mensagens por dia e picos.</p>
+                  <p>3. Qualidade da Participação: distribuição e concentração.</p>
+                  <p>4. Crescimento: entradas/saídas e membros atuais.</p>
+                  <p>5. Esforço e Ruído: percepção de esforço e intensidade.</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-card-foreground">O que este painel não faz</p>
+                <p className="text-sm text-muted-foreground">
+                  Não mede satisfação, nem avalia qualidade individual.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-card-foreground">Dica rápida</p>
+                <p className="text-sm text-muted-foreground">
+                  Evite conclusões por um único pico. Observe o padrão do período.
+                </p>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* 1. Group Header */}
         <GroupHeader
