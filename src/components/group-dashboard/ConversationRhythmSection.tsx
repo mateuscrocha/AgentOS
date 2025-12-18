@@ -8,8 +8,8 @@ import {
 } from "@/components/ui/chart";
 import { 
   CartesianGrid,
-  Area,
-  AreaChart,
+  Line,
+  LineChart,
   XAxis,
   YAxis
 } from "recharts";
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 interface ConversationRhythmSectionProps {
   messagesPerDay: { date: string; count: number }[];
+  activeMembersPerDay?: { date: string; count: number }[];
   peakHour?: number;
   peakHourMessages?: number;
   previousPeakHour?: number | null;
@@ -27,6 +28,7 @@ interface ConversationRhythmSectionProps {
 
 export function ConversationRhythmSection({ 
   messagesPerDay, 
+  activeMembersPerDay,
   peakHour,
   peakHourMessages = 0,
   previousPeakHour,
@@ -38,6 +40,10 @@ export function ConversationRhythmSection({
     count: {
       label: "Mensagens",
       color: "hsl(var(--primary))",
+    },
+    actives: {
+      label: "Membros ativos",
+      color: "hsl(var(--muted-foreground))",
     },
   };
 
@@ -63,6 +69,12 @@ export function ConversationRhythmSection({
 
   const peakHourChanged = previousPeakHour !== undefined && previousPeakHour !== null && previousPeakHour !== peakHour;
 
+  // Merge datasets for multi-line chart
+  const chartData = messagesPerDay.map(d => {
+    const activesCount = activeMembersPerDay?.find(a => a.date === d.date)?.count ?? undefined;
+    return { date: d.date, count: d.count, actives: activesCount };
+  });
+
   return (
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader 
@@ -70,55 +82,64 @@ export function ConversationRhythmSection({
         subtitle={`Padrões de atividade (${periodLabel})`}
       />
       
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Main chart - 3 columns */}
-        <div className="lg:col-span-3">
-          {isLoading ? (
-            <Skeleton className="h-[220px] w-full" />
-          ) : messagesPerDay.length === 0 ? (
-            <div className="h-[220px] flex items-center justify-center bg-secondary/30 rounded-lg">
-              <p className="text-sm text-muted-foreground">Sem dados de atividade</p>
-            </div>
-          ) : (
-            <ChartContainer config={chartConfig} className="h-[220px] w-full">
-              <AreaChart data={messagesPerDay}>
-                <defs>
-                  <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatDate}
-                  tick={{ fontSize: 11 }}
-                  className="text-muted-foreground"
-                  axisLine={false}
-                  tickLine={false}
+      <div className="space-y-6">
+        {/* Main chart - full width */}
+        {isLoading ? (
+          <Skeleton className="h-[220px] w-full" />
+        ) : messagesPerDay.length === 0 ? (
+          <div className="h-[220px] flex items-center justify-center bg-secondary/30 rounded-lg">
+            <p className="text-sm text-muted-foreground">Sem dados de atividade</p>
+          </div>
+        ) : (
+          <ChartContainer config={chartConfig} className="h-[220px] w-full">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+              <XAxis 
+                dataKey="date" 
+                tickFormatter={formatDate}
+                tick={{ fontSize: 11 }}
+                className="text-muted-foreground"
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis 
+                tick={{ fontSize: 11 }}
+                className="text-muted-foreground"
+                axisLine={false}
+                tickLine={false}
+                width={40}
+              />
+              <ChartTooltip 
+                content={
+                  <ChartTooltipContent 
+                    labelFormatter={(value) => formatDate(String(value))}
+                  />
+                } 
+              />
+              <Line 
+                type="monotone" 
+                dataKey="count" 
+                stroke="hsl(var(--primary))" 
+                strokeWidth={2}
+                dot={{ r: 2 }}
+                activeDot={{ r: 3 }}
+              />
+              {activeMembersPerDay && activeMembersPerDay.length > 0 && (
+                <Line 
+                  type="monotone"
+                  dataKey="actives"
+                  stroke="hsl(var(--muted-foreground))"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 4"
+                  dot={false}
                 />
-                <YAxis 
-                  tick={{ fontSize: 11 }}
-                  className="text-muted-foreground"
-                  axisLine={false}
-                  tickLine={false}
-                  width={40}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Area 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={2}
-                  fill="url(#colorCount)"
-                />
-              </AreaChart>
-            </ChartContainer>
-          )}
-        </div>
+              )}
+            </LineChart>
+          </ChartContainer>
+        )}
 
-        {/* Side cards - 1 column */}
-        <div className="flex flex-col gap-4">
+        {/* Side cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Peak hour card */}
           <div className="rounded-lg border border-border bg-secondary/30 p-4 flex-1">
             <div className="flex items-center gap-2 text-muted-foreground mb-2">

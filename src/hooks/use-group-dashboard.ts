@@ -428,6 +428,46 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
+  // Fetch active members per day for secondary chart line
+  const { data: activeMembersPerDay } = useQuery({
+    queryKey: ['group-dashboard-active-per-day', groupId, chartStartISO, currentPeriodEndISO],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('member_id, created_at')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .not('member_id', 'is', null)
+        .gte('created_at', chartStartISO)
+        .lte('created_at', currentPeriodEndISO)
+        .order('created_at', { ascending: true });
+
+      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      const membersByDay: Record<string, Set<string>> = {};
+      // Initialize all days in range to ensure full alignment
+      for (let i = chartDays - 1; i >= 0; i--) {
+        const date = subDays(currentPeriodEnd, i);
+        const dateKey = formatDateKeyInTimeZone(date, tz);
+        membersByDay[dateKey] = new Set<string>();
+      }
+
+      data?.forEach(msg => {
+        const dateKey = formatDateKeyInTimeZone(new Date(msg.created_at), tz);
+        const memberId = msg.member_id as string | null;
+        if (memberId && membersByDay[dateKey]) {
+          membersByDay[dateKey].add(memberId);
+        }
+      });
+
+      return Object.entries(membersByDay).map(([date, set]) => ({
+        date,
+        count: set.size,
+      }));
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
   // Fetch activity by hour
   const { data: activityData } = useQuery({
     queryKey: ['group-dashboard-activity-hour', groupId, currentPeriodStartISO, currentPeriodEndISO],
@@ -812,6 +852,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       topParticipant: previousStats.topParticipant,
     } : null,
     messagesPerDay: messagesPerDay || [],
+    activeMembersPerDay: activeMembersPerDay || [],
     topParticipants: topParticipants || [],
     recentMessages: recentMessages || [],
     membersOverview: membersOverview || [],

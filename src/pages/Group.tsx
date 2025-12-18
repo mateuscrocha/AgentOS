@@ -36,6 +36,7 @@ const Group = () => {
     stats,
     previousStats,
     messagesPerDay,
+    activeMembersPerDay,
     topParticipants,
     peakHour,
     peakHourMessages,
@@ -166,6 +167,7 @@ const Group = () => {
         {/* 3. Conversation Rhythm Section */}
         <ConversationRhythmSection
           messagesPerDay={messagesPerDay}
+          activeMembersPerDay={activeMembersPerDay}
           peakHour={peakHour ?? undefined}
           peakHourMessages={peakHourMessages}
           previousPeakHour={previousPeakHour}
