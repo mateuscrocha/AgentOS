@@ -76,6 +76,16 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!group?.organization_id,
   });
 
+  const ikigaiKeywords: string[] = Array.isArray((group as any)?.metadata?.ikigai_keywords)
+    ? (group as any).metadata.ikigai_keywords
+    : Array.isArray((group as any)?.metadata?.ikigai?.keywords)
+    ? (group as any).metadata.ikigai.keywords
+    : Array.isArray((group as any)?.metadata?.themes)
+    ? (group as any).metadata.themes
+    : Array.isArray((group as any)?.metadata?.focal_themes)
+    ? (group as any).metadata.focal_themes
+    : [];
+
   // Fetch current period stats
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['group-dashboard-stats', groupId, currentPeriodStartISO, currentPeriodEndISO],
@@ -156,6 +166,31 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       };
     },
     enabled: !!groupId && !!group && isAuthenticated,
+  });
+
+  const hasIkigai = (ikigaiKeywords || []).length > 0;
+
+  const { data: alignedMessagesPercent } = useQuery({
+    queryKey: ['group-dashboard-aligned-percent', groupId, currentPeriodStartISO, currentPeriodEndISO, (ikigaiKeywords || []).join('|')],
+    queryFn: async () => {
+      if (!ikigaiKeywords || ikigaiKeywords.length === 0) return undefined;
+      const filters = ikigaiKeywords
+        .filter((kw) => typeof kw === 'string' && kw.trim().length > 0)
+        .map((kw) => `content.ilike.%${kw}%`)
+        .join(',');
+      if (!filters) return undefined;
+      const { count: alignedCount } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO)
+        .or(filters);
+      const total = (stats as any)?.totalMessages || 0;
+      return total > 0 ? Math.round(((alignedCount || 0) / total) * 100) : 0;
+    },
+    enabled: !!groupId && !!group && isAuthenticated && hasIkigai && !!stats,
   });
 
   // Fetch previous period stats for comparison
@@ -990,6 +1025,201 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
+  const activePercent = (stats?.totalMembers || 0) > 0
+    ? Math.round(((stats?.activeMembers || 0) / (stats?.totalMembers || 1)) * 100)
+    : 0;
+
+  const activeDaysPercent = periodDays > 0 ? Math.round((daysWithActivity / periodDays) * 100) : 0;
+
+  const computeLowEffortPercent = () => {
+    const slice = (messagesPerDay || []).slice(Math.max(0, (messagesPerDay || []).length - periodDays));
+    const avg = slice.length > 0 ? Math.round(slice.reduce((sum, d) => sum + d.count, 0) / slice.length) : 0;
+    const excess = slice.filter(d => d.count > avg).length;
+    const percent = periodDays > 0 ? Math.round((excess / periodDays) * 100) : 0;
+    const lowEffort = Math.max(0, Math.min(100, 100 - percent));
+    return lowEffort;
+  };
+
+  const lowEffortPercent = computeLowEffortPercent();
+
+  const recurringPercent = (() => {
+    const idsCurrent = new Set((membersOverview || []).filter(m => m.messagesCount > 0).map(m => m.id));
+    const idsPrev = new Set((previousMembersOverview || []).filter(m => m.messagesCount > 0).map(m => m.id));
+    let intersection = 0;
+    idsCurrent.forEach(id => { if (idsPrev.has(id)) intersection++; });
+    const denom = stats?.totalMembers || 0;
+    return denom > 0 ? Math.round((intersection / denom) * 100) : 0;
+  })();
+
+  const stopwordsPt = new Set([
+    'a','à','às','ao','aos','ainda','algum','alguma','alguns','algumas','além','am','ano','anos','antes','após','as','até','cada','coisa','coisas','como','da','das','de','dela','dele','deles','demais','depois','desde','desta','deste','do','dos','e','ela','ele','eles','em','entre','era','eram','essa','esse','esta','este','eu','faz','foi','fora','houve','isso','isto','já','la','lá','lhe','lhes','logo','maior','mais','me','mesmo','meu','meus','minha','minhas','muito','na','nas','não','nas','nem','no','nos','nós','nossa','nossas','nosso','nossos','nunca','o','os','ou','para','pela','pelas','pelo','pelos','per','pode','por','porque','pra','quais','qual','quando','que','quem','se','sem','ser','seu','seus','sua','suas','sobre','só','sua','são','tanto','também','te','tem','tenho','tendo','ter','tinha','tiveram','tivemos','tive','todo','toda','todos','todas','tu','tá','um','uma','uns','umas','vai','você','vocês','vos','vou','www','http','https','kkk','rs','haha','hahaha','bom','boa','dia','noite','tarde','oi','olá','ok','blz','vlw','obrigado','obrigada',
+    'fui','vou','passei','vazei','pegar','fazer','testar','bem','sempre','algo','tambem','nao','sim','time'
+  ]);
+
+  const phraseStopwords = new Set(['bom dia','boa noite','bem vindo']);
+
+  const techHints = new Set(['api','sql','sdk','http','https','ios','android','docker','kafka','react','next','supabase','postgres','node','js','ts','typescript','javascript']);
+
+  const MIN_COUNT = 3;
+  const MIN_DAYS = 2;
+
+  const normalize = (s: string) => s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  const canonical = (t: string): string => {
+    let s = t;
+    s = s.replace(/^(.*?)(mente)$/i, '$1');
+    s = s.replace(/^(.*?)(es)$/i, '$1');
+    s = s.replace(/^(.*?)(s)$/i, '$1');
+    return s;
+  };
+
+  const isVerbCandidate = (t: string): boolean => {
+    return /(ar|er|ir|ando|endo|indo|ei|ou|ava|ia|amos|iram|arei|erai|irei)$/i.test(t);
+  };
+
+  const isAdverbCandidate = (t: string): boolean => {
+    return /mente$/i.test(t) || ['bem','sempre','tambem','nao','sim'].includes(t);
+  };
+
+  const isTitleOrCaps = (raw: string): boolean => {
+    return /^[A-Z][a-z]+$/.test(raw) || /^[A-Z0-9_-]+$/.test(raw);
+  };
+
+  const isTechnicalCandidate = (raw: string, t: string): boolean => {
+    if (techHints.has(t)) return true;
+    if (/[0-9]/.test(raw)) return true;
+    if (raw.includes('-') || raw.includes('.')) return true;
+    if (isTitleOrCaps(raw)) return true;
+    return t.length >= 4;
+  };
+
+  const tokenize = (text: string): { raw: string; token: string }[] => {
+    const cleaned = normalize(text)
+      .replace(/https?:\/\/\S+|www\.[^\s]+/g, ' ')
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ');
+    const parts = cleaned.split(/\s+/).filter(Boolean);
+    const tokens = parts
+      .map(raw => ({ raw, token: canonical(raw.trim()) }))
+      .filter(x => x.token.length >= 3)
+      .filter(x => !/^[0-9]+$/.test(x.token))
+      .filter(x => !stopwordsPt.has(x.token))
+      .filter(x => !isVerbCandidate(x.token))
+      .filter(x => !isAdverbCandidate(x.token))
+      .filter(x => isTechnicalCandidate(x.raw, x.token));
+    return tokens;
+  };
+
+  const bigramsFor = (tokens: { raw: string; token: string }[]): string[] => {
+    const result: string[] = [];
+    for (let i = 0; i < tokens.length - 1; i++) {
+      const a = tokens[i];
+      const b = tokens[i + 1];
+      if (!a || !b) continue;
+      const p = `${a.token} ${b.token}`;
+      if (phraseStopwords.has(p)) continue;
+      if (stopwordsPt.has(a.token) || stopwordsPt.has(b.token)) continue;
+      const badCombo = (isVerbCandidate(a.token) && isVerbCandidate(b.token)) || (isVerbCandidate(a.token) && isAdverbCandidate(b.token)) || (isAdverbCandidate(a.token) && isVerbCandidate(b.token));
+      if (badCombo) continue;
+      const goodCombo = (!isVerbCandidate(a.token) && !isAdverbCandidate(a.token) && !isVerbCandidate(b.token) && !isAdverbCandidate(b.token)) && (isTechnicalCandidate(a.raw, a.token) || isTechnicalCandidate(b.raw, b.token));
+      if (!goodCombo) continue;
+      result.push(p);
+    }
+    return result;
+  };
+
+  const { data: suggestionsData } = useQuery({
+    queryKey: ['group-ikigai-suggestions', groupId, currentPeriodStartISO, currentPeriodEndISO],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('content, message_type, id, created_at')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .eq('message_type', 'text')
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO)
+        .limit(5000);
+
+      const perMessageTokens: { raw: string; token: string }[][] = [];
+      const bigramToMsgIdx: Record<string, number[]> = {};
+      const tokenCounts: Map<string, number> = new Map();
+      const bigramCounts: Map<string, number> = new Map();
+      const tokenDates: Map<string, Set<string>> = new Map();
+      const bigramDates: Map<string, Set<string>> = new Map();
+
+      (data || []).forEach((m, idx) => {
+        const content = m.content || '';
+        const tokens = tokenize(content);
+        perMessageTokens.push(tokens);
+        const dateKey = new Date(m.created_at!).toISOString().slice(0,10);
+        tokens.forEach(x => {
+          tokenCounts.set(x.token, (tokenCounts.get(x.token) || 0) + 1);
+          if (!tokenDates.has(x.token)) tokenDates.set(x.token, new Set());
+          tokenDates.get(x.token)!.add(dateKey);
+        });
+        const bigs = bigramsFor(tokens);
+        const seen = new Set<string>();
+        bigs.forEach(bg => {
+          if (seen.has(bg)) return;
+          seen.add(bg);
+          bigramCounts.set(bg, (bigramCounts.get(bg) || 0) + 1);
+          if (!bigramToMsgIdx[bg]) bigramToMsgIdx[bg] = [];
+          bigramToMsgIdx[bg].push(idx);
+          if (!bigramDates.has(bg)) bigramDates.set(bg, new Set());
+          bigramDates.get(bg)!.add(dateKey);
+        });
+      });
+
+      const existing = new Set((ikigaiKeywords || []).map(k => normalize(k)));
+
+      const sortedBigrams = Array.from(bigramCounts.entries())
+        .filter(([bg]) => {
+          const base = normalize(bg);
+          if (existing.has(base)) return false;
+          const [t1, t2] = base.split(' ');
+          return !existing.has(t1) && !existing.has(t2);
+        })
+        .filter(([bg, c]) => c >= MIN_COUNT && (bigramDates.get(bg)?.size || 0) >= MIN_DAYS)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6);
+
+      const themes = sortedBigrams.map(([phrase, count]) => {
+        const msgIdxs = bigramToMsgIdx[phrase] || [];
+        const localCounts: Map<string, number> = new Map();
+        const [p1, p2] = phrase.split(' ');
+        msgIdxs.forEach(i => {
+          const toks = perMessageTokens[i] || [];
+          toks.forEach(t => {
+            const tt = t.token;
+            if (tt === p1 || tt === p2) return;
+            if (stopwordsPt.has(tt)) return;
+            localCounts.set(tt, (localCounts.get(tt) || 0) + 1);
+          });
+        });
+        const keywords = Array.from(localCounts.entries())
+          .filter(([t]) => !existing.has(t))
+          .filter(([t, c]) => c >= MIN_COUNT && (tokenDates.get(t)?.size || 0) >= MIN_DAYS)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 6)
+          .map(([term, c]) => ({ term, count: c }));
+        return { phrase, count, keywords };
+      });
+
+      const globalKeywords = Array.from(tokenCounts.entries())
+        .filter(([t]) => !existing.has(t))
+        .filter(([t, c]) => c >= MIN_COUNT && (tokenDates.get(t)?.size || 0) >= MIN_DAYS)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([term, c]) => ({ term, count: c }));
+
+      return { themes, keywords: globalKeywords };
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
   return {
     group,
     orgName: orgData?.name || null,
@@ -1037,6 +1267,14 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     currentMembers: membersSnapshot?.currentMembers || stats?.totalMembers || 0,
     membersAtPeriodStart: membersSnapshot?.membersAtPeriodStart || undefined,
     daysWithActivity,
+    alignedMessagesPercent: alignedMessagesPercent,
+    hasIkigai,
+    ikigaiKeywordsList: ikigaiKeywords,
+    ikigaiSuggestions: suggestionsData || { themes: [], keywords: [] },
+    activePercent,
+    activeDaysPercent,
+    lowEffortPercent,
+    recurringPercent,
     isLoading,
     groupLoading,
     error: groupError,

@@ -18,10 +18,12 @@ import AccessDenied from "./AccessDenied";
     EffortNoiseSection,
     AlertsSection,
     AdminsSection,
+    PurposeAlignmentSection,
   } from "@/components/group-dashboard";
 import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { HelpCircle } from "lucide-react";
+import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
 
 const Group = () => {
   const { groupId } = useParams();
@@ -33,6 +35,7 @@ const Group = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [helpOpen, setHelpOpen] = useState(false);
+  const [ikigaiOpen, setIkigaiOpen] = useState(false);
   
   const currentRange = getDateRange(selectedPeriod, customRange);
 
@@ -69,6 +72,14 @@ const Group = () => {
     groupLoading,
     error,
     periodDays,
+    alignedMessagesPercent,
+    hasIkigai,
+    activePercent,
+    activeDaysPercent,
+    lowEffortPercent,
+    recurringPercent,
+    ikigaiKeywordsList,
+    ikigaiSuggestions,
   } = useGroupDashboard({ groupId, dateRange: currentRange });
 
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
@@ -280,6 +291,19 @@ const Group = () => {
           periodLabel={getPeriodLabel()}
         />
 
+        {/* 4.0 Purpose Alignment Section */}
+        <PurposeAlignmentSection
+          alignedPercent={alignedMessagesPercent}
+          activePercent={activePercent}
+          recurringPercent={recurringPercent}
+          activeDaysPercent={activeDaysPercent}
+          lowEffortPercent={lowEffortPercent}
+          isLoading={isLoading}
+          hasIkigai={hasIkigai}
+          periodLabel={getPeriodLabel()}
+          onOpenIkigai={() => setIkigaiOpen(true)}
+        />
+
         {/* 4.1 Participation Quality Section */}
         <ParticipationQualitySection
           membersOverview={membersOverview}
@@ -329,6 +353,15 @@ const Group = () => {
           periodLabel={getPeriodLabel()}
         />
       </div>
+      <EditIkigaiModal
+        groupId={group.id}
+        open={ikigaiOpen}
+        onOpenChange={setIkigaiOpen}
+        periodLabel={getPeriodLabel()}
+        currentKeywords={(ikigaiKeywordsList || []) as string[]}
+        suggestions={ikigaiSuggestions as any}
+        groupMetadata={group.metadata as any}
+      />
     </AdminLayout>
   );
 };
