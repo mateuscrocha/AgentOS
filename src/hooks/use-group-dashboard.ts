@@ -1,93 +1,40 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { subDays } from "date-fns";
 
-interface DashboardData {
-  group: {
-    id: string;
-    name: string;
-    description: string | null;
-    provider: string;
-    organization_id: string;
-    is_active: boolean;
-    is_archived: boolean;
-    sync_status: string | null;
-    last_sync_at: string | null;
-  } | null;
-  stats: {
-    totalMembers: number;
-    totalMessages7d: number;
-    activeMembers7d: number;
-    engagementRate: number;
-    topParticipant: { name: string; count: number } | null;
-    lastMessageAt: string | null;
-  };
-  previousStats: {
-    totalMessages7d: number;
-    activeMembers7d: number;
-    engagementRate: number;
-  } | null;
-  messagesPerDay: { date: string; count: number }[];
-  topParticipants: { name: string; count: number }[];
-  recentMessages: {
-    id: string;
-    memberName: string;
-    content: string | null;
-    messageType: string;
-    createdAt: string;
-    hasMedia: boolean;
-  }[];
-  membersOverview: {
-    id: string;
-    name: string;
-    displayName: string | null;
-    messagesCount: number;
-    lastMessageAt: string | null;
-    isActive: boolean;
-  }[];
-  activityByHour: { hour: number; count: number }[];
-  peakHour: number | null;
-  peakHourMessages: number;
-  memberEngagement: {
-    recorrentes: number;
-    esporadicos: number;
-    inativos: number;
-  };
-  popularMessages: {
-    id: string;
-    content: string | null;
-    messageType: string;
-    memberName: string;
-    reactionCount: number;
-  }[];
-  adminStats: {
-    total: number;
-    active: number;
-    inactive: number;
-    messagesFromAdmins: number;
-    totalMessages: number;
-    topAdmin: { name: string; messages: number } | null;
-  } | null;
-  atRiskMembers: {
-    id: string;
-    name: string;
-    daysSinceLastMessage: number;
-  }[];
-  newMembersCount: number;
+interface DateRange {
+  from: Date;
+  to: Date;
 }
 
-export function useGroupDashboard(groupId: string | undefined) {
+interface UseGroupDashboardOptions {
+  groupId: string | undefined;
+  dateRange?: DateRange;
+}
+
+export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptions) {
   const { isAuthenticated } = useAuth();
 
-  // Calculate date ranges
+  // Use provided date range or default to 7 days
   const now = new Date();
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const fourteenDaysAgo = new Date(now);
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  const currentPeriodEnd = dateRange?.to || now;
+  const currentPeriodStart = dateRange?.from || subDays(now, 6);
   
-  const sevenDaysAgoISO = sevenDaysAgo.toISOString();
-  const fourteenDaysAgoISO = fourteenDaysAgo.toISOString();
+  // Calculate previous period for comparison (same duration before current period)
+  const periodDays = Math.ceil((currentPeriodEnd.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
+  const previousPeriodEnd = new Date(currentPeriodStart.getTime() - 1);
+  const previousPeriodStart = subDays(previousPeriodEnd, periodDays - 1);
+
+  const currentPeriodStartISO = currentPeriodStart.toISOString();
+  const currentPeriodEndISO = currentPeriodEnd.toISOString();
+  const previousPeriodStartISO = previousPeriodStart.toISOString();
+  const previousPeriodEndISO = previousPeriodEnd.toISOString();
+
+  // For chart - extend back further to show trend
+  const chartDays = Math.max(periodDays, 14);
+  const chartStartDate = subDays(currentPeriodEnd, chartDays - 1);
+  const chartStartISO = chartStartDate.toISOString();
 
   // Fetch group details
   const { data: group, isLoading: groupLoading, error: groupError } = useQuery({
@@ -119,9 +66,9 @@ export function useGroupDashboard(groupId: string | undefined) {
     enabled: !!group?.organization_id,
   });
 
-  // Fetch current period stats (7 days)
+  // Fetch current period stats
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['group-dashboard-stats', groupId],
+    queryKey: ['group-dashboard-stats', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       // Fetch total members
       const { count: totalMembers } = await supabase
@@ -130,28 +77,30 @@ export function useGroupDashboard(groupId: string | undefined) {
         .eq('group_id', groupId!)
         .is('deleted_at', null);
 
-      // Fetch messages in last 7 days
-      const { count: totalMessages7d } = await supabase
+      // Fetch messages in current period
+      const { count: totalMessages } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .gte('created_at', sevenDaysAgoISO);
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO);
 
-      // Fetch active members in last 7 days
+      // Fetch active members in period
       const { data: activeMembersData } = await supabase
         .from('messages')
         .select('member_id')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
-        .gte('created_at', sevenDaysAgoISO);
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO);
 
       const uniqueActiveMembers = new Set(activeMembersData?.map(m => m.member_id) || []);
-      const activeMembers7d = uniqueActiveMembers.size;
+      const activeMembers = uniqueActiveMembers.size;
 
       const engagementRate = totalMembers && totalMembers > 0 
-        ? Math.round((activeMembers7d / totalMembers) * 100) 
+        ? Math.round((activeMembers / totalMembers) * 100) 
         : 0;
 
       // Get top participant
@@ -161,7 +110,8 @@ export function useGroupDashboard(groupId: string | undefined) {
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
-        .gte('created_at', sevenDaysAgoISO);
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO);
 
       const memberCounts: Record<string, { name: string; count: number }> = {};
       topParticipantData?.forEach((msg: any) => {
@@ -188,8 +138,8 @@ export function useGroupDashboard(groupId: string | undefined) {
 
       return {
         totalMembers: totalMembers || 0,
-        totalMessages7d: totalMessages7d || 0,
-        activeMembers7d,
+        totalMessages: totalMessages || 0,
+        activeMembers,
         engagementRate,
         topParticipant,
         lastMessageAt: lastMessageData?.created_at || null,
@@ -198,17 +148,17 @@ export function useGroupDashboard(groupId: string | undefined) {
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  // Fetch previous period stats (7-14 days ago) for comparison
+  // Fetch previous period stats for comparison
   const { data: previousStats } = useQuery({
-    queryKey: ['group-dashboard-previous-stats', groupId],
+    queryKey: ['group-dashboard-previous-stats', groupId, previousPeriodStartISO, previousPeriodEndISO],
     queryFn: async () => {
-      const { count: totalMessages7d } = await supabase
+      const { count: totalMessages } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .gte('created_at', fourteenDaysAgoISO)
-        .lt('created_at', sevenDaysAgoISO);
+        .gte('created_at', previousPeriodStartISO)
+        .lte('created_at', previousPeriodEndISO);
 
       const { data: activeMembersData } = await supabase
         .from('messages')
@@ -216,12 +166,11 @@ export function useGroupDashboard(groupId: string | undefined) {
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
-        .gte('created_at', fourteenDaysAgoISO)
-        .lt('created_at', sevenDaysAgoISO);
+        .gte('created_at', previousPeriodStartISO)
+        .lte('created_at', previousPeriodEndISO);
 
       const uniqueActiveMembers = new Set(activeMembersData?.map(m => m.member_id) || []);
       
-      // Get total members at that time (approximate - use current)
       const { count: totalMembers } = await supabase
         .from('members')
         .select('*', { count: 'exact', head: true })
@@ -233,32 +182,32 @@ export function useGroupDashboard(groupId: string | undefined) {
         : 0;
 
       return {
-        totalMessages7d: totalMessages7d || 0,
-        activeMembers7d: uniqueActiveMembers.size,
+        totalMessages: totalMessages || 0,
+        activeMembers: uniqueActiveMembers.size,
         engagementRate,
       };
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  // Fetch messages per day for chart (14 days)
+  // Fetch messages per day for chart
   const { data: messagesPerDay, isLoading: chartLoading } = useQuery({
-    queryKey: ['group-dashboard-chart', groupId],
+    queryKey: ['group-dashboard-chart', groupId, chartStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
         .from('messages')
         .select('created_at')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .gte('created_at', fourteenDaysAgoISO)
+        .gte('created_at', chartStartISO)
+        .lte('created_at', currentPeriodEndISO)
         .order('created_at', { ascending: true });
 
       const countsByDay: Record<string, number> = {};
       
-      // Initialize all 14 days
-      for (let i = 13; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
+      // Initialize all days in range
+      for (let i = chartDays - 1; i >= 0; i--) {
+        const date = subDays(currentPeriodEnd, i);
         const dateKey = date.toISOString().split('T')[0];
         countsByDay[dateKey] = 0;
       }
@@ -278,16 +227,17 @@ export function useGroupDashboard(groupId: string | undefined) {
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  // Fetch activity by hour and peak hour
+  // Fetch activity by hour
   const { data: activityData } = useQuery({
-    queryKey: ['group-dashboard-activity-hour', groupId],
+    queryKey: ['group-dashboard-activity-hour', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
         .from('messages')
         .select('created_at')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .gte('created_at', sevenDaysAgoISO);
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO);
 
       const countsByHour: Record<number, number> = {};
       for (let i = 0; i < 24; i++) {
@@ -318,7 +268,7 @@ export function useGroupDashboard(groupId: string | undefined) {
 
   // Fetch top 5 participants
   const { data: topParticipants, isLoading: topParticipantsLoading } = useQuery({
-    queryKey: ['group-dashboard-top-participants', groupId],
+    queryKey: ['group-dashboard-top-participants', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
         .from('messages')
@@ -326,7 +276,8 @@ export function useGroupDashboard(groupId: string | undefined) {
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
-        .gte('created_at', sevenDaysAgoISO);
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO);
 
       const memberCounts: Record<string, { name: string; count: number }> = {};
       data?.forEach((msg: any) => {
@@ -347,9 +298,8 @@ export function useGroupDashboard(groupId: string | undefined) {
 
   // Fetch member engagement distribution
   const { data: memberEngagement } = useQuery({
-    queryKey: ['group-dashboard-engagement', groupId],
+    queryKey: ['group-dashboard-engagement', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      // Get all members
       const { data: members } = await supabase
         .from('members')
         .select('id')
@@ -358,14 +308,14 @@ export function useGroupDashboard(groupId: string | undefined) {
 
       if (!members) return { recorrentes: 0, esporadicos: 0, inativos: 0 };
 
-      // Get message counts per member
       const { data: messageCounts } = await supabase
         .from('messages')
         .select('member_id')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
-        .gte('created_at', sevenDaysAgoISO);
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO);
 
       const counts: Record<string, number> = {};
       messageCounts?.forEach(msg => {
@@ -388,9 +338,9 @@ export function useGroupDashboard(groupId: string | undefined) {
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  // Fetch popular messages (most reactions)
+  // Fetch popular messages
   const { data: popularMessages } = useQuery({
-    queryKey: ['group-dashboard-popular', groupId],
+    queryKey: ['group-dashboard-popular', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
         .from('v_message_reactions_summary')
@@ -400,7 +350,6 @@ export function useGroupDashboard(groupId: string | undefined) {
 
       if (!data || data.length === 0) return [];
 
-      // Group by message and sum reactions
       const messageReactions: Record<string, number> = {};
       data.forEach(r => {
         if (r.message_id) {
@@ -415,7 +364,6 @@ export function useGroupDashboard(groupId: string | undefined) {
 
       if (topMessageIds.length === 0) return [];
 
-      // Fetch message details
       const { data: messages } = await supabase
         .from('v_messages_feed')
         .select('message_id, content_preview, message_type, member_name')
@@ -438,9 +386,8 @@ export function useGroupDashboard(groupId: string | undefined) {
 
   // Fetch admin stats
   const { data: adminStats } = useQuery({
-    queryKey: ['group-dashboard-admins', groupId],
+    queryKey: ['group-dashboard-admins', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      // Get admin members
       const { data: admins } = await supabase
         .from('members')
         .select('id, name, is_admin, is_owner, is_super_admin')
@@ -452,24 +399,23 @@ export function useGroupDashboard(groupId: string | undefined) {
 
       const adminIds = admins.map(a => a.id);
 
-      // Get messages from admins
       const { data: adminMessages } = await supabase
         .from('messages')
         .select('member_id')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .in('member_id', adminIds)
-        .gte('created_at', sevenDaysAgoISO);
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO);
 
-      // Get total messages for comparison
       const { count: totalMessages } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .gte('created_at', sevenDaysAgoISO);
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO);
 
-      // Count messages per admin
       const adminCounts: Record<string, number> = {};
       adminMessages?.forEach(msg => {
         if (msg.member_id) {
@@ -480,7 +426,6 @@ export function useGroupDashboard(groupId: string | undefined) {
       const activeAdminIds = new Set(Object.keys(adminCounts));
       const activeCount = activeAdminIds.size;
 
-      // Find top admin
       let topAdmin: { name: string; messages: number } | null = null;
       let maxMessages = 0;
       
@@ -504,11 +449,10 @@ export function useGroupDashboard(groupId: string | undefined) {
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  // Fetch at-risk members (no messages in 7+ days)
+  // Fetch at-risk members
   const { data: atRiskMembers } = useQuery({
     queryKey: ['group-dashboard-at-risk', groupId],
     queryFn: async () => {
-      // Get all members with their last message
       const { data: members } = await supabase
         .from('members')
         .select('id, name, last_seen_message_at')
@@ -540,16 +484,17 @@ export function useGroupDashboard(groupId: string | undefined) {
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  // Fetch new members count (joined in last 7 days)
+  // Fetch new members count
   const { data: newMembersCount } = useQuery({
-    queryKey: ['group-dashboard-new-members', groupId],
+    queryKey: ['group-dashboard-new-members', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { count } = await supabase
         .from('members')
         .select('*', { count: 'exact', head: true })
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .gte('joined_at', sevenDaysAgoISO);
+        .gte('joined_at', currentPeriodStartISO)
+        .lte('joined_at', currentPeriodEndISO);
 
       return count || 0;
     },
@@ -581,7 +526,7 @@ export function useGroupDashboard(groupId: string | undefined) {
 
   // Fetch members overview
   const { data: membersOverview, isLoading: membersLoading } = useQuery({
-    queryKey: ['group-dashboard-members', groupId],
+    queryKey: ['group-dashboard-members', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data: members } = await supabase
         .from('members')
@@ -598,7 +543,8 @@ export function useGroupDashboard(groupId: string | undefined) {
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
-        .gte('created_at', sevenDaysAgoISO);
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO);
 
       const memberStats: Record<string, { count: number; lastAt: string | null }> = {};
       messageCounts?.forEach(msg => {
@@ -628,7 +574,11 @@ export function useGroupDashboard(groupId: string | undefined) {
   return {
     group,
     orgName: orgData?.name || null,
-    stats: stats || {
+    stats: stats ? {
+      ...stats,
+      totalMessages7d: stats.totalMessages,
+      activeMembers7d: stats.activeMembers,
+    } : {
       totalMembers: 0,
       totalMessages7d: 0,
       activeMembers7d: 0,
@@ -636,7 +586,11 @@ export function useGroupDashboard(groupId: string | undefined) {
       topParticipant: null,
       lastMessageAt: null,
     },
-    previousStats: previousStats || null,
+    previousStats: previousStats ? {
+      totalMessages7d: previousStats.totalMessages,
+      activeMembers7d: previousStats.activeMembers,
+      engagementRate: previousStats.engagementRate,
+    } : null,
     messagesPerDay: messagesPerDay || [],
     topParticipants: topParticipants || [],
     recentMessages: recentMessages || [],
@@ -652,5 +606,6 @@ export function useGroupDashboard(groupId: string | undefined) {
     isLoading,
     groupLoading,
     error: groupError,
+    periodDays,
   };
 }

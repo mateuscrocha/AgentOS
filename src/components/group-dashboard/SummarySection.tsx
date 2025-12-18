@@ -15,13 +15,15 @@ interface SummarySectionProps {
   };
   newMembersCount?: number;
   isLoading?: boolean;
+  periodLabel?: string;
 }
 
 export function SummarySection({ 
   stats, 
   previousStats,
   newMembersCount = 0,
-  isLoading 
+  isLoading,
+  periodLabel = "7d"
 }: SummarySectionProps) {
   const calculateTrend = (current: number, previous: number | undefined) => {
     if (previous === undefined || previous === 0) return undefined;
@@ -45,7 +47,7 @@ export function SummarySection({
     <section>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <KpiCard
-          title="Mensagens (7d)"
+          title={`Mensagens (${periodLabel})`}
           value={stats.totalMessages7d.toLocaleString('pt-BR')}
           icon={MessageSquare}
           trend={messagesTrend !== undefined ? { value: messagesTrend, label: "vs anterior" } : undefined}
@@ -53,7 +55,7 @@ export function SummarySection({
         />
         
         <KpiCard
-          title="Membros ativos (7d)"
+          title={`Membros ativos (${periodLabel})`}
           value={stats.activeMembers7d}
           icon={Users}
           trend={activeMembersTrend !== undefined ? { value: activeMembersTrend, label: "vs anterior" } : undefined}
@@ -76,7 +78,7 @@ export function SummarySection({
         />
         
         <KpiCard
-          title="Novos membros (7d)"
+          title={`Novos membros (${periodLabel})`}
           value={newMembersCount >= 0 ? `+${newMembersCount}` : newMembersCount.toString()}
           icon={UserPlus}
           isLoading={isLoading}

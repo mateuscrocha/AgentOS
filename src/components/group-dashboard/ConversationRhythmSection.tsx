@@ -21,13 +21,15 @@ interface ConversationRhythmSectionProps {
   peakHour?: number;
   peakHourMessages?: number;
   isLoading?: boolean;
+  periodLabel?: string;
 }
 
 export function ConversationRhythmSection({ 
   messagesPerDay, 
   peakHour,
   peakHourMessages,
-  isLoading 
+  isLoading,
+  periodLabel = "período"
 }: ConversationRhythmSectionProps) {
   const chartConfig = {
     count: {
@@ -51,7 +53,7 @@ export function ConversationRhythmSection({
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader 
         title="Ritmo da Conversa" 
-        subtitle="Padrões de atividade do grupo"
+        subtitle={`Padrões de atividade (${periodLabel})`}
       />
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
