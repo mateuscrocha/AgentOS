@@ -1,8 +1,8 @@
-import { Shield, Users, AlertCircle } from "lucide-react";
+import { Shield, Users, AlertCircle, TrendingUp, TrendingDown } from "lucide-react";
 import { SectionHeader } from "./SectionHeader";
 import { InsightCard } from "./InsightCard";
-import { KpiCard } from "./KpiCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface AdminStats {
   total: number;
@@ -13,13 +13,20 @@ interface AdminStats {
   topAdmin: { name: string; messages: number } | null;
 }
 
+interface PreviousAdminStats {
+  active: number;
+  messagesFromAdmins: number;
+  totalMessages: number;
+}
+
 interface AdminsSectionProps {
   adminStats?: AdminStats;
+  previousAdminStats?: PreviousAdminStats | null;
   isLoading?: boolean;
   periodLabel?: string;
 }
 
-export function AdminsSection({ adminStats, isLoading, periodLabel = "período" }: AdminsSectionProps) {
+export function AdminsSection({ adminStats, previousAdminStats, isLoading, periodLabel = "período" }: AdminsSectionProps) {
   if (isLoading) {
     return (
       <section className="rounded-xl border border-border bg-card p-5">
@@ -53,6 +60,34 @@ export function AdminsSection({ adminStats, isLoading, periodLabel = "período" 
     ? Math.round((adminStats.messagesFromAdmins / adminStats.totalMessages) * 100)
     : 0;
 
+  const previousAdminParticipationRate = previousAdminStats && previousAdminStats.totalMessages > 0
+    ? Math.round((previousAdminStats.messagesFromAdmins / previousAdminStats.totalMessages) * 100)
+    : undefined;
+
+  // Calculate trends
+  const activeTrend = previousAdminStats 
+    ? adminStats.active - previousAdminStats.active
+    : undefined;
+
+  const participationTrend = previousAdminParticipationRate !== undefined
+    ? adminParticipationRate - previousAdminParticipationRate
+    : undefined;
+
+  const TrendBadge = ({ value, suffix = "", inverted = false }: { value: number | undefined; suffix?: string; inverted?: boolean }) => {
+    if (value === undefined || value === 0) return null;
+    const isPositive = inverted ? value < 0 : value > 0;
+    const Icon = isPositive ? TrendingUp : TrendingDown;
+    return (
+      <div className={cn(
+        "flex items-center gap-0.5 text-xs mt-1",
+        isPositive ? "text-success" : "text-destructive"
+      )}>
+        <Icon className="h-3 w-3" />
+        <span>{value > 0 ? '+' : ''}{value}{suffix}</span>
+      </div>
+    );
+  };
+
   return (
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader 
@@ -73,17 +108,22 @@ export function AdminsSection({ adminStats, isLoading, periodLabel = "período" 
             <Users className="h-5 w-5 text-success mx-auto mb-2" />
             <p className="text-2xl font-bold text-card-foreground">{adminStats.active}</p>
             <p className="text-xs text-muted-foreground">Ativos</p>
+            <TrendBadge value={activeTrend} />
           </div>
           
           <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">
             <Users className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
             <p className="text-2xl font-bold text-card-foreground">{adminStats.inactive}</p>
             <p className="text-xs text-muted-foreground">Inativos</p>
+            {activeTrend !== undefined && activeTrend !== 0 && (
+              <TrendBadge value={-activeTrend} inverted />
+            )}
           </div>
           
           <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">
             <p className="text-2xl font-bold text-card-foreground">{adminParticipationRate}%</p>
             <p className="text-xs text-muted-foreground mt-1">das mensagens</p>
+            <TrendBadge value={participationTrend} suffix="pp" />
           </div>
         </div>
 
@@ -110,7 +150,7 @@ export function AdminsSection({ adminStats, isLoading, periodLabel = "período" 
           ) : (
             <InsightCard
               title="Admins sem mensagens"
-              description="Os admins do grupo não enviaram mensagens nos últimos 7 dias."
+              description="Os admins do grupo não enviaram mensagens neste período."
               severity="warning"
             />
           )}

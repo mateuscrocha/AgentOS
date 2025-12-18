@@ -39,11 +39,16 @@ const Group = () => {
     topParticipants,
     peakHour,
     peakHourMessages,
+    previousPeakHour,
+    previousPeakHourMessages,
     memberEngagement,
+    previousMemberEngagement,
     popularMessages,
     adminStats,
+    previousAdminStats,
     atRiskMembers,
     newMembersCount,
+    previousNewMembersCount,
     isLoading,
     groupLoading,
     error,
@@ -148,6 +153,7 @@ const Group = () => {
           stats={stats}
           previousStats={previousStats || undefined}
           newMembersCount={newMembersCount}
+          previousNewMembersCount={previousNewMembersCount}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
         />
@@ -157,6 +163,8 @@ const Group = () => {
           messagesPerDay={messagesPerDay}
           peakHour={peakHour ?? undefined}
           peakHourMessages={peakHourMessages}
+          previousPeakHour={previousPeakHour}
+          previousPeakHourMessages={previousPeakHourMessages}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
         />
@@ -165,8 +173,10 @@ const Group = () => {
         <PeopleSection
           groupId={group.id}
           topParticipant={stats.topParticipant}
+          previousTopParticipant={previousStats?.topParticipant}
           topParticipants={topParticipants}
           memberEngagement={memberEngagement}
+          previousMemberEngagement={previousMemberEngagement}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
         />
@@ -181,6 +191,7 @@ const Group = () => {
         {/* 6. Admins Section */}
         <AdminsSection
           adminStats={adminStats || undefined}
+          previousAdminStats={previousAdminStats}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
         />

@@ -14,6 +14,7 @@ interface SummarySectionProps {
     engagementRate: number;
   };
   newMembersCount?: number;
+  previousNewMembersCount?: number;
   isLoading?: boolean;
   periodLabel?: string;
 }
@@ -22,6 +23,7 @@ export function SummarySection({
   stats, 
   previousStats,
   newMembersCount = 0,
+  previousNewMembersCount = 0,
   isLoading,
   periodLabel = "7d"
 }: SummarySectionProps) {
@@ -29,6 +31,11 @@ export function SummarySection({
     if (previous === undefined || previous === 0) return undefined;
     const change = ((current - previous) / previous) * 100;
     return Math.round(change);
+  };
+
+  const calculateAbsoluteTrend = (current: number, previous: number | undefined) => {
+    if (previous === undefined) return undefined;
+    return current - previous;
   };
 
   const messagesTrend = previousStats 
@@ -42,6 +49,8 @@ export function SummarySection({
   const engagementTrend = previousStats
     ? stats.engagementRate - previousStats.engagementRate
     : undefined;
+
+  const newMembersTrend = calculateAbsoluteTrend(newMembersCount, previousNewMembersCount);
 
   return (
     <section>
@@ -81,6 +90,7 @@ export function SummarySection({
           title={`Novos membros (${periodLabel})`}
           value={newMembersCount >= 0 ? `+${newMembersCount}` : newMembersCount.toString()}
           icon={UserPlus}
+          trend={newMembersTrend !== undefined && newMembersTrend !== 0 ? { value: newMembersTrend, label: "vs anterior", isAbsolute: true } : undefined}
           isLoading={isLoading}
         />
       </div>
