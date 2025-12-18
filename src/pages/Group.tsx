@@ -235,6 +235,8 @@ const Group = () => {
           atRiskMembers={atRiskMembers}
           popularMessages={popularMessages}
           isLoading={isLoading}
+          groupId={group.id}
+          totalMembers={currentMembers}
         />
 
         {/* 6. Admins Section */}

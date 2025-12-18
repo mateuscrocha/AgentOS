@@ -1,4 +1,5 @@
 import { AlertTriangle, MessageSquare, ThumbsUp, User } from "lucide-react";
+import { Link } from "react-router-dom";
 import { SectionHeader } from "./SectionHeader";
 import { InsightCard } from "./InsightCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,18 +17,23 @@ interface PopularMessage {
   messageType: string;
   memberName: string;
   reactionCount: number;
+  createdAt?: string | null;
 }
 
 interface AlertsSectionProps {
   atRiskMembers: AtRiskMember[];
   popularMessages: PopularMessage[];
   isLoading?: boolean;
+  groupId?: string;
+  totalMembers?: number;
 }
 
 export function AlertsSection({ 
   atRiskMembers, 
   popularMessages,
-  isLoading 
+  isLoading,
+  groupId,
+  totalMembers = 0,
 }: AlertsSectionProps) {
   const translateMessageType = (type: string) => {
     const types: Record<string, string> = {
@@ -49,24 +55,27 @@ export function AlertsSection({
       />
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* At-risk members */}
         <div>
           {isLoading ? (
-            <Skeleton className="h-[180px] w-full" />
+            <Skeleton className="h-[200px] w-full" />
           ) : atRiskMembers.length === 0 ? (
             <InsightCard
-              title="Nenhum membro em risco identificado"
-              description="Todos os membros estão participando ativamente."
-              severity="success"
+              title="Sem membros sem participação no período"
+              description="Todos tiveram alguma interação no período selecionado."
+              severity="info"
             />
           ) : (
             <InsightCard
-              title={`${atRiskMembers.length} membro${atRiskMembers.length > 1 ? 's' : ''} em risco de desengajamento`}
-              description="Membros que não enviam mensagens há mais de 7 dias."
-              severity="warning"
+              title="Membros sem participação recente"
+              description="Membros que não enviaram mensagens no período selecionado"
+              severity="info"
             >
               <div className="space-y-2 mt-2">
-                {atRiskMembers.slice(0, 5).map((member) => (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium text-card-foreground">{atRiskMembers.length}</span>
+                  <span className="text-muted-foreground">({totalMembers > 0 ? Math.round((atRiskMembers.length / totalMembers) * 100) : 0}%)</span>
+                </div>
+                {atRiskMembers.slice(0, 3).map((member) => (
                   <div 
                     key={member.id} 
                     className="flex items-center justify-between p-2 rounded-lg bg-card/50"
@@ -79,16 +88,14 @@ export function AlertsSection({
                         {member.name}
                       </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {member.daysSinceLastMessage}d sem atividade
-                    </span>
+                    <span className="text-xs text-muted-foreground">Sem atividade no período</span>
                   </div>
                 ))}
-                {atRiskMembers.length > 5 && (
-                  <p className="text-xs text-muted-foreground text-center pt-1">
-                    +{atRiskMembers.length - 5} outros membros
-                  </p>
-                )}
+                <div className="pt-1">
+                  <Link to={groupId ? `/group/${groupId}/members` : '#'} className="text-xs text-primary hover:underline">
+                    Ver lista completa
+                  </Link>
+                </div>
               </div>
             </InsightCard>
           )}
@@ -97,10 +104,11 @@ export function AlertsSection({
         {/* Popular messages */}
         <div>
           <div className="rounded-lg border border-border bg-secondary/30 p-4 h-full">
-            <div className="flex items-center gap-2 text-muted-foreground mb-3">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <ThumbsUp className="h-4 w-4" />
-              <span className="text-sm font-medium">Mensagens populares</span>
+              <span className="text-sm font-medium">O que engajou no grupo</span>
             </div>
+            <p className="text-xs text-muted-foreground mb-3">Mensagens que geraram mais reação no período</p>
             
             {isLoading ? (
               <div className="space-y-3">
@@ -110,19 +118,21 @@ export function AlertsSection({
               </div>
             ) : popularMessages.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nenhuma mensagem com reações ainda.
+                Nenhuma mensagem gerou reação no período.
               </p>
             ) : (
               <div className="space-y-3">
-                {popularMessages.slice(0, 5).map((msg) => (
+                {popularMessages.slice(0, 3).map((msg) => (
                   <div 
                     key={msg.id} 
                     className="p-3 rounded-lg bg-card/50"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-primary">
-                        {msg.memberName}
-                      </span>
+                      {msg.memberName !== 'Desconhecido' && (
+                        <span className="text-xs font-medium text-primary">
+                          {msg.memberName}
+                        </span>
+                      )}
                       {msg.messageType !== 'text' && (
                         <Badge variant="secondary" className="text-xs py-0 px-1.5">
                           {translateMessageType(msg.messageType)}
@@ -132,9 +142,14 @@ export function AlertsSection({
                     <p className="text-sm text-card-foreground line-clamp-2">
                       {msg.content || `[${translateMessageType(msg.messageType)}]`}
                     </p>
-                    <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                      <ThumbsUp className="h-3 w-3" />
-                      <span>{msg.reactionCount} reações</span>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <ThumbsUp className="h-3 w-3" />
+                        <span>{msg.reactionCount} reações</span>
+                      </div>
+                      {msg.createdAt && (
+                        <span>• {new Date(msg.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -674,7 +674,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
       const { data: messages } = await supabase
         .from('v_messages_feed')
-        .select('message_id, content_preview, message_type, member_name')
+        .select('message_id, content_preview, message_type, member_name, created_at')
         .eq('group_id', groupId!)
         .in('message_id', topMessageIds);
 
@@ -686,6 +686,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
           messageType: msg?.message_type || 'text',
           memberName: msg?.member_name || 'Desconhecido',
           reactionCount: messageReactions[id] || 0,
+          createdAt: msg?.created_at || null,
         };
       }).filter(m => m.reactionCount > 0);
     },
