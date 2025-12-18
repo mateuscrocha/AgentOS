@@ -8,14 +8,15 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import { useGroupDashboard } from "@/hooks/use-group-dashboard";
 import AccessDenied from "./AccessDenied";
-import {
-  GroupHeader,
-  SummarySection,
-  ConversationRhythmSection,
-  PeopleSection,
-  AlertsSection,
-  AdminsSection,
-} from "@/components/group-dashboard";
+  import {
+    GroupHeader,
+    SummarySection,
+    ConversationRhythmSection,
+    PeopleSection,
+    ParticipationQualitySection,
+    AlertsSection,
+    AdminsSection,
+  } from "@/components/group-dashboard";
 import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
 
 const Group = () => {
@@ -37,6 +38,8 @@ const Group = () => {
     previousStats,
     messagesPerDay,
     activeMembersPerDay,
+    membersOverview,
+    previousMembersOverview,
     topParticipants,
     peakHour,
     peakHourMessages,
@@ -184,6 +187,16 @@ const Group = () => {
           topParticipants={topParticipants}
           memberEngagement={memberEngagement}
           previousMemberEngagement={previousMemberEngagement}
+          isLoading={isLoading}
+          periodLabel={getPeriodLabel()}
+        />
+
+        {/* 4.1 Participation Quality Section */}
+        <ParticipationQualitySection
+          membersOverview={membersOverview}
+          previousMembersOverview={previousMembersOverview}
+          stats={stats}
+          previousStats={previousStats || undefined}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
         />

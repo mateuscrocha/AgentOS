@@ -5,6 +5,7 @@ export { GroupHeader } from './GroupHeader';
 export { SummarySection } from './SummarySection';
 export { ConversationRhythmSection } from './ConversationRhythmSection';
 export { PeopleSection } from './PeopleSection';
+export { ParticipationQualitySection } from './ParticipationQualitySection';
 export { AlertsSection } from './AlertsSection';
 export { AdminsSection } from './AdminsSection';
 export { PeriodFilter, getDateRange } from './PeriodFilter';

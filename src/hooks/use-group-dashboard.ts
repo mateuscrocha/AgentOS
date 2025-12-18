@@ -828,6 +828,44 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
+  // Fetch previous members overview
+  const { data: previousMembersOverview } = useQuery({
+    queryKey: ['group-dashboard-members-prev', groupId, previousPeriodStartISO, previousPeriodEndISO],
+    queryFn: async () => {
+      const { data: members } = await supabase
+        .from('members')
+        .select('id, name, display_name')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .order('name');
+
+      if (!members) return [];
+
+      const { data: messageCounts } = await supabase
+        .from('messages')
+        .select('member_id, created_at')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .not('member_id', 'is', null)
+        .gte('created_at', previousPeriodStartISO)
+        .lte('created_at', previousPeriodEndISO);
+
+      const memberStats: Record<string, number> = {};
+      messageCounts?.forEach(msg => {
+        memberStats[msg.member_id!] = (memberStats[msg.member_id!] || 0) + 1;
+      });
+
+      return members.map(member => ({
+        id: member.id,
+        name: member.name,
+        displayName: member.display_name,
+        messagesCount: memberStats[member.id] || 0,
+        isActive: (memberStats[member.id] || 0) > 0,
+      })).sort((a, b) => b.messagesCount - a.messagesCount);
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
   const isLoading = groupLoading || statsLoading || chartLoading || topParticipantsLoading || recentLoading || membersLoading;
 
   return {
@@ -856,6 +894,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     topParticipants: topParticipants || [],
     recentMessages: recentMessages || [],
     membersOverview: membersOverview || [],
+    previousMembersOverview: previousMembersOverview || [],
     activityByHour: activityData?.activityByHour || [],
     peakHour: activityData?.peakHour ?? null,
     peakHourMessages: activityData?.peakHourMessages || 0,
