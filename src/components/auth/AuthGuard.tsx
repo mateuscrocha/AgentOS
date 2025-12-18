@@ -11,6 +11,12 @@ interface AuthGuardProps {
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = ['/auth', '/login', '/signup', '/onboarding', '/onboarding/error'];
 
+function isPublicPath(pathname: string): boolean {
+  // Normalize trailing slash
+  const normalized = pathname !== '/' ? pathname.replace(/\/+$/, '') : pathname;
+  return PUBLIC_ROUTES.some((route) => normalized === route || normalized.startsWith(route + '/'));
+}
+
 export function AuthGuard({ children }: AuthGuardProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,7 +32,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         // Only show session expired if user was logged in and didn't explicitly log out
-        if (isAuthenticated && !PUBLIC_ROUTES.includes(location.pathname)) {
+        if (isAuthenticated && !isPublicPath(location.pathname)) {
           handleSessionExpired();
         }
       } else if (event === 'TOKEN_REFRESHED') {
@@ -40,7 +46,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   useEffect(() => {
     // Redirect to auth if not authenticated and trying to access protected route
-    if (!loading && !isAuthenticated && !PUBLIC_ROUTES.includes(location.pathname)) {
+    if (!loading && !isAuthenticated && !isPublicPath(location.pathname)) {
       navigate('/auth', { replace: true });
     }
   }, [loading, isAuthenticated, location.pathname, navigate]);
@@ -51,7 +57,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // If not authenticated and on a protected route, don't render children
-  if (!isAuthenticated && !PUBLIC_ROUTES.includes(location.pathname)) {
+  if (!isAuthenticated && !isPublicPath(location.pathname)) {
     return null;
   }
 
