@@ -79,6 +79,7 @@ export function SummarySection({
           value={stats.activeMembers7d}
           subtitle={`${activePercent}% do total`}
           icon={Users}
+          helpText="Quantidade de membros que enviaram ao menos uma mensagem no período. Não significa atividade diária."
           trend={activeMembersTrend !== undefined ? { value: activeMembersTrend, label: "vs anterior" } : undefined}
           isLoading={isLoading}
         />
@@ -87,6 +88,7 @@ export function SummarySection({
           title="Taxa de participação"
           value={`${stats.engagementRate}%`}
           icon={TrendingUp}
+          helpText="Percentual do grupo que participou com mensagens no período. Não indica qualidade da conversa."
           trend={engagementTrend !== undefined ? { value: Math.round(engagementTrend), label: "pp" } : undefined}
           isLoading={isLoading}
         />

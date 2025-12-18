@@ -1,5 +1,6 @@
-import { LucideIcon, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { LucideIcon, Info, AlertTriangle, CheckCircle2, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 type InsightSeverity = 'info' | 'warning' | 'success';
 
@@ -10,6 +11,7 @@ interface InsightCardProps {
   icon?: LucideIcon;
   className?: string;
   children?: React.ReactNode;
+  helpText?: string;
 }
 
 export function InsightCard({ 
@@ -18,7 +20,8 @@ export function InsightCard({
   severity = 'info',
   icon,
   className,
-  children
+  children,
+  helpText
 }: InsightCardProps) {
   const getDefaultIcon = () => {
     switch (severity) {
@@ -63,7 +66,21 @@ export function InsightCard({
           <Icon className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-card-foreground">{title}</p>
+          <p className="text-sm font-medium text-card-foreground flex items-center gap-1.5">
+            {title}
+            {helpText && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
+                    <HelpCircle className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  {helpText}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </p>
           {description && (
             <p className="text-xs text-muted-foreground mt-1">{description}</p>
           )}

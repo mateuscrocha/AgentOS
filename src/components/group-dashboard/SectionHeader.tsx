@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface SectionHeaderProps {
   title: string;
@@ -8,6 +9,7 @@ interface SectionHeaderProps {
   linkHref?: string;
   linkLabel?: string;
   className?: string;
+  helpText?: string;
 }
 
 export function SectionHeader({ 
@@ -15,12 +17,27 @@ export function SectionHeader({
   subtitle,
   linkHref, 
   linkLabel = "Ver mais",
-  className 
+  className,
+  helpText,
 }: SectionHeaderProps) {
   return (
     <div className={cn("flex items-center justify-between mb-4", className)}>
       <div>
-        <h3 className="text-base font-semibold text-card-foreground">{title}</h3>
+        <h3 className="text-base font-semibold text-card-foreground flex items-center gap-1.5">
+          {title}
+          {helpText && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
+                  <HelpCircle className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                {helpText}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </h3>
         {subtitle && (
           <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
         )}

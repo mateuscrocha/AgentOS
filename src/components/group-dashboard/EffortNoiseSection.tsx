@@ -54,18 +54,21 @@ export function EffortNoiseSection({
           title="Mensagens por membro ativo"
           value={msgsPerActive}
           subtitle="volume médio gerado por quem participa"
+          helpText="Média de mensagens por quem participou no período. Não reflete distribuição entre todos os membros."
           isLoading={isLoading}
         />
         <KpiCard
           title="Dias com excesso de mensagens"
           value={excessDays}
           subtitle="dias mais intensos de conversa"
+          helpText="Dias em que o volume superou a média diária do grupo. Indica intensidade, não problema."
           isLoading={isLoading}
         />
         <KpiCard
           title="Distribuição da atividade"
           value={distributionLabel}
           subtitle="distribuição da conversa entre participantes"
+          helpText="Se a conversa está concentrada em poucos ou distribuída. Não usa pontuação ou julgamento."
           isLoading={isLoading}
         />
       </div>

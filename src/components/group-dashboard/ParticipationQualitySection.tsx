@@ -110,6 +110,7 @@ export function ParticipationQualitySection({
             title="Concentração de mensagens"
             value={`${concentration}%`}
             subtitle="quanto da conversa vem de poucos"
+            helpText="Quanto da conversa vem do topo dos participantes. Não avalia se isso é bom ou ruim."
             trend={concentrationTrend !== undefined ? { value: concentrationTrend, label: "vs anterior" } : undefined}
             isLoading={isLoading}
           />

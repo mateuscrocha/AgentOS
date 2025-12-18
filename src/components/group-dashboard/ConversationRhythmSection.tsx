@@ -80,6 +80,7 @@ export function ConversationRhythmSection({
       <SectionHeader 
         title="Ritmo da Conversa" 
         subtitle={`Padrões de atividade (${periodLabel})`}
+        helpText="Evolução das mensagens por dia no período. Útil para perceber picos, não para avaliar qualidade."
       />
       
       <div className="space-y-6">

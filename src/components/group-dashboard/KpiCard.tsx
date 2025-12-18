@@ -1,12 +1,14 @@
-import { LucideIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { LucideIcon, TrendingUp, TrendingDown, Minus, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface KpiCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
   icon?: LucideIcon;
+  helpText?: string;
   trend?: {
     value: number;
     label?: string;
@@ -21,6 +23,7 @@ export function KpiCard({
   value, 
   subtitle,
   icon: Icon, 
+  helpText,
   trend, 
   isLoading,
   className 
@@ -54,7 +57,21 @@ export function KpiCard({
       className
     )}>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-muted-foreground">{title}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">{title}</span>
+          {helpText && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
+                  <HelpCircle className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                {helpText}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
         {Icon && <Icon className="h-4 w-4 text-primary" />}
       </div>
       
