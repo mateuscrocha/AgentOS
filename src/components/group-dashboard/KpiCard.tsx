@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface KpiCardProps {
   title: string;
   value: string | number;
+  subtitle?: string;
   icon?: LucideIcon;
   trend?: {
     value: number;
@@ -18,6 +19,7 @@ interface KpiCardProps {
 export function KpiCard({ 
   title, 
   value, 
+  subtitle,
   icon: Icon, 
   trend, 
   isLoading,
@@ -61,6 +63,9 @@ export function KpiCard({
       ) : (
         <div className="space-y-1">
           <p className="text-2xl font-bold text-card-foreground">{value}</p>
+          {subtitle && (
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
+          )}
           {trend && (
             <div className={cn("flex items-center gap-1 text-xs", getTrendColor())}>
               {TrendIcon && <TrendIcon className="h-3 w-3" />}

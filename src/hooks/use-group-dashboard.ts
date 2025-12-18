@@ -3,6 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { subDays } from "date-fns";
 
+function getHourInTimeZone(dateStr: string, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone }).formatToParts(new Date(dateStr));
+  const hour = parts.find(p => p.type === "hour")?.value;
+  return hour ? parseInt(hour, 10) : new Date(dateStr).getUTCHours();
+}
+
+function formatDateKeyInTimeZone(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
+
 interface DateRange {
   from: Date;
   to: Date;
@@ -42,7 +52,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data, error } = await supabase
         .from('groups')
-        .select('id, name, description, provider, organization_id, is_active, is_archived, sync_status, last_sync_at')
+        .select('id, name, description, provider, organization_id, is_active, is_archived, sync_status, last_sync_at, metadata')
         .eq('id', groupId!)
         .maybeSingle();
       
@@ -231,8 +241,9 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         countsByHour[i] = 0;
       }
 
+      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       data?.forEach(msg => {
-        const hour = new Date(msg.created_at).getHours();
+        const hour = getHourInTimeZone(msg.created_at, tz);
         countsByHour[hour]++;
       });
 
@@ -311,6 +322,23 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
+  // Fetch previous period exited members count
+  const { data: previousExitedMembersCount } = useQuery({
+    queryKey: ['group-dashboard-previous-exited-members', groupId, previousPeriodStartISO, previousPeriodEndISO],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .gte('left_at', previousPeriodStartISO)
+        .lte('left_at', previousPeriodEndISO);
+
+      return count || 0;
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
   // Fetch previous period admin stats
   const { data: previousAdminStats } = useQuery({
     queryKey: ['group-dashboard-previous-admins', groupId, previousPeriodStartISO, previousPeriodEndISO],
@@ -378,14 +406,15 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       const countsByDay: Record<string, number> = {};
       
       // Initialize all days in range
+      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       for (let i = chartDays - 1; i >= 0; i--) {
         const date = subDays(currentPeriodEnd, i);
-        const dateKey = date.toISOString().split('T')[0];
+        const dateKey = formatDateKeyInTimeZone(date, tz);
         countsByDay[dateKey] = 0;
       }
 
       data?.forEach(msg => {
-        const dateKey = msg.created_at.split('T')[0];
+        const dateKey = formatDateKeyInTimeZone(new Date(msg.created_at), tz);
         if (countsByDay[dateKey] !== undefined) {
           countsByDay[dateKey]++;
         }
@@ -416,8 +445,9 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         countsByHour[i] = 0;
       }
 
+      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       data?.forEach(msg => {
-        const hour = new Date(msg.created_at).getHours();
+        const hour = getHourInTimeZone(msg.created_at, tz);
         countsByHour[hour]++;
       });
 
@@ -673,6 +703,23 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
+  // Fetch exited members count
+  const { data: exitedMembersCount } = useQuery({
+    queryKey: ['group-dashboard-exited-members', groupId, currentPeriodStartISO, currentPeriodEndISO],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .gte('left_at', currentPeriodStartISO)
+        .lte('left_at', currentPeriodEndISO);
+
+      return count || 0;
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
   // Fetch recent messages
   const { data: recentMessages, isLoading: recentLoading } = useQuery({
     queryKey: ['group-dashboard-recent', groupId],
@@ -781,6 +828,8 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     atRiskMembers: atRiskMembers || [],
     newMembersCount: newMembersCount || 0,
     previousNewMembersCount: previousNewMembersCount || 0,
+    exitedMembersCount: exitedMembersCount || 0,
+    previousExitedMembersCount: previousExitedMembersCount || 0,
     isLoading,
     groupLoading,
     error: groupError,

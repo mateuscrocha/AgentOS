@@ -49,6 +49,8 @@ const Group = () => {
     atRiskMembers,
     newMembersCount,
     previousNewMembersCount,
+    exitedMembersCount,
+    previousExitedMembersCount,
     isLoading,
     groupLoading,
     error,
@@ -152,8 +154,11 @@ const Group = () => {
         <SummarySection
           stats={stats}
           previousStats={previousStats || undefined}
+          periodDays={periodDays}
           newMembersCount={newMembersCount}
           previousNewMembersCount={previousNewMembersCount}
+          exitedMembersCount={exitedMembersCount}
+          previousExitedMembersCount={previousExitedMembersCount}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
         />
