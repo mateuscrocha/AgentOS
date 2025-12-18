@@ -59,24 +59,26 @@ export function getDateRange(period: PeriodType, customRange?: DateRange): DateR
         from: startOfDay(now),
         to: endOfDay(now),
       };
-    case 'yesterday':
+    case 'yesterday': {
       const yesterday = subDays(now, 1);
       return {
         from: startOfDay(yesterday),
         to: endOfDay(yesterday),
       };
+    }
     case 'this_week':
       return {
         from: startOfWeek(now, { weekStartsOn: 0 }),
         to: endOfDay(now),
       };
-    case 'last_week':
+    case 'last_week': {
       const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 0 });
       const lastWeekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 0 });
       return {
         from: lastWeekStart,
         to: lastWeekEnd,
       };
+    }
     case '7d':
       return {
         from: startOfDay(subDays(now, 6)),

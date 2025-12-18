@@ -45,7 +45,7 @@ const STEPS: Step[] = ['intro', 'name', 'email', 'whatsapp', 'password', 'organi
 
 function normalizePhoneE164(phone: string): string {
   // Remove tudo que não é número
-  let digits = phone.replace(/\D/g, '');
+  const digits = phone.replace(/\D/g, '');
   
   // Se não começar com +, assumir Brasil (+55)
   if (!phone.startsWith('+')) {
