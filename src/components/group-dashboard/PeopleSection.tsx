@@ -1,4 +1,4 @@
-import { User, Users, Crown } from "lucide-react";
+import { User, Users, Crown, TrendingUp, TrendingDown } from "lucide-react";
 import { SectionHeader } from "./SectionHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
@@ -7,16 +7,21 @@ import {
   ChartTooltipContent 
 } from "@/components/ui/chart";
 import { Pie, PieChart, Cell } from "recharts";
+import { cn } from "@/lib/utils";
+
+interface MemberEngagement {
+  recorrentes: number;
+  esporadicos: number;
+  inativos: number;
+}
 
 interface PeopleSectionProps {
   groupId: string;
   topParticipant: { name: string; count: number } | null;
+  previousTopParticipant?: { name: string; count: number } | null;
   topParticipants: { name: string; count: number }[];
-  memberEngagement?: {
-    recorrentes: number;
-    esporadicos: number;
-    inativos: number;
-  };
+  memberEngagement?: MemberEngagement;
+  previousMemberEngagement?: MemberEngagement | null;
   isLoading?: boolean;
   periodLabel?: string;
 }
@@ -24,8 +29,10 @@ interface PeopleSectionProps {
 export function PeopleSection({ 
   groupId,
   topParticipant,
+  previousTopParticipant,
   topParticipants,
   memberEngagement,
+  previousMemberEngagement,
   isLoading,
   periodLabel = "período"
 }: PeopleSectionProps) {
@@ -49,6 +56,36 @@ export function PeopleSection({
     { name: 'Esporádicos', value: memberEngagement.esporadicos, color: 'hsl(var(--warning))' },
     { name: 'Inativos', value: memberEngagement.inativos, color: 'hsl(var(--muted-foreground))' },
   ].filter(d => d.value > 0) : [];
+
+  // Calculate top participant trend
+  const topParticipantTrend = topParticipant && previousTopParticipant
+    ? topParticipant.count - previousTopParticipant.count
+    : undefined;
+
+  // Calculate engagement distribution trends
+  const getEngagementTrend = (key: keyof MemberEngagement) => {
+    if (!memberEngagement || !previousMemberEngagement) return undefined;
+    return memberEngagement[key] - previousMemberEngagement[key];
+  };
+
+  const recorrentesTrend = getEngagementTrend('recorrentes');
+  const esporadicosTrend = getEngagementTrend('esporadicos');
+  const inativosTrend = getEngagementTrend('inativos');
+
+  const TrendIndicator = ({ value, inverted = false }: { value: number | undefined; inverted?: boolean }) => {
+    if (value === undefined || value === 0) return null;
+    const isPositive = inverted ? value < 0 : value > 0;
+    const Icon = isPositive ? TrendingUp : TrendingDown;
+    return (
+      <span className={cn(
+        "inline-flex items-center gap-0.5 text-xs",
+        isPositive ? "text-success" : "text-destructive"
+      )}>
+        <Icon className="h-3 w-3" />
+        {value > 0 ? '+' : ''}{value}
+      </span>
+    );
+  };
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
@@ -79,9 +116,24 @@ export function PeopleSection({
               <p className="font-semibold text-card-foreground truncate max-w-full">
                 {topParticipant.name}
               </p>
-              <p className="text-sm text-muted-foreground">
-                {topParticipant.count} mensagens
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-muted-foreground">
+                  {topParticipant.count} mensagens
+                </p>
+                {topParticipantTrend !== undefined && topParticipantTrend !== 0 && (
+                  <span className={cn(
+                    "flex items-center gap-0.5 text-xs",
+                    topParticipantTrend > 0 ? "text-success" : "text-destructive"
+                  )}>
+                    {topParticipantTrend > 0 ? (
+                      <TrendingUp className="h-3 w-3" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3" />
+                    )}
+                    {topParticipantTrend > 0 ? '+' : ''}{topParticipantTrend}
+                  </span>
+                )}
+              </div>
               <span className="mt-2 text-xs text-primary font-medium bg-primary/10 px-2 py-1 rounded-full">
                 Membro mais ativo
               </span>
@@ -158,19 +210,33 @@ export function PeopleSection({
                 </PieChart>
               </ChartContainer>
               
-              {/* Legend */}
+              {/* Legend with trends */}
               <div className="flex flex-wrap justify-center gap-3 mt-2">
-                {donutData.map((item) => (
-                  <div key={item.name} className="flex items-center gap-1.5">
-                    <div 
-                      className="h-2.5 w-2.5 rounded-full" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {item.name} ({item.value})
-                    </span>
-                  </div>
-                ))}
+                {memberEngagement && (
+                  <>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2.5 w-2.5 rounded-full bg-success" />
+                      <span className="text-xs text-muted-foreground">
+                        Recorrentes ({memberEngagement.recorrentes})
+                      </span>
+                      <TrendIndicator value={recorrentesTrend} />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2.5 w-2.5 rounded-full bg-warning" />
+                      <span className="text-xs text-muted-foreground">
+                        Esporádicos ({memberEngagement.esporadicos})
+                      </span>
+                      <TrendIndicator value={esporadicosTrend} />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">
+                        Inativos ({memberEngagement.inativos})
+                      </span>
+                      <TrendIndicator value={inativosTrend} inverted />
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}

@@ -9,6 +9,7 @@ interface KpiCardProps {
   trend?: {
     value: number;
     label?: string;
+    isAbsolute?: boolean; // For absolute change display (+3 instead of +3%)
   };
   isLoading?: boolean;
   className?: string;
@@ -38,6 +39,13 @@ export function KpiCard({
 
   const TrendIcon = getTrendIcon();
 
+  const formatTrendValue = () => {
+    if (!trend) return '';
+    const prefix = trend.value > 0 ? '+' : '';
+    const suffix = trend.isAbsolute ? '' : '%';
+    return `${prefix}${trend.value}${suffix}`;
+  };
+
   return (
     <div className={cn(
       "rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-card",
@@ -57,7 +65,7 @@ export function KpiCard({
             <div className={cn("flex items-center gap-1 text-xs", getTrendColor())}>
               {TrendIcon && <TrendIcon className="h-3 w-3" />}
               <span>
-                {trend.value > 0 ? '+' : ''}{trend.value}%
+                {formatTrendValue()}
                 {trend.label && <span className="text-muted-foreground ml-1">{trend.label}</span>}
               </span>
             </div>

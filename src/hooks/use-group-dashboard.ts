@@ -181,10 +181,182 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         ? Math.round((uniqueActiveMembers.size / totalMembers) * 100) 
         : 0;
 
+      // Get top participant in previous period
+      const { data: topParticipantData } = await supabase
+        .from('messages')
+        .select('member_id, members!inner(name)')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .not('member_id', 'is', null)
+        .gte('created_at', previousPeriodStartISO)
+        .lte('created_at', previousPeriodEndISO);
+
+      const memberCounts: Record<string, { name: string; count: number }> = {};
+      topParticipantData?.forEach((msg: any) => {
+        const memberId = msg.member_id;
+        const memberName = msg.members?.name || 'Desconhecido';
+        if (!memberCounts[memberId]) {
+          memberCounts[memberId] = { name: memberName, count: 0 };
+        }
+        memberCounts[memberId].count++;
+      });
+
+      const topParticipant = Object.values(memberCounts)
+        .sort((a, b) => b.count - a.count)[0] || null;
+
       return {
         totalMessages: totalMessages || 0,
         activeMembers: uniqueActiveMembers.size,
         engagementRate,
+        topParticipant,
+      };
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
+  // Fetch previous period activity by hour
+  const { data: previousActivityData } = useQuery({
+    queryKey: ['group-dashboard-previous-activity-hour', groupId, previousPeriodStartISO, previousPeriodEndISO],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('created_at')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .gte('created_at', previousPeriodStartISO)
+        .lte('created_at', previousPeriodEndISO);
+
+      const countsByHour: Record<number, number> = {};
+      for (let i = 0; i < 24; i++) {
+        countsByHour[i] = 0;
+      }
+
+      data?.forEach(msg => {
+        const hour = new Date(msg.created_at).getHours();
+        countsByHour[hour]++;
+      });
+
+      const activityByHour = Object.entries(countsByHour).map(([hour, count]) => ({
+        hour: parseInt(hour),
+        count,
+      }));
+
+      const peakEntry = activityByHour.reduce((max, curr) => 
+        curr.count > max.count ? curr : max, { hour: 0, count: 0 });
+
+      return {
+        peakHour: peakEntry.count > 0 ? peakEntry.hour : null,
+        peakHourMessages: peakEntry.count,
+      };
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
+  // Fetch previous period member engagement
+  const { data: previousMemberEngagement } = useQuery({
+    queryKey: ['group-dashboard-previous-engagement', groupId, previousPeriodStartISO, previousPeriodEndISO],
+    queryFn: async () => {
+      const { data: members } = await supabase
+        .from('members')
+        .select('id')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null);
+
+      if (!members) return { recorrentes: 0, esporadicos: 0, inativos: 0 };
+
+      const { data: messageCounts } = await supabase
+        .from('messages')
+        .select('member_id')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .not('member_id', 'is', null)
+        .gte('created_at', previousPeriodStartISO)
+        .lte('created_at', previousPeriodEndISO);
+
+      const counts: Record<string, number> = {};
+      messageCounts?.forEach(msg => {
+        counts[msg.member_id!] = (counts[msg.member_id!] || 0) + 1;
+      });
+
+      let recorrentes = 0;
+      let esporadicos = 0;
+      let inativos = 0;
+
+      members.forEach(member => {
+        const count = counts[member.id] || 0;
+        if (count >= 5) recorrentes++;
+        else if (count >= 1) esporadicos++;
+        else inativos++;
+      });
+
+      return { recorrentes, esporadicos, inativos };
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
+  // Fetch previous period new members count
+  const { data: previousNewMembersCount } = useQuery({
+    queryKey: ['group-dashboard-previous-new-members', groupId, previousPeriodStartISO, previousPeriodEndISO],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .gte('joined_at', previousPeriodStartISO)
+        .lte('joined_at', previousPeriodEndISO);
+
+      return count || 0;
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
+  // Fetch previous period admin stats
+  const { data: previousAdminStats } = useQuery({
+    queryKey: ['group-dashboard-previous-admins', groupId, previousPeriodStartISO, previousPeriodEndISO],
+    queryFn: async () => {
+      const { data: admins } = await supabase
+        .from('members')
+        .select('id, name, is_admin, is_owner, is_super_admin')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .or('is_admin.eq.true,is_owner.eq.true,is_super_admin.eq.true');
+
+      if (!admins || admins.length === 0) return null;
+
+      const adminIds = admins.map(a => a.id);
+
+      const { data: adminMessages } = await supabase
+        .from('messages')
+        .select('member_id')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .in('member_id', adminIds)
+        .gte('created_at', previousPeriodStartISO)
+        .lte('created_at', previousPeriodEndISO);
+
+      const { count: totalMessages } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .gte('created_at', previousPeriodStartISO)
+        .lte('created_at', previousPeriodEndISO);
+
+      const adminCounts: Record<string, number> = {};
+      adminMessages?.forEach(msg => {
+        if (msg.member_id) {
+          adminCounts[msg.member_id] = (adminCounts[msg.member_id] || 0) + 1;
+        }
+      });
+
+      const activeAdminIds = new Set(Object.keys(adminCounts));
+      const activeCount = activeAdminIds.size;
+
+      return {
+        active: activeCount,
+        messagesFromAdmins: adminMessages?.length || 0,
+        totalMessages: totalMessages || 0,
       };
     },
     enabled: !!groupId && !!group && isAuthenticated,
@@ -590,6 +762,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       totalMessages7d: previousStats.totalMessages,
       activeMembers7d: previousStats.activeMembers,
       engagementRate: previousStats.engagementRate,
+      topParticipant: previousStats.topParticipant,
     } : null,
     messagesPerDay: messagesPerDay || [],
     topParticipants: topParticipants || [],
@@ -598,11 +771,16 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     activityByHour: activityData?.activityByHour || [],
     peakHour: activityData?.peakHour ?? null,
     peakHourMessages: activityData?.peakHourMessages || 0,
+    previousPeakHour: previousActivityData?.peakHour ?? null,
+    previousPeakHourMessages: previousActivityData?.peakHourMessages || 0,
     memberEngagement: memberEngagement || { recorrentes: 0, esporadicos: 0, inativos: 0 },
+    previousMemberEngagement: previousMemberEngagement || null,
     popularMessages: popularMessages || [],
     adminStats: adminStats || null,
+    previousAdminStats: previousAdminStats || null,
     atRiskMembers: atRiskMembers || [],
     newMembersCount: newMembersCount || 0,
+    previousNewMembersCount: previousNewMembersCount || 0,
     isLoading,
     groupLoading,
     error: groupError,
