@@ -428,6 +428,72 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
+  // Fetch member entries per day
+  const { data: memberEntriesPerDay } = useQuery({
+    queryKey: ['group-dashboard-entries-day', groupId, chartStartISO, currentPeriodEndISO],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('members')
+        .select('joined_at')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .gte('joined_at', chartStartISO)
+        .lte('joined_at', currentPeriodEndISO)
+        .order('joined_at', { ascending: true });
+
+      const countsByDay: Record<string, number> = {};
+      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      for (let i = chartDays - 1; i >= 0; i--) {
+        const date = subDays(currentPeriodEnd, i);
+        const dateKey = formatDateKeyInTimeZone(date, tz);
+        countsByDay[dateKey] = 0;
+      }
+
+      data?.forEach(m => {
+        const dateKey = formatDateKeyInTimeZone(new Date(m.joined_at), tz);
+        if (countsByDay[dateKey] !== undefined) {
+          countsByDay[dateKey]++;
+        }
+      });
+
+      return Object.entries(countsByDay).map(([date, count]) => ({ date, count }));
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
+  // Fetch member exits per day
+  const { data: memberExitsPerDay } = useQuery({
+    queryKey: ['group-dashboard-exits-day', groupId, chartStartISO, currentPeriodEndISO],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('members')
+        .select('left_at')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .gte('left_at', chartStartISO)
+        .lte('left_at', currentPeriodEndISO)
+        .order('left_at', { ascending: true });
+
+      const countsByDay: Record<string, number> = {};
+      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      for (let i = chartDays - 1; i >= 0; i--) {
+        const date = subDays(currentPeriodEnd, i);
+        const dateKey = formatDateKeyInTimeZone(date, tz);
+        countsByDay[dateKey] = 0;
+      }
+
+      data?.forEach(m => {
+        const dateKey = formatDateKeyInTimeZone(new Date(m.left_at), tz);
+        if (countsByDay[dateKey] !== undefined) {
+          countsByDay[dateKey]++;
+        }
+      });
+
+      return Object.entries(countsByDay).map(([date, count]) => ({ date, count }));
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
   // Fetch active members per day for secondary chart line
   const { data: activeMembersPerDay } = useQuery({
     queryKey: ['group-dashboard-active-per-day', groupId, chartStartISO, currentPeriodEndISO],
@@ -868,6 +934,61 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
   const isLoading = groupLoading || statsLoading || chartLoading || topParticipantsLoading || recentLoading || membersLoading;
 
+  // Derived: days with activity in the selected period
+  const daysWithActivity = (messagesPerDay || [])
+    .slice(Math.max(0, (messagesPerDay || []).length - periodDays))
+    .filter(d => d.count > 0).length;
+
+  // Derived: current members and members at start of period
+  const computeMembersSnapshot = async () => {
+    const { count: joinedBeforeEnd } = await supabase
+      .from('members')
+      .select('*', { count: 'exact', head: true })
+      .eq('group_id', groupId!)
+      .is('deleted_at', null)
+      .lte('joined_at', currentPeriodEndISO);
+
+    const { count: joinedNull } = await supabase
+      .from('members')
+      .select('*', { count: 'exact', head: true })
+      .eq('group_id', groupId!)
+      .is('deleted_at', null)
+      .is('joined_at', null);
+
+    const { count: exitedBeforeEnd } = await supabase
+      .from('members')
+      .select('*', { count: 'exact', head: true })
+      .eq('group_id', groupId!)
+      .is('deleted_at', null)
+      .lte('left_at', currentPeriodEndISO);
+
+    const currentMembers = (joinedBeforeEnd || 0) + (joinedNull || 0) - (exitedBeforeEnd || 0);
+
+    const { count: joinedBeforeStart } = await supabase
+      .from('members')
+      .select('*', { count: 'exact', head: true })
+      .eq('group_id', groupId!)
+      .is('deleted_at', null)
+      .lte('joined_at', currentPeriodStartISO);
+
+    const { count: exitedBeforeStart } = await supabase
+      .from('members')
+      .select('*', { count: 'exact', head: true })
+      .eq('group_id', groupId!)
+      .is('deleted_at', null)
+      .lte('left_at', currentPeriodStartISO);
+
+    const membersAtPeriodStart = (joinedBeforeStart || 0) + (joinedNull || 0) - (exitedBeforeStart || 0);
+
+    return { currentMembers, membersAtPeriodStart };
+  };
+
+  const { data: membersSnapshot } = useQuery({
+    queryKey: ['group-dashboard-members-snapshot', groupId, currentPeriodStartISO, currentPeriodEndISO],
+    queryFn: computeMembersSnapshot,
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
   return {
     group,
     orgName: orgData?.name || null,
@@ -910,6 +1031,11 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     previousNewMembersCount: previousNewMembersCount || 0,
     exitedMembersCount: exitedMembersCount || 0,
     previousExitedMembersCount: previousExitedMembersCount || 0,
+    memberEntriesPerDay: memberEntriesPerDay || [],
+    memberExitsPerDay: memberExitsPerDay || [],
+    currentMembers: membersSnapshot?.currentMembers || stats?.totalMembers || 0,
+    membersAtPeriodStart: membersSnapshot?.membersAtPeriodStart || undefined,
+    daysWithActivity,
     isLoading,
     groupLoading,
     error: groupError,

@@ -14,6 +14,7 @@ import AccessDenied from "./AccessDenied";
     ConversationRhythmSection,
     PeopleSection,
     ParticipationQualitySection,
+    GroupGrowthSection,
     AlertsSection,
     AdminsSection,
   } from "@/components/group-dashboard";
@@ -40,6 +41,11 @@ const Group = () => {
     activeMembersPerDay,
     membersOverview,
     previousMembersOverview,
+    memberEntriesPerDay,
+    memberExitsPerDay,
+    currentMembers,
+    membersAtPeriodStart,
+    daysWithActivity,
     topParticipants,
     peakHour,
     peakHourMessages,
@@ -197,6 +203,18 @@ const Group = () => {
           previousMembersOverview={previousMembersOverview}
           stats={stats}
           previousStats={previousStats || undefined}
+          isLoading={isLoading}
+          periodLabel={getPeriodLabel()}
+        />
+
+        {/* 4.2 Group Growth Section */}
+        <GroupGrowthSection
+          entriesPerDay={memberEntriesPerDay}
+          exitsPerDay={memberExitsPerDay}
+          currentMembers={currentMembers}
+          membersAtPeriodStart={membersAtPeriodStart}
+          daysWithActivity={daysWithActivity}
+          periodDays={periodDays}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
         />
