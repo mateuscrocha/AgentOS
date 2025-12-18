@@ -15,6 +15,7 @@ import AccessDenied from "./AccessDenied";
     PeopleSection,
     ParticipationQualitySection,
     GroupGrowthSection,
+    EffortNoiseSection,
     AlertsSection,
     AdminsSection,
   } from "@/components/group-dashboard";
@@ -214,6 +215,16 @@ const Group = () => {
           currentMembers={currentMembers}
           membersAtPeriodStart={membersAtPeriodStart}
           daysWithActivity={daysWithActivity}
+          periodDays={periodDays}
+          isLoading={isLoading}
+          periodLabel={getPeriodLabel()}
+        />
+
+        {/* 4.3 Effort and Noise Section */}
+        <EffortNoiseSection
+          stats={stats}
+          messagesPerDay={messagesPerDay}
+          membersOverview={membersOverview}
           periodDays={periodDays}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}

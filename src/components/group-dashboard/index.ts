@@ -7,6 +7,7 @@ export { ConversationRhythmSection } from './ConversationRhythmSection';
 export { PeopleSection } from './PeopleSection';
 export { ParticipationQualitySection } from './ParticipationQualitySection';
 export { GroupGrowthSection } from './GroupGrowthSection';
+export { EffortNoiseSection } from './EffortNoiseSection';
 export { AlertsSection } from './AlertsSection';
 export { AdminsSection } from './AdminsSection';
 export { PeriodFilter, getDateRange } from './PeriodFilter';
