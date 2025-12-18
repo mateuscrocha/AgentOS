@@ -1,0 +1,87 @@
+import { MessageSquare, Users, TrendingUp, UserPlus } from "lucide-react";
+import { KpiCard } from "./KpiCard";
+
+interface SummarySectionProps {
+  stats: {
+    totalMessages7d: number;
+    activeMembers7d: number;
+    engagementRate: number;
+    totalMembers: number;
+  };
+  previousStats?: {
+    totalMessages7d: number;
+    activeMembers7d: number;
+    engagementRate: number;
+  };
+  newMembersCount?: number;
+  isLoading?: boolean;
+}
+
+export function SummarySection({ 
+  stats, 
+  previousStats,
+  newMembersCount = 0,
+  isLoading 
+}: SummarySectionProps) {
+  const calculateTrend = (current: number, previous: number | undefined) => {
+    if (previous === undefined || previous === 0) return undefined;
+    const change = ((current - previous) / previous) * 100;
+    return Math.round(change);
+  };
+
+  const messagesTrend = previousStats 
+    ? calculateTrend(stats.totalMessages7d, previousStats.totalMessages7d)
+    : undefined;
+  
+  const activeMembersTrend = previousStats
+    ? calculateTrend(stats.activeMembers7d, previousStats.activeMembers7d)
+    : undefined;
+
+  const engagementTrend = previousStats
+    ? stats.engagementRate - previousStats.engagementRate
+    : undefined;
+
+  return (
+    <section>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <KpiCard
+          title="Mensagens (7d)"
+          value={stats.totalMessages7d.toLocaleString('pt-BR')}
+          icon={MessageSquare}
+          trend={messagesTrend !== undefined ? { value: messagesTrend, label: "vs anterior" } : undefined}
+          isLoading={isLoading}
+        />
+        
+        <KpiCard
+          title="Membros ativos (7d)"
+          value={stats.activeMembers7d}
+          icon={Users}
+          trend={activeMembersTrend !== undefined ? { value: activeMembersTrend, label: "vs anterior" } : undefined}
+          isLoading={isLoading}
+        />
+        
+        <KpiCard
+          title="Taxa de engajamento"
+          value={`${stats.engagementRate}%`}
+          icon={TrendingUp}
+          trend={engagementTrend !== undefined ? { value: Math.round(engagementTrend), label: "pp" } : undefined}
+          isLoading={isLoading}
+        />
+        
+        <KpiCard
+          title="Total de membros"
+          value={stats.totalMembers}
+          icon={Users}
+          isLoading={isLoading}
+        />
+        
+        <KpiCard
+          title="Novos membros (7d)"
+          value={newMembersCount >= 0 ? `+${newMembersCount}` : newMembersCount.toString()}
+          icon={UserPlus}
+          isLoading={isLoading}
+        />
+      </div>
+    </section>
+  );
+}
