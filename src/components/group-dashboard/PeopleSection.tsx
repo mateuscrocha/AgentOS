@@ -18,6 +18,7 @@ interface PeopleSectionProps {
     inativos: number;
   };
   isLoading?: boolean;
+  periodLabel?: string;
 }
 
 export function PeopleSection({ 
@@ -25,7 +26,8 @@ export function PeopleSection({
   topParticipant,
   topParticipants,
   memberEngagement,
-  isLoading 
+  isLoading,
+  periodLabel = "período"
 }: PeopleSectionProps) {
   const chartConfig = {
     recorrentes: {
@@ -52,7 +54,7 @@ export function PeopleSection({
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader 
         title="Pessoas do Grupo" 
-        subtitle="Quem sustenta a conversa"
+        subtitle={`Quem sustenta a conversa (${periodLabel})`}
         linkHref={`/group/${groupId}/members`}
         linkLabel="Ver todos"
       />

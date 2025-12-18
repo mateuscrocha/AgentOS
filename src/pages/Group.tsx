@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -15,12 +16,20 @@ import {
   AlertsSection,
   AdminsSection,
 } from "@/components/group-dashboard";
+import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
 
 const Group = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isLoading: rolesLoading } = useUserRoles();
+  
+  // Period filter state
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
+  
+  const currentRange = getDateRange(selectedPeriod, customRange);
+
   const {
     group,
     orgName,
@@ -38,7 +47,15 @@ const Group = () => {
     isLoading,
     groupLoading,
     error,
-  } = useGroupDashboard(groupId);
+    periodDays,
+  } = useGroupDashboard({ groupId, dateRange: currentRange });
+
+  const handlePeriodChange = (period: PeriodType, range: DateRange) => {
+    setSelectedPeriod(period);
+    if (period === 'custom') {
+      setCustomRange(range);
+    }
+  };
 
   // Loading state while checking auth/roles
   if (authLoading || rolesLoading) {
@@ -78,20 +95,43 @@ const Group = () => {
     );
   }
 
+  // Format period label for display
+  const getPeriodLabel = () => {
+    switch (selectedPeriod) {
+      case 'today': return 'hoje';
+      case 'yesterday': return 'ontem';
+      case 'this_week': return 'esta semana';
+      case 'last_week': return 'semana passada';
+      case '7d': return 'últimos 7 dias';
+      case '14d': return 'últimos 14 dias';
+      case '30d': return 'últimos 30 dias';
+      case 'custom': return `${periodDays} dias`;
+      default: return `${periodDays} dias`;
+    }
+  };
+
   return (
     <AdminLayout 
       title="Dashboard do Grupo" 
       subtitle={group.name}
     >
       <div className="space-y-8 animate-fade-in">
-        {/* Breadcrumbs */}
-        <Breadcrumbs
-          items={[
-            { label: "Sistema", href: "/system" },
-            { label: orgName || "Organização", href: `/org/${group.organization_id}` },
-            { label: group.name },
-          ]}
-        />
+        {/* Breadcrumbs + Period Filter */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <Breadcrumbs
+            items={[
+              { label: "Sistema", href: "/system" },
+              { label: orgName || "Organização", href: `/org/${group.organization_id}` },
+              { label: group.name },
+            ]}
+          />
+          
+          <PeriodFilter
+            value={selectedPeriod}
+            customRange={customRange}
+            onChange={handlePeriodChange}
+          />
+        </div>
 
         {/* 1. Group Header */}
         <GroupHeader
@@ -109,6 +149,7 @@ const Group = () => {
           previousStats={previousStats || undefined}
           newMembersCount={newMembersCount}
           isLoading={isLoading}
+          periodLabel={getPeriodLabel()}
         />
 
         {/* 3. Conversation Rhythm Section */}
@@ -117,6 +158,7 @@ const Group = () => {
           peakHour={peakHour ?? undefined}
           peakHourMessages={peakHourMessages}
           isLoading={isLoading}
+          periodLabel={getPeriodLabel()}
         />
 
         {/* 4. People Section */}
@@ -126,6 +168,7 @@ const Group = () => {
           topParticipants={topParticipants}
           memberEngagement={memberEngagement}
           isLoading={isLoading}
+          periodLabel={getPeriodLabel()}
         />
 
         {/* 5. Alerts and Opportunities */}
@@ -139,6 +182,7 @@ const Group = () => {
         <AdminsSection
           adminStats={adminStats || undefined}
           isLoading={isLoading}
+          periodLabel={getPeriodLabel()}
         />
       </div>
     </AdminLayout>

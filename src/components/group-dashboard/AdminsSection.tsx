@@ -16,16 +16,17 @@ interface AdminStats {
 interface AdminsSectionProps {
   adminStats?: AdminStats;
   isLoading?: boolean;
+  periodLabel?: string;
 }
 
-export function AdminsSection({ adminStats, isLoading }: AdminsSectionProps) {
+export function AdminsSection({ adminStats, isLoading, periodLabel = "período" }: AdminsSectionProps) {
   if (isLoading) {
     return (
       <section className="rounded-xl border border-border bg-card p-5">
-        <SectionHeader 
-          title="Admins do Grupo" 
-          subtitle="Comportamento de liderança"
-        />
+      <SectionHeader 
+        title="Admins do Grupo" 
+        subtitle={`Comportamento de liderança (${periodLabel})`}
+      />
         <Skeleton className="h-[120px] w-full" />
       </section>
     );
@@ -34,10 +35,10 @@ export function AdminsSection({ adminStats, isLoading }: AdminsSectionProps) {
   if (!adminStats || adminStats.total === 0) {
     return (
       <section className="rounded-xl border border-border bg-card p-5">
-        <SectionHeader 
-          title="Admins do Grupo" 
-          subtitle="Comportamento de liderança"
-        />
+      <SectionHeader 
+        title="Admins do Grupo" 
+        subtitle={`Comportamento de liderança (${periodLabel})`}
+      />
         <InsightCard
           title="Nenhum admin identificado"
           description="Não foi possível identificar administradores neste grupo. Isso pode ocorrer se os dados de admin não estiverem disponíveis."
@@ -56,7 +57,7 @@ export function AdminsSection({ adminStats, isLoading }: AdminsSectionProps) {
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader 
         title="Admins do Grupo" 
-        subtitle="Comportamento de liderança"
+        subtitle={`Comportamento de liderança (${periodLabel})`}
       />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -71,7 +72,7 @@ export function AdminsSection({ adminStats, isLoading }: AdminsSectionProps) {
           <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">
             <Users className="h-5 w-5 text-success mx-auto mb-2" />
             <p className="text-2xl font-bold text-card-foreground">{adminStats.active}</p>
-            <p className="text-xs text-muted-foreground">Ativos (7d)</p>
+            <p className="text-xs text-muted-foreground">Ativos</p>
           </div>
           
           <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">

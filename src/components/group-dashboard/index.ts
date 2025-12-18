@@ -7,3 +7,5 @@ export { ConversationRhythmSection } from './ConversationRhythmSection';
 export { PeopleSection } from './PeopleSection';
 export { AlertsSection } from './AlertsSection';
 export { AdminsSection } from './AdminsSection';
+export { PeriodFilter, getDateRange } from './PeriodFilter';
+export type { PeriodType, DateRange } from './PeriodFilter';
