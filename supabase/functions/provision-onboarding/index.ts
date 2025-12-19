@@ -99,6 +99,20 @@ serve(async (req) => {
 
     console.log('Created organization:', org.id);
 
+    const { error: orgContactError } = await supabase
+      .from('organizations')
+      .update({
+        contact_name: payload.lead.name,
+        contact_email: payload.lead.email,
+        contact_phone: payload.lead.whatsapp_phone,
+        owner_user_id: payload.lead.user_id,
+      })
+      .eq('id', org.id);
+
+    if (orgContactError) {
+      console.error('Error updating organization contact:', orgContactError);
+    }
+
     // 2. Create Group (provider is always 'whatsapp' per DB constraint)
     const { data: group, error: groupError } = await supabase
       .from('groups')
@@ -142,6 +156,41 @@ serve(async (req) => {
         // Continue anyway, members are not critical
       } else {
         console.log('Created members:', membersToInsert.length);
+      }
+    }
+
+    if (payload.lead.whatsapp_phone) {
+      const { data: existingLead } = await supabase
+        .from('members')
+        .select('id')
+        .eq('group_id', group.id)
+        .eq('phone_e164', payload.lead.whatsapp_phone)
+        .maybeSingle();
+
+      if (existingLead) {
+        const { error: leadUpdateError } = await supabase
+          .from('members')
+          .update({ is_owner: true, name: payload.lead.name })
+          .eq('id', existingLead.id);
+
+        if (leadUpdateError) {
+          console.error('Error setting lead as group owner:', leadUpdateError);
+        }
+      } else {
+        const { error: leadInsertError } = await supabase
+          .from('members')
+          .insert({
+            group_id: group.id,
+            name: payload.lead.name || payload.lead.whatsapp_phone,
+            phone_e164: payload.lead.whatsapp_phone,
+            is_admin: false,
+            is_owner: true,
+            provider: 'whatsapp',
+          });
+
+        if (leadInsertError) {
+          console.error('Error adding lead as group owner:', leadInsertError);
+        }
       }
     }
 

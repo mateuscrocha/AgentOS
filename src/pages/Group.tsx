@@ -40,6 +40,7 @@ const Group = () => {
   
   const currentRange = getDateRange(selectedPeriod, customRange);
 
+
   const {
     group,
     orgName,
@@ -178,6 +179,8 @@ const Group = () => {
             </button>
           </div>
         </div>
+
+        
 
         {/* Help Sheet */}
         <Sheet open={helpOpen} onOpenChange={setHelpOpen}>

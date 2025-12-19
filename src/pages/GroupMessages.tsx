@@ -4,9 +4,9 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { useParams, NavLink } from "react-router-dom";
+import { useParams, NavLink, useNavigate } from "react-router-dom";
 import { 
-  Users, MessageSquare, Filter, Eye, Activity, 
+  Users, MessageSquare, Filter, Eye, Activity, ListChecks,
   Image, Mic, Video, FileText, MapPin, Smile, Download 
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +24,8 @@ import {
 import { ReactionBadges } from "@/components/messages/ReactionBadges";
 import { ReactionDetails } from "@/components/messages/ReactionDetails";
 import { UserInline } from "@/components/ui/UserInline";
+import { Button } from "@/components/ui/button";
+ 
 
 const PAGE_SIZE = 10;
 
@@ -117,6 +119,66 @@ const getMessageTypeIcon = (type: string) => {
     case 'poll_vote': return Activity;
     default: return MessageSquare;
   }
+};
+
+const PollInlineSummary = ({ groupId, providerMessageId }: { groupId: string; providerMessageId: string | null }) => {
+  const { data: poll } = useQuery({
+    queryKey: ['poll-inline', groupId, providerMessageId],
+    queryFn: async () => {
+      if (!providerMessageId) return null;
+      const { data } = await (supabase as any)
+        .from('polls')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('provider_poll_message_id', providerMessageId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!groupId && !!providerMessageId,
+  });
+
+  const { data: summary } = useQuery({
+    queryKey: ['poll-inline-summary', poll?.id],
+    queryFn: async () => {
+      if (!poll?.id) return null;
+      const { data } = await (supabase as any)
+        .from('v_poll_summary')
+        .select('voters_count')
+        .eq('poll_id', poll.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!poll?.id,
+  });
+
+  const { data: results } = useQuery({
+    queryKey: ['poll-inline-results', poll?.id],
+    queryFn: async () => {
+      if (!poll?.id) return [];
+      const { data } = await (supabase as any)
+        .from('v_poll_results')
+        .select('option_text, option_index, votes_count')
+        .eq('poll_id', poll.id)
+        .order('option_index', { ascending: true });
+      return (data ?? []).slice(0, 3).map((r: any) => ({
+        optionText: r.option_text as string,
+        optionIndex: Number(r.option_index),
+        votesCount: Number(r.votes_count ?? 0),
+      }));
+    },
+    enabled: !!poll?.id,
+  });
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] text-muted-foreground">{summary?.voters_count ? `${summary.voters_count} voto(s)` : 'Sem votos'}</span>
+      {(results ?? []).map((r) => (
+        <span key={r.optionIndex} className="text-[11px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
+          {r.optionText} {r.votesCount}
+        </span>
+      ))}
+    </div>
+  );
 };
 
 // Preview component for table cell
@@ -221,13 +283,16 @@ const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
 
     case 'poll':
       return (
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
-            <Activity className="h-5 w-5 text-primary" />
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-primary" />
+            </div>
+            <span className="text-sm line-clamp-1 max-w-[200px]">
+              {message.content_preview || '[Enquete]'}
+            </span>
           </div>
-          <span className="text-sm line-clamp-1 max-w-[200px]">
-            {message.content_preview || '[Enquete]'}
-          </span>
+          <PollInlineSummary groupId={message.group_id!} providerMessageId={message.provider_message_id || null} />
         </div>
       );
 
@@ -252,9 +317,12 @@ const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
   }
 };
 
+ 
+
 // Detail view component for dialog
 const MessageDetailView = ({ message }: { message: MessageDetail }) => {
   const textContent = message.content || message.text;
+  const { groupId } = useParams();
 
   switch (message.message_type) {
     case 'image':
@@ -396,6 +464,9 @@ const MessageDetailView = ({ message }: { message: MessageDetail }) => {
               )}
             </div>
           </div>
+          <div className="text-xs text-muted-foreground">
+            Para ver os detalhes, use a tela dedicada de Enquete.
+          </div>
         </div>
       );
 
@@ -429,11 +500,13 @@ const GroupMessages = () => {
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [selectedMessage, setSelectedMessage] = useState<MessageDetail | null>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
 
   const tabs = [
     { label: "Visão Geral", href: `/group/${groupId}`, end: true },
     { label: "Members", href: `/group/${groupId}/members`, icon: Users },
     { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
+    { label: "Enquetes", href: `/group/${groupId}/polls`, icon: ListChecks },
     { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
   ];
 
@@ -593,13 +666,26 @@ const GroupMessages = () => {
   const reactionsMap = useMemo(() => reactionsData || {}, [reactionsData]);
 
   const handleViewDetail = async (m: MessageFeed) => {
-    // Fetch full content for detail view
+    if (m.message_type === 'poll') {
+      const { data: poll } = await (supabase as any)
+        .from('polls')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('provider_poll_message_id', m.provider_message_id)
+        .maybeSingle();
+
+      if (poll?.id) {
+        navigate(`/group/${groupId}/polls/${poll.id}`);
+        return;
+      }
+    }
+
     const { data } = await supabase
       .from('messages')
       .select('*')
       .eq('id', m.message_id)
       .maybeSingle();
-    
+
     if (data) {
       setSelectedMessage({
         id: data.id,

@@ -1,7 +1,11 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Settings as SettingsIcon, Database, Shield, Key } from "lucide-react";
+import { Settings as SettingsIcon, Database, Shield, Key, CheckCircle, AlertCircle } from "lucide-react";
 
 const Settings = () => {
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+  const maskedAnonKey = SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.slice(0, 8)}...${SUPABASE_ANON_KEY.slice(-4)}` : "Não configurado";
+  const isCorrectProject = !!SUPABASE_URL && SUPABASE_URL.includes("ceugwdfpbvziiumnxknt");
   return (
     <AdminLayout 
       title="Configurações" 
@@ -22,11 +26,22 @@ const Settings = () => {
           <div className="space-y-3">
             <div className="rounded-lg bg-secondary/50 px-4 py-3">
               <p className="text-xs font-medium text-muted-foreground mb-1">Project URL</p>
-              <p className="text-sm text-card-foreground font-mono">Não configurado</p>
+              <p className="text-sm text-card-foreground font-mono">{SUPABASE_URL ?? "Não configurado"}</p>
             </div>
             <div className="rounded-lg bg-secondary/50 px-4 py-3">
               <p className="text-xs font-medium text-muted-foreground mb-1">Anon Key</p>
-              <p className="text-sm text-card-foreground font-mono">Não configurado</p>
+              <p className="text-sm text-card-foreground font-mono">{maskedAnonKey}</p>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-4 py-3">
+              <div className="flex items-center gap-2">
+                {isCorrectProject ? (
+                  <CheckCircle className="h-4 w-4 text-success" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-warning" />
+                )}
+                <p className="text-xs font-medium text-muted-foreground">Projeto alvo</p>
+              </div>
+              <p className="text-xs font-mono text-card-foreground">ceugwdfpbvziiumnxknt</p>
             </div>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">

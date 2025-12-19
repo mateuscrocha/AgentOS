@@ -14,7 +14,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, FileText, Users, MessageSquare, Activity } from "lucide-react";
+import { Calendar, FileText, Users, MessageSquare, Activity, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Event {
@@ -187,6 +187,7 @@ export default function GroupEvents() {
     { label: "Visão Geral", href: `/group/${groupId}`, end: true },
     { label: "Members", href: `/group/${groupId}/members`, icon: Users },
     { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
+    { label: "Enquetes", href: `/group/${groupId}/polls`, icon: ListChecks },
     { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
   ];
 

@@ -5,7 +5,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, NavLink } from "react-router-dom";
-import { Users, MessageSquare, Search, X, Eye, Activity } from "lucide-react";
+import { Users, MessageSquare, Search, X, Eye, Activity, ListChecks } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -62,6 +62,7 @@ const GroupMembers = () => {
     { label: "Visão Geral", href: `/group/${groupId}`, end: true },
     { label: "Members", href: `/group/${groupId}/members`, icon: Users },
     { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
+    { label: "Enquetes", href: `/group/${groupId}/polls`, icon: ListChecks },
     { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
   ];
 

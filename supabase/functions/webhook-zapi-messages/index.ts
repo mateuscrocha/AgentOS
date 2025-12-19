@@ -126,11 +126,12 @@ serve(async (req: Request) => {
         }
       }
 
-      // Upsert message of type poll
+      // Insert message of type poll
       if (messageId) {
         const { data: existingMsg } = await supabase
           .from('messages')
           .select('id')
+          .eq('provider', provider)
           .eq('provider_message_id', messageId)
           .maybeSingle();
         if (!existingMsg) {
@@ -139,8 +140,7 @@ serve(async (req: Request) => {
             message_type: 'poll',
             provider: provider,
             provider_message_id: messageId,
-            text: question,
-            raw_provider: payload,
+            content: question,
           });
         }
       }
@@ -172,25 +172,25 @@ serve(async (req: Request) => {
         );
       }
 
-      // Ensure member exists
+      // Ensure person exists (group_member)
       const phone = normalizePhoneE164(votePayload.participantPhone || null);
-      let memberId: string | null = null;
+      let personId: string | null = null;
       if (phone) {
         const { data: existingMember } = await supabase
           .from('members')
           .select('id')
           .eq('group_id', groupId)
-          .eq('phone_e164', phone)
+          .eq('phone', phone)
           .maybeSingle();
         if (existingMember) {
-          memberId = existingMember.id;
+          personId = existingMember.id;
         } else {
           const { data: newMember } = await supabase
             .from('members')
-            .insert({ group_id: groupId, phone_e164: phone, name: phone, provider: 'whatsapp' })
+            .insert({ group_id: groupId, phone: phone, name: phone, source: 'zapi' })
             .select('id')
             .single();
-          memberId = newMember?.id || null;
+          personId = newMember?.id || null;
         }
       }
 
@@ -207,29 +207,29 @@ serve(async (req: Request) => {
           .from('poll_votes')
           .insert({
             poll_id: poll.id,
-            member_id: memberId,
+            person_id: personId,
             voted_options: votedTexts,
             provider,
             provider_vote_message_id: votePayload.messageId,
           });
       }
 
-      // Upsert message of type poll_vote
+      // Insert message of type poll_vote
       if (messageId) {
         const { data: existingMsg } = await supabase
           .from('messages')
           .select('id')
+          .eq('provider', provider)
           .eq('provider_message_id', messageId)
           .maybeSingle();
         if (!existingMsg) {
           await supabase.from('messages').insert({
             group_id: groupId,
-            member_id: memberId,
+            member_id: personId,
             message_type: 'poll_vote',
             provider: provider,
             provider_message_id: messageId,
-            text: votedTexts.length ? `Voto: ${votedTexts.join(', ')}` : 'Voto em enquete',
-            raw_provider: payload,
+            content: votedTexts.length ? `Voto: ${votedTexts.join(', ')}` : 'Voto em enquete',
           });
         }
       }

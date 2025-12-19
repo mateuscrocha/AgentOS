@@ -19,6 +19,8 @@ import Group from "./pages/Group";
 import GroupMembers from "./pages/GroupMembers";
 import GroupMessages from "./pages/GroupMessages";
 import GroupEvents from "./pages/GroupEvents";
+import GroupPoll from "./pages/GroupPoll";
+import GroupPolls from "./pages/GroupPolls";
 import Account from "./pages/Account";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
@@ -55,6 +57,8 @@ const App = () => (
             <Route path="/group/:groupId" element={<Group />} />
             <Route path="/group/:groupId/members" element={<GroupMembers />} />
             <Route path="/group/:groupId/messages" element={<GroupMessages />} />
+            <Route path="/group/:groupId/polls" element={<GroupPolls />} />
+            <Route path="/group/:groupId/polls/:pollId" element={<GroupPoll />} />
             <Route path="/group/:groupId/events" element={<GroupEvents />} />
             <Route path="/account" element={<Account />} />
             <Route path="/settings" element={<Settings />} />
