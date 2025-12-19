@@ -4,14 +4,14 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useNavigate } from "react-router-dom";
-import { Layers, Building2, Users, Edit, Trash2 } from "lucide-react";
+import { Layers, Building2, Users, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
-import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -36,46 +36,53 @@ interface Organization {
 const System = () => {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
+  const [groupPage, setGroupPage] = useState(1);
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
-  const [editOrg, setEditOrg] = useState<Organization | null>(null);
-  const [deleteOrg, setDeleteOrg] = useState<Organization | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [orgSearch, setOrgSearch] = useState("");
+  const [orgOrderBy, setOrgOrderBy] = useState<"name" | "created_at">("name");
+  const [orgOrderDir, setOrgOrderDir] = useState<"asc" | "desc">("asc");
+  const [groupSearch, setGroupSearch] = useState("");
+  const [groupOrderBy, setGroupOrderBy] = useState<"name" | "created_at">("created_at");
+  const [groupOrderDir, setGroupOrderDir] = useState<"asc" | "desc">("desc");
+  const [groupOrgFilter, setGroupOrgFilter] = useState<string>("");
 
-  const handleDeleteOrganization = async () => {
-    if (!deleteOrg) return;
-    
-    setDeleting(true);
-    try {
-      const { error } = await supabase
-        .from('organizations')
-        .delete()
-        .eq('id', deleteOrg.id);
-      
-      if (error) throw error;
-      
-      toast.success(`Organização "${deleteOrg.name}" excluída com sucesso`);
-      setDeleteOrg(null);
-      refetchOrgs();
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao excluir organização");
-    } finally {
-      setDeleting(false);
-    }
-  };
+  const [removeOrg, setRemoveOrg] = useState<Organization | null>(null);
+  const [removingOrg, setRemovingOrg] = useState(false);
+  const [removeGroup, setRemoveGroup] = useState<any | null>(null);
+  const [removingGroup, setRemovingGroup] = useState(false);
+
+  // Debounced search terms to reduce query churn
+  const [debouncedOrgSearch, setDebouncedOrgSearch] = useState(orgSearch);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedOrgSearch(orgSearch), 300);
+    return () => clearTimeout(t);
+  }, [orgSearch]);
+
+  const [debouncedGroupSearch, setDebouncedGroupSearch] = useState(groupSearch);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedGroupSearch(groupSearch), 300);
+    return () => clearTimeout(t);
+  }, [groupSearch]);
 
   // Fetch organizations with pagination
   const { data: orgsData, isLoading: orgsLoading, error: orgsError, refetch: refetchOrgs } = useQuery({
-    queryKey: ['organizations', page],
+    queryKey: ['organizations', page, debouncedOrgSearch, orgOrderBy, orgOrderDir],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       
-      const { data, error, count } = await supabase
+      let query = supabase
         .from('organizations')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        .select('id, name, status, created_at', { count: 'exact' });
+
+      if (debouncedOrgSearch) {
+        query = query.ilike('name', `%${debouncedOrgSearch}%`);
+      }
+
+      query = query.order(orgOrderBy, { ascending: orgOrderDir === 'asc' });
+
+      const { data, error, count } = await query.range(from, to);
       
       if (error) throw error;
       return { items: data ?? [], count: count ?? 0 };
@@ -83,18 +90,50 @@ const System = () => {
     enabled: isAuthenticated,
   });
 
-  // Fetch recent groups
-  const { data: recentGroups, isLoading: groupsLoading } = useQuery({
-    queryKey: ['recent-groups'],
+  // Group counts per organization (only for visible organizations on current page)
+  const orgIds = useMemo(() => (orgsData?.items ?? []).map((o: any) => o.id), [orgsData]);
+  const { data: orgGroupCounts } = useQuery({
+    queryKey: ['org-group-counts', orgIds],
     queryFn: async () => {
+      if (!orgIds || orgIds.length === 0) return {} as Record<string, number>;
       const { data, error } = await supabase
         .from('groups')
-        .select('id, name, organization_id, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5);
-      
+        .select('organization_id, id')
+        .in('organization_id', orgIds);
       if (error) throw error;
-      return data ?? [];
+      const counts: Record<string, number> = {};
+      (data ?? []).forEach((g: any) => {
+        const key = g.organization_id as string;
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: isAuthenticated && orgIds.length > 0,
+  });
+
+  // Fetch groups list with search/filter
+  const { data: groupsData, isLoading: groupsLoading, error: groupsError, refetch: refetchGroups } = useQuery({
+    queryKey: ['system-groups', groupPage, debouncedGroupSearch, groupOrderBy, groupOrderDir, groupOrgFilter],
+    queryFn: async () => {
+      const from = (groupPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      let query = supabase
+        .from('groups')
+        .select('id, name, provider, status, organization_id, organizations(name)', { count: 'exact' });
+
+      if (debouncedGroupSearch) {
+        query = query.ilike('name', `%${debouncedGroupSearch}%`);
+      }
+      if (groupOrgFilter) {
+        query = query.eq('organization_id', groupOrgFilter);
+      }
+
+      query = query.order(groupOrderBy, { ascending: groupOrderDir === 'asc' });
+
+      const { data, error, count } = await query.range(from, to);
+      if (error) throw error;
+      return { items: data ?? [], count: count ?? 0 };
     },
     enabled: isAuthenticated,
   });
@@ -132,6 +171,15 @@ const System = () => {
         </span>
       )
     },
+    {
+      key: 'groups_count',
+      header: 'Grupos',
+      render: (org: Organization) => (
+        <span className="text-sm text-muted-foreground">
+          {orgGroupCounts?.[org.id] ?? 0}
+        </span>
+      )
+    },
     { 
       key: 'created_at', 
       header: 'Criado em',
@@ -139,33 +187,64 @@ const System = () => {
     },
     {
       key: 'actions',
-      header: '',
-      className: 'w-20',
+      header: 'Ações',
+      className: 'text-right w-0',
       render: (org: Organization) => (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditOrg(org);
-            }}
-            className="h-8 w-8 p-0"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteOrg(org);
-            }}
-            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          title="Excluir organização"
+          onClick={(e) => { e.stopPropagation(); setRemoveOrg(org); }}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      )
+    },
+  ];
+
+  const groupColumns = [
+    { key: 'name', header: 'Nome' },
+    { 
+      key: 'organizations',
+      header: 'Organização',
+      render: (g: any) => (
+        <span className="text-sm text-muted-foreground">{g.organizations?.name || '-'}</span>
+      )
+    },
+    {
+      key: 'provider',
+      header: 'Provedor',
+      render: (g: any) => (
+        <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
+          {g.provider}
+        </span>
+      )
+    },
+    { 
+      key: 'status',
+      header: 'Status',
+      render: (g: any) => (
+        <span className={cn(
+          'px-2 py-0.5 rounded-full text-xs font-medium',
+          g.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+        )}>
+          {g.status || 'indefinido'}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Ações',
+      className: 'text-right w-0',
+      render: (g: any) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          title="Excluir grupo"
+          onClick={(e) => { e.stopPropagation(); setRemoveGroup(g); }}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
       )
     },
   ];
@@ -173,7 +252,7 @@ const System = () => {
   return (
     <AdminLayout 
       title="Sistema" 
-      subtitle="Configurações globais e visão geral do sistema"
+      subtitle="Visão global exclusiva para administradores do sistema"
     >
       <div className="space-y-6 animate-fade-in">
         {/* Page header */}
@@ -182,34 +261,52 @@ const System = () => {
             <Layers className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-card-foreground">Visão do Sistema</h2>
-            <p className="text-sm text-muted-foreground">Gerencie organizações, configurações globais e métricas</p>
+            <h2 className="text-lg font-semibold text-card-foreground">Visão Global do Sistema</h2>
+            <p className="text-sm text-muted-foreground">Acesso rápido a todas as Organizações e Grupos</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Organizations list */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
+        {/* Two-column layout: Organizations and Groups */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Organizations */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
                 Organizações
               </h3>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Buscar por nome..."
+                  value={orgSearch}
+                  onChange={(e) => { setOrgSearch(e.target.value); setPage(1); }}
+                  className="w-52 px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <select
+                  value={orgOrderBy}
+                  onChange={(e) => setOrgOrderBy(e.target.value as any)}
+                  className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs"
+                >
+                  <option value="name">Ordenar por Nome</option>
+                  <option value="created_at">Ordenar por Data</option>
+                </select>
+                <select
+                  value={orgOrderDir}
+                  onChange={(e) => setOrgOrderDir(e.target.value as any)}
+                  className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs"
+                >
+                  <option value="asc">Asc</option>
+                  <option value="desc">Desc</option>
+                </select>
+              </div>
             </div>
-            
             {orgsLoading ? (
               <LoadingState message="Carregando organizações..." />
             ) : orgsError ? (
-              <ErrorState 
-                message="Falha ao carregar organizações"
-                retry={() => refetchOrgs()}
-              />
+              <ErrorState message="Falha ao carregar organizações" retry={() => refetchOrgs()} />
             ) : orgsData?.items.length === 0 ? (
-              <EmptyState
-                icon={Building2}
-                title="Nenhuma organização"
-                message="Não há organizações cadastradas no sistema."
-              />
+              <EmptyState icon={Building2} title="Nenhuma organização" message="Não há organizações cadastradas." />
             ) : (
               <DataTable
                 columns={orgColumns}
@@ -224,94 +321,153 @@ const System = () => {
             )}
           </div>
 
-          {/* Recent groups */}
+          {/* Groups */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
-              <Users className="h-4 w-4" />
-              Grupos Recentes
-            </h3>
-            
-            <div className="rounded-xl border border-border bg-card">
-              {groupsLoading ? (
-                <LoadingState message="Carregando grupos..." className="py-8" />
-              ) : recentGroups?.length === 0 ? (
-                <EmptyState
-                  icon={Users}
-                  title="Nenhum grupo"
-                  message="Não há grupos cadastrados."
-                  className="py-8"
-                />
-              ) : (
-                <div className="divide-y divide-border">
-                  {recentGroups?.map((group) => (
-                    <button
-                      key={group.id}
-                      onClick={() => navigate(`/group/${group.id}`)}
-                      className="w-full flex items-center gap-3 p-4 hover:bg-secondary/50 transition-colors text-left"
-                    >
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                        <Users className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-card-foreground truncate">
-                          {group.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(group.created_at).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Grupos
+                </h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Buscar por nome..."
+                    value={groupSearch}
+                    onChange={(e) => { setGroupSearch(e.target.value); setGroupPage(1); }}
+                    className="w-52 px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <select
+                    value={groupOrgFilter}
+                    onChange={(e) => { setGroupOrgFilter(e.target.value); setGroupPage(1); }}
+                    className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs"
+                  >
+                    <option value="">Todas as organizações</option>
+                    {(orgsData?.items ?? []).map((org: any) => (
+                      <option key={org.id} value={org.id}>{org.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={groupOrderBy}
+                    onChange={(e) => setGroupOrderBy(e.target.value as any)}
+                    className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs"
+                  >
+                    <option value="created_at">Ordenar por Data</option>
+                    <option value="name">Ordenar por Nome</option>
+                  </select>
+                  <select
+                    value={groupOrderDir}
+                    onChange={(e) => setGroupOrderDir(e.target.value as any)}
+                    className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs"
+                  >
+                    <option value="asc">Asc</option>
+                    <option value="desc">Desc</option>
+                  </select>
                 </div>
-              )}
-            </div>
+              </div>
+            {groupsLoading ? (
+              <LoadingState message="Carregando grupos..." />
+            ) : groupsError ? (
+              <ErrorState message="Falha ao carregar grupos" retry={() => refetchGroups()} />
+            ) : groupsData?.items.length === 0 ? (
+              <EmptyState icon={Users} title="Nenhum grupo" message="Não há grupos cadastrados." />
+            ) : (
+              <DataTable
+                columns={groupColumns}
+                data={groupsData?.items ?? []}
+                keyExtractor={(g) => g.id}
+                onRowClick={(g) => navigate(`/group/${g.id}`)}
+                page={groupPage}
+                pageSize={PAGE_SIZE}
+                totalCount={groupsData?.count}
+                onPageChange={setGroupPage}
+              />
+            )}
           </div>
         </div>
+        
+        <AlertDialog open={!!removeOrg} onOpenChange={(open) => !open && setRemoveOrg(null)}>
+          <AlertDialogContent className="bg-card border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-card-foreground">Excluir organização</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground">
+                Esta ação é irreversível e removerá a organização do sistema. Se houver grupos associados,
+                a exclusão será bloqueada.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="mr-2">Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (!removeOrg) return;
+                  const groupsCount = orgGroupCounts?.[removeOrg.id] ?? 0;
+                  if (groupsCount > 0) {
+                    toast.error('A organização possui grupos. Exclua os grupos antes de excluir a organização.');
+                    return;
+                  }
+                  setRemovingOrg(true);
+                  try {
+                    const { error } = await supabase
+                      .from('organizations')
+                      .delete()
+                      .eq('id', removeOrg.id);
+                    if (error) throw error;
+                    toast.success('Organização excluída com sucesso');
+                    setRemoveOrg(null);
+                    refetchOrgs();
+                  } catch (err: any) {
+                    toast.error(err.message || 'Erro ao excluir organização');
+                  } finally {
+                    setRemovingOrg(false);
+                  }
+                }}
+                disabled={removingOrg}
+              >
+                Confirmar exclusão
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!removeGroup} onOpenChange={(open) => !open && setRemoveGroup(null)}>
+          <AlertDialogContent className="bg-card border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-card-foreground">Excluir grupo</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground">
+                Esta ação é irreversível e removerá o grupo do sistema. Mensagens e vínculos relacionados
+                podem impedir a exclusão se existirem restrições no banco.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="mr-2">Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (!removeGroup) return;
+                  setRemovingGroup(true);
+                  try {
+                    const { error } = await supabase
+                      .from('groups')
+                      .delete()
+                      .eq('id', removeGroup.id);
+                    if (error) throw error;
+                    toast.success('Grupo excluído com sucesso');
+                    setRemoveGroup(null);
+                    refetchGroups();
+                    refetchOrgs();
+                  } catch (err: any) {
+                    toast.error(err.message || 'Erro ao excluir grupo');
+                  } finally {
+                    setRemovingGroup(false);
+                  }
+                }}
+                disabled={removingGroup}
+              >
+                Confirmar exclusão
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </div>
-
-      {/* Edit organization modal */}
-      <EditOrganizationModal
-        organization={editOrg}
-        open={!!editOrg}
-        onOpenChange={(open) => !open && setEditOrg(null)}
-        onSuccess={() => refetchOrgs()}
-      />
-
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={!!deleteOrg} onOpenChange={(open) => !open && setDeleteOrg(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
-              Excluir Organização
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>
-                Você está prestes a excluir a organização <strong>"{deleteOrg?.name}"</strong>.
-              </p>
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                <strong>⚠️ Atenção:</strong> Esta ação é irreversível e irá excluir permanentemente:
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Todos os grupos desta organização</li>
-                  <li>Todos os membros desses grupos</li>
-                  <li>Todas as mensagens armazenadas</li>
-                  <li>Todos os eventos e logs relacionados</li>
-                  <li>Todas as permissões de usuários vinculadas</li>
-                </ul>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteOrganization}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting ? "Excluindo..." : "Excluir Permanentemente"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AdminLayout>
   );
 };

@@ -24,6 +24,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { UserInline } from "@/components/ui/UserInline";
 
 const PAGE_SIZE = 10;
 
@@ -133,7 +134,9 @@ const GroupMembers = () => {
   }
 
   const columns = [
-    { key: 'name', header: 'Nome' },
+    { key: 'name', header: 'Nome', render: (m: Member) => (
+      <UserInline name={m.name} avatarUrl={m.profile_pic_url} />
+    ) },
     { key: 'phone_e164', header: 'Telefone', render: (m: Member) => m.phone_e164 || '-' },
     { 
       key: 'role', 

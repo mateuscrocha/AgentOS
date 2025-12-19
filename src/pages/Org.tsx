@@ -5,7 +5,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, useNavigate } from "react-router-dom";
-import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Phone, Plus } from "lucide-react";
+import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Phone, Plus, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -16,11 +16,22 @@ import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal
 import { EditGroupModal } from "@/components/modals/EditGroupModal";
 import { AddGroupModal } from "@/components/modals/AddGroupModal";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const PAGE_SIZE = 10;
 
@@ -30,10 +41,10 @@ interface OrganizationDetail {
   slug: string | null;
   status: string;
   owner_user_id: string | null;
-  plan: string;
+  plan: string | null;
   trial_started_at: string | null;
   trial_ends_at: string | null;
-  billing_status: string;
+  billing_status: string | null;
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
@@ -51,8 +62,8 @@ interface GroupItem {
   created_at: string;
   organization_id: string;
   provider_group_id: string | null;
-  is_active: boolean;
-  sync_status: string;
+  is_active: boolean | null;
+  sync_status: string | null;
 }
 
 const Org = () => {
@@ -64,6 +75,8 @@ const Org = () => {
   const [editOrgOpen, setEditOrgOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<GroupItem | null>(null);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
+  const [removeGroup, setRemoveGroup] = useState<GroupItem | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   // Fetch organization details
   const { data: org, isLoading: orgLoading, error: orgError, refetch: refetchOrg } = useQuery({
@@ -107,6 +120,7 @@ const Org = () => {
         .select('*', { count: 'exact' })
         .eq('organization_id', orgId)
         .is('deleted_at', null)
+        .neq('is_archived', true)
         .order('created_at', { ascending: false })
         .range(from, to);
       
@@ -178,7 +192,7 @@ const Org = () => {
           group.sync_status === 'error' ? 'bg-destructive/10 text-destructive' :
           'bg-muted text-muted-foreground'
         }`}>
-          {group.sync_status}
+          {group.sync_status || '-'}
         </span>
       )
     },
@@ -187,9 +201,11 @@ const Org = () => {
       header: 'Status',
       render: (group: GroupItem) => (
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          group.is_active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+          group.is_active === true ? 'bg-success/10 text-success' :
+          group.is_active === false ? 'bg-muted text-muted-foreground' :
+          'bg-muted text-muted-foreground'
         }`}>
-          {group.is_active ? 'Ativo' : 'Inativo'}
+          {group.is_active === true ? 'Ativo' : group.is_active === false ? 'Inativo' : '—'}
         </span>
       )
     },
@@ -204,19 +220,38 @@ const Org = () => {
       className: 'w-10',
       render: (group: GroupItem) => {
         const canEdit = canEditGroup(group.id, orgId);
-        if (!canEdit) return null;
+        const canRemove = userCanEditOrg; // apenas ADMIN_DA_ORGANIZAÇÃO ou SYSTEM_ADMIN
+        if (!canEdit && !canRemove) return null;
         return (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditGroup(group);
-            }}
-            className="h-8 w-8 p-0"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditGroup(group);
+                }}
+                className="h-8 w-8 p-0"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+            {canRemove && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRemoveGroup(group);
+                }}
+                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                title="Remover grupo da organização"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         );
       }
     },
@@ -231,7 +266,7 @@ const Org = () => {
         {/* Breadcrumbs */}
         <Breadcrumbs
           items={[
-            { label: "System", href: "/system" },
+            { label: "Sistema", href: "/system" },
             { label: org.name },
           ]}
         />
@@ -276,9 +311,9 @@ const Org = () => {
 
         {/* Detail Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Section: Geral */}
+          {/* Section: Configurações da Organização */}
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Geral</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Configurações da Organização</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Nome</span>
@@ -295,6 +330,16 @@ const Org = () => {
               <div>
                 <span className="text-muted-foreground">Owner</span>
                 <p className="font-medium text-card-foreground">{ownerProfile?.name || org.owner_user_id || '-'}</p>
+              </div>
+              <div className="col-span-2">
+                <span className="text-muted-foreground">Descrição / propósito</span>
+                {(org.settings && (org.settings as any).description) ? (
+                  <p className="font-medium text-card-foreground whitespace-pre-wrap break-words">
+                    {(org.settings as any).description}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Adicione uma descrição da organização</p>
+                )}
               </div>
               <div>
                 <span className="text-muted-foreground">Criada em</span>
@@ -330,6 +375,9 @@ const Org = () => {
                 <span className="text-muted-foreground">Telefone</span>
                 <p className="font-medium text-card-foreground">{org.contact_phone || '-'}</p>
               </div>
+              {(!org.contact_name && !org.contact_email && !org.contact_phone) && (
+                <p className="text-xs text-muted-foreground">Você pode completar essas informações depois.</p>
+              )}
             </div>
           </div>
 
@@ -342,7 +390,7 @@ const Org = () => {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Plano</span>
-                <p className="font-medium text-card-foreground capitalize">{org.plan}</p>
+                <p className="font-medium text-card-foreground capitalize">{org.plan || '-'}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Status do Billing</span>
@@ -351,7 +399,7 @@ const Org = () => {
                   org.billing_status === 'overdue' ? 'text-destructive' :
                   'text-muted-foreground'
                 }`}>
-                  {org.billing_status}
+                  {org.billing_status || '-'}
                 </p>
               </div>
               <div>
@@ -481,6 +529,46 @@ const Org = () => {
           navigate(`/group/${groupId}`);
         }}
       />
+
+      {/* Remove group confirmation */}
+      <AlertDialog open={!!removeGroup} onOpenChange={(open) => !open && setRemoveGroup(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-card-foreground">Remover grupo da organização</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Esta ação desvincula o grupo da organização e não apaga dados históricos. 
+              O grupo deixará de aparecer nesta organização.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="mr-2">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!removeGroup) return;
+                setRemoving(true);
+                try {
+                  // Primeiro, tentar arquivar o grupo para removê-lo da listagem
+                  const { error } = await supabase
+                    .from('groups')
+                    .update({ is_archived: true })
+                    .eq('id', removeGroup.id);
+                  if (error) throw error;
+                  toast.success('Grupo removido da organização com sucesso');
+                  setRemoveGroup(null);
+                  refetchGroups();
+                } catch (err: any) {
+                  toast.error(err.message || 'Erro ao remover grupo');
+                } finally {
+                  setRemoving(false);
+                }
+              }}
+              disabled={removing}
+            >
+              Confirmar remoção
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };

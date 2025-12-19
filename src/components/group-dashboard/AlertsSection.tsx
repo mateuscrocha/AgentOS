@@ -4,10 +4,12 @@ import { SectionHeader } from "./SectionHeader";
 import { InsightCard } from "./InsightCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { UserInline } from "@/components/ui/UserInline";
 
 interface AtRiskMember {
   id: string;
   name: string;
+  avatarUrl?: string | null;
   daysSinceLastMessage: number;
 }
 
@@ -16,6 +18,7 @@ interface PopularMessage {
   content: string | null;
   messageType: string;
   memberName: string;
+  avatarUrl?: string | null;
   reactionCount: number;
   createdAt?: string | null;
 }
@@ -81,14 +84,7 @@ export function AlertsSection({
                     key={member.id} 
                     className="flex items-center justify-between p-2 rounded-lg bg-card/50"
                   >
-                    <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-                        <User className="h-3 w-3 text-muted-foreground" />
-                      </div>
-                      <span className="text-sm text-card-foreground truncate max-w-[150px]">
-                        {member.name}
-                      </span>
-                    </div>
+                    <UserInline name={member.name} avatarUrl={member.avatarUrl} />
                     <span className="text-xs text-muted-foreground">Sem atividade no período</span>
                   </div>
                 ))}
@@ -130,9 +126,7 @@ export function AlertsSection({
                   >
                     <div className="flex items-center gap-2 mb-1">
                       {msg.memberName !== 'Desconhecido' && (
-                        <span className="text-xs font-medium text-primary">
-                          {msg.memberName}
-                        </span>
+                        <UserInline name={msg.memberName} avatarUrl={msg.avatarUrl} size="xs" />
                       )}
                       {msg.messageType !== 'text' && (
                         <Badge variant="secondary" className="text-xs py-0 px-1.5">

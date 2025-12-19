@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { ReactionBadges } from "@/components/messages/ReactionBadges";
 import { ReactionDetails } from "@/components/messages/ReactionDetails";
+import { UserInline } from "@/components/ui/UserInline";
 
 const PAGE_SIZE = 10;
 
@@ -34,6 +35,7 @@ interface MessageFeed {
   content_preview: string | null;
   member_id: string | null;
   member_name: string;
+  member_avatar: string | null;
   provider_message_id: string | null;
   media_url: string | null;
   media_mime_type: string | null;
@@ -59,6 +61,7 @@ interface MessageDetail {
   message_type: string;
   member_id: string | null;
   member_name: string;
+  member_avatar: string | null;
   created_at: string;
   provider_message_id: string | null;
   media_url: string | null;
@@ -69,7 +72,7 @@ interface MessageDetail {
   thumbnail_url: string | null;
 }
 
-const MESSAGE_TYPES = ['text', 'image', 'audio', 'video', 'document', 'sticker', 'location'];
+const MESSAGE_TYPES = ['text', 'image', 'audio', 'video', 'document', 'sticker', 'location', 'poll', 'poll_vote'];
 
 // Translate message type to Portuguese
 const translateMessageType = (type: string): string => {
@@ -81,6 +84,8 @@ const translateMessageType = (type: string): string => {
     'document': 'Documento',
     'sticker': 'Figurinha',
     'location': 'Localização',
+    'poll': 'Enquete',
+    'poll_vote': 'Voto em enquete',
   };
   return translations[type] || type;
 };
@@ -108,6 +113,8 @@ const getMessageTypeIcon = (type: string) => {
     case 'document': return FileText;
     case 'sticker': return Smile;
     case 'location': return MapPin;
+    case 'poll': return Activity;
+    case 'poll_vote': return Activity;
     default: return MessageSquare;
   }
 };
@@ -209,6 +216,30 @@ const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
             <MapPin className="h-5 w-5 text-success" />
           </div>
           <span className="text-muted-foreground text-sm">[Localização]</span>
+        </div>
+      );
+
+    case 'poll':
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
+            <Activity className="h-5 w-5 text-primary" />
+          </div>
+          <span className="text-sm line-clamp-1 max-w-[200px]">
+            {message.content_preview || '[Enquete]'}
+          </span>
+        </div>
+      );
+
+    case 'poll_vote':
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded bg-secondary/50 flex items-center justify-center">
+            <Activity className="h-5 w-5 text-secondary-foreground" />
+          </div>
+          <span className="text-muted-foreground text-sm">
+            {message.content_preview || '[Voto em enquete]'}
+          </span>
         </div>
       );
 
@@ -353,6 +384,36 @@ const MessageDetailView = ({ message }: { message: MessageDetail }) => {
         </div>
       );
 
+    case 'poll':
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/10">
+            <Activity className="h-10 w-10 text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-card-foreground">Enquete</p>
+              {textContent && (
+                <p className="text-sm text-card-foreground">{textContent}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+
+    case 'poll_vote':
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary/50">
+            <Activity className="h-10 w-10 text-secondary-foreground" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-card-foreground">Voto em enquete</p>
+              {textContent && (
+                <p className="text-sm text-card-foreground">{textContent}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+
     default:
       return (
         <div className="p-3 rounded-lg bg-secondary/50 text-sm text-card-foreground whitespace-pre-wrap">
@@ -433,20 +494,24 @@ const GroupMessages = () => {
           fallbackQuery = fallbackQuery.eq('message_type', typeFilter);
         }
         
-        const { data: msgData, error: msgError, count: msgCount } = await fallbackQuery.range(from, to);
+      const { data: msgData, error: msgError, count: msgCount } = await fallbackQuery.range(from, to);
         
         if (msgError) throw msgError;
         
         // Fetch member names for each message (fallback - not ideal but works)
         const items: MessageFeed[] = await Promise.all((msgData ?? []).map(async (m) => {
           let memberName = 'Unknown';
+          let memberAvatar: string | null = null;
           if (m.member_id) {
             const { data: member } = await supabase
               .from('members')
-              .select('name')
+              .select('name, profile_pic_url')
               .eq('id', m.member_id)
               .maybeSingle();
-            if (member) memberName = member.name;
+            if (member) {
+              memberName = member.name;
+              memberAvatar = (member as any).profile_pic_url || null;
+            }
           }
           return {
             message_id: m.id,
@@ -456,6 +521,7 @@ const GroupMessages = () => {
             content_preview: m.content?.slice(0, 160) ?? null,
             member_id: m.member_id,
             member_name: memberName,
+            member_avatar: memberAvatar,
             provider_message_id: m.provider_message_id,
             media_url: m.media_url,
             media_mime_type: m.media_mime_type,
@@ -475,6 +541,7 @@ const GroupMessages = () => {
         content_preview: d.content_preview,
         member_id: d.member_id,
         member_name: d.member_name || d.member_display_name || 'Unknown',
+        member_avatar: d.member_avatar || null,
         provider_message_id: d.provider_message_id,
         media_url: d.media_url,
         media_mime_type: d.media_mime_type,
@@ -541,6 +608,7 @@ const GroupMessages = () => {
         message_type: data.message_type,
         member_id: data.member_id,
         member_name: m.member_name,
+        member_avatar: m.member_avatar,
         created_at: data.created_at,
         provider_message_id: data.provider_message_id,
         media_url: data.media_url,
@@ -586,9 +654,7 @@ const GroupMessages = () => {
       key: 'member_name', 
       header: 'Membro',
       render: (m: MessageFeed) => (
-        <span className="text-sm font-medium">
-          {m.member_name}
-        </span>
+        <UserInline name={m.member_name} avatarUrl={m.member_avatar} />
       )
     },
     { 
@@ -783,9 +849,9 @@ const GroupMessages = () => {
                   </div>
                   <div className="col-span-2">
                     <span className="text-muted-foreground">Membro</span>
-                    <p className="font-medium text-card-foreground mt-1">
-                      {selectedMessage.member_name}
-                    </p>
+                    <div className="mt-1">
+                      <UserInline name={selectedMessage.member_name} avatarUrl={selectedMessage.member_avatar} />
+                    </div>
                   </div>
                   {selectedMessage.provider_message_id && (
                     <div className="col-span-2">

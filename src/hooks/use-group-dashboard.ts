@@ -758,7 +758,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
       const { data: messages } = await supabase
         .from('v_messages_feed')
-        .select('message_id, content_preview, message_type, member_name, created_at')
+        .select('message_id, content_preview, message_type, member_name, member_avatar, created_at')
         .eq('group_id', groupId!)
         .in('message_id', topMessageIds);
 
@@ -769,6 +769,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
           content: msg?.content_preview || null,
           messageType: msg?.message_type || 'text',
           memberName: msg?.member_name || 'Desconhecido',
+          avatarUrl: (msg as any)?.member_avatar || null,
           reactionCount: messageReactions[id] || 0,
           createdAt: msg?.created_at || null,
         };
@@ -848,7 +849,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data: members } = await supabase
         .from('members')
-        .select('id, name, last_seen_message_at')
+        .select('id, name, profile_pic_url, last_seen_message_at')
         .eq('group_id', groupId!)
         .is('deleted_at', null);
 
@@ -866,6 +867,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
           return {
             id: member.id,
             name: member.name,
+            avatarUrl: (member as any).profile_pic_url || null,
             daysSinceLastMessage: daysSince,
           };
         })
