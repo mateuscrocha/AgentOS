@@ -48,6 +48,9 @@ const Group = () => {
     messagesPerDay,
     activeMembersPerDay,
     activityByHour,
+    busyDayAvatars,
+    peakWindowAvatars,
+    themeAvatars,
     membersOverview,
     previousMembersOverview,
     memberEntriesPerDay,
@@ -274,6 +277,9 @@ const Group = () => {
           messagesPerDay={messagesPerDay}
           activityByHour={activityByHour}
           ikigaiSuggestions={ikigaiSuggestions as any}
+          busyDayAvatars={busyDayAvatars as any}
+          peakWindowAvatars={peakWindowAvatars as any}
+          themeAvatars={themeAvatars as any}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
         />

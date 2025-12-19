@@ -3,11 +3,15 @@ import { SectionHeader } from "./SectionHeader";
 import { KpiCard } from "./KpiCard";
 import { InsightCard } from "./InsightCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface RecentActivitySectionProps {
   messagesPerDay: { date: string; count: number }[];
   activityByHour: { hour: number; count: number }[];
   ikigaiSuggestions: { keywords: { term: string; count: number }[] } | null;
+  busyDayAvatars?: { id: string; avatarUrl: string | null }[];
+  peakWindowAvatars?: { id: string; avatarUrl: string | null }[];
+  themeAvatars?: { id: string; avatarUrl: string | null }[];
   isLoading?: boolean;
   periodLabel?: string;
 }
@@ -16,6 +20,9 @@ export function RecentActivitySection({
   messagesPerDay,
   activityByHour,
   ikigaiSuggestions,
+  busyDayAvatars = [],
+  peakWindowAvatars = [],
+  themeAvatars = [],
   isLoading,
   periodLabel = "período",
 }: RecentActivitySectionProps) {
@@ -61,6 +68,22 @@ export function RecentActivitySection({
     return top.map((k, idx) => ({ term: k.term, count: k.count, up: idx < 3 && k.count >= Math.max(3, Math.round(maxCount * 0.6)) }));
   })();
 
+  const AvatarStack = ({ items }: { items: { id: string; avatarUrl: string | null }[] }) => (
+    <div className="flex items-center">
+      {items.slice(0, 8).map((m, i) => (
+        <div key={m.id} className={i === 0 ? "" : "-ml-2"}>
+          <Avatar className="h-6 w-6 ring-1 ring-border">
+            {m.avatarUrl ? (
+              <AvatarImage src={m.avatarUrl} alt="" />
+            ) : (
+              <AvatarFallback />
+            )}
+          </Avatar>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader
@@ -70,21 +93,37 @@ export function RecentActivitySection({
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <KpiCard
-          title="Dia mais movimentado"
-          value={isLoading ? "" : mostActiveDay ? mostActiveDay.day : "—"}
-          subtitle={isLoading ? undefined : mostActiveDay ? `${mostActiveDay.count} msgs` : "Sem dados"}
-          icon={CalendarDays}
-          isLoading={isLoading}
-        />
+        <div className="space-y-2">
+          <KpiCard
+            title="Dia mais movimentado"
+            value={isLoading ? "" : mostActiveDay ? mostActiveDay.day : "—"}
+            subtitle={isLoading ? undefined : mostActiveDay ? `${mostActiveDay.count} msgs` : "Sem dados"}
+            icon={CalendarDays}
+            isLoading={isLoading}
+          />
+          {!isLoading && mostActiveDay && busyDayAvatars.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Membros mais presentes nesse dia</p>
+              <AvatarStack items={busyDayAvatars} />
+            </div>
+          )}
+        </div>
 
-        <KpiCard
-          title="Horário de maior atividade"
-          value={isLoading ? "" : peakTwoHourWindow ? peakTwoHourWindow.label : "—"}
-          subtitle={isLoading ? undefined : peakTwoHourWindow ? `${peakTwoHourWindow.count} msgs` : "Sem dados"}
-          icon={Clock}
-          isLoading={isLoading}
-        />
+        <div className="space-y-2">
+          <KpiCard
+            title="Horário de maior atividade"
+            value={isLoading ? "" : peakTwoHourWindow ? peakTwoHourWindow.label : "—"}
+            subtitle={isLoading ? undefined : peakTwoHourWindow ? `${peakTwoHourWindow.count} msgs` : "Sem dados"}
+            icon={Clock}
+            isLoading={isLoading}
+          />
+          {!isLoading && peakTwoHourWindow && peakWindowAvatars.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Membros mais ativos nesse horário</p>
+              <AvatarStack items={peakWindowAvatars} />
+            </div>
+          )}
+        </div>
 
         <div className="flex-1">
           {isLoading ? (
@@ -106,6 +145,12 @@ export function RecentActivitySection({
                   </div>
                 ))}
               </div>
+              {themeAvatars.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs text-muted-foreground">Membros que puxam esses temas</p>
+                  <AvatarStack items={themeAvatars} />
+                </div>
+              )}
             </InsightCard>
           )}
         </div>
@@ -113,4 +158,3 @@ export function RecentActivitySection({
     </section>
   );
 }
-

@@ -609,6 +609,56 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
+  // Fetch participants in period with member avatars to build day/hour stacks
+  const { data: periodParticipants } = useQuery({
+    queryKey: ['group-dashboard-participants', groupId, currentPeriodStartISO, currentPeriodEndISO],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('member_id, created_at, members!inner(id, profile_pic_url)')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .not('member_id', 'is', null)
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO);
+
+      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const participantsByDay: Record<string, { id: string; avatarUrl: string | null }[]> = {};
+      const participantsByHour: Record<number, { id: string; avatarUrl: string | null }[]> = {};
+      const seenDay: Record<string, Set<string>> = {};
+      const seenHour: Record<number, Set<string>> = {};
+      for (let i = 0; i < 24; i++) {
+        participantsByHour[i] = [];
+        seenHour[i] = new Set<string>();
+      }
+
+      (data || []).forEach((msg: any) => {
+        const memberId = msg.member_id as string | null;
+        if (!memberId) return;
+        const avatarUrl = msg.members?.profile_pic_url || null;
+        const dateKey = formatDateKeyInTimeZone(new Date(msg.created_at), tz);
+        const hour = getHourInTimeZone(msg.created_at, tz);
+
+        if (!participantsByDay[dateKey]) {
+          participantsByDay[dateKey] = [];
+          seenDay[dateKey] = new Set<string>();
+        }
+        if (!seenDay[dateKey].has(memberId)) {
+          participantsByDay[dateKey].push({ id: memberId, avatarUrl });
+          seenDay[dateKey].add(memberId);
+        }
+
+        if (!seenHour[hour].has(memberId)) {
+          participantsByHour[hour].push({ id: memberId, avatarUrl });
+          seenHour[hour].add(memberId);
+        }
+      });
+
+      return { participantsByDay, participantsByHour };
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
   // Fetch top 5 participants
   const { data: topParticipants, isLoading: topParticipantsLoading } = useQuery({
     queryKey: ['group-dashboard-top-participants', groupId, currentPeriodStartISO, currentPeriodEndISO],
@@ -891,7 +941,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data: members } = await supabase
         .from('members')
-        .select('id, name, display_name')
+        .select('id, name, display_name, profile_pic_url')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .order('name');
@@ -922,6 +972,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         id: member.id,
         name: member.name,
         displayName: member.display_name,
+        avatarUrl: (member as any).profile_pic_url || null,
         messagesCount: memberStats[member.id]?.count || 0,
         lastMessageAt: memberStats[member.id]?.lastAt || null,
         isActive: (memberStats[member.id]?.count || 0) > 0,
@@ -1049,6 +1100,75 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     idsCurrent.forEach(id => { if (idsPrev.has(id)) intersection++; });
     const denom = stats?.totalMembers || 0;
     return denom > 0 ? Math.round((intersection / denom) * 100) : 0;
+  })();
+
+  // Derive busiest day key and peak 2-hour window start
+  const busiestDayKey = (() => {
+    const slice = (messagesPerDay || []).slice(Math.max(0, (messagesPerDay || []).length - periodDays));
+    if (slice.length === 0) return null;
+    return slice.reduce((max, curr) => (curr.count > (max?.count || 0) ? curr : max), slice[0]).date || null;
+  })();
+
+  const peakTwoHourStart = (() => {
+    const hours = activityData?.activityByHour || [];
+    if (!hours || hours.length === 0) return null;
+    let bestStart = 0;
+    let bestSum = 0;
+    for (let i = 0; i < 24; i++) {
+      const a = hours.find(h => h.hour === i)?.count || 0;
+      const b = hours.find(h => h.hour === ((i + 1) % 24))?.count || 0;
+      const sum = a + b;
+      if (sum > bestSum) {
+        bestSum = sum;
+        bestStart = i;
+      }
+    }
+    return bestSum > 0 ? bestStart : null;
+  })();
+
+  const recurringIds = new Set((membersOverview || []).filter(m => m.messagesCount >= 5).map(m => m.id));
+
+  const pickAvatars = (list: { id: string; avatarUrl: string | null }[], limit = 8) => {
+    const res: { id: string; avatarUrl: string | null }[] = [];
+    const seen = new Set<string>();
+    // prioritize recurring
+    list.forEach(m => {
+      if (res.length >= limit) return;
+      if (recurringIds.has(m.id) && !seen.has(m.id)) {
+        res.push(m);
+        seen.add(m.id);
+      }
+    });
+    // fill with others
+    list.forEach(m => {
+      if (res.length >= limit) return;
+      if (!seen.has(m.id)) {
+        res.push(m);
+        seen.add(m.id);
+      }
+    });
+    return res;
+  };
+
+  const busyDayAvatars = (() => {
+    if (!busiestDayKey || !periodParticipants?.participantsByDay) return [] as { id: string; avatarUrl: string | null }[];
+    const list = periodParticipants.participantsByDay[busiestDayKey] || [];
+    return pickAvatars(list, 8);
+  })();
+
+  const peakWindowAvatars = (() => {
+    if (peakTwoHourStart === null || !periodParticipants?.participantsByHour) return [] as { id: string; avatarUrl: string | null }[];
+    const a = periodParticipants.participantsByHour[peakTwoHourStart] || [];
+    const b = periodParticipants.participantsByHour[((peakTwoHourStart + 1) % 24)] || [];
+    const merged: { id: string; avatarUrl: string | null }[] = [];
+    const seen = new Set<string>();
+    [...a, ...b].forEach(m => { if (!seen.has(m.id)) { merged.push(m); seen.add(m.id); } });
+    return pickAvatars(merged, 8);
+  })();
+
+  const themeAvatars = (() => {
+    const list = (membersOverview || []).filter(m => m.messagesCount >= 5).map(m => ({ id: m.id, avatarUrl: (m as any).avatarUrl || null }));
+    return pickAvatars(list, 8);
   })();
 
   const stopwordsPt = new Set([
@@ -1271,6 +1391,9 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     hasIkigai,
     ikigaiKeywordsList: ikigaiKeywords,
     ikigaiSuggestions: suggestionsData || { themes: [], keywords: [] },
+    busyDayAvatars,
+    peakWindowAvatars,
+    themeAvatars,
     activePercent,
     activeDaysPercent,
     lowEffortPercent,
