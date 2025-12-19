@@ -74,7 +74,7 @@ export function RecentActivitySection({
         <div key={m.id} className={i === 0 ? "" : "-ml-2"}>
           <Avatar className="h-6 w-6 ring-1 ring-border">
             {m.avatarUrl ? (
-              <AvatarImage src={m.avatarUrl} alt="" />
+              <AvatarImage src={m.avatarUrl} alt="" referrerPolicy="no-referrer" />
             ) : (
               <AvatarFallback />
             )}

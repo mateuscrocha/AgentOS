@@ -614,10 +614,9 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryKey: ['group-dashboard-participants', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
-        .from('messages')
-        .select('member_id, created_at, members!inner(id, profile_pic_url)')
+        .from('v_messages_feed')
+        .select('member_id, member_avatar, created_at')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
         .not('member_id', 'is', null)
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
@@ -635,7 +634,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       (data || []).forEach((msg: any) => {
         const memberId = msg.member_id as string | null;
         if (!memberId) return;
-        const avatarUrl = msg.members?.profile_pic_url || null;
+        const avatarUrl = msg.member_avatar || null;
         const dateKey = formatDateKeyInTimeZone(new Date(msg.created_at), tz);
         const hour = getHourInTimeZone(msg.created_at, tz);
 
@@ -1167,8 +1166,27 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   })();
 
   const themeAvatars = (() => {
-    const list = (membersOverview || []).filter(m => m.messagesCount >= 5).map(m => ({ id: m.id, avatarUrl: (m as any).avatarUrl || null }));
-    return pickAvatars(list, 8);
+    const recurringIdsList = (membersOverview || []).filter(m => m.messagesCount >= 5).map(m => m.id);
+    const fromParticipants: { id: string; avatarUrl: string | null }[] = [];
+    const seen = new Set<string>();
+    // gather avatars from period participants first
+    Object.values(periodParticipants?.participantsByDay || {}).forEach(arr => {
+      arr.forEach(m => {
+        if (recurringIds.has(m.id) && !seen.has(m.id)) {
+          fromParticipants.push(m);
+          seen.add(m.id);
+        }
+      });
+    });
+    // fallback to membersOverview avatars if missing
+    recurringIdsList.forEach(id => {
+      if (!seen.has(id)) {
+        const mo = (membersOverview || []).find(m => m.id === id);
+        fromParticipants.push({ id, avatarUrl: (mo as any)?.avatarUrl || null });
+        seen.add(id);
+      }
+    });
+    return pickAvatars(fromParticipants, 8);
   })();
 
   const stopwordsPt = new Set([
