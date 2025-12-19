@@ -32,6 +32,8 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Layers, label: "Sistema", href: "/system", requiresSystemAdmin: true },
+  { icon: Building2, label: "Gerenciar organizações", href: "/system/organizations", requiresSystemAdmin: true },
+  { icon: Users, label: "Gerenciar grupos", href: "/system/groups", requiresSystemAdmin: true },
   { icon: Users, label: "Usuários", href: "/system/users", requiresSystemAdmin: true },
   { icon: Activity, label: "Eventos", href: "/system/events", requiresSystemAdmin: true },
 ];
