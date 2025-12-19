@@ -730,24 +730,27 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  // Fetch popular messages
+  // Fetch popular messages (restrito ao grupo e período)
   const { data: popularMessages } = useQuery({
     queryKey: ['group-dashboard-popular', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('v_message_reactions_summary')
-        .select('message_id, count, emoji')
-        .order('count', { ascending: false })
-        .limit(20);
+      const { data: periodReactions } = await supabase
+        .from('message_reactions')
+        .select('message_id, reacted_at')
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .is('removed_at', null)
+        .gte('reacted_at', currentPeriodStartISO)
+        .lte('reacted_at', currentPeriodEndISO);
 
-      if (!data || data.length === 0) return [];
+      if (!periodReactions || periodReactions.length === 0) return [];
 
       const messageReactions: Record<string, number> = {};
-      data.forEach(r => {
+      for (const r of periodReactions) {
         if (r.message_id) {
-          messageReactions[r.message_id] = (messageReactions[r.message_id] || 0) + (r.count || 0);
+          messageReactions[r.message_id] = (messageReactions[r.message_id] || 0) + 1;
         }
-      });
+      }
 
       const topMessageIds = Object.entries(messageReactions)
         .sort(([, a], [, b]) => b - a)
@@ -762,18 +765,29 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .eq('group_id', groupId!)
         .in('message_id', topMessageIds);
 
-      return topMessageIds.map(id => {
-        const msg = messages?.find(m => m.message_id === id);
-        return {
-          id,
-          content: msg?.content_preview || null,
-          messageType: msg?.message_type || 'text',
-          memberName: msg?.member_name || 'Desconhecido',
-          avatarUrl: (msg as any)?.member_avatar || null,
-          reactionCount: messageReactions[id] || 0,
-          createdAt: msg?.created_at || null,
-        };
-      }).filter(m => m.reactionCount > 0);
+      return topMessageIds
+        .map(id => {
+          const msg = messages?.find(m => m.message_id === id);
+          if (!msg) return null;
+          return {
+            id,
+            content: msg.content_preview || null,
+            messageType: msg.message_type || 'text',
+            memberName: msg.member_name || 'Desconhecido',
+            avatarUrl: (msg as any)?.member_avatar || null,
+            reactionCount: messageReactions[id] || 0,
+            createdAt: msg.created_at || null,
+          };
+        })
+        .filter(Boolean) as {
+          id: string;
+          content: string | null;
+          messageType: string;
+          memberName: string;
+          avatarUrl?: string | null;
+          reactionCount: number;
+          createdAt?: string | null;
+        }[];
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
