@@ -77,12 +77,6 @@ const Org = () => {
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [removeGroup, setRemoveGroup] = useState<GroupItem | null>(null);
   const [removing, setRemoving] = useState(false);
-  const [groupShowInactive, setGroupShowInactive] = useState(false);
-  const [hardDeleteGroup, setHardDeleteGroup] = useState<GroupItem | null>(null);
-  const [hardDeletingGroup, setHardDeletingGroup] = useState(false);
-  const [groupDeleteConfirmText, setGroupDeleteConfirmText] = useState("");
-  const [orgDeleteConfirmText, setOrgDeleteConfirmText] = useState("");
-  const [deletingOrg, setDeletingOrg] = useState(false);
 
   // Fetch organization details
   const { data: org, isLoading: orgLoading, error: orgError, refetch: refetchOrg } = useQuery({
@@ -121,18 +115,12 @@ const Org = () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       
-      let query = supabase
+      const { data, error, count } = await supabase
         .from('groups')
-        .select('id, name, provider, created_at, organization_id, provider_group_id, is_active, sync_status, status', { count: 'exact' })
+        .select('*', { count: 'exact' })
         .eq('organization_id', orgId)
         .is('deleted_at', null)
-        .neq('is_archived', true);
-
-      if (!groupShowInactive) {
-        query = query.eq('status', 'active');
-      }
-
-      const { data, error, count } = await query
+        .neq('is_archived', true)
         .order('created_at', { ascending: false })
         .range(from, to);
       
@@ -209,13 +197,15 @@ const Org = () => {
       )
     },
     { 
-      key: 'status', 
+      key: 'is_active', 
       header: 'Status',
       render: (group: GroupItem) => (
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          (group as any).status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+          group.is_active === true ? 'bg-success/10 text-success' :
+          group.is_active === false ? 'bg-muted text-muted-foreground' :
+          'bg-muted text-muted-foreground'
         }`}>
-          {(group as any).status === 'active' ? 'Ativo' : 'Inativo'}
+          {group.is_active === true ? 'Ativo' : group.is_active === false ? 'Inativo' : '—'}
         </span>
       )
     },
@@ -230,9 +220,8 @@ const Org = () => {
       className: 'w-10',
       render: (group: GroupItem) => {
         const canEdit = canEditGroup(group.id, orgId);
-        const canRemove = userCanEditOrg;
-        const canHardDelete = isSystemAdmin;
-        if (!canEdit && !canRemove && !canHardDelete) return null;
+        const canRemove = userCanEditOrg; // apenas ADMIN_DA_ORGANIZAÇÃO ou SYSTEM_ADMIN
+        if (!canEdit && !canRemove) return null;
         return (
           <div className="flex items-center gap-1">
             {canEdit && (
@@ -241,7 +230,6 @@ const Org = () => {
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (org.status === 'inactive') return;
                   setEditGroup(group);
                 }}
                 className="h-8 w-8 p-0"
@@ -255,25 +243,10 @@ const Org = () => {
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (org.status === 'inactive') return;
                   setRemoveGroup(group);
                 }}
                 className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                 title="Remover grupo da organização"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-            {canHardDelete && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setHardDeleteGroup(group);
-                }}
-                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                title="Excluir definitivamente"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -328,7 +301,6 @@ const Org = () => {
                 size="sm"
                 onClick={() => setEditOrgOpen(true)}
                 className="flex items-center gap-2"
-                disabled={org.status === 'inactive'}
               >
                 <Edit className="h-4 w-4" />
                 Editar
@@ -336,14 +308,6 @@ const Org = () => {
             )}
           </div>
         </div>
-
-        {org.status === 'inactive' && (
-          <div className="p-4 rounded-xl border border-border bg-secondary/30">
-            <p className="text-sm text-muted-foreground">
-              Esta organização está desativada. Visualização histórica está disponível, mas ações de gestão foram desabilitadas.
-            </p>
-          </div>
-        )}
 
         {/* Detail Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -503,22 +467,11 @@ const Org = () => {
                 onClick={() => setAddGroupOpen(true)}
                 size="sm"
                 className="flex items-center gap-2"
-                disabled={org.status === 'inactive'}
               >
                 <Plus className="h-4 w-4" />
                 Adicionar Grupo
               </Button>
             )}
-          </div>
-          <div className="flex items-center gap-3 mb-2">
-            <label className="flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={groupShowInactive}
-                onChange={(e) => { setGroupShowInactive(e.target.checked); setPage(1); }}
-              />
-              Mostrar inativos
-            </label>
           </div>
           
           {groupsLoading ? (
@@ -612,132 +565,6 @@ const Org = () => {
               disabled={removing}
             >
               Confirmar remoção
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Hard delete group confirmation */}
-      <AlertDialog open={!!hardDeleteGroup} onOpenChange={(open) => !open && setHardDeleteGroup(null)}>
-        <AlertDialogContent className="bg-card border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-card-foreground">Excluir grupo</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              Esta ação é irreversível e removerá o grupo e todos os dados vinculados em cascata. Para confirmar, digite o
-              nome do grupo (<strong>{hardDeleteGroup?.name}</strong>) ou escreva <strong>EXCLUIR</strong>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="mt-3">
-            <input
-              type="text"
-              value={groupDeleteConfirmText}
-              onChange={(e) => setGroupDeleteConfirmText(e.target.value)}
-              placeholder={`Digite "${hardDeleteGroup?.name}" ou "EXCLUIR"`}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              Isso remove todos os dados em cascata e não pode ser desfeito.
-            </p>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="mr-2">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (!hardDeleteGroup) return;
-                const confirmed = groupDeleteConfirmText.trim().toLowerCase() === 'excluir' || groupDeleteConfirmText.trim() === hardDeleteGroup.name;
-                if (!confirmed) {
-                  toast.error('Confirmação inválida. Digite o nome do grupo ou EXCLUIR.');
-                  return;
-                }
-                setHardDeletingGroup(true);
-                try {
-                  const { error } = await supabase
-                    .from('groups')
-                    .delete()
-                    .eq('id', hardDeleteGroup.id);
-                  if (error) throw error;
-                  toast.success('Grupo excluído com sucesso');
-                  setHardDeleteGroup(null);
-                  setGroupDeleteConfirmText("");
-                  refetchGroups();
-                } catch (err: any) {
-                  toast.error(err.message || 'Erro ao excluir grupo');
-                } finally {
-                  setHardDeletingGroup(false);
-                }
-              }}
-              disabled={hardDeletingGroup}
-            >
-              Confirmar exclusão
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Risk zone: hard delete organization */}
-      {isSystemAdmin && (
-        <div className="mt-8 rounded-xl border border-destructive bg-destructive/5 p-6">
-          <h3 className="text-sm font-semibold text-destructive">Zona de risco</h3>
-          <p className="text-sm text-muted-foreground mt-2">
-            Excluir definitivamente remove todos os dados da organização e dos grupos em cascata. Esta ação não pode ser desfeita.
-          </p>
-          <div className="mt-4">
-            <Button
-              variant="destructive"
-              onClick={() => setDeletingOrg(true)}
-            >
-              Excluir definitivamente
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <AlertDialog open={deletingOrg} onOpenChange={(open) => !open && setDeletingOrg(false)}>
-        <AlertDialogContent className="bg-card border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-card-foreground">Excluir organização</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              Esta ação é irreversível e removerá a organização e todos os dados vinculados em cascata. Para confirmar, digite o
-              nome da organização (<strong>{org.name}</strong>) ou escreva <strong>EXCLUIR</strong>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="mt-3">
-            <input
-              type="text"
-              value={orgDeleteConfirmText}
-              onChange={(e) => setOrgDeleteConfirmText(e.target.value)}
-              placeholder={`Digite "${org.name}" ou "EXCLUIR"`}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              Isso remove todos os dados em cascata e não pode ser desfeito.
-            </p>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="mr-2">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                const confirmed = orgDeleteConfirmText.trim().toLowerCase() === 'excluir' || orgDeleteConfirmText.trim() === org.name;
-                if (!confirmed) {
-                  toast.error('Confirmação inválida. Digite o nome da organização ou EXCLUIR.');
-                  return;
-                }
-                try {
-                  const { error } = await supabase
-                    .from('organizations')
-                    .delete()
-                    .eq('id', orgId!);
-                  if (error) throw error;
-                  toast.success('Organização excluída com sucesso');
-                  setDeletingOrg(false);
-                  setOrgDeleteConfirmText("");
-                  navigate('/system');
-                } catch (err: any) {
-                  toast.error(err.message || 'Erro ao excluir organização');
-                }
-              }}
-            >
-              Confirmar exclusão
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

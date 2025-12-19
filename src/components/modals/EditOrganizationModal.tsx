@@ -44,15 +44,12 @@ const organizationSchema = z.object({
     .max(20, "Telefone muito longo")
     .optional()
     .or(z.literal("")),
-  inactivation_reason: z.string().trim().max(200, "Motivo deve ter no máximo 200 caracteres").optional(),
 });
 
 interface Organization {
   id: string;
   name: string;
   status: string;
-  inactivated_at?: string | null;
-  inactivated_reason?: string | null;
   settings?: Record<string, any> | null;
   contact_name?: string | null;
   contact_email?: string | null;
@@ -78,7 +75,6 @@ export function EditOrganizationModal({
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
-  const [inactivationReason, setInactivationReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { user } = useAuth();
@@ -91,7 +87,6 @@ export function EditOrganizationModal({
       setContactName(organization.contact_name || "");
       setContactEmail(organization.contact_email || "");
       setContactPhone(organization.contact_phone || "");
-      setInactivationReason(organization.inactivated_reason || "");
       setErrors({});
     }
   }, [organization]);
@@ -104,7 +99,6 @@ export function EditOrganizationModal({
       contact_name: contactName, 
       contact_email: contactEmail, 
       contact_phone: contactPhone,
-      inactivation_reason: inactivationReason,
     });
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
@@ -132,25 +126,16 @@ export function EditOrganizationModal({
       const normalizedContactName = contactName.trim() || null;
       const normalizedContactEmail = contactEmail.trim() || null;
       const normalizedContactPhone = contactPhone.trim() || null;
-      const updates: any = {
-        name: name.trim(),
-        status,
-        settings: updatedSettings,
-        contact_name: normalizedContactName,
-        contact_email: normalizedContactEmail,
-        contact_phone: normalizedContactPhone,
-      };
-      if (status === 'inactive') {
-        updates.inactivated_at = new Date().toISOString();
-        updates.inactivated_reason = inactivationReason.trim() || null;
-      } else {
-        updates.inactivated_at = null;
-        updates.inactivated_reason = null;
-      }
-
       const { error } = await supabase
         .from("organizations")
-        .update(updates)
+        .update({ 
+          name: name.trim(), 
+          status, 
+          settings: updatedSettings,
+          contact_name: normalizedContactName,
+          contact_email: normalizedContactEmail,
+          contact_phone: normalizedContactPhone,
+        })
         .eq("id", organization.id);
 
       if (error) {
@@ -175,7 +160,7 @@ export function EditOrganizationModal({
             contact_email: normalizedContactEmail,
             contact_phone: normalizedContactPhone,
           },
-          ['name', 'status', 'settings', 'contact_name', 'contact_email', 'contact_phone', 'inactivated_at', 'inactivated_reason']
+          ['name', 'status', 'settings', 'contact_name', 'contact_email', 'contact_phone']
         );
         await logEvent({
           eventType: 'ORG_UPDATED',
@@ -323,24 +308,6 @@ export function EditOrganizationModal({
                 <AlertCircle className="h-3 w-3" />
                 {errors.status}
               </p>
-            )}
-            {status === 'inactive' && (
-              <div className="space-y-2 mt-3">
-                <Label htmlFor="inactivation_reason">Motivo da desativação (opcional)</Label>
-                <Textarea
-                  id="inactivation_reason"
-                  value={inactivationReason}
-                  onChange={(e) => setInactivationReason(e.target.value)}
-                  placeholder="Ex.: cancelamento, inadimplência, pausa operacional"
-                  className={errors.inactivation_reason ? "border-destructive" : ""}
-                />
-                {errors.inactivation_reason && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.inactivation_reason}
-                  </p>
-                )}
-              </div>
             )}
           </div>
         </div>

@@ -117,12 +117,7 @@ export function RecentActivitySection({
             icon={Clock}
             isLoading={isLoading}
           />
-          {!isLoading && peakTwoHourWindow && peakWindowAvatars.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Membros mais ativos nesse horário</p>
-              <AvatarStack items={peakWindowAvatars} />
-            </div>
-          )}
+          {/* Removed widget "Membros mais ativos nesse horário" */}
         </div>
 
         <div className="flex-1">

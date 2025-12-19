@@ -18,8 +18,6 @@ import { z } from "zod";
 
 const groupSchema = z.object({
   name: z.string().trim().min(1, "Nome é obrigatório").max(100, "Nome deve ter no máximo 100 caracteres"),
-  status: z.enum(["active", "inactive"], { errorMap: () => ({ message: "Status inválido" }) }),
-  inactivation_reason: z.string().trim().max(200, "Motivo deve ter no máximo 200 caracteres").optional(),
 });
 
 interface Group {
@@ -28,9 +26,6 @@ interface Group {
   organization_id: string;
   provider: string;
   provider_group_id: string | null;
-  status?: string;
-  inactivated_at?: string | null;
-  inactivated_reason?: string | null;
 }
 
 interface EditGroupModalProps {
@@ -47,8 +42,6 @@ export function EditGroupModal({
   onSuccess,
 }: EditGroupModalProps) {
   const [name, setName] = useState("");
-  const [status, setStatus] = useState<"active" | "inactive">("active");
-  const [inactivationReason, setInactivationReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { user } = useAuth();
@@ -56,14 +49,12 @@ export function EditGroupModal({
   useEffect(() => {
     if (group) {
       setName(group.name);
-      setStatus((group.status as any) || "active");
-      setInactivationReason(group.inactivated_reason || "");
       setErrors({});
     }
   }, [group]);
 
   const validate = (): boolean => {
-    const result = groupSchema.safeParse({ name, status, inactivation_reason: inactivationReason });
+    const result = groupSchema.safeParse({ name });
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.errors.forEach(err => {
@@ -83,18 +74,9 @@ export function EditGroupModal({
 
     setSaving(true);
     try {
-      const updates: any = { name: name.trim(), status };
-      if (status === 'inactive') {
-        updates.inactivated_at = new Date().toISOString();
-        updates.inactivated_reason = inactivationReason.trim() || null;
-      } else {
-        updates.inactivated_at = null;
-        updates.inactivated_reason = null;
-      }
-
       const { error } = await supabase
         .from("groups")
-        .update(updates)
+        .update({ name: name.trim() })
         .eq("id", group.id);
 
       if (error) {
@@ -111,8 +93,8 @@ export function EditGroupModal({
       if (user) {
         const changedFields = getChangedFields(
           group,
-          { name: name.trim(), status, inactivated_at: updates.inactivated_at, inactivated_reason: updates.inactivated_reason },
-          ['name', 'status', 'inactivated_at', 'inactivated_reason']
+          { name: name.trim() },
+          ['name']
         );
         await logEvent({
           eventType: 'GROUP_UPDATED',
@@ -157,49 +139,6 @@ export function EditGroupModal({
                 <AlertCircle className="h-3 w-3" />
                 {errors.name}
               </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status">Status do grupo</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={status === 'active' ? 'default' : 'outline'}
-                onClick={() => setStatus('active')}
-                className="h-8"
-              >Ativo</Button>
-              <Button
-                type="button"
-                variant={status === 'inactive' ? 'default' : 'outline'}
-                onClick={() => setStatus('inactive')}
-                className="h-8"
-              >Inativo</Button>
-            </div>
-            {errors.status && (
-              <p className="text-sm text-destructive flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {errors.status}
-              </p>
-            )}
-
-            {status === 'inactive' && (
-              <div className="space-y-2 mt-3">
-                <Label htmlFor="inactivation_reason">Motivo da desativação (opcional)</Label>
-                <Input
-                  id="inactivation_reason"
-                  value={inactivationReason}
-                  onChange={(e) => setInactivationReason(e.target.value)}
-                  placeholder="Ex.: cancelamento, inadimplência, pausa"
-                  className={errors.inactivation_reason ? "border-destructive" : ""}
-                />
-                {errors.inactivation_reason && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.inactivation_reason}
-                  </p>
-                )}
-              </div>
             )}
           </div>
 

@@ -19,7 +19,6 @@ interface RoleContext {
   organizationName?: string;
   groupId?: string;
   groupName?: string;
-  groupOrgId?: string;
 }
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -77,12 +76,11 @@ export function useUserRoles() {
         if (role.group_id) {
           const { data: group } = await supabase
             .from('groups')
-            .select('name, organization_id')
+            .select('name')
             .eq('id', role.group_id)
             .maybeSingle();
           context.groupId = role.group_id;
           context.groupName = group?.name || 'Grupo';
-          context.groupOrgId = group?.organization_id || undefined;
         }
         
         contexts.push(context);
@@ -151,20 +149,16 @@ export function useUserRoles() {
     if (isSystemAdmin) return true;
     return roles?.some(r => 
       r.organization_id === orgId && 
-      ['ORG_ADMIN', 'USER'].includes(r.role)
+      ['ORG_ADMIN', 'GROUP_MANAGER', 'USER'].includes(r.role)
     ) ?? false;
   };
 
-  const hasGroupAccess = (groupId: string, orgId?: string) => {
+  const hasGroupAccess = (groupId: string) => {
     if (isSystemAdmin) return true;
-    const explicitGroupAccess = roles?.some(r => 
-      r.group_id === groupId && ['GROUP_MANAGER', 'USER'].includes(r.role)
+    return roles?.some(r => 
+      r.group_id === groupId || 
+      (r.role === 'ORG_ADMIN' || r.role === 'GROUP_MANAGER' || r.role === 'USER')
     ) ?? false;
-    if (explicitGroupAccess) return true;
-    const orgAdminAccess = orgId 
-      ? roles?.some(r => r.role === 'ORG_ADMIN' && r.organization_id === orgId) ?? false
-      : false;
-    return orgAdminAccess;
   };
 
   const canEditOrg = (orgId: string) => {

@@ -1,6 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoadingState } from "@/components/ui/loading-state";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Layers, Building2, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -9,16 +8,14 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
 import { Button } from "@/components/ui/button";
-
-
-
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 const System = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
 
   const { data: counts, isLoading: countsLoading } = useQuery({
-    queryKey: ['system-hub-counts'],
+    queryKey: ['system-counts'],
     queryFn: async () => {
       const [orgTotal, orgActive, orgInactive, groupTotal, groupActive, groupInactive] = await Promise.all([
         supabase.from('organizations').select('*', { count: 'exact', head: true }),
@@ -28,7 +25,6 @@ const System = () => {
         supabase.from('groups').select('*', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('groups').select('*', { count: 'exact', head: true }).eq('status', 'inactive'),
       ]);
-
       return {
         org: {
           total: orgTotal.count ?? 0,
@@ -40,12 +36,14 @@ const System = () => {
           active: groupActive.count ?? 0,
           inactive: groupInactive.count ?? 0,
         },
+      } as {
+        org: { total: number; active: number; inactive: number };
+        group: { total: number; active: number; inactive: number };
       };
     },
     enabled: isAuthenticated,
   });
 
-  // Loading state while checking auth/roles
   if (authLoading || rolesLoading) {
     return (
       <AdminLayout title="Visão geral do sistema" subtitle="Verificando acesso...">
@@ -54,7 +52,6 @@ const System = () => {
     );
   }
 
-  // Check if user is SYSTEM_ADMIN
   if (!isSystemAdmin) {
     return (
       <AccessDenied 
@@ -64,7 +61,10 @@ const System = () => {
   }
 
   return (
-    <AdminLayout title="Visão geral do sistema" subtitle="Área exclusiva para administração global do Bóris.">
+    <AdminLayout 
+      title="Visão geral do sistema" 
+      subtitle="Área exclusiva para administração global do Bóris."
+    >
       <div className="space-y-6">
         <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">

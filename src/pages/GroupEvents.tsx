@@ -52,6 +52,7 @@ export default function GroupEvents() {
   const [eventType, setEventType] = useState("all");
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
+  const hasAccess = groupId ? hasGroupAccess(groupId) : false;
 
   const getDateFilter = () => {
     const now = new Date();
@@ -79,10 +80,8 @@ export default function GroupEvents() {
       if (error) throw error;
       return data;
     },
-    enabled: !!groupId,
+    enabled: !!groupId && hasAccess,
   });
-
-  const hasAccess = groupId ? hasGroupAccess(groupId, group?.organization_id) : false;
 
   // Fetch organization info for breadcrumbs
   const { data: org } = useQuery({
@@ -150,8 +149,7 @@ export default function GroupEvents() {
     );
   }
 
-  // Access is enforced by RLS; show AccessDenied only after evaluating group access context
-  if (!hasAccess && groupId && group === null) {
+  if (!hasAccess) {
     return <AccessDenied />;
   }
 

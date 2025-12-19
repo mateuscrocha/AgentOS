@@ -63,41 +63,22 @@ serve(async (req: Request) => {
       return payload.groupProviderId || payload.chatId || null;
     };
 
-    const getGroup = async (): Promise<{ id: string, status: string | null, organization_id: string } | null> => {
+    const getGroup = async (): Promise<string | null> => {
       const providerGroupId = getGroupProviderId();
       if (!providerGroupId) return null;
       const { data: group } = await supabase
         .from('groups')
-        .select('id, status, organization_id')
+        .select('id')
         .eq('provider_group_id', providerGroupId)
         .maybeSingle();
-      return group ? { id: group.id, status: group.status || null, organization_id: group.organization_id } : null;
+      return group?.id || null;
     };
 
-    const group = await getGroup();
-    if (!group) {
+    const groupId = await getGroup();
+    if (!groupId) {
       return new Response(
         JSON.stringify({ success: false, message: 'group not found for provider id' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Bloquear ingestão se grupo ou organização estiverem inativos
-    if ((group.status && group.status !== 'active')) {
-      return new Response(
-        JSON.stringify({ success: true, ignored: true, reason: 'group inactive' }),
-        { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    const { data: org } = await supabase
-      .from('organizations')
-      .select('status')
-      .eq('id', group.organization_id)
-      .maybeSingle();
-    if (org && org.status && org.status !== 'active') {
-      return new Response(
-        JSON.stringify({ success: true, ignored: true, reason: 'organization inactive' }),
-        { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -124,7 +105,7 @@ serve(async (req: Request) => {
         const { data: poll, error: pollError } = await supabase
           .from('polls')
           .insert({
-            group_id: group.id,
+            group_id: groupId,
             provider,
             provider_poll_message_id: pollPayload.messageId,
             question,
@@ -154,7 +135,7 @@ serve(async (req: Request) => {
           .maybeSingle();
         if (!existingMsg) {
           await supabase.from('messages').insert({
-            group_id: group.id,
+            group_id: groupId,
             message_type: 'poll',
             provider: provider,
             provider_message_id: messageId,
@@ -198,7 +179,7 @@ serve(async (req: Request) => {
         const { data: existingMember } = await supabase
           .from('members')
           .select('id')
-          .eq('group_id', group.id)
+          .eq('group_id', groupId)
           .eq('phone_e164', phone)
           .maybeSingle();
         if (existingMember) {
@@ -206,7 +187,7 @@ serve(async (req: Request) => {
         } else {
           const { data: newMember } = await supabase
             .from('members')
-            .insert({ group_id: group.id, phone_e164: phone, name: phone, provider: 'whatsapp' })
+            .insert({ group_id: groupId, phone_e164: phone, name: phone, provider: 'whatsapp' })
             .select('id')
             .single();
           memberId = newMember?.id || null;
@@ -242,7 +223,7 @@ serve(async (req: Request) => {
           .maybeSingle();
         if (!existingMsg) {
           await supabase.from('messages').insert({
-            group_id: group.id,
+            group_id: groupId,
             member_id: memberId,
             message_type: 'poll_vote',
             provider: provider,

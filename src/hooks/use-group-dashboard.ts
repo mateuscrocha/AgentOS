@@ -52,7 +52,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data, error } = await supabase
         .from('groups')
-        .select('id, name, description, provider, organization_id, is_active, is_archived, sync_status, last_sync_at, metadata, status')
+        .select('id, name, description, provider, organization_id, is_active, is_archived, sync_status, last_sync_at, metadata')
         .eq('id', groupId!)
         .maybeSingle();
       
@@ -68,7 +68,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data } = await supabase
         .from('organizations')
-        .select('name, status')
+        .select('name')
         .eq('id', group!.organization_id)
         .maybeSingle();
       return data;
@@ -126,22 +126,19 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       // Get top participant
       const { data: topParticipantData } = await supabase
         .from('messages')
-        .select('member_id, members!inner(name, profile_pic_url)')
+        .select('member_id, members!inner(name)')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const memberCounts: Record<string, { name: string; count: number; avatarUrl: string | null }> = {};
+      const memberCounts: Record<string, { name: string; count: number }> = {};
       topParticipantData?.forEach((msg: any) => {
         const memberId = msg.member_id;
         const memberName = msg.members?.name || 'Desconhecido';
-        const avatarUrl = msg.members?.profile_pic_url || null;
         if (!memberCounts[memberId]) {
-          memberCounts[memberId] = { name: memberName, count: 0, avatarUrl };
-        } else if (memberCounts[memberId].avatarUrl == null) {
-          memberCounts[memberId].avatarUrl = avatarUrl;
+          memberCounts[memberId] = { name: memberName, count: 0 };
         }
         memberCounts[memberId].count++;
       });
@@ -232,22 +229,19 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       // Get top participant in previous period
       const { data: topParticipantData } = await supabase
         .from('messages')
-        .select('member_id, members!inner(name, profile_pic_url)')
+        .select('member_id, members!inner(name)')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
-      const memberCounts: Record<string, { name: string; count: number; avatarUrl: string | null }> = {};
+      const memberCounts: Record<string, { name: string; count: number }> = {};
       topParticipantData?.forEach((msg: any) => {
         const memberId = msg.member_id;
         const memberName = msg.members?.name || 'Desconhecido';
-        const avatarUrl = msg.members?.profile_pic_url || null;
         if (!memberCounts[memberId]) {
-          memberCounts[memberId] = { name: memberName, count: 0, avatarUrl };
-        } else if (memberCounts[memberId].avatarUrl == null) {
-          memberCounts[memberId].avatarUrl = avatarUrl;
+          memberCounts[memberId] = { name: memberName, count: 0 };
         }
         memberCounts[memberId].count++;
       });
@@ -1369,7 +1363,6 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   return {
     group,
     orgName: orgData?.name || null,
-    orgStatus: (orgData as any)?.status || null,
     stats: stats ? {
       ...stats,
       totalMessages7d: stats.totalMessages,

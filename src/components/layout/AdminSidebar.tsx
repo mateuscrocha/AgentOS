@@ -16,9 +16,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/hooks/use-user-roles";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 
 interface NavItem {
   icon: React.ElementType;
@@ -31,9 +28,10 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: Layers, label: "Sistema", href: "/system", requiresSystemAdmin: true },
+  { icon: Layers, label: "Visão geral do sistema", href: "/system", requiresSystemAdmin: true },
   { icon: Building2, label: "Gerenciar organizações", href: "/system/organizations", requiresSystemAdmin: true },
   { icon: Users, label: "Gerenciar grupos", href: "/system/groups", requiresSystemAdmin: true },
+  { icon: Users, label: "Pessoas", href: "/system/people", requiresSystemAdmin: true },
   { icon: Users, label: "Usuários", href: "/system/users", requiresSystemAdmin: true },
   { icon: Activity, label: "Eventos", href: "/system/events", requiresSystemAdmin: true },
 ];
@@ -46,57 +44,7 @@ const bottomNavItems: NavItem[] = [
 export function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { isSystemAdmin, isOrgAdmin, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
-  const { isAuthenticated } = useAuth();
-
-  const accessibleOrgIds = getAccessibleOrgIds();
-  const accessibleGroupIds = getAccessibleGroupIds();
-
-  // Fetch organizations based on role
-  const { data: organizations } = useQuery({
-    queryKey: ['sidebar-organizations', isSystemAdmin, accessibleOrgIds],
-    queryFn: async () => {
-      let query = supabase
-        .from('organizations')
-        .select('id, name')
-        .order('created_at', { ascending: false });
-      
-      // Non-system admins see only their orgs (already filtered by RLS, but for sidebar we show all accessible)
-      if (!isSystemAdmin && accessibleOrgIds.length > 0) {
-        query = query.in('id', accessibleOrgIds);
-      }
-      
-      const { data, error } = await query.limit(5);
-      if (error) throw error;
-      return data;
-    },
-    enabled: isAuthenticated,
-  });
-
-  // Fetch groups based on role
-  const { data: groups } = useQuery({
-    queryKey: ['sidebar-groups', isSystemAdmin, accessibleGroupIds, accessibleOrgIds],
-    queryFn: async () => {
-      let query = supabase
-        .from('groups')
-        .select('id, name, organization_id')
-        .order('created_at', { ascending: false });
-      
-      // Non-system admins: filter by accessible groups or by org access
-      if (!isSystemAdmin) {
-        if (accessibleGroupIds.length > 0) {
-          query = query.in('id', accessibleGroupIds);
-        } else if (accessibleOrgIds.length > 0) {
-          query = query.in('organization_id', accessibleOrgIds);
-        }
-      }
-      
-      const { data, error } = await query.limit(5);
-      if (error) throw error;
-      return data;
-    },
-    enabled: isAuthenticated,
-  });
+  const { isSystemAdmin, isOrgAdmin } = useUserRoles();
 
   const isActive = (href: string) => {
     if (href === "/") return location.pathname === "/";
@@ -171,69 +119,6 @@ export function AdminSidebar() {
         {mainNavItems.map(renderNavItem)}
       </nav>
 
-      {/* Quick Access - Organizations (for ORG_ADMIN+ or when user has org access) */}
-      {organizations && organizations.length > 0 && (
-        <nav className="flex flex-col gap-1 px-3">
-          {!collapsed && (
-            <span className="text-xs font-medium text-muted-foreground px-3 py-2">
-              {isSystemAdmin ? "Organizações" : "Minhas Organizações"}
-            </span>
-          )}
-          {organizations.map((org) => {
-            const href = `/org/${org.id}`;
-            const active = isActive(href);
-            return (
-              <NavLink
-                key={org.id}
-                to={href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                )}
-              >
-                <Building2 className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
-                {!collapsed && (
-                  <span className="truncate animate-fade-in">{org.name}</span>
-                )}
-              </NavLink>
-            );
-          })}
-        </nav>
-      )}
-
-      {/* Quick Access - Groups */}
-      {groups && groups.length > 0 && (
-        <nav className="flex flex-col gap-1 px-3 mt-1">
-          {!collapsed && (
-            <span className="text-xs font-medium text-muted-foreground px-3 py-2">
-              {isSystemAdmin ? "Grupos" : "Meus Grupos"}
-            </span>
-          )}
-          {groups.map((group) => {
-            const href = `/group/${group.id}`;
-            const active = isActive(href);
-            return (
-              <NavLink
-                key={group.id}
-                to={href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                )}
-              >
-                <Users className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
-                {!collapsed && (
-                  <span className="truncate animate-fade-in">{group.name}</span>
-                )}
-              </NavLink>
-            );
-          })}
-        </nav>
-      )}
 
       {/* Spacer */}
       <div className="flex-1" />

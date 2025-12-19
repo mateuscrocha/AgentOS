@@ -10,9 +10,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthGuard } from "./components/auth/AuthGuard";
 import Index from "./pages/Index";
 import System from "./pages/System";
+import SystemEvents from "./pages/SystemEvents";
 import SystemOrganizations from "./pages/SystemOrganizations";
 import SystemGroups from "./pages/SystemGroups";
-import SystemEvents from "./pages/SystemEvents";
+import SystemPeople from "./pages/SystemPeople";
 import Org from "./pages/Org";
 import Group from "./pages/Group";
 import GroupMembers from "./pages/GroupMembers";
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/system" element={<System />} />
             <Route path="/system/organizations" element={<SystemOrganizations />} />
             <Route path="/system/groups" element={<SystemGroups />} />
+            <Route path="/system/people" element={<SystemPeople />} />
             <Route path="/system/users" element={<Users />} />
             <Route path="/system/events" element={<SystemEvents />} />
             <Route path="/org/:orgId" element={<Org />} />
