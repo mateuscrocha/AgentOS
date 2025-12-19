@@ -11,7 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { UserInline } from "@/components/ui/UserInline";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { KpiCard } from "@/components/group-dashboard";
 
 export default function GroupPoll() {
   const { groupId, pollId } = useParams();
@@ -115,7 +118,9 @@ export default function GroupPoll() {
   }
 
   const totalVotes = (pollOptions ?? []).reduce((sum: number, o: any) => sum + o.votesCount, 0);
-  const chartData = (pollOptions ?? []).map((o: any) => ({ name: o.optionText, value: o.votesCount }));
+  const sortedOptions = [...(pollOptions ?? [])].sort((a: any, b: any) => b.votesCount - a.votesCount);
+  const chartData = sortedOptions.map((o: any) => ({ name: o.optionText, value: o.votesCount }));
+  const createdAtLabel = poll ? new Date((poll as any).created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : "";
 
   return (
     <AdminLayout title="Enquete" subtitle="Detalhes da enquete">
@@ -130,15 +135,13 @@ export default function GroupPoll() {
         />
 
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-3 p-4 border-b border-border">
+          <div className="flex items-center gap-3 p-5 border-b border-border">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <Activity className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-card-foreground">{(poll as any)?.question || "Enquete"}</h2>
-              <p className="text-sm text-muted-foreground">
-                {poll ? new Date((poll as any).created_at).toLocaleString("pt-BR") : "Carregando..."}
-              </p>
+              <h1 className="text-xl md:text-2xl font-semibold text-card-foreground">{(poll as any)?.question || "Enquete"}</h1>
+              <p className="text-xs md:text-sm text-muted-foreground">Criada em {createdAtLabel}</p>
             </div>
             <NavLink to={`/group/${groupId}/messages`} className="ml-auto">
               <Button variant="outline" size="sm">Voltar às mensagens</Button>
@@ -177,79 +180,77 @@ export default function GroupPoll() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg bg-card/50 p-3">
-                      <p className="text-[11px] text-muted-foreground">Máx. opções</p>
-                      <p className="text-sm font-semibold text-card-foreground">{(poll as any).max_options ?? 1}</p>
-                    </div>
-                    <div className="rounded-lg bg-card/50 p-3">
-                      <p className="text-[11px] text-muted-foreground">Opções</p>
-                      <p className="text-sm font-semibold text-card-foreground">{(pollOptions ?? []).length}</p>
-                    </div>
-                    <div className="rounded-lg bg-card/50 p-3">
-                      <p className="text-[11px] text-muted-foreground">Votos únicos</p>
-                      <p className="text-sm font-semibold text-card-foreground">{pollSummary?.voters_count ?? 0}</p>
-                    </div>
-                    <div className="rounded-lg bg-card/50 p-3">
-                      <p className="text-[11px] text-muted-foreground">Total de votos</p>
-                      <p className="text-sm font-semibold text-card-foreground">{totalVotes}</p>
-                    </div>
-                  </div>
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <KpiCard title="Total de votos" value={totalVotes} />
+                  <KpiCard title="Votantes únicos" value={pollSummary?.voters_count ?? 0} />
+                  <KpiCard title="Opções" value={(pollOptions ?? []).length} />
+                  <KpiCard title="Máx. opções" value={(poll as any).max_options ?? 1} />
                 </div>
 
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                      <Tooltip wrapperClassName="text-xs" />
-                      <Bar dataKey="value" fill="#4F46E5" radius={[4,4,0,0]} />
+                {chartData.length === 0 ? (
+                  <div className="h-[260px] flex items-center justify-center bg-secondary/30 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Sem dados para o gráfico</p>
+                  </div>
+                ) : (
+                  <ChartContainer config={{ value: { label: "Votos", color: "hsl(var(--primary))" } }} className="h-[260px] w-full">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} className="text-muted-foreground" axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" axisLine={false} tickLine={false} width={40} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4,4,0,0]} />
                     </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                  </ChartContainer>
+                )}
 
                 <div className="space-y-3">
-                  {(pollOptions ?? []).map((opt: any) => {
-                    const pct = totalVotes > 0 ? Math.round((opt.votesCount / totalVotes) * 100) : 0;
-                    return (
-                      <div key={opt.optionIndex} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-card-foreground">{opt.optionText}</span>
-                          <span className="text-xs text-muted-foreground">{opt.votesCount} voto(s) • {pct}%</span>
-                        </div>
-                        <Progress value={pct} />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-card-foreground">Votos por pessoa</p>
-                  {!pollVotesByPerson || pollVotesByPerson.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhum voto registrado.</p>
+                  {sortedOptions.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhuma opção cadastrada.</p>
                   ) : (
-                    <div className="space-y-2">
-                      {pollVotesByPerson.map((v: any, idx: number) => (
-                        <div key={`${v.personId || idx}-${v.createdAt}`} className="flex items-start justify-between gap-3 rounded-lg bg-card/50 px-3 py-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <UserInline name={v.personName || "Participante"} avatarUrl={null} />
-                              <span className="text-[11px] text-muted-foreground">{new Date(v.createdAt).toLocaleString("pt-BR")}</span>
-                            </div>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {(v.votedOptions as string[]).map((o: string, i: number) => (
-                                <span key={`${o}-${i}`} className="text-[11px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{o}</span>
-                              ))}
-                            </div>
+                    sortedOptions.map((opt: any) => {
+                      const pct = totalVotes > 0 ? Math.round((opt.votesCount / totalVotes) * 100) : 0;
+                      return (
+                        <div key={opt.optionIndex} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-card-foreground">{opt.optionText}</span>
+                            <span className="text-xs text-muted-foreground">{opt.votesCount} voto(s) • {pct}%</span>
                           </div>
+                          <Progress value={pct} />
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })
                   )}
                 </div>
+
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="votes-by-person">
+                    <AccordionTrigger>Votos por pessoa</AccordionTrigger>
+                    <AccordionContent>
+                      {!pollVotesByPerson || pollVotesByPerson.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhum voto registrado.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {pollVotesByPerson.map((v: any, idx: number) => (
+                            <div key={`${v.personId || idx}-${v.createdAt}`} className="flex items-start justify-between gap-3 rounded-lg bg-card/50 px-3 py-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <UserInline name={v.personName || "Participante"} avatarUrl={null} />
+                                  <span className="text-[11px] text-muted-foreground">{new Date(v.createdAt).toLocaleString("pt-BR")}</span>
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {(v.votedOptions as string[]).map((o: string, i: number) => (
+                                    <span key={`${o}-${i}`} className="text-[11px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{o}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
             )}
           </div>
