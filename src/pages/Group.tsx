@@ -43,6 +43,7 @@ const Group = () => {
   const {
     group,
     orgName,
+    orgStatus,
     stats,
     previousStats,
     messagesPerDay,
@@ -153,6 +154,13 @@ const Group = () => {
       subtitle={group.name}
     >
       <div className="space-y-8 animate-fade-in">
+        {(((group as any)?.status) === 'inactive' || orgStatus === 'inactive') && (
+          <div className="p-4 rounded-xl border border-border bg-secondary/30">
+            <p className="text-sm text-muted-foreground">
+              Este grupo está desativado{orgStatus === 'inactive' ? ' pela organização' : ''}. Visualização histórica está disponível, mas ações de gestão foram desabilitadas.
+            </p>
+          </div>
+        )}
         {/* Breadcrumbs + Period Filter */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <Breadcrumbs
@@ -318,7 +326,7 @@ const Group = () => {
           isLoading={isLoading}
           hasIkigai={hasIkigai}
           periodLabel={getPeriodLabel()}
-          onOpenIkigai={() => setIkigaiOpen(true)}
+          onOpenIkigai={(((group as any)?.status) === 'inactive' || orgStatus === 'inactive') ? undefined : () => setIkigaiOpen(true)}
         />
 
         {/* 4.1 Participation Quality Section */}
@@ -372,7 +380,7 @@ const Group = () => {
       </div>
       <EditIkigaiModal
         groupId={group.id}
-        open={ikigaiOpen}
+        open={ikigaiOpen && !((((group as any)?.status) === 'inactive' || orgStatus === 'inactive'))}
         onOpenChange={setIkigaiOpen}
         periodLabel={getPeriodLabel()}
         currentKeywords={(ikigaiKeywordsList || []) as string[]}

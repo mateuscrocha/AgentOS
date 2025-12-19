@@ -52,7 +52,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data, error } = await supabase
         .from('groups')
-        .select('id, name, description, provider, organization_id, is_active, is_archived, sync_status, last_sync_at, metadata')
+        .select('id, name, description, provider, organization_id, is_active, is_archived, sync_status, last_sync_at, metadata, status')
         .eq('id', groupId!)
         .maybeSingle();
       
@@ -68,7 +68,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data } = await supabase
         .from('organizations')
-        .select('name')
+        .select('name, status')
         .eq('id', group!.organization_id)
         .maybeSingle();
       return data;
@@ -1363,6 +1363,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   return {
     group,
     orgName: orgData?.name || null,
+    orgStatus: (orgData as any)?.status || null,
     stats: stats ? {
       ...stats,
       totalMessages7d: stats.totalMessages,

@@ -51,6 +51,10 @@ const System = () => {
   const [removingOrg, setRemovingOrg] = useState(false);
   const [removeGroup, setRemoveGroup] = useState<any | null>(null);
   const [removingGroup, setRemovingGroup] = useState(false);
+  const [orgShowInactive, setOrgShowInactive] = useState(false);
+  const [groupShowInactive, setGroupShowInactive] = useState(false);
+  const [orgDeleteConfirmText, setOrgDeleteConfirmText] = useState("");
+  const [groupDeleteConfirmText, setGroupDeleteConfirmText] = useState("");
 
   // Debounced search terms to reduce query churn
   const [debouncedOrgSearch, setDebouncedOrgSearch] = useState(orgSearch);
@@ -78,6 +82,10 @@ const System = () => {
 
       if (debouncedOrgSearch) {
         query = query.ilike('name', `%${debouncedOrgSearch}%`);
+      }
+
+      if (!orgShowInactive) {
+        query = query.eq('status', 'active');
       }
 
       query = query.order(orgOrderBy, { ascending: orgOrderDir === 'asc' });
@@ -127,6 +135,10 @@ const System = () => {
       }
       if (groupOrgFilter) {
         query = query.eq('organization_id', groupOrgFilter);
+      }
+
+      if (!groupShowInactive) {
+        query = query.eq('status', 'active');
       }
 
       query = query.order(groupOrderBy, { ascending: groupOrderDir === 'asc' });
@@ -283,6 +295,14 @@ const System = () => {
                   onChange={(e) => { setOrgSearch(e.target.value); setPage(1); }}
                   className="w-52 px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={orgShowInactive}
+                    onChange={(e) => { setOrgShowInactive(e.target.checked); setPage(1); }}
+                  />
+                  Mostrar inativas
+                </label>
                 <select
                   value={orgOrderBy}
                   onChange={(e) => setOrgOrderBy(e.target.value as any)}
@@ -346,6 +366,14 @@ const System = () => {
                       <option key={org.id} value={org.id}>{org.name}</option>
                     ))}
                   </select>
+                  <label className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={groupShowInactive}
+                      onChange={(e) => { setGroupShowInactive(e.target.checked); setGroupPage(1); }}
+                    />
+                    Mostrar inativos
+                  </label>
                   <select
                     value={groupOrderBy}
                     onChange={(e) => setGroupOrderBy(e.target.value as any)}
@@ -390,18 +418,32 @@ const System = () => {
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Excluir organização</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
-                Esta ação é irreversível e removerá a organização do sistema. Se houver grupos associados,
-                a exclusão será bloqueada.
+                Esta ação é irreversível e removerá a organização e todos os dados vinculados em cascata:
+                grupos, membros, mensagens, reações, e demais registros relacionados.
+                Para confirmar, digite o nome da organização (<strong>{removeOrg?.name}</strong>)
+                ou escreva <strong>EXCLUIR</strong> no campo abaixo.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="mt-3">
+              <input
+                type="text"
+                value={orgDeleteConfirmText}
+                onChange={(e) => setOrgDeleteConfirmText(e.target.value)}
+                placeholder={`Digite "${removeOrg?.name}" ou "EXCLUIR"`}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Isso remove todos os dados em cascata e não pode ser desfeito.
+              </p>
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel className="mr-2">Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={async () => {
                   if (!removeOrg) return;
-                  const groupsCount = orgGroupCounts?.[removeOrg.id] ?? 0;
-                  if (groupsCount > 0) {
-                    toast.error('A organização possui grupos. Exclua os grupos antes de excluir a organização.');
+                  const confirmed = orgDeleteConfirmText.trim().toLowerCase() === 'excluir' || orgDeleteConfirmText.trim() === removeOrg.name;
+                  if (!confirmed) {
+                    toast.error('Confirmação inválida. Digite o nome da organização ou EXCLUIR.');
                     return;
                   }
                   setRemovingOrg(true);
@@ -413,6 +455,7 @@ const System = () => {
                     if (error) throw error;
                     toast.success('Organização excluída com sucesso');
                     setRemoveOrg(null);
+                    setOrgDeleteConfirmText("");
                     refetchOrgs();
                   } catch (err: any) {
                     toast.error(err.message || 'Erro ao excluir organização');
@@ -433,15 +476,33 @@ const System = () => {
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Excluir grupo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
-                Esta ação é irreversível e removerá o grupo do sistema. Mensagens e vínculos relacionados
-                podem impedir a exclusão se existirem restrições no banco.
+                Esta ação é irreversível e removerá o grupo e todos os dados vinculados em cascata:
+                membros, mensagens, reações e demais registros relacionados. Para confirmar, digite o
+                nome do grupo (<strong>{removeGroup?.name}</strong>) ou escreva <strong>EXCLUIR</strong>.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="mt-3">
+              <input
+                type="text"
+                value={groupDeleteConfirmText}
+                onChange={(e) => setGroupDeleteConfirmText(e.target.value)}
+                placeholder={`Digite "${removeGroup?.name}" ou "EXCLUIR"`}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Isso remove todos os dados em cascata e não pode ser desfeito.
+              </p>
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel className="mr-2">Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={async () => {
                   if (!removeGroup) return;
+                  const confirmed = groupDeleteConfirmText.trim().toLowerCase() === 'excluir' || groupDeleteConfirmText.trim() === removeGroup.name;
+                  if (!confirmed) {
+                    toast.error('Confirmação inválida. Digite o nome do grupo ou EXCLUIR.');
+                    return;
+                  }
                   setRemovingGroup(true);
                   try {
                     const { error } = await supabase
@@ -451,6 +512,7 @@ const System = () => {
                     if (error) throw error;
                     toast.success('Grupo excluído com sucesso');
                     setRemoveGroup(null);
+                    setGroupDeleteConfirmText("");
                     refetchGroups();
                     refetchOrgs();
                   } catch (err: any) {
