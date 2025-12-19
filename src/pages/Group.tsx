@@ -11,6 +11,7 @@ import AccessDenied from "./AccessDenied";
   import {
     GroupHeader,
     SummarySection,
+    RecentActivitySection,
     ConversationRhythmSection,
     PeopleSection,
     ParticipationQualitySection,
@@ -46,6 +47,7 @@ const Group = () => {
     previousStats,
     messagesPerDay,
     activeMembersPerDay,
+    activityByHour,
     membersOverview,
     previousMembersOverview,
     memberEntriesPerDay,
@@ -263,6 +265,15 @@ const Group = () => {
           previousNewMembersCount={previousNewMembersCount}
           exitedMembersCount={exitedMembersCount}
           previousExitedMembersCount={previousExitedMembersCount}
+          isLoading={isLoading}
+          periodLabel={getPeriodLabel()}
+        />
+
+        {/* Recent Activity Patterns */}
+        <RecentActivitySection
+          messagesPerDay={messagesPerDay}
+          activityByHour={activityByHour}
+          ikigaiSuggestions={ikigaiSuggestions as any}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
         />
