@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/chart";
 import { Pie, PieChart, Cell } from "recharts";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface MemberEngagement {
   recorrentes: number;
@@ -17,7 +18,7 @@ interface MemberEngagement {
 
 interface PeopleSectionProps {
   groupId: string;
-  topParticipant: { name: string; count: number } | null;
+  topParticipant: { name: string; count: number; avatarUrl?: string | null } | null;
   previousTopParticipant?: { name: string; count: number } | null;
   topParticipants: { name: string; count: number }[];
   memberEngagement?: MemberEngagement;
@@ -99,13 +100,24 @@ export function PeopleSection({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Top participant highlight */}
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-5 flex flex-col items-center text-center">
-          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-            {isLoading ? (
-              <Skeleton className="h-full w-full rounded-full" />
-            ) : (
+          {isLoading ? (
+            <div className="mb-3">
+              <Skeleton className="h-16 w-16 rounded-full" />
+            </div>
+          ) : topParticipant?.avatarUrl ? (
+            <div className="mb-3">
+              <Avatar className="h-16 w-16 ring-2 ring-primary/20">
+                <AvatarImage src={topParticipant.avatarUrl} alt="" referrerPolicy="no-referrer" />
+                <AvatarFallback>
+                  {topParticipant.name?.[0]?.toUpperCase() || ""}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+          ) : (
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-3">
               <Crown className="h-8 w-8 text-primary" />
-            )}
-          </div>
+            </div>
+          )}
           {isLoading ? (
             <>
               <Skeleton className="h-5 w-24 mb-2" />

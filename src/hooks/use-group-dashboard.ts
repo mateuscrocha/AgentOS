@@ -126,19 +126,22 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       // Get top participant
       const { data: topParticipantData } = await supabase
         .from('messages')
-        .select('member_id, members!inner(name)')
+        .select('member_id, members!inner(name, profile_pic_url)')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const memberCounts: Record<string, { name: string; count: number }> = {};
+      const memberCounts: Record<string, { name: string; count: number; avatarUrl: string | null }> = {};
       topParticipantData?.forEach((msg: any) => {
         const memberId = msg.member_id;
         const memberName = msg.members?.name || 'Desconhecido';
+        const avatarUrl = msg.members?.profile_pic_url || null;
         if (!memberCounts[memberId]) {
-          memberCounts[memberId] = { name: memberName, count: 0 };
+          memberCounts[memberId] = { name: memberName, count: 0, avatarUrl };
+        } else if (memberCounts[memberId].avatarUrl == null) {
+          memberCounts[memberId].avatarUrl = avatarUrl;
         }
         memberCounts[memberId].count++;
       });
@@ -229,19 +232,22 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       // Get top participant in previous period
       const { data: topParticipantData } = await supabase
         .from('messages')
-        .select('member_id, members!inner(name)')
+        .select('member_id, members!inner(name, profile_pic_url)')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
-      const memberCounts: Record<string, { name: string; count: number }> = {};
+      const memberCounts: Record<string, { name: string; count: number; avatarUrl: string | null }> = {};
       topParticipantData?.forEach((msg: any) => {
         const memberId = msg.member_id;
         const memberName = msg.members?.name || 'Desconhecido';
+        const avatarUrl = msg.members?.profile_pic_url || null;
         if (!memberCounts[memberId]) {
-          memberCounts[memberId] = { name: memberName, count: 0 };
+          memberCounts[memberId] = { name: memberName, count: 0, avatarUrl };
+        } else if (memberCounts[memberId].avatarUrl == null) {
+          memberCounts[memberId].avatarUrl = avatarUrl;
         }
         memberCounts[memberId].count++;
       });
