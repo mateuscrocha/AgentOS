@@ -7,7 +7,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, NavLink, useNavigate } from "react-router-dom";
 import { 
   Users, MessageSquare, Filter, Eye, Activity, ListChecks,
-  Image, Mic, Video, FileText, MapPin, Smile, Download 
+  Image, Mic, Video, FileText, MapPin, Smile 
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,16 +15,10 @@ import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { ReactionBadges } from "@/components/messages/ReactionBadges";
-import { ReactionDetails } from "@/components/messages/ReactionDetails";
+import { MessageDetailModal } from "@/components/messages/MessageDetailModal";
 import { UserInline } from "@/components/ui/UserInline";
-import { Button } from "@/components/ui/button";
+ 
  
 
 const PAGE_SIZE = 10;
@@ -56,23 +50,6 @@ interface ReactionSummary {
   }[];
 }
 
-interface MessageDetail {
-  id: string;
-  content: string | null;
-  text: string | null;
-  message_type: string;
-  member_id: string | null;
-  member_name: string;
-  member_avatar: string | null;
-  created_at: string;
-  provider_message_id: string | null;
-  media_url: string | null;
-  media_mime_type: string | null;
-  media_caption: string | null;
-  media_duration_sec: number | null;
-  media_size_bytes: number | null;
-  thumbnail_url: string | null;
-}
 
 const MESSAGE_TYPES = ['text', 'image', 'audio', 'video', 'document', 'sticker', 'location', 'poll', 'poll_vote'];
 
@@ -92,19 +69,7 @@ const translateMessageType = (type: string): string => {
   return translations[type] || type;
 };
 
-// Format duration in seconds to mm:ss
-const formatDuration = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-// Format file size in bytes to human readable
-const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
+ 
 
 // Get icon for message type
 const getMessageTypeIcon = (type: string) => {
@@ -160,7 +125,7 @@ const PollInlineSummary = ({ groupId, providerMessageId }: { groupId: string; pr
         .select('option_text, option_index, votes_count')
         .eq('poll_id', poll.id)
         .order('option_index', { ascending: true });
-      return (data ?? []).slice(0, 3).map((r: any) => ({
+      return (data ?? []).slice(0, 3).map((r: { option_text: string; option_index: number; votes_count: number | null }) => ({
         optionText: r.option_text as string,
         optionIndex: Number(r.option_index),
         votesCount: Number(r.votes_count ?? 0),
@@ -172,7 +137,7 @@ const PollInlineSummary = ({ groupId, providerMessageId }: { groupId: string; pr
   return (
     <div className="flex items-center gap-2">
       <span className="text-[11px] text-muted-foreground">{summary?.voters_count ? `${summary.voters_count} voto(s)` : 'Sem votos'}</span>
-      {(results ?? []).map((r) => (
+      {(results ?? []).map((r: { optionText: string; optionIndex: number; votesCount: number }) => (
         <span key={r.optionIndex} className="text-[11px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
           {r.optionText} {r.votesCount}
         </span>
@@ -319,186 +284,13 @@ const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
 
  
 
-// Detail view component for dialog
-const MessageDetailView = ({ message }: { message: MessageDetail }) => {
-  const textContent = message.content || message.text;
-  const { groupId } = useParams();
-
-  switch (message.message_type) {
-    case 'image':
-      return (
-        <div className="space-y-3">
-          {message.media_url && (
-            <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="block">
-              <img 
-                src={message.media_url} 
-                alt="Imagem" 
-                className="max-w-full max-h-[400px] rounded-lg object-contain bg-muted mx-auto cursor-zoom-in hover:opacity-90 transition-opacity"
-              />
-            </a>
-          )}
-          {message.media_caption && (
-            <p className="text-sm text-card-foreground">{message.media_caption}</p>
-          )}
-          {message.media_size_bytes && (
-            <p className="text-xs text-muted-foreground">
-              Tamanho: {formatFileSize(message.media_size_bytes)}
-            </p>
-          )}
-        </div>
-      );
-
-    case 'sticker':
-      return (
-        <div className="flex justify-center">
-          {message.media_url && (
-            <a href={message.media_url} target="_blank" rel="noopener noreferrer">
-              <img 
-                src={message.media_url} 
-                alt="Sticker" 
-                className="max-w-[200px] max-h-[200px] object-contain cursor-zoom-in hover:scale-105 transition-transform"
-              />
-            </a>
-          )}
-        </div>
-      );
-
-    case 'audio':
-      return (
-        <div className="space-y-3">
-          {message.media_url && (
-            <audio controls className="w-full" src={message.media_url}>
-              Seu navegador não suporta áudio.
-            </audio>
-          )}
-          <div className="flex gap-4 text-xs text-muted-foreground">
-            {message.media_duration_sec && (
-              <span>Duração: {formatDuration(message.media_duration_sec)}</span>
-            )}
-            {message.media_size_bytes && (
-              <span>Tamanho: {formatFileSize(message.media_size_bytes)}</span>
-            )}
-          </div>
-        </div>
-      );
-
-    case 'video':
-      return (
-        <div className="space-y-3">
-          {message.media_url && (
-            <video 
-              controls 
-              className="w-full max-h-[400px] rounded-lg bg-black"
-              poster={message.thumbnail_url || undefined}
-              src={message.media_url}
-            >
-              Seu navegador não suporta vídeo.
-            </video>
-          )}
-          {message.media_caption && (
-            <p className="text-sm text-card-foreground">{message.media_caption}</p>
-          )}
-          <div className="flex gap-4 text-xs text-muted-foreground">
-            {message.media_duration_sec && (
-              <span>Duração: {formatDuration(message.media_duration_sec)}</span>
-            )}
-            {message.media_size_bytes && (
-              <span>Tamanho: {formatFileSize(message.media_size_bytes)}</span>
-            )}
-          </div>
-        </div>
-      );
-
-    case 'document':
-      return (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary/50">
-            <FileText className="h-10 w-10 text-primary" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-card-foreground truncate">
-                {message.media_caption || 'Documento'}
-              </p>
-              <div className="flex gap-3 text-xs text-muted-foreground">
-                {message.media_mime_type && <span>{message.media_mime_type}</span>}
-                {message.media_size_bytes && <span>{formatFileSize(message.media_size_bytes)}</span>}
-              </div>
-            </div>
-            {message.media_url && (
-              <a 
-                href={message.media_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                <Download className="h-4 w-4" />
-              </a>
-            )}
-          </div>
-        </div>
-      );
-
-    case 'location':
-      return (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 p-4 rounded-lg bg-success/10">
-            <MapPin className="h-10 w-10 text-success" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-card-foreground">Localização compartilhada</p>
-              {textContent && (
-                <p className="text-xs text-muted-foreground">{textContent}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-
-    case 'poll':
-      return (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/10">
-            <Activity className="h-10 w-10 text-primary" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-card-foreground">Enquete</p>
-              {textContent && (
-                <p className="text-sm text-card-foreground">{textContent}</p>
-              )}
-            </div>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Para ver os detalhes, use a tela dedicada de Enquete.
-          </div>
-        </div>
-      );
-
-    case 'poll_vote':
-      return (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary/50">
-            <Activity className="h-10 w-10 text-secondary-foreground" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-card-foreground">Voto em enquete</p>
-              {textContent && (
-                <p className="text-sm text-card-foreground">{textContent}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-
-    default:
-      return (
-        <div className="p-3 rounded-lg bg-secondary/50 text-sm text-card-foreground whitespace-pre-wrap">
-          {textContent || `[Mensagem do tipo ${translateMessageType(message.message_type)}]`}
-        </div>
-      );
-  }
-};
+// Detail view is handled by MessageDetailModal
 
 const GroupMessages = () => {
   const { groupId } = useParams();
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<string>("");
-  const [selectedMessage, setSelectedMessage] = useState<MessageDetail | null>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -679,32 +471,7 @@ const GroupMessages = () => {
         return;
       }
     }
-
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('id', m.message_id)
-      .maybeSingle();
-
-    if (data) {
-      setSelectedMessage({
-        id: data.id,
-        content: data.content,
-        text: data.text,
-        message_type: data.message_type,
-        member_id: data.member_id,
-        member_name: m.member_name,
-        member_avatar: m.member_avatar,
-        created_at: data.created_at,
-        provider_message_id: data.provider_message_id,
-        media_url: data.media_url,
-        media_mime_type: data.media_mime_type,
-        media_caption: data.media_caption,
-        media_duration_sec: data.media_duration_sec,
-        media_size_bytes: data.media_size_bytes,
-        thumbnail_url: data.thumbnail_url,
-      });
-    }
+    setSelectedMessageId(m.message_id);
   };
 
   // Loading state
@@ -906,64 +673,14 @@ const GroupMessages = () => {
           />
         )}
 
-        {/* Message detail dialog */}
-        <Dialog open={!!selectedMessage} onOpenChange={() => setSelectedMessage(null)}>
-          <DialogContent className="bg-card border-border max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="text-card-foreground">Detalhes da Mensagem</DialogTitle>
-            </DialogHeader>
-            {selectedMessage && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Tipo</span>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      {(() => {
-                        const Icon = getMessageTypeIcon(selectedMessage.message_type);
-                        return <Icon className="h-4 w-4 text-muted-foreground" />;
-                      })()}
-                      <span className="font-medium text-card-foreground">
-                        {translateMessageType(selectedMessage.message_type)}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Data</span>
-                    <p className="font-medium text-card-foreground mt-1">
-                      {new Date(selectedMessage.created_at).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-muted-foreground">Membro</span>
-                    <div className="mt-1">
-                      <UserInline name={selectedMessage.member_name} avatarUrl={selectedMessage.member_avatar} />
-                    </div>
-                  </div>
-                  {selectedMessage.provider_message_id && (
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Provider Message ID</span>
-                      <p className="font-medium text-card-foreground font-mono text-xs mt-1">
-                        {selectedMessage.provider_message_id}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <span className="text-sm text-muted-foreground">Conteúdo</span>
-                  <div className="mt-2">
-                    <MessageDetailView message={selectedMessage} />
-                  </div>
-                </div>
-                
-                {/* Reactions section */}
-                <ReactionDetails 
-                  reactions={reactionsMap[selectedMessage.id] || []}
-                />
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        <MessageDetailModal 
+          open={!!selectedMessageId}
+          onOpenChange={(open) => {
+            if (!open) setSelectedMessageId(null);
+          }}
+          groupId={groupId as string}
+          messageId={selectedMessageId as string}
+        />
       </div>
     </AdminLayout>
   );

@@ -1,14 +1,14 @@
-import { ThumbsUp, FileText, MapPin, Download, Activity } from "lucide-react";
+import { ThumbsUp } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { SectionHeader } from "./SectionHeader";
 import { InsightCard } from "./InsightCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { UserInline } from "@/components/ui/UserInline";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { MessageDetailModal } from "@/components/messages/MessageDetailModal";
 
 interface AtRiskMember {
   id: string;
@@ -27,23 +27,6 @@ interface PopularMessage {
   createdAt?: string | null;
 }
 
-interface MessageDetail {
-  id: string;
-  content: string | null;
-  text: string | null;
-  message_type: string;
-  member_id: string | null;
-  member_name: string;
-  member_avatar: string | null;
-  created_at: string;
-  provider_message_id: string | null;
-  media_url: string | null;
-  media_mime_type: string | null;
-  media_caption: string | null;
-  media_duration_sec: number | null;
-  media_size_bytes: number | null;
-  thumbnail_url: string | null;
-}
 
 interface AlertsSectionProps {
   atRiskMembers: AtRiskMember[];
@@ -60,8 +43,9 @@ export function AlertsSection({
   groupId,
   totalMembers = 0,
 }: AlertsSectionProps) {
-  const [selectedMessage, setSelectedMessage] = useState<MessageDetail | null>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const { groupId: routeGroupId } = useParams();
+  const currentGroup = (groupId || routeGroupId) as string | undefined;
   const translateMessageType = (type: string) => {
     const types: Record<string, string> = {
       text: 'Texto',
@@ -74,220 +58,95 @@ export function AlertsSection({
     return types[type] || type;
   };
 
-  const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const linkOrMentionRegex = /(https?:\/\/[^\s]+)|@([0-9]{5,})/g;
+  const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string, string>) => {
+    const result: (string | JSX.Element)[] = [];
+    let lastIndex = 0;
+    for (const match of text.matchAll(linkOrMentionRegex)) {
+      const idx = match.index || 0;
+      if (idx > lastIndex) {
+        result.push(text.slice(lastIndex, idx));
+      }
+      const url = match[1];
+      const mentionId = match[2];
+      if (url) {
+        result.push(
+          <a key={`u-${idx}`} href={url} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all">
+            {url}
+          </a>
+        );
+      } else if (mentionId) {
+        const name = mentionMap[mentionId];
+        if (name) {
+          result.push(
+            <span key={`m-${idx}`} className="inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+              @{name}
+            </span>
+          );
+        } else {
+          result.push(`@${mentionId}`);
+        }
+      }
+      lastIndex = idx + match[0].length;
+    }
+    if (lastIndex < text.length) {
+      result.push(text.slice(lastIndex));
+    }
+    return result;
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
+  const mentionIds = useMemo(() => {
+    const allTexts = (popularMessages || []).map(m => (m.content || "").toString());
+    const ids = allTexts.flatMap(src => Array.from(src.matchAll(/@([0-9]{5,})/g)).map(m => m[1]));
+    return Array.from(new Set(ids));
+  }, [popularMessages]);
+
+  const { data: mentionMap } = useQuery({
+    queryKey: ["alerts-mentions", currentGroup, mentionIds.join(",")],
+    queryFn: async () => {
+      if (!currentGroup || !mentionIds.length) return {} as Record<string, string>;
+      const plusPhones = mentionIds.map(id => (id.startsWith("+") ? id : `+${id}`));
+      const providerCandidates = [
+        ...mentionIds,
+        ...mentionIds.map(id => `${id}@c.us`),
+        ...mentionIds.map(id => `${id}@s.whatsapp.net`),
+      ];
+      const { data: byProvider } = await supabase
+        .from("members")
+        .select("provider_member_id, name, display_name")
+        .eq("group_id", currentGroup)
+        .in("provider_member_id", providerCandidates);
+      const { data: byPhone } = await supabase
+        .from("members")
+        .select("phone_e164, name, display_name")
+        .eq("group_id", currentGroup)
+        .in("phone_e164", plusPhones);
+      const map: Record<string, string> = {};
+      const toDigits = (s: string) => s.replace(/\D/g, "");
+      (byProvider || []).forEach(m => {
+        const keyFull = (m as any).provider_member_id as string;
+        const key = toDigits(keyFull || "");
+        const val = ((m as any).display_name as string) || ((m as any).name as string);
+        if (key) map[key] = val;
+      });
+      (byPhone || []).forEach(m => {
+        const phone = ((m as any).phone_e164 as string) || "";
+        const key = phone.replace(/^\+/, "");
+        const val = ((m as any).display_name as string) || ((m as any).name as string);
+        if (key) map[key] = val;
+      });
+      return map;
+    },
+    enabled: !!currentGroup && mentionIds.length > 0,
+  });
+
+ 
 
   const handleViewDetail = async (msg: PopularMessage) => {
-    const currentGroup = groupId || routeGroupId;
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('id', msg.id)
-      .eq('group_id', currentGroup as string)
-      .maybeSingle();
-
-    if (data) {
-      setSelectedMessage({
-        id: data.id,
-        content: data.content,
-        text: data.text,
-        message_type: data.message_type,
-        member_id: data.member_id,
-        member_name: msg.memberName,
-        member_avatar: msg.avatarUrl || null,
-        created_at: data.created_at,
-        provider_message_id: data.provider_message_id,
-        media_url: data.media_url,
-        media_mime_type: data.media_mime_type,
-        media_caption: data.media_caption,
-        media_duration_sec: data.media_duration_sec,
-        media_size_bytes: data.media_size_bytes,
-        thumbnail_url: data.thumbnail_url,
-      });
-    }
+    setSelectedMessageId(msg.id);
   };
 
-  const MessageDetailView = ({ message }: { message: MessageDetail }) => {
-    const textContent = message.content || message.text;
-
-    switch (message.message_type) {
-      case 'image':
-        return (
-          <div className="space-y-3">
-            {message.media_url && (
-              <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="block">
-                <img 
-                  src={message.media_url} 
-                  alt="Imagem" 
-                  className="max-w-full max-h-[400px] rounded-lg object-contain bg-muted mx-auto cursor-zoom-in hover:opacity-90 transition-opacity"
-                />
-              </a>
-            )}
-            {message.media_caption && (
-              <p className="text-sm text-card-foreground">{message.media_caption}</p>
-            )}
-            {message.media_size_bytes && (
-              <p className="text-xs text-muted-foreground">
-                Tamanho: {formatFileSize(message.media_size_bytes)}
-              </p>
-            )}
-          </div>
-        );
-
-      case 'sticker':
-        return (
-          <div className="flex justify-center">
-            {message.media_url && (
-              <a href={message.media_url} target="_blank" rel="noopener noreferrer">
-                <img 
-                  src={message.media_url} 
-                  alt="Sticker" 
-                  className="max-w-[200px] max-h-[200px] object-contain cursor-zoom-in hover:scale-105 transition-transform"
-                />
-              </a>
-            )}
-          </div>
-        );
-
-      case 'audio':
-        return (
-          <div className="space-y-3">
-            {message.media_url && (
-              <audio controls className="w-full" src={message.media_url}>
-                Seu navegador não suporta áudio.
-              </audio>
-            )}
-            <div className="flex gap-4 text-xs text-muted-foreground">
-              {message.media_duration_sec && (
-                <span>Duração: {formatDuration(message.media_duration_sec)}</span>
-              )}
-              {message.media_size_bytes && (
-                <span>Tamanho: {formatFileSize(message.media_size_bytes)}</span>
-              )}
-            </div>
-          </div>
-        );
-
-      case 'video':
-        return (
-          <div className="space-y-3">
-            {message.media_url && (
-              <video 
-                controls 
-                className="w-full max-h-[400px] rounded-lg bg-black"
-                poster={message.thumbnail_url || undefined}
-                src={message.media_url}
-              >
-                Seu navegador não suporta vídeo.
-              </video>
-            )}
-            {message.media_caption && (
-              <p className="text-sm text-card-foreground">{message.media_caption}</p>
-            )}
-            <div className="flex gap-4 text-xs text-muted-foreground">
-              {message.media_duration_sec && (
-                <span>Duração: {formatDuration(message.media_duration_sec)}</span>
-              )}
-              {message.media_size_bytes && (
-                <span>Tamanho: {formatFileSize(message.media_size_bytes)}</span>
-              )}
-            </div>
-          </div>
-        );
-
-      case 'document':
-        return (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary/50">
-              <FileText className="h-10 w-10 text-primary" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-card-foreground truncate">
-                  {message.media_caption || 'Documento'}
-                </p>
-                <div className="flex gap-3 text-xs text-muted-foreground">
-                  {message.media_mime_type && <span>{message.media_mime_type}</span>}
-                  {message.media_size_bytes && <span>{formatFileSize(message.media_size_bytes)}</span>}
-                </div>
-              </div>
-              {message.media_url && (
-                <a 
-                  href={message.media_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                </a>
-              )}
-            </div>
-          </div>
-        );
-
-      case 'location':
-        return (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-success/10">
-              <MapPin className="h-10 w-10 text-success" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-card-foreground">Localização compartilhada</p>
-                {textContent && (
-                  <p className="text-xs text-muted-foreground">{textContent}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'poll':
-        return (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/10">
-              <Activity className="h-10 w-10 text-primary" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-card-foreground">Enquete</p>
-                {textContent && (
-                  <p className="text-sm text-card-foreground">{textContent}</p>
-                )}
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Para ver os detalhes, use a tela dedicada de Enquete.
-            </div>
-          </div>
-        );
-
-      case 'poll_vote':
-        return (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary/50">
-              <Activity className="h-10 w-10 text-secondary-foreground" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-card-foreground">Voto em enquete</p>
-                {textContent && (
-                  <p className="text-sm text-card-foreground">{textContent}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-
-      default:
-        return (
-          <div className="p-3 rounded-lg bg-secondary/50 text-sm text-card-foreground whitespace-pre-wrap">
-            {textContent || `[Mensagem do tipo ${translateMessageType(message.message_type)}]`}
-          </div>
-        );
-    }
-  };
+  
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
@@ -378,7 +237,10 @@ export function AlertsSection({
                       )}
                     </div>
                     <p className="text-sm text-card-foreground line-clamp-2">
-                      {msg.content || `[${translateMessageType(msg.messageType)}]`}
+                      {renderTextWithMentionsAndLinks(
+                        msg.content || `[${translateMessageType(msg.messageType)}]`,
+                        mentionMap || {}
+                      )}
                     </p>
                     <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
@@ -396,52 +258,14 @@ export function AlertsSection({
           </div>
         </div>
       </div>
-      <Dialog open={!!selectedMessage} onOpenChange={() => setSelectedMessage(null)}>
-        <DialogContent className="bg-card border-border max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-card-foreground">Detalhes da Mensagem</DialogTitle>
-          </DialogHeader>
-          {selectedMessage && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Tipo</span>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium">
-                      {translateMessageType(selectedMessage.message_type)}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Autor</span>
-                  <div className="mt-1">
-                    <UserInline name={selectedMessage.member_name} avatarUrl={selectedMessage.member_avatar} />
-                  </div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Data</span>
-                  <div className="mt-1">
-                    {new Date(selectedMessage.created_at).toLocaleString('pt-BR')}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <span className="text-sm text-muted-foreground">Conteúdo</span>
-                <div className="mt-2">
-                  <MessageDetailView message={selectedMessage} />
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Link to={`/group/${groupId || routeGroupId}/messages`} className="inline-flex items-center">
-                  <Button variant="secondary">Ver na página de Mensagens</Button>
-                </Link>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <MessageDetailModal 
+        open={!!selectedMessageId}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMessageId(null);
+        }}
+        groupId={(groupId || routeGroupId) as string}
+        messageId={selectedMessageId as string}
+      />
     </section>
   );
 }
