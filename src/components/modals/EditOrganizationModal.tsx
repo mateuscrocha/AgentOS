@@ -77,9 +77,41 @@ export function EditOrganizationModal({
   }, [organization, form]);
 
   const onSubmit = async (values: any) => {
-    if (!organization) return;
-
     try {
+      if (!organization) {
+        const payload = {
+          name: values.name.trim(),
+          status: values.status,
+          settings: { description: (values.description || "").trim() },
+        };
+        const { data, error } = await supabase
+          .from("organizations")
+          .insert(payload)
+          .select("id")
+          .single();
+        if (error) {
+          if (error.code === "42501" || error.message.includes("policy")) {
+            toast.error("Sem permissão para criar organizações");
+          } else {
+            toast.error(error.message || "Erro ao criar organização");
+          }
+          return;
+        }
+        if (user && data?.id) {
+          await logEvent({
+            eventType: "ORG_CREATED",
+            entityType: "organization",
+            entityId: data.id,
+            userId: user.id,
+            metadata: { name: payload.name, status: payload.status },
+          });
+        }
+        toast.success("Organização criada com sucesso");
+        onSuccess();
+        onOpenChange(false);
+        return;
+      }
+
       const updatedSettings = {
         ...(organization.settings || {}),
         description: (values.description || "").trim(),
@@ -125,7 +157,7 @@ export function EditOrganizationModal({
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "Erro ao atualizar organização");
+      toast.error(error.message || "Erro ao salvar organização");
     }
   };
 
@@ -135,7 +167,7 @@ export function EditOrganizationModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-card-foreground">Configurações da organização</DialogTitle>
+          <DialogTitle className="text-card-foreground">{organization ? "Configurações da organização" : "Nova organização"}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -205,9 +237,9 @@ export function EditOrganizationModal({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
+              <Button type="submit" disabled={form.formState.isSubmitting || (!form.formState.isDirty && !!organization)}>
                 {form.formState.isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Salvar alterações
+                {organization ? "Salvar alterações" : "Criar organização"}
               </Button>
             </DialogFooter>
           </form>

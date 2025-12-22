@@ -72,7 +72,7 @@ const Org = () => {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { canEditOrg, canEditGroup, isLoading: rolesLoading } = useUserRoles();
+  const { canEditOrg, canEditGroup, isLoading: rolesLoading, isSystemAdmin } = useUserRoles();
   const [editOrgOpen, setEditOrgOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<GroupItem | null>(null);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
@@ -197,7 +197,7 @@ const Org = () => {
   }
 
   const userCanEditOrg = canEditOrg(orgId!);
-  const userCanCreateGroup = userCanEditOrg; // Same permission for creating groups
+  const userCanCreateGroup = isSystemAdmin;
 
   const groupColumns = [
     { key: 'name', header: 'Nome' },

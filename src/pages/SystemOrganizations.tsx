@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
 
 interface Organization {
   id: string;
@@ -46,6 +47,7 @@ export default function SystemOrganizations() {
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
   const [removeOrg, setRemoveOrg] = useState<Organization | null>(null);
   const [removingOrg, setRemovingOrg] = useState(false);
+  const [createOrgOpen, setCreateOrgOpen] = useState(false);
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
@@ -219,6 +221,9 @@ export default function SystemOrganizations() {
             <option value="asc">Asc</option>
             <option value="desc">Desc</option>
           </select>
+          <Button onClick={() => setCreateOrgOpen(true)} className="ml-auto">
+            Nova organização
+          </Button>
         </div>
 
         {orgsLoading ? (
@@ -282,6 +287,13 @@ export default function SystemOrganizations() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <EditOrganizationModal
+          organization={null}
+          open={createOrgOpen}
+          onOpenChange={setCreateOrgOpen}
+          onSuccess={() => refetchOrgs()}
+        />
       </div>
     </AdminLayout>
   );
