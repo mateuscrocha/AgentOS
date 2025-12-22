@@ -33,20 +33,6 @@ const organizationSchema = z.object({
     errorMap: () => ({ message: "Status inválido" }) 
   }),
   description: z.string().trim().max(500, "Descrição deve ter no máximo 500 caracteres").optional(),
-  contact_name: z.string().trim().max(100, "Nome de contato deve ter no máximo 100 caracteres").optional(),
-  contact_email: z
-    .string()
-    .trim()
-    .email("Email inválido")
-    .optional()
-    .or(z.literal("")),
-  contact_phone: z
-    .string()
-    .trim()
-    .min(7, "Telefone muito curto")
-    .max(20, "Telefone muito longo")
-    .optional()
-    .or(z.literal("")),
 });
 
 interface Organization {
@@ -54,9 +40,6 @@ interface Organization {
   name: string;
   status: string;
   settings?: Record<string, any> | null;
-  contact_name?: string | null;
-  contact_email?: string | null;
-  contact_phone?: string | null;
 }
 
 interface EditOrganizationModalProps {
@@ -79,9 +62,6 @@ export function EditOrganizationModal({
       name: "",
       status: "active",
       description: "",
-      contact_name: "",
-      contact_email: "",
-      contact_phone: "",
     },
     mode: "onChange",
   });
@@ -92,9 +72,6 @@ export function EditOrganizationModal({
         name: organization.name || "",
         status: organization.status || "active",
         description: ((organization.settings as any)?.description as string) || "",
-        contact_name: organization.contact_name || "",
-        contact_email: organization.contact_email || "",
-        contact_phone: organization.contact_phone || "",
       });
     }
   }, [organization, form]);
@@ -107,19 +84,12 @@ export function EditOrganizationModal({
         ...(organization.settings || {}),
         description: (values.description || "").trim(),
       };
-      const normalizedContactName = (values.contact_name || "").trim() || null;
-      const normalizedContactEmail = (values.contact_email || "").trim() || null;
-      const normalizedContactPhone = (values.contact_phone || "").trim() || null;
-
       const { error } = await supabase
         .from("organizations")
         .update({
           name: values.name.trim(),
           status: values.status,
           settings: updatedSettings,
-          contact_name: normalizedContactName,
-          contact_email: normalizedContactEmail,
-          contact_phone: normalizedContactPhone,
         })
         .eq("id", organization.id);
 
@@ -139,11 +109,8 @@ export function EditOrganizationModal({
             name: values.name.trim(),
             status: values.status,
             settings: updatedSettings,
-            contact_name: normalizedContactName,
-            contact_email: normalizedContactEmail,
-            contact_phone: normalizedContactPhone,
           },
-          ["name", "status", "settings", "contact_name", "contact_email", "contact_phone"],
+          ["name", "status", "settings"],
         );
         await logEvent({
           eventType: "ORG_UPDATED",
@@ -208,55 +175,7 @@ export function EditOrganizationModal({
                 )}
               />
 
-              <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-muted-foreground">Informações de contato (opcional)</h4>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="contact_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do Contato</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nome da pessoa responsável" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="contact_email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="email@organizacao.com" {...field} />
-                      </FormControl>
-                      <FormDescription>Usado apenas para comunicações administrativas do Bóris.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="contact_phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Telefone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="(DDD) 00000-0000" {...field} />
-                      </FormControl>
-                      <FormDescription>Opcional. Pode ser usado para contato administrativo, se necessário.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              
 
               <FormField
                 control={form.control}

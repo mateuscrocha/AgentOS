@@ -5,7 +5,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, useNavigate } from "react-router-dom";
-import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Phone, Plus, Trash2 } from "lucide-react";
+import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -13,6 +13,7 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
 import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
+import { EditOrganizationContactModal } from "@/components/modals/EditOrganizationContactModal";
 import { EditGroupModal } from "@/components/modals/EditGroupModal";
 import { AddGroupModal } from "@/components/modals/AddGroupModal";
 import { Button } from "@/components/ui/button";
@@ -71,12 +72,13 @@ const Org = () => {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { isSystemAdmin, canEditOrg, canEditGroup, isLoading: rolesLoading } = useUserRoles();
+  const { canEditOrg, canEditGroup, isLoading: rolesLoading } = useUserRoles();
   const [editOrgOpen, setEditOrgOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<GroupItem | null>(null);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [removeGroup, setRemoveGroup] = useState<GroupItem | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [editContactOpen, setEditContactOpen] = useState(false);
 
   // Fetch organization details
   const { data: org, isLoading: orgLoading, error: orgError, refetch: refetchOrg } = useQuery({
@@ -106,6 +108,31 @@ const Org = () => {
       return data;
     },
     enabled: !!org?.owner_user_id,
+  });
+
+  const { data: primaryContact, isLoading: contactLoading, error: contactError, refetch: refetchPrimaryContact } = useQuery({
+    queryKey: ['org-primary-contact', orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organization_contacts')
+        .select('*')
+        .eq('organization_id', orgId)
+        .eq('is_primary', true)
+        .maybeSingle();
+      if (error) throw error;
+      return data as {
+        id: string;
+        organization_id: string;
+        name: string;
+        email: string | null;
+        phone: string | null;
+        role_title: string | null;
+        is_primary: boolean;
+        created_at: string;
+        updated_at: string;
+      };
+    },
+    enabled: !!orgId && isAuthenticated,
   });
 
   // Fetch groups for this organization
@@ -356,29 +383,52 @@ const Org = () => {
             </div>
           </div>
 
-          {/* Section: Contato */}
+          {/* Section: Contato da Organização */}
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Contato
-            </h3>
-            <div className="grid grid-cols-1 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Nome do Contato</span>
-                <p className="font-medium text-card-foreground">{org.contact_name || '-'}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Email</span>
-                <p className="font-medium text-card-foreground">{org.contact_email || '-'}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Telefone</span>
-                <p className="font-medium text-card-foreground">{org.contact_phone || '-'}</p>
-              </div>
-              {(!org.contact_name && !org.contact_email && !org.contact_phone) && (
-                <p className="text-xs text-muted-foreground">Você pode completar essas informações depois.</p>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Contato da Organização
+              </h3>
+              {userCanEditOrg && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditContactOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar contato
+                </Button>
               )}
             </div>
+            {contactLoading ? (
+              <p className="text-sm text-muted-foreground">Carregando contato...</p>
+            ) : contactError ? (
+              <p className="text-sm text-destructive">Falha ao carregar contato</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Nome</span>
+                  <p className="font-medium text-card-foreground">{primaryContact?.name || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Email</span>
+                  <p className="font-medium text-card-foreground">{primaryContact?.email || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Telefone</span>
+                  <p className="font-medium text-card-foreground">{primaryContact?.phone || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Cargo</span>
+                  <p className="font-medium text-card-foreground">{primaryContact?.role_title || '-'}</p>
+                </div>
+                {!primaryContact && (
+                  <p className="text-xs text-muted-foreground">Nenhum contato primário cadastrado.</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Section: Plano / Billing */}
@@ -508,6 +558,14 @@ const Org = () => {
         open={editOrgOpen}
         onOpenChange={setEditOrgOpen}
         onSuccess={() => refetchOrg()}
+      />
+
+      <EditOrganizationContactModal
+        organizationId={orgId!}
+        contact={primaryContact ?? null}
+        open={editContactOpen}
+        onOpenChange={setEditContactOpen}
+        onSuccess={() => refetchPrimaryContact()}
       />
 
       {/* Edit group modal */}
