@@ -1,5 +1,7 @@
 import { CalendarDays, Clock, ArrowUpRight, ArrowRight } from "lucide-react";
+import { filterKeywordItems } from "@/utils/keywords";
 import { SectionHeader } from "./SectionHeader";
+import { useState } from "react";
 import { KpiCard } from "./KpiCard";
 import { InsightCard } from "./InsightCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,7 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 interface RecentActivitySectionProps {
   messagesPerDay: { date: string; count: number }[];
   activityByHour: { hour: number; count: number }[];
-  ikigaiSuggestions: { keywords: { term: string; count: number }[] } | null;
+  ikigaiSuggestions: { themes: { phrase: string; count: number }[]; keywords: { term: string; count: number }[] } | null;
   busyDayAvatars?: { id: string; avatarUrl: string | null }[];
   peakWindowAvatars?: { id: string; avatarUrl: string | null }[];
   themeAvatars?: { id: string; avatarUrl: string | null }[];
@@ -60,13 +62,27 @@ export function RecentActivitySection({
     return { label, count: bestSum };
   })();
 
-  const trending = (() => {
-    const list = ikigaiSuggestions?.keywords || [];
+  const [mode, setMode] = useState<'themes'|'words'>('themes');
+
+  const trendingThemes = (() => {
+    const list = ikigaiSuggestions?.themes || [];
     if (!list || list.length === 0) return [];
     const top = list.slice(0, Math.min(8, Math.max(5, list.length)));
     const maxCount = top[0]?.count || 0;
-    return top.map((k, idx) => ({ term: k.term, count: k.count, up: idx < 3 && k.count >= Math.max(3, Math.round(maxCount * 0.6)) }));
+    return top.map((t, idx) => ({ label: t.phrase, count: t.count, up: idx < 3 && t.count >= Math.max(2, Math.round(maxCount * 0.6)) }));
   })();
+
+  const trendingWords = (() => {
+    const list = ikigaiSuggestions?.keywords || [];
+    if (!list || list.length === 0) return [];
+    const filtered = filterKeywordItems(list.map((k) => ({ word: k.term, count: k.count })));
+    if (filtered.length === 0) return [];
+    const top = filtered.slice(0, Math.min(8, Math.max(5, filtered.length)));
+    const maxCount = top[0]?.count || 0;
+    return top.map((k, idx) => ({ label: k.word, count: k.count, up: idx < 3 && k.count >= Math.max(3, Math.round(maxCount * 0.6)) }));
+  })();
+
+  const trending = mode === 'themes' ? trendingThemes : trendingWords;
 
   const AvatarStack = ({ items }: { items: { id: string; avatarUrl: string | null }[] }) => (
     <div className="flex items-center">
@@ -122,15 +138,25 @@ export function RecentActivitySection({
 
         <div className="flex-1">
           {isLoading ? (
-            <Skeleton className="h-[100px] w-full" />
+            <Skeleton className="h-[120px] w-full" />
           ) : trending.length === 0 ? (
             <InsightCard title="Palavras-chave em alta" severity="info" description="Sem termos destacados neste período." />
           ) : (
             <InsightCard title="Palavras-chave em alta" severity="info">
+              <div className="flex justify-end mb-2 gap-1">
+                <button
+                  onClick={() => setMode('themes')}
+                  className={`text-xs px-2 py-1 rounded border ${mode==='themes' ? 'bg-secondary text-card-foreground' : 'text-muted-foreground'}`}
+                >Temas</button>
+                <button
+                  onClick={() => setMode('words')}
+                  className={`text-xs px-2 py-1 rounded border ${mode==='words' ? 'bg-secondary text-card-foreground' : 'text-muted-foreground'}`}
+                >Palavras</button>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {trending.map((k) => (
-                  <div key={k.term} className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-2 py-1.5">
-                    <span className="text-sm font-medium text-card-foreground truncate flex-1">{k.term}</span>
+                  <div key={`${k.label}-${k.count}`} className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-2 py-1.5">
+                    <span className="text-sm font-medium text-card-foreground truncate flex-1">{k.label}</span>
                     <span className="text-xs text-muted-foreground tabular-nums">{k.count}</span>
                     {k.up ? (
                       <ArrowUpRight className="h-3.5 w-3.5 text-success" />
