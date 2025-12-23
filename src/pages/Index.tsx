@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Building2, Layers, Users as UsersIcon, MessageSquare, AlertTriangle, Activity, Tag } from "lucide-react";
 import { filterKeywordItems, countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
+import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -46,6 +47,14 @@ const Index = () => {
     }
   }, [authLoading, rolesLoading, isAuthenticated, isSystemAdmin, getAccessibleGroupIds, getAccessibleOrgIds, navigate]);
 
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
+  const currentRange = getDateRange(selectedPeriod, customRange);
+  const handlePeriodChange = (period: PeriodType, range: DateRange) => {
+    setSelectedPeriod(period);
+    if (period === 'custom') setCustomRange(range);
+  };
+
   
 
   const fetchActiveOrganizationsCount = async () => {
@@ -75,16 +84,7 @@ const Index = () => {
     return count ?? 0;
   };
 
-  const fetchMessages24hCount = async () => {
-    const fromISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { count, error } = await supabase
-      .from("messages")
-      .select("*", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .gte("created_at", fromISO);
-    if (error) throw error;
-    return count ?? 0;
-  };
+  
 
   const {
     data: kpiOrgs,
@@ -123,13 +123,22 @@ const Index = () => {
   });
 
   const {
-    data: kpiMessages24h,
+    data: kpiMessagesPeriod,
     isLoading: kpiMessagesLoading,
     error: kpiMessagesError,
     refetch: refetchKpiMessages,
   } = useQuery({
-    queryKey: ["kpi-messages-24h"],
-    queryFn: fetchMessages24hCount,
+    queryKey: ["kpi-messages-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .is("deleted_at", null)
+        .gte("created_at", currentRange.from.toISOString())
+        .lte("created_at", currentRange.to.toISOString());
+      if (error) throw error;
+      return count ?? 0;
+    },
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
   });
@@ -148,14 +157,14 @@ const Index = () => {
     error: signalConcentrationError,
     refetch: refetchConcentration,
   } = useQuery({
-    queryKey: ["signal-concentration-24h"],
+    queryKey: ["signal-concentration", currentRange.from.toISOString(), currentRange.to.toISOString()],
     queryFn: async () => {
-      const fromISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("messages")
         .select("group_id")
         .is("deleted_at", null)
-        .gte("created_at", fromISO);
+        .gte("created_at", currentRange.from.toISOString())
+        .lte("created_at", currentRange.to.toISOString());
       if (error) throw error;
       const counts: Record<string, number> = {};
       (data || []).forEach((row: any) => {
@@ -185,19 +194,19 @@ const Index = () => {
     error: signalInactiveError,
     refetch: refetchInactive,
   } = useQuery({
-    queryKey: ["signal-inactive-groups-24h"],
+    queryKey: ["signal-inactive-groups", currentRange.from.toISOString(), currentRange.to.toISOString()],
     queryFn: async () => {
       const { data: groups } = await supabase
         .from("groups")
         .select("id,name,is_active,is_archived")
         .eq("is_active", true)
         .or("is_archived.eq.false,is_archived.is.null");
-      const fromISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: msgs } = await supabase
         .from("messages")
         .select("group_id")
         .is("deleted_at", null)
-        .gte("created_at", fromISO);
+        .gte("created_at", currentRange.from.toISOString())
+        .lte("created_at", currentRange.to.toISOString());
       const activeIds = new Set((msgs || []).map((m: any) => m.group_id).filter(Boolean));
       const list = (groups || []).filter(g => !activeIds.has(g.id)).slice(0, 3);
       return {
@@ -215,14 +224,14 @@ const Index = () => {
     error: signalKeywordsError,
     refetch: refetchKeywords,
   } = useQuery({
-    queryKey: ["signal-trending-keywords-24h"],
+    queryKey: ["signal-trending-keywords", currentRange.from.toISOString(), currentRange.to.toISOString()],
     queryFn: async () => {
-      const fromISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("v_messages_feed")
         .select("content_preview,message_type,created_at")
         .eq("message_type", "text")
-        .gte("created_at", fromISO)
+        .gte("created_at", currentRange.from.toISOString())
+        .lte("created_at", currentRange.to.toISOString())
         .limit(2000);
       let rows: string[] = [];
       if (!error) {
@@ -232,7 +241,8 @@ const Index = () => {
           .from("messages")
           .select("content,message_type,created_at")
           .eq("message_type", "text")
-          .gte("created_at", fromISO)
+          .gte("created_at", currentRange.from.toISOString())
+          .lte("created_at", currentRange.to.toISOString())
           .limit(2000);
         if (fb.error) throw fb.error;
         rows = (fb.data || []).map((d: any) => d.content || "");
@@ -267,7 +277,8 @@ const Index = () => {
 
   return (
     <AdminLayout title="Central de Comando do Sistema" subtitle="Visão geral do Bóris — estado atual e sinais">
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      {/* A) KPIs absolutos */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div>
           <StatsCard
             title="Organizações ativas"
@@ -307,11 +318,20 @@ const Index = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* B) Filtro de período */}
+      <div className="mt-6 flex items-center justify-end">
+        <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
+      </div>
+
+      {/* C) Cards e gráficos dependentes de período */}
+      <div className="grid gap-6 lg:grid-cols-3 mt-4">
         <div>
           <StatsCard
-            title="Mensagens (24h)"
-            value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessages24h ?? 0))}
-            description="Últimas 24h"
+            title="Mensagens (período)"
+            value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0))}
+            description="Período selecionado"
             icon={MessageSquare}
           />
           {kpiMessagesError && (
@@ -320,16 +340,13 @@ const Index = () => {
             </div>
           )}
         </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3 mt-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-warning" />
               Concentração de atividade
             </CardTitle>
-            <CardDescription>Distribuição de mensagens nas últimas 24h</CardDescription>
+            <CardDescription>Distribuição de mensagens no período</CardDescription>
           </CardHeader>
           <CardContent>
             {signalConcentrationLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
@@ -352,7 +369,7 @@ const Index = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-warning" />
-              Grupos sem atividade (24h)
+              Grupos sem atividade (período)
             </CardTitle>
             <CardDescription>Entre grupos ativos</CardDescription>
           </CardHeader>
@@ -381,7 +398,7 @@ const Index = () => {
               <Tag className="h-5 w-5 text-primary" />
               Palavras-chave em alta
             </CardTitle>
-            <CardDescription>Últimas 24h — todos os grupos</CardDescription>
+            <CardDescription>Período selecionado — todos os grupos</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex justify-end mb-2 gap-1">
