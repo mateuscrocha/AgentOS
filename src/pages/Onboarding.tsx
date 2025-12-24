@@ -1,26 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PublicLayout } from '@/components/layout/PublicLayout';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  User, Mail, Phone, Lock, Building2, Link2, 
+  User, Mail, Link2, 
   CheckCircle, Loader2, ArrowLeft, Edit2, ChevronRight,
-  Users, MailCheck
+  Users
 } from 'lucide-react';
 
-type Step = 'intro' | 'name' | 'email' | 'whatsapp' | 'password' | 'organization' | 'invite_link' | 'summary';
+type Step = 'welcome' | 'name' | 'email' | 'how' | 'group_link' | 'final';
 
 interface FormData {
   name: string;
   email: string;
-  whatsapp_phone: string;
-  password: string;
-  organization_name: string;
   invite_link: string;
 }
 
@@ -41,54 +37,47 @@ interface GroupValidation {
   data_incomplete_reason?: string;
 }
 
-const STEPS: Step[] = ['intro', 'name', 'email', 'whatsapp', 'password', 'organization', 'invite_link', 'summary'];
+const STEPS: Step[] = ['welcome', 'name', 'email', 'how', 'group_link', 'final'];
 
-function normalizePhoneE164(phone: string): string {
-  // Remove tudo que não é número
-  const digits = phone.replace(/\D/g, '');
-  
-  // Se não começar com +, assumir Brasil (+55)
-  if (!phone.startsWith('+')) {
-    // Se já tem 55 no início e o número tem mais de 11 dígitos, provavelmente já está com DDI
-    if (digits.startsWith('55') && digits.length > 11) {
-      return '+' + digits;
-    }
-    // Caso contrário, adicionar +55
-    return '+55' + digits;
-  }
-  
-  return '+' + digits;
-}
-
-function ChatBubble({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+function Title({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   return (
-    <motion.div
+    <motion.h1
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
-      className="bg-muted/80 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-foreground max-w-[85%]"
+      className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground"
     >
       {children}
-    </motion.div>
+    </motion.h1>
+  );
+}
+
+function Subtitle({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  return (
+    <motion.p
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay }}
+      className="text-base sm:text-lg text-muted-foreground"
+    >
+      {children}
+    </motion.p>
   );
 }
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState<Step>('intro');
+  const [currentStep, setCurrentStep] = useState<Step>('welcome');
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
-    whatsapp_phone: '',
-    password: '',
-    organization_name: '',
     invite_link: '',
   });
   const [groupValidation, setGroupValidation] = useState<GroupValidation | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
+  const [provisionedGroupId, setProvisionedGroupId] = useState<string | null>(null);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -115,7 +104,7 @@ export default function Onboarding() {
     }
   };
 
-  const goNext = () => {
+  const goNext = async () => {
     const currentIndex = STEPS.indexOf(currentStep);
     if (currentIndex < STEPS.length - 1 && isCurrentStepValid()) {
       setCurrentStep(STEPS[currentIndex + 1]);
@@ -123,7 +112,7 @@ export default function Onboarding() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && isCurrentStepValid() && currentStep !== 'summary' && currentStep !== 'invite_link') {
+    if (e.key === 'Enter' && isCurrentStepValid() && currentStep !== 'final' && currentStep !== 'group_link') {
       e.preventDefault();
       goNext();
     }
@@ -131,21 +120,17 @@ export default function Onboarding() {
 
   const isCurrentStepValid = (): boolean => {
     switch (currentStep) {
-      case 'intro':
+      case 'welcome':
         return true;
       case 'name':
         return formData.name.trim().length >= 2;
       case 'email':
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
-      case 'whatsapp':
-        return formData.whatsapp_phone.replace(/\D/g, '').length >= 10;
-      case 'password':
-        return formData.password.length >= 8;
-      case 'organization':
-        return formData.organization_name.trim().length >= 2;
-      case 'invite_link':
+      case 'how':
+        return true;
+      case 'group_link':
         return groupValidation?.is_valid === true && groupValidation?.is_boris_in_group === true && !groupValidation?.data_incomplete;
-      case 'summary':
+      case 'final':
         return true;
       default:
         return false;
@@ -187,26 +172,24 @@ export default function Onboarding() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!groupValidation || !groupValidation.is_valid || !groupValidation.is_boris_in_group || groupValidation.data_incomplete) {
-      toast.error('Validação do grupo necessária');
+  const handleConnectGroup = async () => {
+    if (!formData.invite_link.trim()) {
+      setValidationError('Cole o link de convite do grupo.');
       return;
     }
-
+    await validateGroup();
+    if (!groupValidation || !groupValidation.is_valid || !groupValidation.is_boris_in_group || groupValidation.data_incomplete) {
+      toast.error('Valide o grupo antes de continuar');
+      return;
+    }
     setIsSubmitting(true);
-
     try {
-      // 1. Signup no Supabase Auth
-      const normalizedPhone = normalizePhoneE164(formData.whatsapp_phone);
-      
+      const generatedPassword = crypto.randomUUID() + '!Aa1';
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
-        password: formData.password,
+        password: generatedPassword,
         options: {
-          data: {
-            name: formData.name,
-            whatsapp_phone: normalizedPhone,
-          },
+          data: { name: formData.name },
           emailRedirectTo: `${window.location.origin}/`,
         },
       });
@@ -224,16 +207,18 @@ export default function Onboarding() {
         throw new Error('Erro ao criar usuário');
       }
 
-      // 2. Provisionamento via Edge Function
+      const firstName = formData.name.split(' ')[0] || formData.name;
+      const orgName = `Organização de ${firstName}`;
+
       const provisionPayload = {
         lead: {
           name: formData.name,
           email: formData.email,
-          whatsapp_phone: normalizedPhone,
+          whatsapp_phone: '',
           user_id: authData.user.id,
         },
         organization: {
-          name: formData.organization_name,
+          name: orgName,
         },
         group: {
           provider: groupValidation.provider,
@@ -252,21 +237,8 @@ export default function Onboarding() {
         throw new Error(provisionData?.message || provisionError?.message || 'Erro no provisionamento');
       }
 
-      // 3. Aguardar sessão e redirecionar
-      toast.success('Conta criada com sucesso!');
-      
-      // Aguardar um pouco para a sessão ser estabelecida
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Verificar se o usuário está logado
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        navigate(`/group/${provisionData.group_id}`);
-      } else {
-        // Mostrar tela de confirmação de email
-        setShowEmailConfirmation(true);
-      }
+      setProvisionedGroupId(provisionData.group_id);
+      setCurrentStep('final');
 
     } catch (error: any) {
       console.error('Onboarding error:', error);
@@ -280,33 +252,24 @@ export default function Onboarding() {
 
   const renderStepContent = () => {
     switch (currentStep) {
-      case 'intro':
+      case 'welcome':
         return (
-          <div className="space-y-4">
-            <ChatBubble>
-              👋 Olá! Vou te ajudar a configurar o Bóris para o seu grupo.
-            </ChatBubble>
-            <ChatBubble delay={0.2}>
-              Para usar o Bóris você precisa:
-              <ol className="list-decimal list-inside mt-2 space-y-1">
-                <li>Ter um grupo de WhatsApp</li>
-                <li>Adicionar o Bóris ao grupo</li>
-                <li>Informar o link de convite do grupo</li>
-              </ol>
-            </ChatBubble>
-            <ChatBubble delay={0.4}>
-              Vamos começar? 🚀
-            </ChatBubble>
+          <div className="space-y-5">
+            <div className="flex justify-center -mx-2 sm:mx-0">
+              <img src="/1.png" alt="Bóris" className="w-full max-h-64 sm:max-h-80 object-contain" />
+            </div>
+            <Title>Oi, eu sou o Bóris.</Title>
+            <Subtitle delay={0.15}>Vou te ajudar a entender o que acontece no seu grupo do WhatsApp.</Subtitle>
           </div>
         );
 
       case 'name':
         return (
-          <div className="space-y-4">
-            <ChatBubble>
-              <User className="w-4 h-4 inline mr-2" />
-              Como você quer ser chamado?
-            </ChatBubble>
+          <div className="space-y-5">
+            <div className="flex justify-center -mx-2 sm:mx-0">
+              <img src="/2.png" alt="Bóris" className="w-full max-h-64 sm:max-h-72 object-contain" />
+            </div>
+            <Title>Antes de tudo… como você quer ser chamado?</Title>
             <div className="pt-2">
               <Input
                 placeholder="Seu nome"
@@ -315,22 +278,18 @@ export default function Onboarding() {
                 onKeyDown={handleKeyDown}
                 maxLength={100}
                 autoFocus
-                className="text-lg"
+                className="h-12 text-lg"
               />
             </div>
+            <Subtitle delay={0.15}>Pode ser só o primeiro nome 😉</Subtitle>
           </div>
         );
 
       case 'email':
         return (
-          <div className="space-y-4">
-            <ChatBubble>
-              Prazer, {formData.name}! 😊
-            </ChatBubble>
-            <ChatBubble delay={0.2}>
-              <Mail className="w-4 h-4 inline mr-2" />
-              Qual email vamos usar no seu acesso?
-            </ChatBubble>
+          <div className="space-y-5">
+            <Title>Prazer, {formData.name}! 😊</Title>
+            <Subtitle delay={0.15}><Mail className="w-4 h-4 inline mr-2" />Por onde posso te avisar quando algo importante acontecer?</Subtitle>
             <div className="pt-2">
               <Input
                 type="email"
@@ -340,101 +299,47 @@ export default function Onboarding() {
                 onKeyDown={handleKeyDown}
                 maxLength={255}
                 autoFocus
-                className="text-lg"
+                className="h-12 text-lg"
               />
+              <p className="text-xs text-muted-foreground mt-2">Prometo não enviar spam.</p>
             </div>
           </div>
         );
 
-      case 'whatsapp':
+      case 'how':
         return (
-          <div className="space-y-4">
-            <ChatBubble>
-              <Phone className="w-4 h-4 inline mr-2" />
-              Qual seu WhatsApp?
-            </ChatBubble>
-            <ChatBubble delay={0.2}>
-              <span className="text-muted-foreground text-xs">
-                Use DDI. Ex: +55 11 99999-9999
-              </span>
-            </ChatBubble>
-            <div className="pt-2">
-              <Input
-                type="tel"
-                placeholder="+55 11 99999-9999"
-                value={formData.whatsapp_phone}
-                onChange={(e) => setFormData({ ...formData, whatsapp_phone: e.target.value })}
-                onKeyDown={handleKeyDown}
-                maxLength={20}
-                autoFocus
-                className="text-lg"
-              />
+          <div className="space-y-5">
+            <div className="flex justify-center -mx-2 sm:mx-0">
+              <img src="/4.png" alt="Bóris" className="w-full max-h-64 sm:max-h-72 object-contain" />
+            </div>
+            <Title>Em poucos passos, eu faço o trabalho pesado por você.</Title>
+            <div className="flex items-center justify-between gap-6 pt-1">
+              <div className="flex flex-col items-center">
+                <Users className="w-6 h-6 text-primary" />
+                <p className="text-xs mt-2">Eu entro no grupo</p>
+              </div>
+              <div className="hidden sm:block h-px w-10 bg-muted" />
+              <div className="flex flex-col items-center">
+                <Link2 className="w-6 h-6 text-primary" />
+                <p className="text-xs mt-2">Leio as conversas</p>
+              </div>
+              <div className="hidden sm:block h-px w-10 bg-muted" />
+              <div className="flex flex-col items-center">
+                <CheckCircle className="w-6 h-6 text-primary" />
+                <p className="text-xs mt-2">Transformo tudo em insights</p>
+              </div>
             </div>
           </div>
         );
 
-      case 'password':
+      case 'group_link':
         return (
-          <div className="space-y-4">
-            <ChatBubble>
-              <Lock className="w-4 h-4 inline mr-2" />
-              Defina uma senha para o seu acesso
-            </ChatBubble>
-            <ChatBubble delay={0.2}>
-              <span className="text-muted-foreground text-xs">
-                Mínimo de 8 caracteres
-              </span>
-            </ChatBubble>
-            <div className="pt-2">
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                onKeyDown={handleKeyDown}
-                maxLength={72}
-                autoFocus
-                className="text-lg"
-              />
+          <div className="space-y-5">
+            <div className="flex justify-center -mx-2 sm:mx-0">
+              <img src="/5.png" alt="Bóris" className="w-full max-h-64 sm:max-h-72 object-contain" />
             </div>
-          </div>
-        );
-
-      case 'organization':
-        return (
-          <div className="space-y-4">
-            <ChatBubble>
-              Ótimo! Agora vamos configurar sua organização.
-            </ChatBubble>
-            <ChatBubble delay={0.2}>
-              <Building2 className="w-4 h-4 inline mr-2" />
-              Qual o nome da sua organização/comunidade?
-            </ChatBubble>
-            <div className="pt-2">
-              <Input
-                placeholder="Nome da organização"
-                value={formData.organization_name}
-                onChange={(e) => setFormData({ ...formData, organization_name: e.target.value })}
-                onKeyDown={handleKeyDown}
-                maxLength={100}
-                autoFocus
-                className="text-lg"
-              />
-            </div>
-          </div>
-        );
-
-      case 'invite_link':
-        return (
-          <div className="space-y-4">
-            <ChatBubble>
-              Quase lá! Agora preciso validar seu grupo de WhatsApp.
-            </ChatBubble>
-            <ChatBubble delay={0.2}>
-              <Link2 className="w-4 h-4 inline mr-2" />
-              Cole aqui o link de convite do seu grupo
-            </ChatBubble>
-            
+            <Title>Agora preciso do link do grupo.</Title>
+            <Subtitle delay={0.15}>É assim que consigo acompanhar as conversas e gerar os insights.</Subtitle>
             <div className="pt-2 space-y-3">
               <Input
                 placeholder="https://chat.whatsapp.com/..."
@@ -446,39 +351,21 @@ export default function Onboarding() {
                 }}
                 maxLength={100}
                 autoFocus
-                className="text-lg"
+                className="h-12 text-lg"
               />
-              
-              <Button
-                onClick={validateGroup}
-                disabled={isValidating || !formData.invite_link.trim()}
-                className="w-full"
-                variant="secondary"
-              >
-                {isValidating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Validando...
-                  </>
-                ) : (
-                  'Validar grupo'
-                )}
-              </Button>
+              <p className="text-xs text-muted-foreground">Você pode remover o Bóris do grupo quando quiser.</p>
             </div>
-
             <AnimatePresence mode="wait">
               {validationError && (
-                <motion.div
+                <motion.p
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  className="text-sm text-destructive"
                 >
-                  <ChatBubble>
-                    <span className="text-destructive">⚠️ {validationError}</span>
-                  </ChatBubble>
-                </motion.div>
+                  ⚠️ {validationError}
+                </motion.p>
               )}
-
               {groupValidation?.is_valid && groupValidation?.is_boris_in_group && groupValidation?.data_incomplete && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
@@ -486,98 +373,44 @@ export default function Onboarding() {
                   exit={{ opacity: 0, y: -10 }}
                   className="space-y-2"
                 >
-                  <ChatBubble>
-                    <span className="text-amber-600">⚠️ Encontrei o Bóris no grupo, mas não consegui obter todas as informações.</span>
-                  </ChatBubble>
-                  <ChatBubble delay={0.2}>
-                    <p className="text-sm">{groupValidation.data_incomplete_reason}</p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Por favor, tente validar novamente.
-                    </p>
-                  </ChatBubble>
-                  <Button onClick={validateGroup} variant="outline" className="w-full" disabled={isValidating}>
-                    {isValidating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                    🔄 Tentar novamente
-                  </Button>
+                  <p className="text-sm text-amber-600">⚠️ Encontrei o Bóris no grupo, mas não consegui obter todas as informações.</p>
+                  <p className="text-sm">{groupValidation.data_incomplete_reason}</p>
+                  <p className="text-xs text-muted-foreground">Tente validar novamente.</p>
                 </motion.div>
               )}
-
               {groupValidation?.is_valid && groupValidation?.is_boris_in_group && !groupValidation?.data_incomplete && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="space-y-2"
+                  className="space-y-1"
                 >
-                  <ChatBubble>
-                    <span className="text-green-600">✅ Grupo validado!</span>
-                  </ChatBubble>
-                  <ChatBubble delay={0.2}>
-                    <div className="space-y-1">
-                      <p><strong>{groupValidation.group_name}</strong></p>
-                      <p className="text-muted-foreground flex items-center gap-1">
-                        <Users className="w-3 h-3" />
-                        {groupValidation.participants_count} participantes
-                      </p>
-                      {groupValidation.participants.slice(0, 3).map((p, i) => (
-                        <p key={i} className="text-xs text-muted-foreground">
-                          • {p.name || p.phone}
-                        </p>
-                      ))}
-                      {groupValidation.participants_count > 3 && (
-                        <p className="text-xs text-muted-foreground">
-                          ... e mais {groupValidation.participants_count - 3}
-                        </p>
-                      )}
-                    </div>
-                  </ChatBubble>
+                  <p className="text-sm text-green-600">✅ Grupo validado!</p>
+                  <p className="text-sm font-medium">{groupValidation.group_name}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    {groupValidation.participants_count} participantes
+                  </p>
+                  {groupValidation.participants.slice(0, 3).map((p, i) => (
+                    <p key={i} className="text-xs text-muted-foreground">• {p.name || p.phone}</p>
+                  ))}
+                  {groupValidation.participants_count > 3 && (
+                    <p className="text-xs text-muted-foreground">... e mais {groupValidation.participants_count - 3}</p>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         );
 
-      case 'summary':
+      case 'final':
         return (
-          <div className="space-y-4">
-            <ChatBubble>
-              Perfeito! Confira seus dados antes de finalizar:
-            </ChatBubble>
-            
-            <Card className="bg-muted/50">
-              <CardContent className="pt-4 space-y-3">
-                <SummaryItem
-                  icon={User}
-                  label="Nome"
-                  value={formData.name}
-                  onEdit={() => goToStep('name')}
-                />
-                <SummaryItem
-                  icon={Mail}
-                  label="Email"
-                  value={formData.email}
-                  onEdit={() => goToStep('email')}
-                />
-                <SummaryItem
-                  icon={Phone}
-                  label="WhatsApp"
-                  value={formData.whatsapp_phone}
-                  onEdit={() => goToStep('whatsapp')}
-                />
-                <SummaryItem
-                  icon={Building2}
-                  label="Organização"
-                  value={formData.organization_name}
-                  onEdit={() => goToStep('organization')}
-                />
-                <SummaryItem
-                  icon={Users}
-                  label="Grupo"
-                  value={`${groupValidation?.group_name} (${groupValidation?.participants_count} participantes)`}
-                  onEdit={() => goToStep('invite_link')}
-                />
-              </CardContent>
-            </Card>
+          <div className="space-y-5 text-center">
+            <div className="flex justify-center -mx-2 sm:mx-0">
+              <img src="/6.png" alt="Bóris" className="w-full max-h-64 sm:max-h-80 object-contain" />
+            </div>
+            <Title>Pronto. Agora deixa comigo 🔥</Title>
+            <Subtitle delay={0.15}>Em instantes você já poderá acompanhar tudo pelo painel.</Subtitle>
           </div>
         );
 
@@ -586,117 +419,69 @@ export default function Onboarding() {
     }
   };
 
-  // Email confirmation screen
-  if (showEmailConfirmation) {
-    return (
-      <PublicLayout progress={100}>
-        <Card className="shadow-lg border-muted/50">
-          <CardContent className="pt-8 pb-8">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-              className="text-center space-y-6"
-            >
-              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <MailCheck className="w-8 h-8 text-primary" />
-              </div>
-              
-              <div className="space-y-2">
-                <h2 className="text-xl font-semibold">Confirme seu email</h2>
-                <p className="text-muted-foreground">
-                  Enviamos um link de confirmação para:
-                </p>
-                <p className="font-medium text-primary">{formData.email}</p>
-              </div>
-
-              <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground space-y-2">
-                <p>📧 Verifique sua caixa de entrada</p>
-                <p>📁 Confira também a pasta de spam</p>
-                <p>🔗 Clique no link para ativar sua conta</p>
-              </div>
-
-              <div className="pt-4 space-y-3">
-                <Button 
-                  onClick={() => navigate('/auth')}
-                  className="w-full"
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Ir para o login
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Após confirmar o email, faça login para acessar o sistema.
-                </p>
-              </div>
-            </motion.div>
-          </CardContent>
-        </Card>
-      </PublicLayout>
-    );
-  }
+  
 
   return (
     <PublicLayout progress={progress}>
-      <Card className="shadow-lg border-muted/50">
-        <CardContent className="pt-6">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
+      <div className="pt-4">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {renderStepContent()}
+          </motion.div>
+        </AnimatePresence>
+        <div className="flex items-center justify-between mt-6 pt-4">
+          {currentStep !== 'welcome' ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={goBack}
+              disabled={isSubmitting}
             >
-              {renderStepContent()}
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Navigation */}
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/50">
-            {currentStep !== 'intro' ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={goBack}
-                disabled={isSubmitting}
-              >
-                <ArrowLeft className="w-4 h-4 mr-1" />
-                Voltar
-              </Button>
-            ) : (
-              <div />
-            )}
-
-            {currentStep === 'summary' ? (
-              <Button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="bg-primary hover:bg-primary/90"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Finalizando...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Concluir e entrar
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button
-                onClick={goNext}
-                disabled={!isCurrentStepValid()}
-              >
-                Continuar
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Voltar
+            </Button>
+          ) : (
+            <div />
+          )}
+          {currentStep === 'final' ? (
+            <Button
+              onClick={() => navigate(provisionedGroupId ? `/group/${provisionedGroupId}` : '/')}
+              disabled={isSubmitting}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Ir para o painel
+            </Button>
+          ) : currentStep === 'group_link' ? (
+            <Button
+              onClick={handleConnectGroup}
+              disabled={!formData.invite_link.trim() || isValidating || isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Conectando...
+                </>
+              ) : (
+                'Conectar grupo'
+              )}
+            </Button>
+          ) : (
+            <Button
+              onClick={goNext}
+              disabled={!isCurrentStepValid()}
+            >
+              {currentStep === 'welcome' ? 'Começar' : 'Continuar'}
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          )}
+        </div>
+      </div>
     </PublicLayout>
   );
 }

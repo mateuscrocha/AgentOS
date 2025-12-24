@@ -19,6 +19,9 @@ export default function OnboardingError() {
     <PublicLayout progress={100}>
       <Card className="border-destructive/50 bg-destructive/5">
         <CardContent className="pt-6">
+          <div className="flex flex-col items-center mb-4">
+            <img src="/admin-logo.png" alt="Bóris" className="w-16 h-16 rounded-xl object-cover shadow-sm ring-1 ring-border" />
+          </div>
           <div className="flex flex-col items-center text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
               <AlertCircle className="w-8 h-8 text-destructive" />
