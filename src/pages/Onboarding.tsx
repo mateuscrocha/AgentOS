@@ -39,26 +39,26 @@ interface GroupValidation {
 
 const STEPS: Step[] = ['welcome', 'name', 'email', 'how', 'group_link', 'final'];
 
-function Title({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+function Title({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
   return (
     <motion.h1
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
-      className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground"
+      className={`text-2xl sm:text-3xl font-semibold tracking-tight text-foreground ${className}`}
     >
       {children}
     </motion.h1>
   );
 }
 
-function Subtitle({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+function Subtitle({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
   return (
     <motion.p
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
-      className="text-base sm:text-lg text-muted-foreground"
+      className={`text-base sm:text-lg text-muted-foreground ${className}`}
     >
       {children}
     </motion.p>
@@ -254,23 +254,23 @@ export default function Onboarding() {
     switch (currentStep) {
       case 'welcome':
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div className="flex justify-center -mx-2 sm:mx-0">
-              <img src="/1.png" alt="Bóris" className="w-full max-h-64 sm:max-h-80 object-contain" />
+              <img src="/1.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
-            <Title>Oi, eu sou o Bóris.</Title>
-            <Subtitle delay={0.15}>Vou te ajudar a entender o que acontece no seu grupo do WhatsApp.</Subtitle>
+            <Title className="bg-gradient-to-r from-foreground to-primary/60 bg-clip-text text-transparent">Oi, eu sou o Bóris.</Title>
+            <Subtitle delay={0.15} className="max-w-prose">Vou te ajudar a entender o que realmente importa nas conversas do seu grupo — sem esforço.</Subtitle>
           </div>
         );
 
       case 'name':
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div className="flex justify-center -mx-2 sm:mx-0">
-              <img src="/2.png" alt="Bóris" className="w-full max-h-64 sm:max-h-72 object-contain" />
+              <img src="/2.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
             <Title>Antes de tudo… como você quer ser chamado?</Title>
-            <div className="pt-2">
+            <div className="pt-1">
               <Input
                 placeholder="Seu nome"
                 value={formData.name}
@@ -281,16 +281,16 @@ export default function Onboarding() {
                 className="h-12 text-lg"
               />
             </div>
-            <Subtitle delay={0.15}>Pode ser só o primeiro nome 😉</Subtitle>
+            <Subtitle delay={0.15} className="text-sm sm:text-base">Pode ser só o primeiro nome 😉</Subtitle>
           </div>
         );
 
       case 'email':
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <Title>Prazer, {formData.name}! 😊</Title>
-            <Subtitle delay={0.15}><Mail className="w-4 h-4 inline mr-2" />Por onde posso te avisar quando algo importante acontecer?</Subtitle>
-            <div className="pt-2">
+            <Subtitle delay={0.15}><Mail className="w-3 h-3 inline mr-2" />Por onde posso te avisar quando algo importante acontecer?</Subtitle>
+            <div className="pt-1">
               <Input
                 type="email"
                 placeholder="seu@email.com"
@@ -301,31 +301,31 @@ export default function Onboarding() {
                 autoFocus
                 className="h-12 text-lg"
               />
-              <p className="text-xs text-muted-foreground mt-2">Prometo não enviar spam.</p>
+              <p className="text-[11px] text-muted-foreground/80 mt-2">Prometo não enviar spam.</p>
             </div>
           </div>
         );
 
       case 'how':
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div className="flex justify-center -mx-2 sm:mx-0">
-              <img src="/4.png" alt="Bóris" className="w-full max-h-64 sm:max-h-72 object-contain" />
+              <img src="/4.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
-            <Title>Em poucos passos, eu faço o trabalho pesado por você.</Title>
-            <div className="flex items-center justify-between gap-6 pt-1">
+            <Title className="text-3xl sm:text-4xl">Em poucos passos, eu faço o trabalho pesado por você.</Title>
+            <div className="flex items-center justify-between gap-5 pt-1">
               <div className="flex flex-col items-center">
-                <Users className="w-6 h-6 text-primary" />
+                <Users className="w-5 h-5 text-primary/80" />
                 <p className="text-xs mt-2">Eu entro no grupo</p>
               </div>
               <div className="hidden sm:block h-px w-10 bg-muted" />
               <div className="flex flex-col items-center">
-                <Link2 className="w-6 h-6 text-primary" />
+                <Link2 className="w-5 h-5 text-primary/80" />
                 <p className="text-xs mt-2">Leio as conversas</p>
               </div>
               <div className="hidden sm:block h-px w-10 bg-muted" />
               <div className="flex flex-col items-center">
-                <CheckCircle className="w-6 h-6 text-primary" />
+                <CheckCircle className="w-5 h-5 text-primary/80" />
                 <p className="text-xs mt-2">Transformo tudo em insights</p>
               </div>
             </div>
@@ -334,12 +334,12 @@ export default function Onboarding() {
 
       case 'group_link':
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div className="flex justify-center -mx-2 sm:mx-0">
-              <img src="/5.png" alt="Bóris" className="w-full max-h-64 sm:max-h-72 object-contain" />
+              <img src="/5.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
             <Title>Agora preciso do link do grupo.</Title>
-            <Subtitle delay={0.15}>É assim que consigo acompanhar as conversas e gerar os insights.</Subtitle>
+            <Subtitle delay={0.15} className="max-w-prose">É assim que consigo acompanhar as conversas e gerar os insights.</Subtitle>
             <div className="pt-2 space-y-3">
               <Input
                 placeholder="https://chat.whatsapp.com/..."
@@ -353,7 +353,7 @@ export default function Onboarding() {
                 autoFocus
                 className="h-12 text-lg"
               />
-              <p className="text-xs text-muted-foreground">Você pode remover o Bóris do grupo quando quiser.</p>
+              <p className="text-xs text-muted-foreground/80">Você pode remover o Bóris do grupo quando quiser.</p>
             </div>
             <AnimatePresence mode="wait">
               {validationError && (
@@ -405,9 +405,9 @@ export default function Onboarding() {
 
       case 'final':
         return (
-          <div className="space-y-5 text-center">
+          <div className="space-y-4 text-center">
             <div className="flex justify-center -mx-2 sm:mx-0">
-              <img src="/6.png" alt="Bóris" className="w-full max-h-64 sm:max-h-80 object-contain" />
+              <img src="/6.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
             <Title>Pronto. Agora deixa comigo 🔥</Title>
             <Subtitle delay={0.15}>Em instantes você já poderá acompanhar tudo pelo painel.</Subtitle>
@@ -435,7 +435,7 @@ export default function Onboarding() {
             {renderStepContent()}
           </motion.div>
         </AnimatePresence>
-        <div className="flex items-center justify-between mt-6 pt-4">
+        <div className={`flex items-center justify-between ${currentStep === 'welcome' ? 'mt-8 pt-6' : currentStep === 'group_link' ? 'mt-8 pt-6' : 'mt-6 pt-4'}`}>
           {currentStep !== 'welcome' ? (
             <Button
               variant="ghost"
@@ -461,6 +461,7 @@ export default function Onboarding() {
             <Button
               onClick={handleConnectGroup}
               disabled={!formData.invite_link.trim() || isValidating || isSubmitting}
+              className="h-12 rounded-full px-6 font-semibold shadow-sm shadow-primary/20"
             >
               {isSubmitting ? (
                 <>
@@ -475,6 +476,7 @@ export default function Onboarding() {
             <Button
               onClick={goNext}
               disabled={!isCurrentStepValid()}
+              className={currentStep === 'welcome' ? 'h-11 rounded-full px-5 shadow-sm' : ''}
             >
               {currentStep === 'welcome' ? 'Começar' : 'Continuar'}
               <ChevronRight className="w-4 h-4 ml-1" />
