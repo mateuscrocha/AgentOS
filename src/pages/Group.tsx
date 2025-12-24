@@ -23,8 +23,12 @@ import AccessDenied from "./AccessDenied";
   } from "@/components/group-dashboard";
 import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, RefreshCw } from "lucide-react";
 import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Group = () => {
   const { groupId } = useParams();
@@ -37,6 +41,7 @@ const Group = () => {
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [helpOpen, setHelpOpen] = useState(false);
   const [ikigaiOpen, setIkigaiOpen] = useState(false);
+  const [revalidating, setRevalidating] = useState(false);
   
   const currentRange = getDateRange(selectedPeriod, customRange);
 
@@ -87,6 +92,8 @@ const Group = () => {
     ikigaiKeywordsList,
     ikigaiSuggestions,
   } = useGroupDashboard({ groupId, dateRange: currentRange });
+
+  const queryClient = useQueryClient();
 
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
     setSelectedPeriod(period);
@@ -148,6 +155,91 @@ const Group = () => {
     }
   };
 
+  const normalizePhoneE164 = (phone: string): string => {
+    const digits = phone.replace(/\D/g, '');
+    if (!phone.startsWith('+')) {
+      if (digits.startsWith('55') && digits.length > 11) {
+        return '+' + digits;
+      }
+      return '+55' + digits;
+    }
+    return '+' + digits;
+  };
+
+  const handleRevalidateGroup = async () => {
+    if (!group.invite_link) {
+      toast.error('Configure o link de convite do grupo para revalidar');
+      return;
+    }
+    setRevalidating(true);
+    try {
+      const response = await supabase.functions.invoke('validate-whatsapp-group', {
+        body: { invite_link: group.invite_link }
+      });
+      if (response.error) {
+        throw new Error(response.error.message || 'Erro ao validar grupo');
+      }
+      const data = response.data as any;
+      if (!data?.is_valid || !data?.is_boris_in_group) {
+        toast.error('Não foi possível validar o grupo agora');
+        return;
+      }
+      const participants = Array.isArray(data.participants) ? data.participants : [];
+      const adminProviderIds = participants.filter((p: any) => p.is_admin).map((p: any) => p.provider_member_id).filter(Boolean);
+      const superAdminProviderIds = participants.filter((p: any) => p.is_super_admin).map((p: any) => p.provider_member_id).filter(Boolean);
+      const adminPhones = participants.filter((p: any) => p.is_admin).map((p: any) => normalizePhoneE164(p.phone)).filter(Boolean);
+      const superAdminPhones = participants.filter((p: any) => p.is_super_admin).map((p: any) => normalizePhoneE164(p.phone)).filter(Boolean);
+
+      await supabase
+        .from('members')
+        .update({ is_admin: false, is_super_admin: false })
+        .eq('group_id', group.id)
+        .is('deleted_at', null);
+
+      if (adminProviderIds.length > 0) {
+        await supabase
+          .from('members')
+          .update({ is_admin: true })
+          .eq('group_id', group.id)
+          .is('deleted_at', null)
+          .in('provider_member_id', adminProviderIds);
+      }
+      if (adminPhones.length > 0) {
+        await supabase
+          .from('members')
+          .update({ is_admin: true })
+          .eq('group_id', group.id)
+          .is('deleted_at', null)
+          .in('phone_e164', adminPhones);
+      }
+      if (superAdminProviderIds.length > 0) {
+        await supabase
+          .from('members')
+          .update({ is_super_admin: true })
+          .eq('group_id', group.id)
+          .is('deleted_at', null)
+          .in('provider_member_id', superAdminProviderIds);
+      }
+      if (superAdminPhones.length > 0) {
+        await supabase
+          .from('members')
+          .update({ is_super_admin: true })
+          .eq('group_id', group.id)
+          .is('deleted_at', null)
+          .in('phone_e164', superAdminPhones);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['group-dashboard-admins'] });
+      queryClient.invalidateQueries({ queryKey: ['group-dashboard-previous-admins'] });
+      queryClient.invalidateQueries({ queryKey: ['group-members'] });
+      toast.success('Admins atualizados');
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao revalidar o grupo');
+    } finally {
+      setRevalidating(false);
+    }
+  };
+
   return (
     <AdminLayout 
       title="Dashboard do Grupo" 
@@ -170,6 +262,15 @@ const Group = () => {
               customRange={customRange}
               onChange={handlePeriodChange}
             />
+            <Button
+              onClick={handleRevalidateGroup}
+              size="sm"
+              variant="outline"
+              disabled={revalidating}
+            >
+              <RefreshCw className={`h-4 w-4 ${revalidating ? 'animate-spin' : ''}`} />
+              Revalidar Grupo
+            </Button>
             <button
               onClick={() => setHelpOpen(true)}
               className="flex items-center gap-2 text-xs text-primary hover:underline"
@@ -266,6 +367,7 @@ const Group = () => {
         <SummarySection
           stats={stats}
           previousStats={previousStats || undefined}
+          currentMembers={currentMembers}
           periodDays={periodDays}
           newMembersCount={newMembersCount}
           previousNewMembersCount={previousNewMembersCount}
@@ -330,6 +432,7 @@ const Group = () => {
           previousMembersOverview={previousMembersOverview}
           stats={stats}
           previousStats={previousStats || undefined}
+          currentMembers={currentMembers}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
         />
@@ -354,6 +457,7 @@ const Group = () => {
           periodDays={periodDays}
           isLoading={isLoading}
           periodLabel={getPeriodLabel()}
+          currentMembers={currentMembers}
         />
 
         {/* 5. Alerts and Opportunities */}

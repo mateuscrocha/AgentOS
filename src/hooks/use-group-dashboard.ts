@@ -52,7 +52,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data, error } = await supabase
         .from('groups')
-        .select('id, name, description, provider, organization_id, is_active, is_archived, sync_status, last_sync_at, metadata')
+        .select('id, name, description, provider, organization_id, is_active, is_archived, sync_status, last_sync_at, metadata, invite_link')
         .eq('id', groupId!)
         .maybeSingle();
       
@@ -215,12 +215,29 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .lte('created_at', previousPeriodEndISO);
 
       const uniqueActiveMembers = new Set(activeMembersData?.map(m => m.member_id) || []);
-      
-      const { count: totalMembers } = await supabase
+      // Compute snapshot of total members at end of previous period
+      const { count: joinedBeforePrevEnd } = await supabase
         .from('members')
         .select('*', { count: 'exact', head: true })
         .eq('group_id', groupId!)
-        .is('deleted_at', null);
+        .is('deleted_at', null)
+        .lte('joined_at', previousPeriodEndISO);
+
+      const { count: joinedNullPrev } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .is('joined_at', null);
+
+      const { count: exitedBeforePrevEnd } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .lte('left_at', previousPeriodEndISO);
+
+      const totalMembers = (joinedBeforePrevEnd || 0) + (joinedNullPrev || 0) - (exitedBeforePrevEnd || 0);
 
       const engagementRate = totalMembers && totalMembers > 0 
         ? Math.round((uniqueActiveMembers.size / totalMembers) * 100) 
@@ -252,6 +269,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       return {
         totalMessages: totalMessages || 0,
         activeMembers: uniqueActiveMembers.size,
+        totalMembers,
         engagementRate,
         topParticipant,
       };
@@ -857,38 +875,20 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  // Fetch at-risk members
+  // Fetch at-risk members based on current period inactivity
   const { data: atRiskMembers } = useQuery({
-    queryKey: ['group-dashboard-at-risk', groupId],
+    queryKey: ['group-dashboard-at-risk', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      const { data: members } = await supabase
-        .from('members')
-        .select('id, name, profile_pic_url, last_seen_message_at')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null);
-
-      if (!members) return [];
-
-      const now = new Date();
-      const atRisk = members
-        .map(member => {
-          const lastMsg = member.last_seen_message_at 
-            ? new Date(member.last_seen_message_at) 
-            : null;
-          const daysSince = lastMsg 
-            ? Math.floor((now.getTime() - lastMsg.getTime()) / (1000 * 60 * 60 * 24))
-            : 999;
-          return {
-            id: member.id,
-            name: member.name,
-            avatarUrl: (member as any).profile_pic_url || null,
-            daysSinceLastMessage: daysSince,
-          };
-        })
-        .filter(m => m.daysSinceLastMessage >= 7)
-        .sort((a, b) => b.daysSinceLastMessage - a.daysSinceLastMessage);
-
-      return atRisk;
+      const overview = membersOverview || [];
+      const inactive = overview
+        .filter(m => (m as any).messagesCount === 0)
+        .map(m => ({
+          id: (m as any).id as string,
+          name: (m as any).name as string,
+          avatarUrl: (m as any).avatarUrl || null,
+          daysSinceLastMessage: periodDays,
+        }));
+      return inactive;
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -1091,8 +1091,8 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  const activePercent = (stats?.totalMembers || 0) > 0
-    ? Math.round(((stats?.activeMembers || 0) / (stats?.totalMembers || 1)) * 100)
+  const activePercent = (membersSnapshot?.currentMembers || 0) > 0
+    ? Math.round(((stats?.activeMembers || 0) / (membersSnapshot?.currentMembers || 1)) * 100)
     : 0;
 
   const activeDaysPercent = periodDays > 0 ? Math.round((daysWithActivity / periodDays) * 100) : 0;
@@ -1113,7 +1113,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     const idsPrev = new Set((previousMembersOverview || []).filter(m => m.messagesCount > 0).map(m => m.id));
     let intersection = 0;
     idsCurrent.forEach(id => { if (idsPrev.has(id)) intersection++; });
-    const denom = stats?.totalMembers || 0;
+    const denom = membersSnapshot?.currentMembers || 0;
     return denom > 0 ? Math.round((intersection / denom) * 100) : 0;
   })();
 
@@ -1394,6 +1394,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       activeMembers7d: previousStats.activeMembers,
       engagementRate: previousStats.engagementRate,
       topParticipant: previousStats.topParticipant,
+      totalMembersSnapshot: previousStats.totalMembers,
     } : null,
     messagesPerDay: messagesPerDay || [],
     activeMembersPerDay: activeMembersPerDay || [],

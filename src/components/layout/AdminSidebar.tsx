@@ -7,7 +7,6 @@ import {
   Settings, 
   ChevronLeft,
   ChevronRight,
-  Bot,
   Shield,
   Database,
   UserCircle,
@@ -96,15 +95,15 @@ export function AdminSidebar() {
       <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border shrink-0">
         {!collapsed && (
           <div className="flex items-center gap-2 animate-fade-in">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary">
-              <Bot className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden">
+              <img src="/admin-logo.png" alt="Bóris Admin" className="h-8 w-8 object-cover" />
             </div>
             <span className="font-semibold text-foreground">Bóris Admin</span>
           </div>
         )}
         {collapsed && (
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary mx-auto">
-            <Bot className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden mx-auto">
+            <img src="/admin-logo.png" alt="Bóris Admin" className="h-8 w-8 object-cover" />
           </div>
         )}
       </div>

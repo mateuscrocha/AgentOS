@@ -82,8 +82,9 @@ serve(async (req) => {
       // Map participants to our format
       const participants = (groupData.participants || []).map((p: { phone: string; isAdmin?: boolean; isSuperAdmin?: boolean; lid?: string }) => ({
         phone: p.phone,
-        name: p.phone, // Use phone as name since n8n doesn't return names
+        name: p.phone,
         is_admin: p.isAdmin || p.isSuperAdmin || false,
+        is_super_admin: p.isSuperAdmin || false,
         provider_member_id: p.lid || p.phone,
       }));
 

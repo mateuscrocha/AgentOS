@@ -12,6 +12,7 @@ interface EffortNoiseSectionProps {
   periodDays: number;
   isLoading?: boolean;
   periodLabel?: string;
+  currentMembers?: number;
 }
 
 export function EffortNoiseSection({
@@ -21,6 +22,7 @@ export function EffortNoiseSection({
   periodDays,
   isLoading,
   periodLabel = "período",
+  currentMembers = 0,
 }: EffortNoiseSectionProps) {
   const msgsPerActive = stats.activeMembers7d > 0
     ? Math.round(stats.totalMessages7d / stats.activeMembers7d)
@@ -32,7 +34,7 @@ export function EffortNoiseSection({
     : 0;
   const excessDays = periodSlice.filter(d => d.count > avgDaily).length;
 
-  const totalMembers = stats.totalMembers || 0;
+  const totalMembers = currentMembers || stats.totalMembers || 0;
   const topCount = totalMembers > 0 ? Math.max(1, Math.ceil(totalMembers * 0.1)) : 0;
   const totalMessages = stats.totalMessages7d || 0;
   const topSum = (membersOverview || [])

@@ -13,6 +13,7 @@ interface SummarySectionProps {
     activeMembers7d: number;
     engagementRate: number;
   };
+  currentMembers?: number;
   periodDays: number;
   newMembersCount?: number;
   previousNewMembersCount?: number;
@@ -25,6 +26,7 @@ interface SummarySectionProps {
 export function SummarySection({ 
   stats, 
   previousStats,
+  currentMembers = 0,
   periodDays,
   newMembersCount = 0,
   previousNewMembersCount = 0,
@@ -53,11 +55,11 @@ export function SummarySection({
     : undefined;
 
   const engagementTrend = previousStats
-    ? stats.engagementRate - previousStats.engagementRate
+    ? (currentMembers > 0 ? Math.round((stats.activeMembers7d / currentMembers) * 100) : 0) - previousStats.engagementRate
     : undefined;
 
   const messagesAvgPerDay = periodDays > 0 ? Math.round(stats.totalMessages7d / periodDays) : stats.totalMessages7d;
-  const activePercent = stats.totalMembers > 0 ? Math.round((stats.activeMembers7d / stats.totalMembers) * 100) : 0;
+  const activePercent = currentMembers > 0 ? Math.round((stats.activeMembers7d / currentMembers) * 100) : 0;
   const netGrowth = (newMembersCount || 0) - (exitedMembersCount || 0);
   const previousNetGrowth = (previousNewMembersCount || 0) - (previousExitedMembersCount || 0);
   const netTrend = calculateAbsoluteTrend(netGrowth, previousNetGrowth);
@@ -86,7 +88,7 @@ export function SummarySection({
         
         <KpiCard
           title="Taxa de participação"
-          value={`${stats.engagementRate}%`}
+          value={`${activePercent}%`}
           icon={TrendingUp}
           helpText="Percentual do grupo que participou com mensagens no período. Não indica qualidade da conversa."
           trend={engagementTrend !== undefined ? { value: Math.round(engagementTrend), label: "pp" } : undefined}

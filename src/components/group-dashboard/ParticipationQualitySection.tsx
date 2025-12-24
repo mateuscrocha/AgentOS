@@ -22,7 +22,9 @@ interface ParticipationQualitySectionProps {
   previousStats?: {
     totalMessages7d: number;
     engagementRate: number;
+    totalMembersSnapshot?: number;
   };
+  currentMembers?: number;
   isLoading?: boolean;
   periodLabel?: string;
 }
@@ -32,6 +34,7 @@ export function ParticipationQualitySection({
   previousMembersOverview,
   stats,
   previousStats,
+  currentMembers = 0,
   isLoading,
   periodLabel = "período",
 }: ParticipationQualitySectionProps) {
@@ -44,7 +47,7 @@ export function ParticipationQualitySection({
       count: m.messagesCount,
     }));
 
-  const totalMembers = stats.totalMembers || 0;
+  const totalMembers = currentMembers || stats.totalMembers || 0;
   const topCount = totalMembers > 0 ? Math.max(1, Math.ceil(totalMembers * 0.1)) : 0;
   const totalMessages = stats.totalMessages7d || 0;
   const topSum = membersOverview
@@ -55,10 +58,12 @@ export function ParticipationQualitySection({
   const concentration = totalMessages > 0 ? Math.round((topSum / totalMessages) * 100) : 0;
 
   const prevTotalMessages = previousStats?.totalMessages7d || 0;
+  const prevTotalMembers = previousStats?.totalMembersSnapshot ?? totalMembers;
+  const prevTopCount = prevTotalMembers > 0 ? Math.max(1, Math.ceil(prevTotalMembers * 0.1)) : 0;
   const prevTopSum = (previousMembersOverview || [])
     .slice()
     .sort((a, b) => b.messagesCount - a.messagesCount)
-    .slice(0, topCount)
+    .slice(0, prevTopCount)
     .reduce((acc, m) => acc + m.messagesCount, 0);
   const prevConcentration = prevTotalMessages > 0 ? Math.round((prevTopSum / prevTotalMessages) * 100) : undefined;
   const concentrationTrend = prevConcentration !== undefined ? concentration - prevConcentration : undefined;

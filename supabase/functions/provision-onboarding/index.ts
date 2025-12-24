@@ -133,6 +133,7 @@ serve(async (req) => {
         organization_id: org.id,
         provider: 'whatsapp',
         provider_group_id: payload.group.provider_group_id,
+        invite_link: payload.group.invite_link,
       })
       .select('id')
       .single();
