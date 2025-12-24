@@ -41,10 +41,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const previousPeriodStartISO = previousPeriodStart.toISOString();
   const previousPeriodEndISO = previousPeriodEnd.toISOString();
 
-  // For chart - extend back further to show trend
-  const chartDays = Math.max(periodDays, 14);
-  const chartStartDate = subDays(currentPeriodEnd, chartDays - 1);
-  const chartStartISO = chartStartDate.toISOString();
+  // Chart should respect selected period strictly
+  const chartDays = periodDays;
+  const chartStartDate = currentPeriodStart;
+  const chartStartISO = currentPeriodStartISO;
 
   // Fetch group details
   const { data: group, isLoading: groupLoading, error: groupError } = useQuery({
@@ -427,14 +427,14 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
   // Fetch messages per day for chart
   const { data: messagesPerDay, isLoading: chartLoading } = useQuery({
-    queryKey: ['group-dashboard-chart', groupId, chartStartISO, currentPeriodEndISO],
+    queryKey: ['group-dashboard-chart', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
         .from('messages')
         .select('created_at')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .gte('created_at', chartStartISO)
+        .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO)
         .order('created_at', { ascending: true });
 
@@ -442,7 +442,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       
       // Initialize all days in range
       const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      for (let i = chartDays - 1; i >= 0; i--) {
+      for (let i = periodDays - 1; i >= 0; i--) {
         const date = subDays(currentPeriodEnd, i);
         const dateKey = formatDateKeyInTimeZone(date, tz);
         countsByDay[dateKey] = 0;
@@ -531,7 +531,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
   // Fetch active members per day for secondary chart line
   const { data: activeMembersPerDay } = useQuery({
-    queryKey: ['group-dashboard-active-per-day', groupId, chartStartISO, currentPeriodEndISO],
+    queryKey: ['group-dashboard-active-per-day', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
         .from('messages')
@@ -539,7 +539,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
-        .gte('created_at', chartStartISO)
+        .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO)
         .order('created_at', { ascending: true });
 
@@ -547,7 +547,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
       const membersByDay: Record<string, Set<string>> = {};
       // Initialize all days in range to ensure full alignment
-      for (let i = chartDays - 1; i >= 0; i--) {
+      for (let i = periodDays - 1; i >= 0; i--) {
         const date = subDays(currentPeriodEnd, i);
         const dateKey = formatDateKeyInTimeZone(date, tz);
         membersByDay[dateKey] = new Set<string>();

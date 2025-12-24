@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { Building2, Layers, Users as UsersIcon, MessageSquare, AlertTriangle, Activity, Tag } from "lucide-react";
 import { filterKeywordItems, countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -66,11 +68,11 @@ const Index = () => {
     return count ?? 0;
   };
 
-  const fetchActiveGroupsCount = async () => {
+  const fetchTotalGroupsCount = async () => {
     const { count, error } = await supabase
       .from("groups")
       .select("*", { count: "exact", head: true })
-      .or("status.eq.active,status.is.null");
+      .or("is_archived.eq.false,is_archived.is.null");
     if (error) throw error;
     return count ?? 0;
   };
@@ -104,8 +106,8 @@ const Index = () => {
     error: kpiGroupsError,
     refetch: refetchKpiGroups,
   } = useQuery({
-    queryKey: ["kpi-groups-active"],
-    queryFn: fetchActiveGroupsCount,
+    queryKey: ["kpi-groups-total"],
+    queryFn: fetchTotalGroupsCount,
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
   });
@@ -118,6 +120,65 @@ const Index = () => {
   } = useQuery({
     queryKey: ["kpi-members-total"],
     queryFn: fetchTotalMembersCount,
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
+  const {
+    data: kpiProfiles,
+    isLoading: kpiProfilesLoading,
+    error: kpiProfilesError,
+    refetch: refetchKpiProfiles,
+  } = useQuery({
+    queryKey: ["kpi-profiles-total"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
+  const {
+    data: kpiMessagesLifetime,
+    isLoading: kpiMessagesLifetimeLoading,
+    error: kpiMessagesLifetimeError,
+    refetch: refetchKpiMessagesLifetime,
+  } = useQuery({
+    queryKey: ["kpi-messages-lifetime"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .is("deleted_at", null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
+  const {
+    data: kpiActiveGroups30d,
+    isLoading: kpiActiveGroupsLoading,
+    error: kpiActiveGroupsError,
+    refetch: refetchKpiActiveGroups,
+  } = useQuery({
+    queryKey: ["kpi-groups-active-30d"],
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from("messages")
+        .select("group_id")
+        .is("deleted_at", null)
+        .gte("created_at", cutoff);
+      if (error) throw error;
+      const set = new Set((data || []).map((r: any) => r.group_id).filter(Boolean));
+      return set.size;
+    },
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
   });
@@ -143,12 +204,47 @@ const Index = () => {
     retry: 1,
   });
 
+  const {
+    data: kpiActiveMembersPeriod,
+    isLoading: kpiActiveMembersLoading,
+    error: kpiActiveMembersError,
+    refetch: refetchActiveMembers,
+  } = useQuery({
+    queryKey: ["kpi-active-members-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("member_id")
+        .is("deleted_at", null)
+        .not("member_id", "is", null)
+        .gte("created_at", currentRange.from.toISOString())
+        .lte("created_at", currentRange.to.toISOString());
+      if (error) throw error;
+      const set = new Set((data || []).map((row: any) => row.member_id).filter(Boolean));
+      return set.size;
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
   useEffect(() => {
     if (kpiOrgsError) toast.error("Falha ao carregar Organizações ativas");
-    if (kpiGroupsError) toast.error("Falha ao carregar Grupos ativos");
+    if (kpiGroupsError) toast.error("Falha ao carregar Total de grupos");
     if (kpiMembersError) toast.error("Falha ao carregar Total de membros");
-    if (kpiMessagesError) toast.error("Falha ao carregar Mensagens (24h)");
-  }, [kpiOrgsError, kpiGroupsError, kpiMembersError, kpiMessagesError]);
+    if (kpiProfilesError) toast.error("Falha ao carregar Total de usuários");
+    if (kpiMessagesLifetimeError) toast.error("Falha ao carregar Mensagens totais");
+    if (kpiActiveGroupsError) toast.error("Falha ao carregar Grupos ativos (30d)");
+    if (kpiActiveMembersError) toast.error("Falha ao carregar Membros ativos (período)");
+  }, [
+    kpiOrgsError,
+    kpiGroupsError,
+    kpiMembersError,
+    kpiProfilesError,
+    kpiMessagesLifetimeError,
+    kpiActiveGroupsError,
+    kpiMessagesError,
+    kpiActiveMembersError,
+  ]);
 
 
   const {
@@ -177,12 +273,20 @@ const Index = () => {
       if (entries.length === 0 || total === 0) return null;
       const [topId, topCount] = entries[0];
       const share = Math.round((topCount / total) * 100);
+      const topIds = entries.slice(0, 5).map(([id]) => id);
+      const { data: topGroupsData } = await supabase
+        .from("groups")
+        .select("id,name")
+        .in("id", topIds);
+      const nameMap: Record<string, string> = {};
+      (topGroupsData || []).forEach((g: any) => { nameMap[g.id] = g.name; });
+      const topGroups = entries.slice(0, 5).map(([id, c]) => ({ id, name: nameMap[id] || id, count: c }));
       const { data: group } = await supabase
         .from("groups")
         .select("name")
         .eq("id", topId)
         .maybeSingle();
-      return { groupId: topId, groupName: group?.name || topId, share };
+      return { groupId: topId, groupName: group?.name || topId, share, topGroups, activeGroups: counts ? Object.keys(counts).length : 0 };
     },
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
@@ -255,6 +359,35 @@ const Index = () => {
     retry: 1,
   });
 
+  const { data: messagesPerDay } = useQuery({
+    queryKey: ["system-messages-per-day", currentRange.from.toISOString(), currentRange.to.toISOString()],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("messages")
+        .select("created_at")
+        .is("deleted_at", null)
+        .gte("created_at", currentRange.from.toISOString())
+        .lte("created_at", currentRange.to.toISOString())
+        .order("created_at", { ascending: true });
+      const counts: Record<string, number> = {};
+      (data || []).forEach((m: any) => {
+        const day = new Date(m.created_at).toISOString().slice(0,10);
+        counts[day] = (counts[day] || 0) + 1;
+      });
+      const days: string[] = [];
+      const cursor = new Date(currentRange.from);
+      const end = new Date(currentRange.to);
+      while (cursor <= end) {
+        const key = cursor.toISOString().slice(0,10);
+        days.push(key);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return days.map(d => ({ date: d, count: counts[d] || 0 }));
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
   useEffect(() => {
     if (signalConcentrationError) toast.error("Falha ao carregar sinal de concentração");
     if (signalInactiveError) toast.error("Falha ao carregar grupos inativos (24h)");
@@ -278,13 +411,13 @@ const Index = () => {
   return (
     <AdminLayout title="Central de Comando do Sistema" subtitle="Visão geral do Bóris — estado atual e sinais">
       {/* A) KPIs absolutos */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <div>
           <StatsCard
             title="Organizações ativas"
             value={kpiOrgsLoading ? "—" : (kpiOrgsError ? "Erro" : String(kpiOrgs ?? 0))}
-            description="Agora"
             icon={Building2}
+            variant="compact"
           />
           {kpiOrgsError && (
             <div className="mt-2">
@@ -294,10 +427,10 @@ const Index = () => {
         </div>
         <div>
           <StatsCard
-            title="Grupos ativos"
+            title="Total de grupos"
             value={kpiGroupsLoading ? "—" : (kpiGroupsError ? "Erro" : String(kpiGroups ?? 0))}
-            description="Agora"
             icon={Layers}
+            variant="compact"
           />
           {kpiGroupsError && (
             <div className="mt-2">
@@ -309,8 +442,8 @@ const Index = () => {
           <StatsCard
             title="Total de membros"
             value={kpiMembersLoading ? "—" : (kpiMembersError ? "Erro" : String(kpiMembers ?? 0))}
-            description="No sistema"
             icon={UsersIcon}
+            variant="compact"
           />
           {kpiMembersError && (
             <div className="mt-2">
@@ -318,15 +451,54 @@ const Index = () => {
             </div>
           )}
         </div>
+        <div>
+          <StatsCard
+            title="Usuários (Admin)"
+            value={kpiProfilesLoading ? "—" : (kpiProfilesError ? "Erro" : String(kpiProfiles ?? 0))}
+            icon={UsersIcon}
+            variant="compact"
+          />
+          {kpiProfilesError && (
+            <div className="mt-2">
+              <Button variant="outline" size="sm" onClick={() => refetchKpiProfiles()}>Tentar novamente</Button>
+            </div>
+          )}
+        </div>
+        <div>
+          <StatsCard
+            title="Mensagens totais"
+            value={kpiMessagesLifetimeLoading ? "—" : (kpiMessagesLifetimeError ? "Erro" : String(kpiMessagesLifetime ?? 0))}
+            icon={MessageSquare}
+            variant="compact"
+          />
+          {kpiMessagesLifetimeError && (
+            <div className="mt-2">
+              <Button variant="outline" size="sm" onClick={() => refetchKpiMessagesLifetime()}>Tentar novamente</Button>
+            </div>
+          )}
+        </div>
+        <div>
+          <StatsCard
+            title="Grupos ativos (30d)"
+            value={kpiActiveGroupsLoading ? "—" : (kpiActiveGroupsError ? "Erro" : String(kpiActiveGroups30d ?? 0))}
+            icon={Layers}
+            variant="compact"
+          />
+          {kpiActiveGroupsError && (
+            <div className="mt-2">
+              <Button variant="outline" size="sm" onClick={() => refetchKpiActiveGroups()}>Tentar novamente</Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* B) Filtro de período */}
-      <div className="mt-6 flex items-center justify-end">
+      <div className="mt-8 flex items-center justify-end">
         <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
       </div>
 
-      {/* C) Cards e gráficos dependentes de período */}
-      <div className="grid gap-6 lg:grid-cols-3 mt-4">
+      {/* C) KPIs de atividade (período) */}
+      <div className="grid gap-6 lg:grid-cols-4 mt-6">
         <div>
           <StatsCard
             title="Mensagens (período)"
@@ -340,7 +512,50 @@ const Index = () => {
             </div>
           )}
         </div>
-        <Card>
+        <div>
+          <StatsCard
+            title="Grupos com atividade"
+            value={signalConcentrationLoading ? "—" : (signalConcentrationError ? "Erro" : String(signalConcentration?.activeGroups ?? 0))}
+            description="≥ 1 msg no período"
+            icon={Layers}
+          />
+        </div>
+        <div>
+          <StatsCard
+            title="Média msgs por grupo"
+            value={(() => {
+              if (kpiMessagesLoading || signalConcentrationLoading) return "—";
+              const msgs = kpiMessagesPeriod || 0;
+              const groups = signalConcentration?.activeGroups || 0;
+              if (!groups) return "0";
+              return String(Math.round(msgs / groups));
+            })()}
+            description="Período selecionado"
+            icon={MessageSquare}
+          />
+        </div>
+        <div>
+          <StatsCard
+            title="Dia mais ativo"
+            value={(() => {
+              const list = messagesPerDay || [];
+              if (!list || list.length === 0) return "—";
+              const top = [...list].sort((a, b) => b.count - a.count)[0];
+              const d = new Date(top.date + 'T00:00:00');
+              return d.toLocaleDateString('pt-BR', { weekday: 'long' });
+            })()}
+            description={(() => {
+              const list = messagesPerDay || [];
+              if (!list || list.length === 0) return undefined;
+              const top = [...list].sort((a, b) => b.count - a.count)[0];
+              return `${top.count} msgs`;
+            })()}
+            icon={Activity}
+          />
+        </div>
+      </div>
+
+      <Card className="mt-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-warning" />
@@ -357,15 +572,26 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">Sem atividade suficiente para análise</p>
             )}
             {!signalConcentrationLoading && !signalConcentrationError && signalConcentration && (
-              <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-3">
-                <span className="text-sm font-medium text-card-foreground">{signalConcentration.groupName}</span>
-                <span className="text-sm font-semibold">{signalConcentration.share}%</span>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-3">
+                  <span className="text-sm font-medium text-card-foreground">{signalConcentration.groupName}</span>
+                  <span className="text-sm font-semibold">{signalConcentration.share}%</span>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Top 5 grupos no período</p>
+                  {(signalConcentration.topGroups || []).map((g: any) => (
+                    <div key={g.id} className="flex items-center justify-between rounded-lg bg-secondary/30 p-2">
+                      <span className="text-sm text-card-foreground">{g.name}</span>
+                      <span className="text-xs text-muted-foreground">{g.count}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="mt-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-warning" />
@@ -392,7 +618,7 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="mt-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Tag className="h-5 w-5 text-primary" />
@@ -439,7 +665,80 @@ const Index = () => {
             )}
           </CardContent>
         </Card>
-      </div>
+
+        {/* D) KPIs de engajamento (período) */}
+        <div className="grid gap-6 lg:grid-cols-3 mt-4">
+          <div>
+            <StatsCard
+              title="Membros ativos"
+              value={kpiActiveMembersLoading ? "—" : (kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0))}
+              description="≥ 1 msg no período"
+              icon={UsersIcon}
+            />
+            {kpiActiveMembersError && (
+              <div className="mt-2">
+                <Button variant="outline" size="sm" onClick={() => refetchActiveMembers()}>Tentar novamente</Button>
+              </div>
+            )}
+          </div>
+          <div>
+            <StatsCard
+              title="% de membros ativos"
+              value={(() => {
+                if (kpiActiveMembersLoading || kpiMembersLoading) return "—";
+                const total = kpiMembers || 0;
+                const actives = kpiActiveMembersPeriod || 0;
+                if (!total) return "0%";
+                return String(Math.round((actives / total) * 100)) + "%";
+              })()}
+              description="Período selecionado"
+              icon={UsersIcon}
+            />
+          </div>
+          <div>
+            <StatsCard
+              title="Média ativos por grupo"
+              value={(() => {
+                if (kpiActiveMembersLoading || signalConcentrationLoading) return "—";
+                const actives = kpiActiveMembersPeriod || 0;
+                const groups = signalConcentration?.activeGroups || 0;
+                if (!groups) return "0";
+                return String(Math.round(actives / groups));
+              })()}
+              description="Período selecionado"
+              icon={UsersIcon}
+            />
+          </div>
+        </div>
+
+        {/* E) Gráfico simples de mensagens por dia */}
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              Mensagens por dia
+            </CardTitle>
+            <CardDescription>Período selecionado</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {(!messagesPerDay || messagesPerDay.length === 0) ? (
+              <p className="text-sm text-muted-foreground">Sem dados para o período</p>
+            ) : (
+              <ChartContainer
+                config={{}}
+                className="h-[220px] w-full"
+              >
+                <LineChart data={messagesPerDay} margin={{ left: 12, right: 12 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
 
       <Card className="mt-6">
         <CardHeader>
