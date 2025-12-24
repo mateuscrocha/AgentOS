@@ -6,10 +6,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthGuard } from "./components/auth/AuthGuard";
 import Index from "./pages/Index";
-import System from "./pages/System";
 import SystemEvents from "./pages/SystemEvents";
 import SystemOrganizations from "./pages/SystemOrganizations";
 import SystemGroups from "./pages/SystemGroups";
@@ -47,7 +46,11 @@ const App = () => (
             
             {/* Auth and protected routes */}
             <Route path="/" element={<Index />} />
-            <Route path="/system" element={<System />} />
+            {/* Legacy redirects */}
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
+            <Route path="/system" element={<Navigate to="/" replace />} />
+            <Route path="/system/overview" element={<Navigate to="/" replace />} />
+            <Route path="/overview" element={<Navigate to="/" replace />} />
             <Route path="/system/organizations" element={<SystemOrganizations />} />
             <Route path="/system/groups" element={<SystemGroups />} />
             <Route path="/system/people" element={<SystemPeople />} />

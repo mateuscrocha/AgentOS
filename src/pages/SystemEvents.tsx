@@ -177,7 +177,7 @@ export default function SystemEvents() {
       <div className="space-y-6">
         <Breadcrumbs
           items={[
-            { label: "Sistema", href: "/system" },
+            { label: "Central de Comando", href: "/" },
             { label: "Eventos" },
           ]}
         />

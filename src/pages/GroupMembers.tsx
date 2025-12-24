@@ -207,8 +207,8 @@ const GroupMembers = () => {
         {/* Breadcrumbs */}
         <Breadcrumbs
           items={[
-            { label: "System", href: "/system" },
-            { label: groupInfo?.orgName || "Org", href: `/org/${groupInfo?.orgId}` },
+            { label: "Central de Comando", href: "/" },
+            { label: groupInfo?.orgName || "Organização", href: `/org/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/group/${groupId}` },
             { label: "Members" },
           ]}

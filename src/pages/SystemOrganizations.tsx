@@ -184,9 +184,9 @@ export default function SystemOrganizations() {
   ];
 
   return (
-    <AdminLayout title="Gerenciar organizações" subtitle="Sistema › Organizações">
+    <AdminLayout title="Gerenciar organizações" subtitle="Central de Comando › Organizações">
       <div className="space-y-6 animate-fade-in">
-        <Breadcrumbs items={[{ label: "Sistema", href: "/system" }, { label: "Organizações" }]} />
+        <Breadcrumbs items={[{ label: "Central de Comando", href: "/" }, { label: "Organizações" }]} />
 
         <div className="flex items-center gap-2">
           <input

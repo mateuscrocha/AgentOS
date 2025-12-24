@@ -156,9 +156,9 @@ export default function SystemPeople() {
   ];
 
   return (
-    <AdminLayout title="Pessoas" subtitle="Sistema › Pessoas">
+    <AdminLayout title="Pessoas" subtitle="Central de Comando › Pessoas">
       <div className="space-y-6 animate-fade-in">
-        <Breadcrumbs items={[{ label: "Sistema", href: "/system" }, { label: "Pessoas" }]} />
+        <Breadcrumbs items={[{ label: "Central de Comando", href: "/" }, { label: "Pessoas" }]} />
 
         <div className="flex items-center gap-2">
           <input

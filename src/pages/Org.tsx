@@ -187,10 +187,10 @@ const Org = () => {
     }
     return (
       <AdminLayout title="Organização" subtitle="Erro">
-        <ErrorState 
+          <ErrorState 
           title="Organização não encontrada"
           message="Não foi possível carregar os detalhes desta organização. Você pode não ter acesso."
-          retry={() => navigate('/system')}
+          retry={() => navigate('/')}
         />
       </AdminLayout>
     );
@@ -293,7 +293,7 @@ const Org = () => {
         {/* Breadcrumbs */}
         <Breadcrumbs
           items={[
-            { label: "Sistema", href: "/system" },
+            { label: "Central de Comando", href: "/" },
             { label: org.name },
           ]}
         />

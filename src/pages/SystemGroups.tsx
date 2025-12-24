@@ -187,9 +187,9 @@ export default function SystemGroups() {
   ];
 
   return (
-    <AdminLayout title="Gerenciar grupos" subtitle="Sistema › Grupos">
+    <AdminLayout title="Gerenciar grupos" subtitle="Central de Comando › Grupos">
       <div className="space-y-6 animate-fade-in">
-        <Breadcrumbs items={[{ label: "Sistema", href: "/system" }, { label: "Grupos" }]} />
+        <Breadcrumbs items={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]} />
 
         <div className="flex items-center gap-2">
           <input

@@ -196,7 +196,7 @@ export default function GroupEvents() {
       <div className="space-y-6 animate-fade-in">
         <Breadcrumbs
           items={[
-            { label: "Sistema", href: "/system" },
+            { label: "Central de Comando", href: "/" },
             ...(org ? [{ label: org.name, href: `/org/${org.id}` }] : []),
             ...(group ? [{ label: group.name, href: `/group/${group.id}` }] : []),
             { label: "Atividade" },

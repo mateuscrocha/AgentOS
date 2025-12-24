@@ -127,7 +127,7 @@ const Group = () => {
         <ErrorState 
           title="Grupo não encontrado"
           message="Não foi possível carregar os detalhes deste grupo. Você pode não ter acesso."
-          retry={() => navigate('/system')}
+          retry={() => navigate('/')}
         />
       </AdminLayout>
     );
@@ -158,7 +158,7 @@ const Group = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <Breadcrumbs
             items={[
-              { label: "Sistema", href: "/system" },
+              { label: "Central de Comando", href: "/" },
               { label: orgName || "Organização", href: `/org/${group.organization_id}` },
               { label: group.name },
             ]}

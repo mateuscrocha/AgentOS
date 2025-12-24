@@ -27,8 +27,7 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: Layers, label: "Visão geral do sistema", href: "/system", requiresSystemAdmin: true },
+  { icon: LayoutDashboard, label: "Central de Comando", href: "/" },
   { icon: Building2, label: "Gerenciar organizações", href: "/system/organizations", requiresSystemAdmin: true },
   { icon: Users, label: "Gerenciar grupos", href: "/system/groups", requiresSystemAdmin: true },
   { icon: Users, label: "Pessoas", href: "/system/people", requiresSystemAdmin: true },
@@ -49,7 +48,6 @@ export function AdminSidebar() {
   const isActive = (href: string) => {
     if (href === "/") return location.pathname === "/";
     if (href === "/system/events") return location.pathname === "/system/events";
-    if (href === "/system") return location.pathname === "/system";
     return location.pathname.startsWith(href);
   };
 
