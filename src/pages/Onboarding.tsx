@@ -9,10 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, Mail, Link2, 
   CheckCircle, Loader2, ArrowLeft, Edit2, ChevronRight,
-  Users
+  Users, MailCheck, Copy, MessageCircle
 } from 'lucide-react';
 
-type Step = 'welcome' | 'name' | 'email' | 'how' | 'group_link' | 'final';
+type Step = 'welcome' | 'name' | 'email' | 'how' | 'prepare_group' | 'group_link' | 'final';
 
 interface FormData {
   name: string;
@@ -37,7 +37,7 @@ interface GroupValidation {
   data_incomplete_reason?: string;
 }
 
-const STEPS: Step[] = ['welcome', 'name', 'email', 'how', 'group_link', 'final'];
+const STEPS: Step[] = ['welcome', 'name', 'email', 'how', 'prepare_group', 'group_link', 'final'];
 
 function Title({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
   return (
@@ -128,6 +128,8 @@ export default function Onboarding() {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
       case 'how':
         return true;
+      case 'prepare_group':
+        return true;
       case 'group_link':
         return groupValidation?.is_valid === true && groupValidation?.is_boris_in_group === true && !groupValidation?.data_incomplete;
       case 'final':
@@ -162,13 +164,22 @@ export default function Onboarding() {
       if (!data.is_valid) {
         setValidationError('Esse link não parece válido. Cole o link de convite completo do WhatsApp.');
       } else if (!data.is_boris_in_group) {
-        setValidationError('Ainda não encontrei o Bóris no grupo. Adicione o Bóris ao grupo e clique em Validar novamente.');
+        setValidationError(null);
       }
     } catch (error: any) {
       console.error('Error validating group:', error);
       setValidationError('Erro ao validar grupo. Tente novamente.');
     } finally {
       setIsValidating(false);
+    }
+  };
+
+  const copyBorisNumber = async () => {
+    try {
+      await navigator.clipboard.writeText('+55 61 8150-4160');
+      toast.success('Número copiado');
+    } catch {
+      toast.error('Não foi possível copiar');
     }
   };
 
@@ -259,7 +270,7 @@ export default function Onboarding() {
               <img src="/1.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
             <Title className="bg-gradient-to-r from-foreground to-primary/60 bg-clip-text text-transparent">Oi, eu sou o Bóris.</Title>
-            <Subtitle delay={0.15} className="max-w-prose">Vou te ajudar a entender o que realmente importa nas conversas do seu grupo — sem esforço.</Subtitle>
+            <Subtitle delay={0.15} className="max-w-prose">Eu tiro o peso das conversas e cuido do caos do seu grupo. Você foca no que importa.</Subtitle>
           </div>
         );
 
@@ -269,7 +280,7 @@ export default function Onboarding() {
             <div className="flex justify-center -mx-2 sm:mx-0">
               <img src="/2.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
-            <Title>Antes de tudo… como você quer ser chamado?</Title>
+            <Title>Como você quer que eu te chame?</Title>
             <div className="pt-1">
               <Input
                 placeholder="Seu nome"
@@ -281,7 +292,7 @@ export default function Onboarding() {
                 className="h-12 text-lg"
               />
             </div>
-            <Subtitle delay={0.15} className="text-sm sm:text-base">Pode ser só o primeiro nome 😉</Subtitle>
+            <Subtitle delay={0.15} className="text-sm sm:text-base">Só o primeiro nome já resolve.</Subtitle>
           </div>
         );
 
@@ -289,7 +300,7 @@ export default function Onboarding() {
         return (
           <div className="space-y-4">
             <Title>Prazer, {formData.name}! 😊</Title>
-            <Subtitle delay={0.15}><Mail className="w-3 h-3 inline mr-2" />Por onde posso te avisar quando algo importante acontecer?</Subtitle>
+            <Subtitle delay={0.15}><Mail className="w-3 h-3 inline mr-2" />Uso para te avisar quando algo importante acontecer.</Subtitle>
             <div className="pt-1">
               <Input
                 type="email"
@@ -312,21 +323,64 @@ export default function Onboarding() {
             <div className="flex justify-center -mx-2 sm:mx-0">
               <img src="/4.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
-            <Title className="text-3xl sm:text-4xl">Em poucos passos, eu faço o trabalho pesado por você.</Title>
-            <div className="flex items-center justify-between gap-5 pt-1">
-              <div className="flex flex-col items-center">
-                <Users className="w-5 h-5 text-primary/80" />
-                <p className="text-xs mt-2">Eu entro no grupo</p>
+            <Title className="text-3xl sm:text-4xl">O caminho é simples.</Title>
+            <div className="grid grid-cols-3 gap-4 sm:gap-6 pt-2">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <Users className="w-6 h-6 md:w-7 md:h-7 text-primary/80" />
+                <p className="text-xs">Eu entro no grupo</p>
               </div>
-              <div className="hidden sm:block h-px w-10 bg-muted" />
-              <div className="flex flex-col items-center">
-                <Link2 className="w-5 h-5 text-primary/80" />
-                <p className="text-xs mt-2">Leio as conversas</p>
+              <div className="flex flex-col items-center text-center space-y-2">
+                <Link2 className="w-6 h-6 md:w-7 md:h-7 text-primary/80" />
+                <p className="text-xs">Depois, leio as conversas</p>
               </div>
-              <div className="hidden sm:block h-px w-10 bg-muted" />
-              <div className="flex flex-col items-center">
-                <CheckCircle className="w-5 h-5 text-primary/80" />
-                <p className="text-xs mt-2">Transformo tudo em insights</p>
+              <div className="flex flex-col items-center text-center space-y-2">
+                <CheckCircle className="w-6 h-6 md:w-7 md:h-7 text-primary/80" />
+                <p className="text-xs">Por fim, transformo em insights</p>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'prepare_group':
+        return (
+          <div className="space-y-4">
+            <div className="flex justify-center -mx-2 sm:mx-0">
+              <img src="/4.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
+            </div>
+            <Title>Antes de continuar, preciso estar dentro do grupo.</Title>
+            <Subtitle delay={0.15}>É normal, leva poucos segundos. Sem isso eu não consigo validar o grupo.</Subtitle>
+            <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-600 text-white grid place-items-center font-semibold">B</div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">Bóris</p>
+                  <p className="text-xs text-muted-foreground">+55 61 8150-4160</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={copyBorisNumber}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copiar número
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <MessageCircle className="w-4 h-4 text-green-600" />
+                WhatsApp
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Checklist rápido</p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" disabled className="rounded border-border" />
+                  Adicionar o Bóris ao grupo
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" disabled className="rounded border-border" />
+                  Confirmar que o Bóris entrou
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" disabled className="rounded border-border" />
+                  Depois disso, colar o link do grupo
+                </label>
               </div>
             </div>
           </div>
@@ -339,7 +393,7 @@ export default function Onboarding() {
               <img src="/5.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
             <Title>Agora preciso do link do grupo.</Title>
-            <Subtitle delay={0.15} className="max-w-prose">É assim que consigo acompanhar as conversas e gerar os insights.</Subtitle>
+            <Subtitle delay={0.15} className="max-w-prose">É aqui que eu começo a trabalhar de verdade: com o link, acompanho e gero insights.</Subtitle>
             <div className="pt-2 space-y-3">
               <Input
                 placeholder="https://chat.whatsapp.com/..."
@@ -366,6 +420,34 @@ export default function Onboarding() {
                   ⚠️ {validationError}
                 </motion.p>
               )}
+              {groupValidation?.is_valid && !groupValidation?.is_boris_in_group && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-3"
+                >
+                  <p className="text-sm">Antes de continuar, preciso estar dentro do grupo.</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-green-600 text-white grid place-items-center font-semibold">B</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold">Bóris</p>
+                      <p className="text-xs text-muted-foreground">+55 61 8150-4160</p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={copyBorisNumber}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copiar número
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" disabled className="rounded border-border" />
+                      Adicione o Bóris ao grupo e valide novamente
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">É normal, leva poucos segundos.</p>
+                </motion.div>
+              )}
               {groupValidation?.is_valid && groupValidation?.is_boris_in_group && groupValidation?.data_incomplete && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
@@ -383,20 +465,25 @@ export default function Onboarding() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="space-y-1"
+                  className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-3"
                 >
-                  <p className="text-sm text-green-600">✅ Grupo validado!</p>
-                  <p className="text-sm font-medium">{groupValidation.group_name}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Users className="w-3 h-3" />
+                  <div className="flex items-center justify-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-xs font-medium text-green-700">Grupo validado</span>
+                  </div>
+                  <p className="text-sm font-semibold text-center">{groupValidation.group_name}</p>
+                  <div className="flex items-center justify-center gap-2 text-sm font-medium">
+                    <Users className="w-4 h-4 text-primary/80" />
                     {groupValidation.participants_count} participantes
-                  </p>
-                  {groupValidation.participants.slice(0, 3).map((p, i) => (
-                    <p key={i} className="text-xs text-muted-foreground">• {p.name || p.phone}</p>
-                  ))}
-                  {groupValidation.participants_count > 3 && (
-                    <p className="text-xs text-muted-foreground">... e mais {groupValidation.participants_count - 3}</p>
-                  )}
+                  </div>
+                  <div className="flex items-center justify-center flex-wrap gap-1">
+                    {groupValidation.participants.slice(0, 3).map((p, i) => (
+                      <span key={i} className="text-[11px] text-muted-foreground">• {p.name || p.phone}</span>
+                    ))}
+                    {groupValidation.participants_count > 3 && (
+                      <span className="text-[11px] text-muted-foreground">... e mais {groupValidation.participants_count - 3}</span>
+                    )}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -410,7 +497,11 @@ export default function Onboarding() {
               <img src="/6.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
             <Title>Pronto. Agora deixa comigo 🔥</Title>
-            <Subtitle delay={0.15}>Em instantes você já poderá acompanhar tudo pelo painel.</Subtitle>
+            <Subtitle delay={0.15}>Agora é só acompanhar pelo painel.</Subtitle>
+            <div className="flex items-center justify-center gap-2">
+              <MailCheck className="w-4 h-4 text-primary" />
+              <p className="text-sm text-muted-foreground">Enviamos um email para você. É só confirmar para finalizar.</p>
+            </div>
           </div>
         );
 
