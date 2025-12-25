@@ -12,7 +12,7 @@ export default function OnboardingError() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate('/onboarding');
+    window.location.assign('/onboarding');
   };
 
   return (

@@ -12,7 +12,7 @@ const NoAccess = () => {
   const handleLogout = async () => {
     await signOut();
     toast.success("Logout realizado com sucesso");
-    navigate('/auth');
+    window.location.assign('/auth');
   };
 
   return (

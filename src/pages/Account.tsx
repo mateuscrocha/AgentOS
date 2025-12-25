@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { UserCircle, Mail, Shield, Key, LogOut, Save, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+ 
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,6 @@ const passwordSchema = z.string().min(6, "Senha deve ter pelo menos 6 caracteres
 const Account = () => {
   const { user, loading, signOut, isAuthenticated } = useAuth();
   const { roles, isSystemAdmin } = useUserRoles();
-  const navigate = useNavigate();
   
   // Profile state
   const [name, setName] = useState("");
@@ -159,7 +158,7 @@ const Account = () => {
   const handleLogout = async () => {
     await signOut();
     toast.success("Logout realizado com sucesso");
-    navigate('/auth');
+    window.location.assign('/auth');
   };
 
   if (loading || profileLoading) {
