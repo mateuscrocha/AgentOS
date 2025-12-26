@@ -48,21 +48,36 @@ const App = () => (
             <Route path="/" element={<Index />} />
             {/* Legacy redirects */}
             <Route path="/dashboard" element={<Navigate to="/" replace />} />
-            <Route path="/system" element={<Navigate to="/" replace />} />
             <Route path="/system/overview" element={<Navigate to="/" replace />} />
+            {/* System Admin home */}
+            <Route path="/system" element={<Index />} />
             <Route path="/overview" element={<Navigate to="/" replace />} />
             <Route path="/system/organizations" element={<SystemOrganizations />} />
             <Route path="/system/groups" element={<SystemGroups />} />
             <Route path="/system/people" element={<SystemPeople />} />
             <Route path="/system/users" element={<Users />} />
             <Route path="/system/events" element={<SystemEvents />} />
+            <Route path="/system/settings" element={<Settings />} />
             <Route path="/org/:orgId" element={<Org />} />
+            <Route path="/organization/:orgId" element={<Org />} />
+            <Route path="/organization/:orgId/groups" element={<Org />} />
+            <Route path="/organization/:orgId/members" element={<Org />} />
+            <Route path="/organization/:orgId/dashboard" element={<Org />} />
+            <Route path="/organization/:orgId/settings" element={<Org />} />
+            {/* Group Admin routes (legacy + standardized aliases) */}
             <Route path="/group/:groupId" element={<Group />} />
             <Route path="/group/:groupId/members" element={<GroupMembers />} />
             <Route path="/group/:groupId/messages" element={<GroupMessages />} />
             <Route path="/group/:groupId/polls" element={<GroupPolls />} />
             <Route path="/group/:groupId/polls/:pollId" element={<GroupPoll />} />
             <Route path="/group/:groupId/events" element={<GroupEvents />} />
+            <Route path="/groups/:groupId" element={<Group />} />
+            <Route path="/groups/:groupId/members" element={<GroupMembers />} />
+            <Route path="/groups/:groupId/messages" element={<GroupMessages />} />
+            <Route path="/groups/:groupId/polls" element={<GroupPolls />} />
+            <Route path="/groups/:groupId/polls/:pollId" element={<GroupPoll />} />
+            <Route path="/groups/:groupId/events" element={<GroupEvents />} />
+            <Route path="/groups/:groupId/dashboard" element={<Group />} />
             <Route path="/account" element={<Account />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/auth" element={<Auth />} />

@@ -128,9 +128,9 @@ export default function GroupPoll() {
       <div className="space-y-6 animate-fade-in">
         <Breadcrumbs
           items={[
-            { label: "Central de Comando", href: "/" },
-            { label: groupInfo?.orgName || "Organização", href: `/org/${groupInfo?.orgId}` },
-            { label: groupInfo?.groupName || "Grupo", href: `/group/${groupId}` },
+            { label: "Central do Bóris", href: "/" },
+            { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
+            { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Enquete" },
           ]}
         />
@@ -144,7 +144,7 @@ export default function GroupPoll() {
               <h1 className="text-xl md:text-2xl font-semibold text-card-foreground">{(poll as any)?.question || "Enquete"}</h1>
               <p className="text-xs md:text-sm text-muted-foreground">Criada em {createdAtLabel}</p>
             </div>
-            <NavLink to={`/group/${groupId}/messages`} className="ml-auto">
+            <NavLink to={`/groups/${groupId}/messages`} className="ml-auto">
               <Button variant="outline" size="sm">Voltar às mensagens</Button>
             </NavLink>
           </div>

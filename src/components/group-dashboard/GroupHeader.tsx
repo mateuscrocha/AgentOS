@@ -20,11 +20,11 @@ export function GroupHeader({
   syncStatus
 }: GroupHeaderProps) {
   const tabs = [
-    { label: "Dashboard", href: `/group/${groupId}`, end: true },
-    { label: "Membros", href: `/group/${groupId}/members`, icon: Users },
-    { label: "Mensagens", href: `/group/${groupId}/messages`, icon: MessageSquare },
-    { label: "Enquetes", href: `/group/${groupId}/polls`, icon: ListChecks },
-    { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
+    { label: "Dashboard", href: `/groups/${groupId}`, end: true },
+    { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
+    { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
+    { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
+    { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
   ];
 
   const getGroupStatus = () => {

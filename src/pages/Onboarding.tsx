@@ -12,11 +12,14 @@ import {
   Users, MailCheck, Copy, MessageCircle
 } from 'lucide-react';
 
-type Step = 'welcome' | 'name' | 'email' | 'how' | 'prepare_group' | 'group_link' | 'final';
+type Step = 'welcome' | 'name' | 'email' | 'phone' | 'password' | 'how' | 'prepare_group' | 'group_link' | 'final';
 
 interface FormData {
   name: string;
   email: string;
+  whatsapp_phone: string;
+  password: string;
+  password_confirm: string;
   invite_link: string;
 }
 
@@ -38,7 +41,7 @@ interface GroupValidation {
   data_incomplete_reason?: string;
 }
 
-const STEPS: Step[] = ['welcome', 'name', 'email', 'how', 'prepare_group', 'group_link', 'final'];
+const STEPS: Step[] = ['welcome', 'name', 'email', 'phone', 'password', 'how', 'prepare_group', 'group_link', 'final'];
 
 function Title({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
   return (
@@ -72,6 +75,9 @@ export default function Onboarding() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
+    whatsapp_phone: '',
+    password: '',
+    password_confirm: '',
     invite_link: '',
   });
   const [groupValidation, setGroupValidation] = useState<GroupValidation | null>(null);
@@ -79,6 +85,7 @@ export default function Onboarding() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [provisionedGroupId, setProvisionedGroupId] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -119,6 +126,20 @@ export default function Onboarding() {
     }
   };
 
+  const normalizePhoneE164 = (phone: string): string => {
+    const raw = (phone || '').trim();
+    if (!raw) return '';
+    if (raw.startsWith('+')) {
+      return raw.replace(/\s+/g, '');
+    }
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('55') && digits.length >= 10) {
+      return '+' + digits;
+    }
+    return '+55' + digits;
+  };
+
   const isCurrentStepValid = (): boolean => {
     switch (currentStep) {
       case 'welcome':
@@ -127,6 +148,12 @@ export default function Onboarding() {
         return formData.name.trim().length >= 2;
       case 'email':
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
+      case 'phone': {
+        const digits = formData.whatsapp_phone.replace(/\D/g, '');
+        return digits.length >= 10;
+      }
+      case 'password':
+        return formData.password.length >= 10 && formData.password === formData.password_confirm;
       case 'how':
         return true;
       case 'prepare_group':
@@ -185,6 +212,17 @@ export default function Onboarding() {
   };
 
   const handleConnectGroup = async () => {
+    setAccessError(null);
+    if (formData.password.length < 10) {
+      setAccessError('Senha deve ter pelo menos 10 caracteres');
+      setCurrentStep('password');
+      return;
+    }
+    if (formData.password !== formData.password_confirm) {
+      setAccessError('A confirmação precisa ser igual à senha');
+      setCurrentStep('password');
+      return;
+    }
     if (!formData.invite_link.trim()) {
       setValidationError('Cole o link de convite do grupo.');
       return;
@@ -196,10 +234,9 @@ export default function Onboarding() {
     }
     setIsSubmitting(true);
     try {
-      const generatedPassword = crypto.randomUUID() + '!Aa1';
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
-        password: generatedPassword,
+        password: formData.password,
         options: {
           data: { name: formData.name },
           emailRedirectTo: `${window.location.origin}/`,
@@ -226,7 +263,7 @@ export default function Onboarding() {
         lead: {
           name: formData.name,
           email: formData.email,
-          whatsapp_phone: '',
+          whatsapp_phone: normalizePhoneE164(formData.whatsapp_phone),
           user_id: authData.user.id,
         },
         organization: {
@@ -253,20 +290,28 @@ export default function Onboarding() {
       setCurrentStep('final');
 
     } catch (error: any) {
-      console.error('Onboarding error:', error);
-      navigate('/onboarding/error', { 
-        state: { message: error.message || 'Erro durante o onboarding' } 
-      });
+      const msg = error?.message || '';
+      if (msg.includes('Password should be at least') || msg.includes('senha') || msg.includes('password')) {
+        const match = msg.match(/at least\s+(\d+)\s+characters/i);
+        const required = match ? match[1] : '10';
+        setAccessError(`Senha deve ter pelo menos ${required} caracteres`);
+        setCurrentStep('password');
+      } else {
+        console.error('Onboarding error:', error);
+        navigate('/onboarding/error', { 
+          state: { message: error.message || 'Erro durante o onboarding' } 
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 'welcome':
-        return (
-          <div className="space-y-4">
+      switch (currentStep) {
+        case 'welcome':
+          return (
+            <div className="space-y-4">
             <div className="flex justify-center -mx-2 sm:mx-0">
               <img src="/1.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
@@ -297,23 +342,81 @@ export default function Onboarding() {
           </div>
         );
 
-      case 'email':
+        case 'email':
+          return (
+            <div className="space-y-4">
+              <Title>Prazer, {formData.name}! 😊</Title>
+              <Subtitle delay={0.15}><Mail className="w-3 h-3 inline mr-2" />Uso para te avisar quando algo importante acontecer.</Subtitle>
+              <div className="pt-1">
+                <Input
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onKeyDown={handleKeyDown}
+                  maxLength={255}
+                  autoFocus
+                  className="h-12 text-lg"
+                />
+                <p className="text-[11px] text-muted-foreground/80 mt-2">Prometo não enviar spam.</p>
+              </div>
+            </div>
+          );
+
+        case 'phone':
+          return (
+            <div className="space-y-4">
+              <Title>Qual é o seu WhatsApp?</Title>
+              <Subtitle delay={0.15}><MessageCircle className="w-3 h-3 inline mr-2" />Uso apenas para identificar você como dono do grupo.</Subtitle>
+              <div className="pt-1">
+                <Input
+                  placeholder="(11) 98765-4321 ou +55 11 98765-4321"
+                  value={formData.whatsapp_phone}
+                  onChange={(e) => setFormData({ ...formData, whatsapp_phone: e.target.value })}
+                  onKeyDown={handleKeyDown}
+                  maxLength={30}
+                  autoFocus
+                  className="h-12 text-lg"
+                />
+                <p className="text-[11px] text-muted-foreground/80 mt-2">Aceita formatos com DDD ou começando com +55.</p>
+              </div>
+            </div>
+          );
+
+      case 'password':
         return (
           <div className="space-y-4">
-            <Title>Prazer, {formData.name}! 😊</Title>
-            <Subtitle delay={0.15}><Mail className="w-3 h-3 inline mr-2" />Uso para te avisar quando algo importante acontecer.</Subtitle>
-            <div className="pt-1">
-              <Input
-                type="email"
-                placeholder="seu@email.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                onKeyDown={handleKeyDown}
-                maxLength={255}
-                autoFocus
-                className="h-12 text-lg"
-              />
-              <p className="text-[11px] text-muted-foreground/80 mt-2">Prometo não enviar spam.</p>
+            <Title>Crie seu acesso à Central do Bóris</Title>
+            <Subtitle delay={0.15}>Defina uma senha para entrar no seu painel.</Subtitle>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-card-foreground mb-1.5 block">Senha</label>
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onKeyDown={handleKeyDown}
+                  maxLength={255}
+                  className="h-12 text-lg"
+                />
+                <p className="text-[11px] text-muted-foreground/80 mt-2">Mínimo de 10 caracteres.</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-card-foreground mb-1.5 block">Confirmar senha</label>
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.password_confirm}
+                  onChange={(e) => setFormData({ ...formData, password_confirm: e.target.value })}
+                  onKeyDown={handleKeyDown}
+                  maxLength={255}
+                  className="h-12 text-lg"
+                />
+              </div>
+              {accessError && (
+                <p className="text-sm text-destructive">⚠️ {accessError}</p>
+              )}
             </div>
           </div>
         );
@@ -497,11 +600,10 @@ export default function Onboarding() {
             <div className="flex justify-center -mx-2 sm:mx-0">
               <img src="/6.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
-            <Title>Pronto. Agora deixa comigo 🔥</Title>
-            <Subtitle delay={0.15}>Agora é só acompanhar pelo painel.</Subtitle>
+            <Title>Seu acesso foi criado com sucesso 🎉</Title>
+            <Subtitle delay={0.15}>Agora é só entrar usando seu email e senha.</Subtitle>
             <div className="flex items-center justify-center gap-2">
               <MailCheck className="w-4 h-4 text-primary" />
-              <p className="text-sm text-muted-foreground">Enviamos um email para você. É só confirmar para finalizar.</p>
             </div>
           </div>
         );
@@ -543,11 +645,11 @@ export default function Onboarding() {
           )}
           {currentStep === 'final' ? (
             <Button
-              onClick={() => navigate(provisionedGroupId ? `/group/${provisionedGroupId}` : '/')}
+              onClick={() => navigate('/auth')}
               disabled={isSubmitting}
               className="bg-primary hover:bg-primary/90"
             >
-              Ir para o painel
+              Ir para o login
             </Button>
           ) : currentStep === 'group_link' ? (
             <Button

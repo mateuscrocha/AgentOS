@@ -93,7 +93,7 @@ export function PeopleSection({
       <SectionHeader 
         title="Pessoas do Grupo" 
         subtitle={`Quem sustenta a conversa (${periodLabel})`}
-        linkHref={`/group/${groupId}/members`}
+        linkHref={`/groups/${groupId}/members`}
         linkLabel="Ver todos"
       />
       

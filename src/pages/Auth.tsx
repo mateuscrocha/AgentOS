@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Email inválido");
-const passwordSchema = z.string().min(6, "Senha deve ter pelo menos 6 caracteres");
+const passwordSchema = z.string().min(8, "Senha deve ter pelo menos 8 caracteres");
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -113,7 +113,14 @@ const Auth = () => {
       redirectTo: redirectUrl,
     });
     if (error) {
-      setError(error.message);
+      const msg = error.message || "";
+      const rateMatch = msg.match(/For security purposes, you can only request this after\s+(\d+)\s+seconds/i);
+      if (rateMatch) {
+        const secs = rateMatch[1];
+        setError(`Por segurança, você só pode solicitar novamente após ${secs} segundos.`);
+      } else {
+        setError(msg);
+      }
       return;
     }
     toast.success("Enviamos um link de recuperação para o seu email");
@@ -188,7 +195,7 @@ const Auth = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    minLength={6}
+                    minLength={8}
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
@@ -216,7 +223,7 @@ const Auth = () => {
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      minLength={6}
+                      minLength={8}
                       className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
@@ -233,7 +240,7 @@ const Auth = () => {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      minLength={6}
+                      minLength={8}
                       className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>

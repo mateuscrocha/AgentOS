@@ -4,8 +4,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { useParams, useNavigate } from "react-router-dom";
-import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2 } from "lucide-react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2, Activity } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -18,6 +18,7 @@ import { EditOrganizationContactModal } from "@/components/modals/EditOrganizati
 import { EditGroupModal } from "@/components/modals/EditGroupModal";
 import { AddGroupModal } from "@/components/modals/AddGroupModal";
 import { Button } from "@/components/ui/button";
+import { KpiCard } from "@/components/group-dashboard/KpiCard";
 import { toast } from "sonner";
 import {
   Collapsible,
@@ -70,6 +71,7 @@ interface GroupItem {
 
 const Org = () => {
   const { orgId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -135,6 +137,104 @@ const Org = () => {
     },
     enabled: !!orgId && isAuthenticated,
   });
+
+  const contactName = primaryContact?.name || org?.contact_name || undefined;
+  const contactEmail = primaryContact?.email || org?.contact_email || undefined;
+  const contactPhone = primaryContact?.phone || org?.contact_phone || undefined;
+  const contactRole = primaryContact?.role_title || undefined;
+
+  const { data: orgGroupIds } = useQuery({
+    queryKey: ['org-group-ids', orgId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('groups')
+        .select('id')
+        .eq('organization_id', orgId!)
+        .is('deleted_at', null)
+        .neq('is_archived', true);
+      return (data ?? []).map((g: { id: string }) => g.id);
+    },
+    enabled: !!orgId && isAuthenticated,
+  });
+
+  const { data: totalMembersCount, isLoading: membersCountLoading } = useQuery({
+    queryKey: ['org-total-members', orgId, orgGroupIds?.join(',')],
+    queryFn: async () => {
+      if (!orgGroupIds || orgGroupIds.length === 0) return 0;
+      const { count } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .in('group_id', orgGroupIds)
+        .is('deleted_at', null);
+      return count ?? 0;
+    },
+    enabled: !!orgId && isAuthenticated && Array.isArray(orgGroupIds),
+  });
+
+  const { data: messagesLast7dCount, isLoading: messagesCountLoading } = useQuery({
+    queryKey: ['org-messages-7d', orgId, orgGroupIds?.join(',')],
+    queryFn: async () => {
+      if (!orgGroupIds || orgGroupIds.length === 0) return 0;
+      const fromISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const toISO = new Date().toISOString();
+      const { count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .in('group_id', orgGroupIds)
+        .is('deleted_at', null)
+        .gte('created_at', fromISO)
+        .lte('created_at', toISO);
+      return count ?? 0;
+    },
+    enabled: !!orgId && isAuthenticated && Array.isArray(orgGroupIds),
+  });
+
+  const { data: activeGroupsCount, isLoading: activeGroupsLoading } = useQuery({
+    queryKey: ['org-active-groups-count', orgId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('groups')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', orgId!)
+        .is('deleted_at', null)
+        .neq('is_archived', true)
+        .eq('is_active', true);
+      return count ?? 0;
+    },
+    enabled: !!orgId && isAuthenticated,
+  });
+
+  const [membersPage, setMembersPage] = useState(1);
+  const [membersSearch, setMembersSearch] = useState("");
+
+  const { data: orgMembersData, isLoading: orgMembersLoading, error: orgMembersError, refetch: refetchOrgMembers } = useQuery({
+    queryKey: ['org-members', orgId, membersPage, membersSearch, orgGroupIds?.join(',')],
+    queryFn: async () => {
+      if (!orgGroupIds || orgGroupIds.length === 0) return { items: [], count: 0 };
+      const from = (membersPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      let query = supabase
+        .from('members')
+        .select('*, groups(name)', { count: 'exact' })
+        .in('group_id', orgGroupIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+      if (membersSearch) {
+        query = query.or(`name.ilike.%${membersSearch}%,phone_e164.ilike.%${membersSearch}%,display_name.ilike.%${membersSearch}%`);
+      }
+      const { data, count, error } = await query.range(from, to);
+      if (error) throw error;
+      return { items: (data ?? []) as any[], count: count ?? 0 };
+    },
+    enabled: !!orgId && isAuthenticated && Array.isArray(orgGroupIds),
+  });
+
+  const path = location.pathname;
+  const isMembersRoute = /\/organization\/.+\/members$/.test(path);
+  const isGroupsRoute = /\/organization\/.+\/groups$/.test(path);
+  const isSettingsRoute = /\/organization\/.+\/settings$/.test(path);
+  const isDashboardRoute = /\/organization\/.+\/dashboard$/.test(path);
+  const isDefaultOrgHome = /\/organization\/.+$/.test(path) && !isMembersRoute && !isGroupsRoute && !isSettingsRoute && !isDashboardRoute;
 
   // Fetch groups for this organization
   const { data: groupsData, isLoading: groupsLoading, error: groupsError, refetch: refetchGroups } = useQuery({
@@ -291,13 +391,58 @@ const Org = () => {
       subtitle={org.name}
     >
       <div className="space-y-6 animate-fade-in">
-        {/* Breadcrumbs */}
         <Breadcrumbs
-          items={[
-            { label: "Central de Comando", href: "/" },
-            { label: org.name },
-          ]}
+          items={(
+            () => {
+              const items = [
+                { label: "Central do Bóris", href: "/" },
+                { label: org.name },
+              ];
+              if (isGroupsRoute) items.push({ label: "Grupos" });
+              if (isMembersRoute) items.push({ label: "Membros" });
+              if (isSettingsRoute) items.push({ label: "Configurações" });
+              if (isDashboardRoute) items.push({ label: "Painéis e métricas" });
+              return items;
+            }
+          )()}
         />
+
+        {(isDashboardRoute || isDefaultOrgHome) && (
+          <div id="org-dashboard" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="Grupos"
+              value={groupsData?.count ?? 0}
+              subtitle="Total na organização"
+              icon={Users}
+              helpText="Quantidade de grupos vinculados"
+              isLoading={groupsLoading}
+            />
+            <KpiCard
+              title="Membros"
+              value={totalMembersCount ?? 0}
+              subtitle="Total em todos os grupos"
+              icon={Users}
+              helpText="Soma de membros em grupos"
+              isLoading={membersCountLoading}
+            />
+            <KpiCard
+              title="Mensagens (7d)"
+              value={messagesLast7dCount ?? 0}
+              subtitle="Últimos 7 dias"
+              icon={Mail}
+              helpText="Volume recente de mensagens"
+              isLoading={messagesCountLoading}
+            />
+            <KpiCard
+              title="Grupos ativos"
+              value={activeGroupsCount ?? 0}
+              subtitle="Com status ativo"
+              icon={Activity}
+              helpText="Grupos marcados como ativos"
+              isLoading={activeGroupsLoading}
+            />
+          </div>
+        )}
 
         {/* Organization header */}
         <div className="flex items-center gap-4 p-6 rounded-xl border border-border bg-card">
@@ -337,10 +482,9 @@ const Org = () => {
           </div>
         </div>
 
-        {/* Detail Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Section: Configurações da Organização */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          {(isSettingsRoute || isDefaultOrgHome) && (
+          <div id="org-settings" className="rounded-xl border border-border bg-card p-6 space-y-4">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Configurações da Organização</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -383,6 +527,7 @@ const Org = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Section: Contato da Organização */}
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
@@ -411,21 +556,21 @@ const Org = () => {
               <div className="grid grid-cols-1 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Nome</span>
-                  <p className="font-medium text-card-foreground">{primaryContact?.name || '-'}</p>
+                  <p className="font-medium text-card-foreground">{contactName || '-'}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Email</span>
-                  <p className="font-medium text-card-foreground">{primaryContact?.email || '-'}</p>
+                  <p className="font-medium text-card-foreground">{contactEmail || '-'}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Telefone</span>
-                  <p className="font-medium text-card-foreground">{primaryContact?.phone || '-'}</p>
+                  <p className="font-medium text-card-foreground">{contactPhone || '-'}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Cargo</span>
-                  <p className="font-medium text-card-foreground">{primaryContact?.role_title || '-'}</p>
+                  <p className="font-medium text-card-foreground">{contactRole || '-'}</p>
                 </div>
-                {!primaryContact && (
+                {!primaryContact && !org?.contact_name && !org?.contact_email && !org?.contact_phone && (
                   <p className="text-xs text-muted-foreground">Nenhum contato primário cadastrado.</p>
                 )}
               </div>
@@ -506,8 +651,8 @@ const Org = () => {
           )}
         </div>
 
-        {/* Groups list */}
-        <div>
+        {(isGroupsRoute || isDefaultOrgHome) && (
+        <div id="org-groups">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -543,7 +688,7 @@ const Org = () => {
               columns={groupColumns}
               data={groupsData?.items ?? []}
               keyExtractor={(group) => group.id}
-              onRowClick={(group) => navigate(`/group/${group.id}`)}
+              onRowClick={(group) => navigate(`/groups/${group.id}`)}
               page={page}
               pageSize={PAGE_SIZE}
               totalCount={groupsData?.count}
@@ -551,6 +696,51 @@ const Org = () => {
             />
           )}
         </div>
+        )}
+
+        {isMembersRoute && (
+        <div id="org-members" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Membros ({orgMembersData?.count ?? 0})
+            </h3>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Buscar membros por nome ou telefone"
+                value={membersSearch}
+                onChange={(e) => { setMembersSearch(e.target.value); setMembersPage(1); }}
+                className="w-64 px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              />
+            </div>
+          </div>
+          {orgMembersLoading ? (
+            <LoadingState message="Carregando membros..." />
+          ) : orgMembersError ? (
+            <ErrorState message="Falha ao carregar membros" retry={() => refetchOrgMembers()} />
+          ) : (orgMembersData?.items?.length ?? 0) === 0 ? (
+            <EmptyState icon={Users} title="Nenhum membro" message="Nenhum membro encontrado nesta organização." />
+          ) : (
+            <DataTable
+              columns={[
+                { key: 'name', header: 'Nome' },
+                { key: 'phone_e164', header: 'Telefone' },
+                { key: 'groups.name', header: 'Grupo', render: (m: any) => m.groups?.name || '-' },
+                { key: 'status', header: 'Status', render: (m: any) => (
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${m.left_at ? 'bg-destructive/10 text-destructive' : m.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>{m.left_at ? 'Saiu' : m.status}</span>
+                ) },
+              ]}
+              data={orgMembersData?.items ?? []}
+              keyExtractor={(m: any) => m.id}
+              page={membersPage}
+              pageSize={PAGE_SIZE}
+              totalCount={orgMembersData?.count}
+              onPageChange={setMembersPage}
+            />
+          )}
+        </div>
+        )}
       </div>
 
       {/* Edit organization modal */}
@@ -585,7 +775,7 @@ const Org = () => {
         onOpenChange={setAddGroupOpen}
         onSuccess={(groupId) => {
           refetchGroups();
-          navigate(`/group/${groupId}`);
+          navigate(`/groups/${groupId}`);
         }}
       />
 

@@ -42,9 +42,9 @@ const Index = () => {
       const groups = getAccessibleGroupIds();
       const orgs = getAccessibleOrgIds();
       if (groups && groups.length > 0) {
-        navigate(`/group/${groups[0]}`, { replace: true });
+        navigate(`/groups/${groups[0]}`, { replace: true });
       } else if (orgs && orgs.length > 0) {
-        navigate(`/org/${orgs[0]}`, { replace: true });
+        navigate(`/organization/${orgs[0]}`, { replace: true });
       } else {
         navigate("/no-access", { replace: true });
       }

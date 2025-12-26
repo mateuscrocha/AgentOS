@@ -8,9 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
-  Database,
   UserCircle,
-  Layers,
   Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,7 +40,7 @@ const bottomNavItems: NavItem[] = [
 export function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { isSystemAdmin, isOrgAdmin } = useUserRoles();
+  const { isSystemAdmin, isOrgAdmin, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
 
   const isActive = (href: string) => {
     if (href === "/") return location.pathname === "/";
@@ -114,29 +112,34 @@ export function AdminSidebar() {
           <span className="text-xs font-medium text-muted-foreground px-3 py-2">Principal</span>
         )}
         {mainNavItems.map(renderNavItem)}
+        {(() => {
+          if (isSystemAdmin) return null;
+          const orgIds = getAccessibleOrgIds();
+          const groupIds = getAccessibleGroupIds();
+          if (isOrgAdmin && orgIds.length > 0) {
+            const orgId = orgIds[0];
+            return (
+              <>
+                {renderNavItem({ icon: LayoutDashboard, label: "Início", href: `/organization/${orgId}` })}
+                {renderNavItem({ icon: Users, label: "Grupos", href: `/organization/${orgId}/groups` })}
+                {renderNavItem({ icon: Users, label: "Membros", href: `/organization/${orgId}/members` })}
+                {renderNavItem({ icon: Activity, label: "Painéis e métricas", href: `/organization/${orgId}/dashboard` })}
+                {renderNavItem({ icon: Settings, label: "Configurações", href: `/organization/${orgId}/settings` })}
+              </>
+            );
+          }
+          if (groupIds.length > 0) {
+            return renderNavItem({ icon: Users, label: "Meus grupos", href: `/groups/${groupIds[0]}` });
+          }
+          return null;
+        })()}
       </nav>
 
 
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Status indicator */}
-      <div className="px-3 mb-2">
-        <div className={cn(
-          "rounded-lg bg-sidebar-accent/50 p-3",
-          collapsed && "p-2"
-        )}>
-          <div className="flex items-center gap-2">
-            <Database className="h-4 w-4 text-success shrink-0" />
-            {!collapsed && (
-              <div className="animate-fade-in">
-                <p className="text-xs font-medium text-sidebar-foreground">Supabase</p>
-                <p className="text-xs text-muted-foreground">Conectado</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      
 
       {/* Security badge - only for system admins */}
       {isSystemAdmin && (

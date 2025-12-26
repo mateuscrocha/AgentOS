@@ -171,11 +171,11 @@ export default function GroupEvents() {
   ];
 
   const tabs = [
-    { label: "Visão Geral", href: `/group/${groupId}`, end: true },
-    { label: "Members", href: `/group/${groupId}/members`, icon: Users },
-    { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
-    { label: "Enquetes", href: `/group/${groupId}/polls`, icon: ListChecks },
-    { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
+    { label: "Visão Geral", href: `/groups/${groupId}`, end: true },
+    { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
+    { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
+    { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
+    { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
   ];
 
   return (
@@ -183,9 +183,9 @@ export default function GroupEvents() {
       <div className="space-y-6 animate-fade-in">
         <Breadcrumbs
           items={[
-            { label: "Central de Comando", href: "/" },
-            ...(org ? [{ label: org.name, href: `/org/${org.id}` }] : []),
-            ...(group ? [{ label: group.name, href: `/group/${group.id}` }] : []),
+            { label: "Central do Bóris", href: "/" },
+            ...(org ? [{ label: org.name, href: `/organization/${org.id}` }] : []),
+            ...(group ? [{ label: group.name, href: `/groups/${group.id}` }] : []),
             { label: "Atividade" },
           ]}
         />

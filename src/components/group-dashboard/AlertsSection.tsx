@@ -187,7 +187,7 @@ export function AlertsSection({
                   </div>
                 ))}
                 <div className="pt-1">
-                  <Link to={groupId ? `/group/${groupId}/members` : '#'} className="text-xs text-primary hover:underline">
+                  <Link to={groupId ? `/groups/${groupId}/members` : '#'} className="text-xs text-primary hover:underline">
                     Ver lista completa
                   </Link>
                 </div>

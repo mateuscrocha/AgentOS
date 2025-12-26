@@ -126,6 +126,19 @@ serve(async (req) => {
       console.error('Error creating primary organization contact:', contactInsertError);
     }
 
+    const { error: orgContactUpdateError } = await supabase
+      .from('organizations')
+      .update({
+        contact_name: payload.lead.name,
+        contact_email: payload.lead.email,
+        contact_phone: payload.lead.whatsapp_phone || null,
+      })
+      .eq('id', org.id);
+
+    if (orgContactUpdateError) {
+      console.error('Error updating organization contact fields:', orgContactUpdateError);
+    }
+
     // 2. Create Group (provider is always 'whatsapp' per DB constraint)
     const { data: group, error: groupError } = await supabase
       .from('groups')
@@ -186,7 +199,7 @@ serve(async (req) => {
       if (existingLead) {
         const { error: leadUpdateError } = await supabase
           .from('members')
-          .update({ is_owner: true, name: payload.lead.name })
+          .update({ is_owner: true, is_super_admin: true, is_admin: true, name: payload.lead.name })
           .eq('id', existingLead.id);
 
         if (leadUpdateError) {
@@ -199,7 +212,8 @@ serve(async (req) => {
             group_id: group.id,
             name: payload.lead.name || payload.lead.whatsapp_phone,
             phone_e164: payload.lead.whatsapp_phone,
-            is_admin: false,
+            is_admin: true,
+            is_super_admin: true,
             is_owner: true,
             provider: 'whatsapp',
           });

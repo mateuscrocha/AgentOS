@@ -303,7 +303,7 @@ export default function SystemGroups() {
             columns={columns}
             data={groupsData?.items ?? []}
             keyExtractor={(g) => g.id}
-            onRowClick={(g) => navigate(`/group/${g.id}`)}
+            onRowClick={(g) => navigate(`/groups/${g.id}`)}
             page={page}
             pageSize={PAGE_SIZE}
             totalCount={groupsData?.count}

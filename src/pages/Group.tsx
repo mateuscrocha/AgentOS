@@ -250,8 +250,8 @@ const Group = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <Breadcrumbs
             items={[
-              { label: "Central de Comando", href: "/" },
-              { label: orgName || "Organização", href: `/org/${group.organization_id}` },
+              { label: "Central do Bóris", href: "/" },
+              { label: orgName || "Organização", href: `/organization/${group.organization_id}` },
               { label: group.name },
             ]}
           />

@@ -29,11 +29,11 @@ export default function GroupPolls() {
   const [page, setPage] = useState(1);
 
   const tabs = [
-    { label: "Visão Geral", href: `/group/${groupId}`, end: true },
-    { label: "Members", href: `/group/${groupId}/members`, icon: Users },
-    { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
-    { label: "Enquetes", href: `/group/${groupId}/polls`, icon: ListChecks },
-    { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
+    { label: "Visão Geral", href: `/groups/${groupId}`, end: true },
+    { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
+    { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
+    { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
+    { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
   ];
 
   const { data: groupInfo } = useQuery({
@@ -133,7 +133,7 @@ export default function GroupPolls() {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/group/${groupId}/polls/${p.id}`);
+            navigate(`/groups/${groupId}/polls/${p.id}`);
           }}
           className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
         >
@@ -148,9 +148,9 @@ export default function GroupPolls() {
       <div className="space-y-6 animate-fade-in">
         <Breadcrumbs
           items={[
-            { label: "Central de Comando", href: "/" },
-            { label: groupInfo?.orgName || "Organização", href: `/org/${groupInfo?.orgId}` },
-            { label: groupInfo?.groupName || "Grupo", href: `/group/${groupId}` },
+            { label: "Central do Bóris", href: "/" },
+            { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
+            { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Enquetes" },
           ]}
         />
@@ -201,7 +201,7 @@ export default function GroupPolls() {
             columns={columns}
             data={pollsData?.items ?? []}
             keyExtractor={(p: PollItem) => p.id}
-            onRowClick={(p: PollItem) => navigate(`/group/${groupId}/polls/${p.id}`)}
+            onRowClick={(p: PollItem) => navigate(`/groups/${groupId}/polls/${p.id}`)}
             page={page}
             pageSize={PAGE_SIZE}
             totalCount={pollsData?.count}

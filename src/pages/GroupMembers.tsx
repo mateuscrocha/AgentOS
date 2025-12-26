@@ -59,11 +59,11 @@ const GroupMembers = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
 
   const tabs = [
-    { label: "Visão Geral", href: `/group/${groupId}`, end: true },
-    { label: "Members", href: `/group/${groupId}/members`, icon: Users },
-    { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
-    { label: "Enquetes", href: `/group/${groupId}/polls`, icon: ListChecks },
-    { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
+    { label: "Painel", href: `/groups/${groupId}`, end: true },
+    { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
+    { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
+    { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
+    { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
   ];
 
   // Fetch group info for breadcrumbs
@@ -200,17 +200,17 @@ const GroupMembers = () => {
 
   return (
     <AdminLayout 
-      title="Members" 
+      title="Membros" 
       subtitle={`Membros do grupo`}
     >
       <div className="space-y-6 animate-fade-in">
         {/* Breadcrumbs */}
         <Breadcrumbs
           items={[
-            { label: "Central de Comando", href: "/" },
-            { label: groupInfo?.orgName || "Organização", href: `/org/${groupInfo?.orgId}` },
-            { label: groupInfo?.groupName || "Grupo", href: `/group/${groupId}` },
-            { label: "Members" },
+            { label: "Central do Bóris", href: "/" },
+            { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
+            { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
+            { label: "Membros" },
           ]}
         />
 
@@ -221,7 +221,7 @@ const GroupMembers = () => {
               <Users className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-card-foreground">Members</h2>
+              <h2 className="text-lg font-semibold text-card-foreground">Membros</h2>
               <p className="text-sm text-muted-foreground">
                 {membersData?.count ?? 0} membros neste grupo
               </p>

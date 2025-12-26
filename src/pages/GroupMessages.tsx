@@ -295,11 +295,11 @@ const GroupMessages = () => {
   const navigate = useNavigate();
 
   const tabs = [
-    { label: "Visão Geral", href: `/group/${groupId}`, end: true },
-    { label: "Members", href: `/group/${groupId}/members`, icon: Users },
-    { label: "Messages", href: `/group/${groupId}/messages`, icon: MessageSquare },
-    { label: "Enquetes", href: `/group/${groupId}/polls`, icon: ListChecks },
-    { label: "Atividade", href: `/group/${groupId}/events`, icon: Activity },
+    { label: "Painel", href: `/groups/${groupId}`, end: true },
+    { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
+    { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
+    { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
+    { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
   ];
 
   // Fetch group info for breadcrumbs
@@ -467,7 +467,7 @@ const GroupMessages = () => {
         .maybeSingle();
 
       if (poll?.id) {
-        navigate(`/group/${groupId}/polls/${poll.id}`);
+        navigate(`/groups/${groupId}/polls/${poll.id}`);
         return;
       }
     }
@@ -557,17 +557,17 @@ const GroupMessages = () => {
 
   return (
     <AdminLayout 
-      title="Messages" 
+      title="Mensagens" 
       subtitle={`Mensagens do grupo`}
     >
       <div className="space-y-6 animate-fade-in">
         {/* Breadcrumbs */}
         <Breadcrumbs
           items={[
-            { label: "Central de Comando", href: "/" },
-            { label: groupInfo?.orgName || "Organização", href: `/org/${groupInfo?.orgId}` },
-            { label: groupInfo?.groupName || "Grupo", href: `/group/${groupId}` },
-            { label: "Messages" },
+            { label: "Central do Bóris", href: "/" },
+            { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
+            { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
+            { label: "Mensagens" },
           ]}
         />
 
@@ -578,7 +578,7 @@ const GroupMessages = () => {
               <MessageSquare className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-card-foreground">Messages</h2>
+              <h2 className="text-lg font-semibold text-card-foreground">Mensagens</h2>
               <p className="text-sm text-muted-foreground">
                 {messagesData?.count ?? 0} mensagens neste grupo
               </p>
