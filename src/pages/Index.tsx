@@ -608,24 +608,93 @@ const Index = () => {
         <StatsCard title="Mensagens no período" value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0))} change={kpiMessagesLoading ? undefined : messagesChangeLabel} changeType={messagesChangeType} icon={MessageSquare} variant="kpi" />
         <StatsCard title="Participação dos membros" value={participationValue} icon={UsersIcon} variant="kpi" />
       </div>
-
-      
-
-      <div className="mt-8 rounded-xl border border-warning/30 bg-warning/5 p-6">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-sm font-semibold text-card-foreground">Atenção — o que precisa do seu olhar agora</h3>
-            <p className="text-xs text-muted-foreground">Leitura imediata de risco e estado</p>
-          </div>
+      <div className="mt-8 rounded-xl border border-border bg-card p-6">
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold text-card-foreground">Atenção — o que precisa do seu olhar agora</h3>
+          <p className="text-xs text-muted-foreground">Leitura imediata de risco, oportunidade e estado geral.</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(() => { const curr = kpiMessagesPeriod || 0; const prev = kpiMessagesPrevPeriod || 0; const delta = prev ? Math.round(((curr - prev) / prev) * 100) : 0; return delta < -20 ? (<div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3"><div className="inline-flex items-center rounded-full bg-destructive text-destructive-foreground px-2 py-0.5 text-xs font-semibold">Crítico</div><div className="text-sm text-card-foreground">Queda de atividade</div><div className="ml-auto text-xs font-medium text-destructive">{`${delta}% vs período anterior`}</div></div>) : null; })()}
-          {(() => { const total = kpiOrgs || 0; const active = kpiOrgsPeriod || 0; const inactive = Math.max(0, total - active); return inactive > 0 ? (<div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3"><div className="inline-flex items-center rounded-full bg-warning text-warning-foreground px-2 py-0.5 text-xs font-semibold">Atenção</div><div className="text-sm text-card-foreground">Organizações inativas no período</div><div className="ml-auto text-xs font-medium text-warning">{inactive}</div></div>) : null; })()}
-          {(() => { const words = signalKeywords?.words || []; const sorted = [...words].sort((a: any, b: any) => (b?.delta || 0) - (a?.delta || 0)); const top = sorted[0]; return top && (top.delta || 0) > 50 ? (<div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 p-3"><div className="inline-flex items-center rounded-full bg-success text-success-foreground px-2 py-0.5 text-xs font-semibold">Tudo bem</div><div className="text-sm text-card-foreground">Palavra em alta</div><div className="ml-auto text-xs font-medium text-success">{`${top.word} · +${top.delta}%`}</div></div>) : null; })()}
-        </div>
+
+        {(() => {
+          const curr = kpiMessagesPeriod || 0;
+          const prev = kpiMessagesPrevPeriod || 0;
+          const delta = prev ? Math.round(((curr - prev) / prev) * 100) : 0;
+          const totalOrgs = kpiOrgs || 0;
+          const activeOrgs = kpiOrgsPeriod || 0;
+          const inactiveOrgs = Math.max(0, totalOrgs - activeOrgs);
+          const hasCriticalDrop = delta <= -20;
+          const hasModerateDrop = delta < 0 && delta > -20;
+          const topWord = (() => { const words = signalKeywords?.words || []; const sorted = [...words].sort((a: any, b: any) => (b?.delta || 0) - (a?.delta || 0)); return sorted[0]; })();
+
+          return (
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                <div className="mb-2">
+                  <p className="text-sm font-semibold text-card-foreground">🔴 Problemas detectados</p>
+                </div>
+                <div className="space-y-2">
+                  {hasCriticalDrop && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-card-foreground">Queda brusca no volume de mensagens</span>
+                      <span className="ml-auto text-xs font-medium text-destructive">{`${delta}% em relação ao período anterior`}</span>
+                      <button onClick={() => navigate('/system/groups')} className="text-xs text-primary hover:underline">ver detalhes →</button>
+                    </div>
+                  )}
+                  {inactiveOrgs > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-card-foreground">{inactiveOrgs} organizações não tiveram nenhuma mensagem neste período</span>
+                      <button onClick={() => navigate('/system/organizations')} className="ml-auto text-xs text-primary hover:underline">ver detalhes →</button>
+                    </div>
+                  )}
+                  {!hasCriticalDrop && inactiveOrgs === 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-success">🟢 Nenhum problema encontrado no período</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+                <div className="mb-2">
+                  <p className="text-sm font-semibold text-card-foreground">🟡 Atenção recomendada</p>
+                </div>
+                <div className="space-y-2">
+                  {hasModerateDrop && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-card-foreground">Mensagens diminuíram em relação ao período anterior</span>
+                      <span className="ml-auto text-xs font-medium text-warning">{`${delta}%`}</span>
+                      <button onClick={() => navigate('/system/groups')} className="text-xs text-primary hover:underline">ver detalhes →</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+                <div className="mb-2">
+                  <p className="text-sm font-semibold text-card-foreground">🟢 Boas notícias</p>
+                </div>
+                <div className="space-y-2">
+                  {delta > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-card-foreground">Mensagens cresceram em relação ao período anterior</span>
+                      <span className="ml-auto text-xs font-medium text-success">{`+${delta}%`}</span>
+                      <button onClick={() => navigate('/system/groups')} className="text-xs text-primary hover:underline">ver detalhes →</button>
+                    </div>
+                  )}
+                  {topWord && (topWord.delta || 0) > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-card-foreground">A palavra “{topWord.word}” teve aumento</span>
+                      <span className="ml-auto text-xs font-medium text-success">{`+${topWord.delta}% em relação ao período anterior`}</span>
+                      <button onClick={() => { const el = document.getElementById('keywords'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }} className="text-xs text-primary hover:underline">ver detalhes →</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
-      <Card className="mt-8">
+      <Card className="mt-8" id="keywords">
         <CardHeader>
           <CardTitle>Grupos mais ativos</CardTitle>
           <CardDescription>Mensagens por grupo no período selecionado</CardDescription>
