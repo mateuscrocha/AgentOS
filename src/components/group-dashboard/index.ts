@@ -14,3 +14,4 @@ export { PurposeAlignmentSection } from './PurposeAlignmentSection';
 export { PeriodFilter, getDateRange } from './PeriodFilter';
 export type { PeriodType, DateRange } from './PeriodFilter';
 export { RecentActivitySection } from './RecentActivitySection';
+export { PeriodReport } from './PeriodReport';

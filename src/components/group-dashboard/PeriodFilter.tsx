@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, subWeeks } from "date-fns";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, subDays, subWeeks } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ export type PeriodType =
   | 'yesterday' 
   | 'this_week' 
   | 'last_week' 
+  | 'this_month'
   | '7d' 
   | '14d' 
   | '30d' 
@@ -45,6 +46,7 @@ const periodOptions: { value: PeriodType; label: string }[] = [
   { value: 'yesterday', label: 'Ontem' },
   { value: 'this_week', label: 'Esta semana' },
   { value: 'last_week', label: 'Semana passada' },
+  { value: 'this_month', label: 'Este mês' },
   { value: '7d', label: 'Últimos 7 dias' },
   { value: '14d', label: 'Últimos 14 dias' },
   { value: '30d', label: 'Últimos 30 dias' },
@@ -71,6 +73,11 @@ export function getDateRange(period: PeriodType, customRange?: DateRange): DateR
     case 'this_week':
       return {
         from: startOfWeek(now, { weekStartsOn: 1 }),
+        to: endOfDay(now),
+      };
+    case 'this_month':
+      return {
+        from: startOfMonth(now),
         to: endOfDay(now),
       };
     case 'last_week': {

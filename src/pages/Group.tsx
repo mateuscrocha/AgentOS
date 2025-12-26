@@ -17,10 +17,10 @@ import AccessDenied from "./AccessDenied";
     ParticipationQualitySection,
     GroupGrowthSection,
     EffortNoiseSection,
-    AlertsSection,
     AdminsSection,
     PurposeAlignmentSection,
   } from "@/components/group-dashboard";
+import { PeriodReport } from "@/components/group-dashboard";
 import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { HelpCircle, RefreshCw } from "lucide-react";
@@ -147,6 +147,7 @@ const Group = () => {
       case 'yesterday': return 'ontem';
       case 'this_week': return 'esta semana';
       case 'last_week': return 'semana passada';
+      case 'this_month': return 'este mês';
       case '7d': return 'últimos 7 dias';
       case '14d': return 'últimos 14 dias';
       case '30d': return 'últimos 30 dias';
@@ -377,6 +378,20 @@ const Group = () => {
           periodLabel={getPeriodLabel()}
         />
 
+        <PeriodReport
+          stats={stats}
+          previousStats={previousStats || undefined}
+          currentMembers={currentMembers}
+          themes={(ikigaiSuggestions as any)?.themes || []}
+          atRiskMembersCount={atRiskMembers.length}
+          newMembersCount={newMembersCount}
+          previousNewMembersCount={previousNewMembersCount}
+          exitedMembersCount={exitedMembersCount}
+          previousExitedMembersCount={previousExitedMembersCount}
+          periodLabel={getPeriodLabel()}
+          groupId={group.id}
+        />
+
         {/* Recent Activity Patterns */}
         <RecentActivitySection
           messagesPerDay={messagesPerDay}
@@ -460,15 +475,7 @@ const Group = () => {
           currentMembers={currentMembers}
         />
 
-        {/* 5. Alerts and Opportunities */}
-        <AlertsSection
-          atRiskMembers={atRiskMembers}
-          popularMessages={popularMessages}
-          isLoading={isLoading}
-          groupId={group.id}
-          totalMembers={currentMembers}
-          ikigaiSuggestions={ikigaiSuggestions as any}
-        />
+        
 
         {/* 6. Admins Section */}
         <AdminsSection

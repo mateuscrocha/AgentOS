@@ -96,10 +96,10 @@ export function RecentActivitySection({
       <SectionHeader
         title="Padrões recentes de atividade"
         subtitle={`Leitura rápida (${periodLabel})`}
-        helpText="Resumo dos padrões de comportamento no período: dia mais movimentado, janela horária com maior atividade e palavras-chave em alta."
+        helpText="Resumo de comportamento no período: dia mais movimentado e janela horária com maior atividade."
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="space-y-2">
           <KpiCard
             title="Dia mais movimentado"
@@ -127,33 +127,7 @@ export function RecentActivitySection({
           {/* Removed widget "Membros mais ativos nesse horário" */}
         </div>
 
-        <div className="flex-1">
-          {isLoading ? (
-            <Skeleton className="h-[120px] w-full" />
-          ) : trending.length === 0 ? (
-            <InsightCard title="Temas em alta" severity="success" description="Nenhum tema relevante em alta neste período." />
-          ) : (
-            <InsightCard title="Temas em alta" severity="success">
-              <div className="space-y-2">
-                {trending.map((t) => (
-                  <div key={`${t.label}-${t.count}`} className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-2 py-1.5">
-                    <span className="text-sm text-card-foreground">Tema em alta: “{t.label}”</span>
-                    <span className="ml-auto text-xs font-medium text-success inline-flex items-center gap-1">
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                      <span>em alta no período</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {themeAvatars.length > 0 && (
-                <div className="mt-3 space-y-1">
-                  <p className="text-xs text-muted-foreground">Membros que puxam esses temas</p>
-                  <AvatarStack items={themeAvatars} />
-                </div>
-              )}
-            </InsightCard>
-          )}
-        </div>
+        
       </div>
     </section>
   );

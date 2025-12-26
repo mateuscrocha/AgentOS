@@ -14,10 +14,11 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight, ArrowRight } from "lucide-react";
+import { PeriodReportSystem } from "@/components/dashboard/PeriodReport";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
  
-import { format, addDays, startOfDay, subDays } from "date-fns";
+import { format, addDays, startOfDay, endOfDay, subDays } from "date-fns";
 import { formatDateKeySP, getHourSP } from "@/lib/date";
 
 const Index = () => {
@@ -88,10 +89,70 @@ const Index = () => {
 
   const periodMs = currentRange.to.getTime() - currentRange.from.getTime();
   const periodDays = Math.ceil(periodMs / (1000 * 60 * 60 * 24));
-  const prevEnd = new Date(currentRange.from.getTime() - 1);
-  const prevFrom = subDays(prevEnd, periodDays - 1);
+
+  const computeComparisonRange = () => {
+    const now = new Date();
+    const currFrom = currentRange.from;
+    let currTo = currentRange.to;
+    let prevFrom: Date;
+    let prevTo: Date;
+    if (selectedPeriod === 'today') {
+      currTo = now;
+      const yesterdayStart = startOfDay(subDays(now, 1));
+      const elapsedMs = Math.max(0, currTo.getTime() - startOfDay(now).getTime());
+      prevFrom = yesterdayStart;
+      prevTo = new Date(yesterdayStart.getTime() + elapsedMs);
+    } else if (selectedPeriod === 'yesterday') {
+      const anteontem = subDays(startOfDay(currentRange.from), 1);
+      prevFrom = startOfDay(anteontem);
+      prevTo = endOfDay(anteontem);
+    } else {
+      const lengthMs = Math.max(0, currentRange.to.getTime() - currentRange.from.getTime());
+      prevTo = new Date(currentRange.from.getTime() - 1);
+      prevFrom = new Date(prevTo.getTime() - lengthMs);
+    }
+    return {
+      currFrom,
+      currTo,
+      prevFrom,
+      prevTo,
+    };
+  };
+
+  const { currFrom, currTo, prevFrom, prevTo } = computeComparisonRange();
   const prevStartISO = prevFrom.toISOString();
-  const prevEndISO = prevEnd.toISOString();
+  const prevEndISO = prevTo.toISOString();
+
+  const getComparisonSuffix = () => {
+    const formatBR = (d: Date) => format(d, 'dd/MM');
+    switch (selectedPeriod) {
+      case 'today':
+        return 'vs ontem (mesmo horário)';
+      case 'yesterday':
+        return 'vs anteontem';
+      case 'this_week':
+        return 'vs semana anterior';
+      case 'this_month':
+        return 'vs mês anterior';
+      case 'last_week':
+        return 'vs semana anterior';
+      case '7d':
+        return 'vs 7 dias anteriores';
+      case '14d':
+        return 'vs 14 dias anteriores';
+      case '30d':
+        return 'vs 30 dias anteriores';
+      case '90d':
+        return 'vs 90 dias anteriores';
+      case 'custom':
+        return prevFrom && prevTo
+          ? `vs ${formatBR(prevFrom)} – ${formatBR(prevTo)}`
+          : 'vs período anterior equivalente';
+      default:
+        return 'vs período anterior equivalente';
+    }
+  };
+  const comparisonSuffix = getComparisonSuffix();
 
   
 
@@ -185,8 +246,7 @@ const Index = () => {
     retry: 1,
   });
 
-  const {
-    data: kpiGroupsPeriod,
+  const { data: kpiGroupsPeriod, 
     isLoading: kpiGroupsPeriodLoading,
     error: kpiGroupsPeriodError,
   } = useQuery({
@@ -198,6 +258,23 @@ const Index = () => {
         .is("deleted_at", null)
         .gte("created_at", currentRange.from.toISOString())
         .lte("created_at", currentRange.to.toISOString());
+      if (error) throw error;
+      const ids = Array.from(new Set((data || []).map((m: any) => m.group_id).filter(Boolean)));
+      return ids.length;
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
+  const { data: kpiGroupsPrevPeriod } = useQuery({
+    queryKey: ["kpi-groups-active-prev-period", prevStartISO, prevEndISO],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("group_id")
+        .is("deleted_at", null)
+        .gte("created_at", prevStartISO)
+        .lte("created_at", prevEndISO);
       if (error) throw error;
       const ids = Array.from(new Set((data || []).map((m: any) => m.group_id).filter(Boolean)));
       return ids.length;
@@ -244,6 +321,30 @@ const Index = () => {
     retry: 1,
   });
 
+  const { data: kpiOrgsPrevPeriod } = useQuery({
+    queryKey: ["kpi-organizations-active-prev-period", prevStartISO, prevEndISO],
+    queryFn: async () => {
+      const { data: msgData, error: msgErr } = await supabase
+        .from("messages")
+        .select("group_id,created_at")
+        .is("deleted_at", null)
+        .gte("created_at", prevStartISO)
+        .lte("created_at", prevEndISO);
+      if (msgErr) throw msgErr;
+      const groupIds = Array.from(new Set((msgData || []).map((m: any) => m.group_id).filter(Boolean)));
+      if (groupIds.length === 0) return 0;
+      const { data: groupsData, error: grpErr } = await supabase
+        .from("groups")
+        .select("id,organization_id")
+        .in("id", groupIds);
+      if (grpErr) throw grpErr;
+      const orgIds = Array.from(new Set((groupsData || []).map((g: any) => g.organization_id).filter(Boolean)));
+      return orgIds.length;
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
   const {
     data: kpiActiveMembersPeriod,
     isLoading: kpiActiveMembersLoading,
@@ -258,6 +359,24 @@ const Index = () => {
         .not("member_id", "is", null)
         .gte("created_at", currentRange.from.toISOString())
         .lte("created_at", currentRange.to.toISOString());
+      if (error) throw error;
+      const set = new Set((data || []).map((row: any) => row.member_id).filter(Boolean));
+      return set.size;
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
+  const { data: kpiActiveMembersPrevPeriod } = useQuery({
+    queryKey: ["kpi-active-members-prev-period", prevStartISO, prevEndISO],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("member_id")
+        .is("deleted_at", null)
+        .not("member_id", "is", null)
+        .gte("created_at", prevStartISO)
+        .lte("created_at", prevEndISO);
       if (error) throw error;
       const set = new Set((data || []).map((row: any) => row.member_id).filter(Boolean));
       return set.size;
@@ -582,18 +701,78 @@ const Index = () => {
 
   const messagesDelta = (() => {
     const curr = kpiMessagesPeriod || 0;
-    const prev = kpiMessagesPrevPeriod || 0;
-    if (!prev) return 0;
+    const prev = kpiMessagesPrevPeriod ?? null;
+    if (prev === null) return null;
+    if (prev === 0) return null;
     return Math.round(((curr - prev) / prev) * 100);
   })();
   const messagesChangeLabel = (() => {
-    const d = messagesDelta;
+    const prev = kpiMessagesPrevPeriod ?? null;
+    if (prev === null) return "—";
+    if (prev === 0) return "novo";
+    const d = messagesDelta as number;
+    if (Math.abs(d) <= 2) return `estável ${comparisonSuffix}`;
     const sign = d >= 0 ? "+" : "";
-    return `${sign}${d}% vs período anterior`;
+    return `${sign}${d}% ${comparisonSuffix}`;
   })();
-  const messagesChangeType = messagesDelta > 0 ? "positive" : messagesDelta < 0 ? "negative" : "neutral";
+  const messagesChangeType = (() => {
+    const prev = kpiMessagesPrevPeriod ?? null;
+    if (prev === null || prev === 0) return "neutral" as const;
+    const d = messagesDelta as number;
+    if (Math.abs(d) <= 2) return "neutral" as const;
+    return d > 0 ? "positive" as const : "negative" as const;
+  })();
 
   const participationValue = (() => { if (kpiActiveMembersLoading || kpiMembersLoading) return "—"; const total = kpiMembers || 0; const actives = kpiActiveMembersPeriod || 0; if (!total) return "0%"; return String(Math.round((actives / total) * 100)) + "%"; })();
+
+  const orgsChange = (() => {
+    const curr = kpiOrgsPeriod || 0;
+    const prev = kpiOrgsPrevPeriod ?? null;
+    if (prev === null) return { label: "—", type: "neutral" as const };
+    const abs = curr - prev;
+    if (abs === 0) return { label: `estável ${comparisonSuffix}` , type: "neutral" as const };
+    const sign = abs > 0 ? "+" : "";
+    const unit = Math.abs(abs) === 1 ? "organização" : "organizações";
+    return { label: `${sign}${abs} ${unit} ${comparisonSuffix}`, type: abs > 0 ? "positive" as const : "negative" as const };
+  })();
+
+  const groupsChange = (() => {
+    const curr = kpiGroupsPeriod || 0;
+    const prev = kpiGroupsPrevPeriod ?? null;
+    if (prev === null) return { label: "—", type: "neutral" as const };
+    const abs = curr - prev;
+    if (abs === 0) return { label: `estável ${comparisonSuffix}` , type: "neutral" as const };
+    const sign = abs > 0 ? "+" : "";
+    const unit = Math.abs(abs) === 1 ? "grupo" : "grupos";
+    return { label: `${sign}${abs} ${unit} ${comparisonSuffix}`, type: abs > 0 ? "positive" as const : "negative" as const };
+  })();
+
+  const activeMembersChange = (() => {
+    const curr = kpiActiveMembersPeriod || 0;
+    const prev = kpiActiveMembersPrevPeriod ?? null;
+    if (prev === null) return { label: "—", type: "neutral" as const };
+    if (prev === 0) return { label: curr ? "novo" : "—", type: "neutral" as const };
+    const delta = Math.round(((curr - prev) / prev) * 100);
+    if (Math.abs(delta) <= 2) return { label: `estável ${comparisonSuffix}`, type: "neutral" as const };
+    const sign = delta >= 0 ? "+" : "";
+    const type = delta > 0 ? "positive" as const : "negative" as const;
+    return { label: `${sign}${delta}% ${comparisonSuffix}`, type };
+  })();
+
+  const participationChange = (() => {
+    const total = kpiMembers || 0;
+    const currActive = kpiActiveMembersPeriod || 0;
+    const prevActive = kpiActiveMembersPrevPeriod ?? null;
+    if (!total || prevActive === null) return { label: "—", type: "neutral" as const };
+    const currPct = total ? (currActive / total) * 100 : 0;
+    const prevPct = total ? (prevActive / total) * 100 : 0;
+    const delta = currPct - prevPct;
+    if (Math.abs(delta) <= 2) return { label: `estável ${comparisonSuffix}`, type: "neutral" as const };
+    const rounded = Math.round(delta * 10) / 10;
+    const formatted = `${rounded >= 0 ? "+" : ""}${String(rounded).replace(".", ",")}`;
+    const type = rounded > 0 ? "positive" as const : "negative" as const;
+    return { label: `${formatted} p.p. ${comparisonSuffix}`, type };
+  })();
 
   return (
     <AdminLayout 
@@ -602,83 +781,21 @@ const Index = () => {
       actions={<PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />}
     >
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
-        <StatsCard title="Organizações ativas" value={kpiOrgsPeriodLoading ? "—" : (kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0))} icon={Building2} variant="kpi" />
-        <StatsCard title="Grupos monitorados" value={kpiGroupsPeriodLoading ? "—" : (kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0))} icon={Layers} variant="kpi" />
-        <StatsCard title="Membros ativos" value={kpiActiveMembersLoading ? "—" : (kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0))} icon={UsersIcon} variant="kpi" />
+        <StatsCard title="Organizações ativas" value={kpiOrgsPeriodLoading ? "—" : (kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0))} change={kpiOrgsPeriodLoading ? undefined : orgsChange.label} changeType={orgsChange.type} icon={Building2} variant="kpi" />
+        <StatsCard title="Grupos monitorados" value={kpiGroupsPeriodLoading ? "—" : (kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0))} change={kpiGroupsPeriodLoading ? undefined : groupsChange.label} changeType={groupsChange.type} icon={Layers} variant="kpi" />
+        <StatsCard title="Membros ativos" value={kpiActiveMembersLoading ? "—" : (kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0))} change={kpiActiveMembersLoading ? undefined : activeMembersChange.label} changeType={activeMembersChange.type} icon={UsersIcon} variant="kpi" />
         <StatsCard title="Mensagens no período" value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0))} change={kpiMessagesLoading ? undefined : messagesChangeLabel} changeType={messagesChangeType} icon={MessageSquare} variant="kpi" />
-        <StatsCard title="Participação dos membros" value={participationValue} icon={UsersIcon} variant="kpi" />
+        <StatsCard title="Participação dos membros" value={participationValue} change={participationChange.label} changeType={participationChange.type} icon={UsersIcon} variant="kpi" />
       </div>
-      <div className="mt-8 rounded-xl border border-border bg-card p-6">
-        <div className="mb-4">
-          <h3 className="text-sm font-semibold text-card-foreground">Atenção — o que precisa do seu olhar agora</h3>
-          <p className="text-xs text-muted-foreground">Leitura imediata de risco, oportunidade e estado geral.</p>
-        </div>
-
-        {(() => {
-          const curr = kpiMessagesPeriod || 0;
-          const prev = kpiMessagesPrevPeriod || 0;
-          const delta = prev ? Math.round(((curr - prev) / prev) * 100) : 0;
-          const totalOrgs = kpiOrgs || 0;
-          const activeOrgs = kpiOrgsPeriod || 0;
-          const inactiveOrgs = Math.max(0, totalOrgs - activeOrgs);
-          const hasCriticalDrop = delta <= -20;
-          const hasModerateDrop = delta < 0 && delta > -20;
-          const topWord = (() => { const words = signalKeywords?.words || []; const sorted = [...words].sort((a: any, b: any) => (b?.delta || 0) - (a?.delta || 0)); return sorted[0]; })();
-
-          const themes = ((signalKeywords?.bigrams || []) as any[])
-            .filter((t: any) => (t?.delta || 0) > 0)
-            .sort((a: any, b: any) => (b.delta || 0) - (a.delta || 0))
-            .slice(0, 3);
-          const hasProblems = hasCriticalDrop || inactiveOrgs > 0;
-          return (
-            <div className="space-y-4">
-              {hasProblems ? (
-                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-                  <p className="text-sm font-semibold text-card-foreground mb-2">🔴 Problemas detectados</p>
-                  <div className="space-y-1">
-                    {hasCriticalDrop && (
-                      <p className="text-sm text-card-foreground">Queda brusca no volume de mensagens <span className="ml-1 text-xs font-medium text-destructive">{`${delta}% vs período anterior`}</span></p>
-                    )}
-                    {inactiveOrgs > 0 && (
-                      <p className="text-sm text-card-foreground">{inactiveOrgs} organizações não tiveram nenhuma mensagem neste período</p>
-                    )}
-                  </div>
-                  <button onClick={() => navigate('/system/groups')} className="mt-3 text-xs text-primary hover:underline">Ver detalhes</button>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-success/30 bg-success/5 p-4">
-                  <p className="text-sm font-semibold text-card-foreground">🟢 Nenhum problema detectado neste período</p>
-                </div>
-              )}
-
-              {hasModerateDrop && (
-                <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
-                  <p className="text-sm font-semibold text-card-foreground mb-2">🟡 Atenção recomendada</p>
-                  <div className="space-y-1">
-                    <p className="text-sm text-card-foreground">Mensagens diminuíram em relação ao período anterior <span className="ml-1 text-xs font-medium text-warning">{`${delta}%`}</span></p>
-                  </div>
-                  <button onClick={() => navigate('/system/groups')} className="mt-3 text-xs text-primary hover:underline">Ver detalhes</button>
-                </div>
-              )}
-
-              {(delta > 0 || themes.length > 0) && (
-                <div className="rounded-xl border border-success/30 bg-success/5 p-4">
-                  <p className="text-sm font-semibold text-card-foreground mb-2">🟢 Temas em alta</p>
-                  <div className="space-y-1">
-                    {delta > 0 && (
-                      <p className="text-sm text-card-foreground">Mensagens cresceram em relação ao período anterior <span className="ml-1 text-xs font-medium text-success">{`+${delta}%`}</span></p>
-                    )}
-                    {themes.map((t: any) => (
-                      <p key={t.phrase} className="text-sm text-card-foreground">“{t.phrase}” — <span className="text-xs font-medium text-success">{`+${t.delta}%`}</span></p>
-                    ))}
-                  </div>
-                  <button onClick={() => { const el = document.getElementById('keywords'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }} className="mt-3 text-xs text-primary hover:underline">Ver detalhes</button>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-      </div>
+      <PeriodReportSystem
+        messagesCurrent={kpiMessagesPeriod || 0}
+        messagesPrev={kpiMessagesPrevPeriod || 0}
+        activeMembersCurrent={kpiActiveMembersPeriod || 0}
+        totalMembers={kpiMembers || 0}
+        activeOrgsCurrent={kpiOrgsPeriod || 0}
+        totalOrgs={kpiOrgs || 0}
+        trendingBigrams={(signalKeywords?.bigrams || []) as any}
+      />
 
       <Card className="mt-8" id="keywords">
         <CardHeader>
@@ -723,33 +840,7 @@ const Index = () => {
       </CardContent>
       </Card>
 
-      <Card className="mt-8" id="keywords">
-        <CardHeader>
-          <CardTitle>Temas em alta</CardTitle>
-          <CardDescription>Leitura rápida do período selecionado</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {signalKeywordsLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
-          {!signalKeywordsLoading && signalKeywordsError && (<ErrorState title="Falha ao carregar" message="Não foi possível carregar" retry={refetchKeywords} />)}
-          {!signalKeywordsLoading && !signalKeywordsError && signalKeywords && (
-            <div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {((signalKeywords.bigrams || []) as any[])
-                  .filter((k: any) => typeof k.delta === 'number' && k.delta > 0)
-                  .sort((a: any, b: any) => (b.delta || 0) - (a.delta || 0))
-                  .slice(0, 6)
-                  .map((k: any) => (
-                    <div key={k.phrase + '-' + k.delta} className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-2 py-1.5">
-                      <span className="text-sm font-medium text-card-foreground truncate flex-1">{k.phrase}</span>
-                      <span className="text-xs font-medium text-success tabular-nums">{`+${k.delta}%`}</span>
-                      <ArrowUpRight className="h-3.5 w-3.5 text-success" />
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      
 
       <Card className="mt-8">
         <CardHeader>
