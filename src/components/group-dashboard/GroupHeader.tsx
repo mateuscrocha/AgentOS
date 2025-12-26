@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Users, MessageSquare, Activity, Wifi, WifiOff, AlertCircle, ListChecks } from "lucide-react";
+import { Users, MessageSquare, Activity, Wifi, WifiOff, AlertCircle, ListChecks, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface GroupHeaderProps {
@@ -25,6 +25,7 @@ export function GroupHeader({
     { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
     { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
     { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
+    { label: "Configurações", href: `/groups/${groupId}/edit`, icon: Settings },
   ];
 
   const getGroupStatus = () => {

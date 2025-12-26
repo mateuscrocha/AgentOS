@@ -20,6 +20,7 @@ import GroupMessages from "./pages/GroupMessages";
 import GroupEvents from "./pages/GroupEvents";
 import GroupPoll from "./pages/GroupPoll";
 import GroupPolls from "./pages/GroupPolls";
+import GroupEdit from "./pages/GroupEdit";
 import Account from "./pages/Account";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
@@ -71,6 +72,7 @@ const App = () => (
             <Route path="/group/:groupId/polls" element={<GroupPolls />} />
             <Route path="/group/:groupId/polls/:pollId" element={<GroupPoll />} />
             <Route path="/group/:groupId/events" element={<GroupEvents />} />
+            <Route path="/group/:groupId/edit" element={<GroupEdit />} />
             <Route path="/groups/:groupId" element={<Group />} />
             <Route path="/groups/:groupId/members" element={<GroupMembers />} />
             <Route path="/groups/:groupId/messages" element={<GroupMessages />} />
@@ -78,6 +80,7 @@ const App = () => (
             <Route path="/groups/:groupId/polls/:pollId" element={<GroupPoll />} />
             <Route path="/groups/:groupId/events" element={<GroupEvents />} />
             <Route path="/groups/:groupId/dashboard" element={<Group />} />
+            <Route path="/groups/:groupId/edit" element={<GroupEdit />} />
             <Route path="/account" element={<Account />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/auth" element={<Auth />} />
