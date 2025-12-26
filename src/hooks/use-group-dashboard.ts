@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { subDays } from "date-fns";
+import { subDays, startOfDay, endOfDay } from "date-fns";
 import { formatDateKeySP, getHourSP } from "@/lib/date";
 
  
@@ -23,14 +23,35 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const now = new Date();
   const currentPeriodEnd = dateRange?.to || now;
   const currentPeriodStart = dateRange?.from || subDays(now, 6);
-  
-  // Calculate previous period for comparison (same duration before current period)
+
+  const startToday = startOfDay(now);
+  const endToday = endOfDay(now);
+  const isTodayRange = currentPeriodStart.getTime() === startToday.getTime() && currentPeriodEnd.getTime() === endToday.getTime();
+  const isYesterdayRange = currentPeriodStart.getTime() === startOfDay(subDays(now, 1)).getTime() && currentPeriodEnd.getTime() === endOfDay(subDays(now, 1)).getTime();
+
+  let effectiveCurrEnd = currentPeriodEnd;
+  let previousPeriodStart: Date;
+  let previousPeriodEnd: Date;
+  if (isTodayRange) {
+    effectiveCurrEnd = now;
+    const elapsedMs = Math.max(0, effectiveCurrEnd.getTime() - startToday.getTime());
+    const yesterdayStart = startOfDay(subDays(now, 1));
+    previousPeriodStart = yesterdayStart;
+    previousPeriodEnd = new Date(yesterdayStart.getTime() + elapsedMs);
+  } else if (isYesterdayRange) {
+    const anteontem = subDays(startOfDay(currentPeriodStart), 1);
+    previousPeriodStart = startOfDay(anteontem);
+    previousPeriodEnd = endOfDay(anteontem);
+  } else {
+    const lengthMs = Math.max(0, currentPeriodEnd.getTime() - currentPeriodStart.getTime());
+    previousPeriodEnd = new Date(currentPeriodStart.getTime() - 1);
+    previousPeriodStart = new Date(previousPeriodEnd.getTime() - lengthMs);
+  }
+
   const periodDays = Math.ceil((currentPeriodEnd.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
-  const previousPeriodEnd = new Date(currentPeriodStart.getTime() - 1);
-  const previousPeriodStart = subDays(previousPeriodEnd, periodDays - 1);
 
   const currentPeriodStartISO = currentPeriodStart.toISOString();
-  const currentPeriodEndISO = currentPeriodEnd.toISOString();
+  const currentPeriodEndISO = effectiveCurrEnd.toISOString();
   const previousPeriodStartISO = previousPeriodStart.toISOString();
   const previousPeriodEndISO = previousPeriodEnd.toISOString();
 

@@ -54,6 +54,9 @@ export function StatsCard({
             {change}
           </p>
         )}
+        {description && (
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        )}
       </Component>
     );
   }
