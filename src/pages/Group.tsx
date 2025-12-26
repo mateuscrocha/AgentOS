@@ -467,6 +467,7 @@ const Group = () => {
           isLoading={isLoading}
           groupId={group.id}
           totalMembers={currentMembers}
+          ikigaiSuggestions={ikigaiSuggestions as any}
         />
 
         {/* 6. Admins Section */}

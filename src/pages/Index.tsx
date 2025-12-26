@@ -625,81 +625,56 @@ const Index = () => {
           const hasModerateDrop = delta < 0 && delta > -20;
           const topWord = (() => { const words = signalKeywords?.words || []; const sorted = [...words].sort((a: any, b: any) => (b?.delta || 0) - (a?.delta || 0)); return sorted[0]; })();
 
+          const themes = ((signalKeywords?.bigrams || []) as any[])
+            .filter((t: any) => (t?.delta || 0) > 0)
+            .sort((a: any, b: any) => (b.delta || 0) - (a.delta || 0))
+            .slice(0, 3);
+          const hasProblems = hasCriticalDrop || inactiveOrgs > 0;
           return (
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-                <div className="mb-2">
-                  <p className="text-sm font-semibold text-card-foreground">🔴 Problemas detectados</p>
+            <div className="space-y-4">
+              {hasProblems ? (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                  <p className="text-sm font-semibold text-card-foreground mb-2">🔴 Problemas detectados</p>
+                  <div className="space-y-1">
+                    {hasCriticalDrop && (
+                      <p className="text-sm text-card-foreground">Queda brusca no volume de mensagens <span className="ml-1 text-xs font-medium text-destructive">{`${delta}% vs período anterior`}</span></p>
+                    )}
+                    {inactiveOrgs > 0 && (
+                      <p className="text-sm text-card-foreground">{inactiveOrgs} organizações não tiveram nenhuma mensagem neste período</p>
+                    )}
+                  </div>
+                  <button onClick={() => navigate('/system/groups')} className="mt-3 text-xs text-primary hover:underline">Ver detalhes</button>
                 </div>
-                <div className="space-y-2">
-                  {hasCriticalDrop && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-card-foreground">Queda brusca no volume de mensagens</span>
-                      <span className="ml-auto text-xs font-medium text-destructive">{`${delta}% em relação ao período anterior`}</span>
-                      <button onClick={() => navigate('/system/groups')} className="text-xs text-primary hover:underline">ver detalhes →</button>
-                    </div>
-                  )}
-                  {inactiveOrgs > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-card-foreground">{inactiveOrgs} organizações não tiveram nenhuma mensagem neste período</span>
-                      <button onClick={() => navigate('/system/organizations')} className="ml-auto text-xs text-primary hover:underline">ver detalhes →</button>
-                    </div>
-                  )}
-                  {!hasCriticalDrop && inactiveOrgs === 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-success">🟢 Nenhum problema encontrado no período</span>
-                    </div>
-                  )}
+              ) : (
+                <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+                  <p className="text-sm font-semibold text-card-foreground">🟢 Nenhum problema detectado neste período</p>
                 </div>
-              </div>
+              )}
 
-              <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
-                <div className="mb-2">
-                  <p className="text-sm font-semibold text-card-foreground">🟡 Atenção recomendada</p>
+              {hasModerateDrop && (
+                <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+                  <p className="text-sm font-semibold text-card-foreground mb-2">🟡 Atenção recomendada</p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-card-foreground">Mensagens diminuíram em relação ao período anterior <span className="ml-1 text-xs font-medium text-warning">{`${delta}%`}</span></p>
+                  </div>
+                  <button onClick={() => navigate('/system/groups')} className="mt-3 text-xs text-primary hover:underline">Ver detalhes</button>
                 </div>
-                <div className="space-y-2">
-                  {hasModerateDrop && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-card-foreground">Mensagens diminuíram em relação ao período anterior</span>
-                      <span className="ml-auto text-xs font-medium text-warning">{`${delta}%`}</span>
-                      <button onClick={() => navigate('/system/groups')} className="text-xs text-primary hover:underline">ver detalhes →</button>
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
 
-              <div className="rounded-xl border border-success/30 bg-success/5 p-4">
-                <div className="mb-2">
-                  <p className="text-sm font-semibold text-card-foreground">🟢 Boas notícias</p>
+              {(delta > 0 || themes.length > 0) && (
+                <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+                  <p className="text-sm font-semibold text-card-foreground mb-2">🟢 Temas em alta</p>
+                  <div className="space-y-1">
+                    {delta > 0 && (
+                      <p className="text-sm text-card-foreground">Mensagens cresceram em relação ao período anterior <span className="ml-1 text-xs font-medium text-success">{`+${delta}%`}</span></p>
+                    )}
+                    {themes.map((t: any) => (
+                      <p key={t.phrase} className="text-sm text-card-foreground">“{t.phrase}” — <span className="text-xs font-medium text-success">{`+${t.delta}%`}</span></p>
+                    ))}
+                  </div>
+                  <button onClick={() => { const el = document.getElementById('keywords'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }} className="mt-3 text-xs text-primary hover:underline">Ver detalhes</button>
                 </div>
-                <div className="space-y-2">
-                  {delta > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-card-foreground">Mensagens cresceram em relação ao período anterior</span>
-                      <span className="ml-auto text-xs font-medium text-success">{`+${delta}%`}</span>
-                      <button onClick={() => navigate('/system/groups')} className="text-xs text-primary hover:underline">ver detalhes →</button>
-                    </div>
-                  )}
-                  {(() => {
-                    const themes = ((signalKeywords?.bigrams || []) as any[])
-                      .filter((t: any) => (t?.delta || 0) > 0)
-                      .sort((a: any, b: any) => (b.delta || 0) - (a.delta || 0))
-                      .slice(0, 3);
-                    return themes.map((t: any) => (
-                      <div key={t.phrase} className="flex items-center gap-2">
-                        <span className="text-sm text-card-foreground">Tema em alta: “{t.phrase}”</span>
-                        <span className="ml-auto text-xs font-medium text-success">{`+${t.delta}% vs período anterior`}</span>
-                        <button onClick={() => { const el = document.getElementById('keywords'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }} className="text-xs text-primary hover:underline">ver detalhes →</button>
-                      </div>
-                    ));
-                  })()}
-                  {((signalKeywords?.bigrams || []) as any[]).filter((t: any) => (t?.delta || 0) > 0).length === 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">ℹ️ Nenhum tema relevante em alta neste período.</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           );
         })()}

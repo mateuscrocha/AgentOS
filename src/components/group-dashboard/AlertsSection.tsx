@@ -34,6 +34,7 @@ interface AlertsSectionProps {
   isLoading?: boolean;
   groupId?: string;
   totalMembers?: number;
+  ikigaiSuggestions?: { themes: { phrase: string; count: number }[]; keywords: { term: string; count: number }[] } | null;
 }
 
 export function AlertsSection({ 
@@ -42,6 +43,7 @@ export function AlertsSection({
   isLoading,
   groupId,
   totalMembers = 0,
+  ikigaiSuggestions,
 }: AlertsSectionProps) {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const { groupId: routeGroupId } = useParams();
@@ -148,116 +150,43 @@ export function AlertsSection({
 
   
 
+  const themes = (ikigaiSuggestions?.themes || []).slice(0, 3);
+  const hasProblems = atRiskMembers.length > 0;
   return (
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader 
         title="Alertas e Oportunidades" 
         subtitle="Pontos de atenção para o gestor"
       />
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          {isLoading ? (
-            <Skeleton className="h-[200px] w-full" />
-          ) : atRiskMembers.length === 0 ? (
-            <InsightCard
-              title="Sem membros sem participação no período"
-              description="Todos tiveram alguma interação no período selecionado."
-              severity="info"
-            />
-          ) : (
-            <InsightCard
-              title="Membros sem participação recente"
-              description="Membros que não enviaram mensagens no período selecionado"
-              severity="info"
-              helpText="Membros sem mensagens no período selecionado. Isso não indica desinteresse por si só."
-            >
-              <div className="space-y-2 mt-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium text-card-foreground">{atRiskMembers.length}</span>
-                  <span className="text-muted-foreground">({totalMembers > 0 ? Math.round((atRiskMembers.length / totalMembers) * 100) : 0}%)</span>
-                </div>
-                {atRiskMembers.slice(0, 3).map((member) => (
-                  <div 
-                    key={member.id} 
-                    className="flex items-center justify-between p-2 rounded-lg bg-card/50"
-                  >
-                    <UserInline name={member.name} avatarUrl={member.avatarUrl} />
-                    <span className="text-xs text-muted-foreground">Sem atividade no período</span>
-                  </div>
-                ))}
-                <div className="pt-1">
-                  <Link to={groupId ? `/groups/${groupId}/members` : '#'} className="text-xs text-primary hover:underline">
-                    Ver lista completa
-                  </Link>
-                </div>
-              </div>
-            </InsightCard>
-          )}
-        </div>
 
-        {/* Popular messages */}
-        <div>
-          <div className="rounded-lg border border-border bg-secondary/30 p-4 h-full">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <ThumbsUp className="h-4 w-4" />
-              <span className="text-sm font-medium">O que engajou no grupo</span>
+      <div className="space-y-4">
+        {hasProblems ? (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+            <p className="text-sm font-semibold text-card-foreground mb-2">🔴 Problemas detectados</p>
+            <div className="space-y-1">
+              <p className="text-sm text-card-foreground">{atRiskMembers.length} membros não tiveram atividade neste período <span className="text-xs text-muted-foreground">({totalMembers > 0 ? Math.round((atRiskMembers.length / totalMembers) * 100) : 0}%)</span></p>
             </div>
-            <p className="text-xs text-muted-foreground mb-3">Mensagens que geraram mais reação no período</p>
-            
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : popularMessages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma mensagem gerou reação no período.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {popularMessages.slice(0, 3).map((msg) => (
-                  <div 
-                    key={msg.id} 
-                    className="p-3 rounded-lg bg-card/50 cursor-pointer hover:bg-card transition-colors"
-                    onClick={() => handleViewDetail(msg)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleViewDetail(msg); }}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      {msg.memberName !== 'Desconhecido' && (
-                        <UserInline name={msg.memberName} avatarUrl={msg.avatarUrl} size="xs" />
-                      )}
-                      {msg.messageType !== 'text' && (
-                        <Badge variant="secondary" className="text-xs py-0 px-1.5">
-                          {translateMessageType(msg.messageType)}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-card-foreground line-clamp-2">
-                      {renderTextWithMentionsAndLinks(
-                        msg.content || `[${translateMessageType(msg.messageType)}]`,
-                        mentionMap || {}
-                      )}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <ThumbsUp className="h-3 w-3" />
-                        <span>{msg.reactionCount} reações</span>
-                      </div>
-                      {msg.createdAt && (
-                        <span>• {new Date(msg.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <Link to={groupId ? `/groups/${groupId}/members` : '#'} className="mt-3 text-xs text-primary hover:underline">Ver detalhes</Link>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+            <p className="text-sm font-semibold text-card-foreground">🟢 Nenhum problema detectado neste período</p>
+          </div>
+        )}
+
+        {themes.length > 0 && (
+          <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+            <p className="text-sm font-semibold text-card-foreground mb-2">🟢 Temas em alta</p>
+            <div className="space-y-1">
+              {themes.map((t) => (
+                <p key={t.phrase} className="text-sm text-card-foreground">Tema em alta: “{t.phrase}”</p>
+              ))}
+            </div>
+            <Link to={groupId ? `/groups/${groupId}#group-themes` : '#'} className="mt-3 text-xs text-primary hover:underline">Ver detalhes</Link>
+          </div>
+        )}
       </div>
+
       <MessageDetailModal 
         open={!!selectedMessageId}
         onOpenChange={(open) => {

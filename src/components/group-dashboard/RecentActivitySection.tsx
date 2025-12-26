@@ -92,7 +92,7 @@ export function RecentActivitySection({
   );
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section id="group-themes" className="rounded-xl border border-border bg-card p-5">
       <SectionHeader
         title="Padrões recentes de atividade"
         subtitle={`Leitura rápida (${periodLabel})`}
