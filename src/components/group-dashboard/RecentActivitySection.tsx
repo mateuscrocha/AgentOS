@@ -1,4 +1,4 @@
-import { CalendarDays, Clock, ArrowUpRight, ArrowRight } from "lucide-react";
+import { CalendarDays, Clock, ArrowUpRight } from "lucide-react";
 import { SAO_PAULO_TZ } from "@/lib/date";
 import { filterKeywordItems } from "@/utils/keywords";
 import { SectionHeader } from "./SectionHeader";
@@ -63,27 +63,17 @@ export function RecentActivitySection({
     return { label, count: bestSum };
   })();
 
-  const [mode, setMode] = useState<'themes'|'words'>('themes');
-
   const trendingThemes = (() => {
     const list = ikigaiSuggestions?.themes || [];
     if (!list || list.length === 0) return [];
-    const top = list.slice(0, Math.min(8, Math.max(5, list.length)));
+    const top = list.slice(0, Math.min(6, list.length));
     const maxCount = top[0]?.count || 0;
-    return top.map((t, idx) => ({ label: t.phrase, count: t.count, up: idx < 3 && t.count >= Math.max(2, Math.round(maxCount * 0.6)) }));
+    const scored = top.map((t) => ({ label: t.phrase, count: t.count, score: t.count / Math.max(1, maxCount) }));
+    const positives = scored.filter((t) => t.score >= 0.6);
+    const ordered = (positives.length > 0 ? positives : scored).sort((a, b) => b.count - a.count);
+    return ordered.slice(0, 3);
   })();
-
-  const trendingWords = (() => {
-    const list = ikigaiSuggestions?.keywords || [];
-    if (!list || list.length === 0) return [];
-    const filtered = filterKeywordItems(list.map((k) => ({ word: k.term, count: k.count })));
-    if (filtered.length === 0) return [];
-    const top = filtered.slice(0, Math.min(8, Math.max(5, filtered.length)));
-    const maxCount = top[0]?.count || 0;
-    return top.map((k, idx) => ({ label: k.word, count: k.count, up: idx < 3 && k.count >= Math.max(3, Math.round(maxCount * 0.6)) }));
-  })();
-
-  const trending = mode === 'themes' ? trendingThemes : trendingWords;
+  const trending = trendingThemes;
 
   const AvatarStack = ({ items }: { items: { id: string; avatarUrl: string | null }[] }) => (
     <div className="flex items-center">
@@ -141,29 +131,17 @@ export function RecentActivitySection({
           {isLoading ? (
             <Skeleton className="h-[120px] w-full" />
           ) : trending.length === 0 ? (
-            <InsightCard title="Palavras-chave em alta" severity="info" description="Sem termos destacados neste período." />
+            <InsightCard title="Temas em alta" severity="success" description="Nenhum tema relevante em alta neste período." />
           ) : (
-            <InsightCard title="Palavras-chave em alta" severity="info">
-              <div className="flex justify-end mb-2 gap-1">
-                <button
-                  onClick={() => setMode('themes')}
-                  className={`text-xs px-2 py-1 rounded border ${mode==='themes' ? 'bg-secondary text-card-foreground' : 'text-muted-foreground'}`}
-                >Temas</button>
-                <button
-                  onClick={() => setMode('words')}
-                  className={`text-xs px-2 py-1 rounded border ${mode==='words' ? 'bg-secondary text-card-foreground' : 'text-muted-foreground'}`}
-                >Palavras</button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {trending.map((k) => (
-                  <div key={`${k.label}-${k.count}`} className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-2 py-1.5">
-                    <span className="text-sm font-medium text-card-foreground truncate flex-1">{k.label}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">{k.count}</span>
-                    {k.up ? (
-                      <ArrowUpRight className="h-3.5 w-3.5 text-success" />
-                    ) : (
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
+            <InsightCard title="Temas em alta" severity="success">
+              <div className="space-y-2">
+                {trending.map((t) => (
+                  <div key={`${t.label}-${t.count}`} className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-2 py-1.5">
+                    <span className="text-sm text-card-foreground">Tema em alta: “{t.label}”</span>
+                    <span className="ml-auto text-xs font-medium text-success inline-flex items-center gap-1">
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      <span>em alta no período</span>
+                    </span>
                   </div>
                 ))}
               </div>

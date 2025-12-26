@@ -680,11 +680,22 @@ const Index = () => {
                       <button onClick={() => navigate('/system/groups')} className="text-xs text-primary hover:underline">ver detalhes →</button>
                     </div>
                   )}
-                  {topWord && (topWord.delta || 0) > 0 && (
+                  {(() => {
+                    const themes = ((signalKeywords?.bigrams || []) as any[])
+                      .filter((t: any) => (t?.delta || 0) > 0)
+                      .sort((a: any, b: any) => (b.delta || 0) - (a.delta || 0))
+                      .slice(0, 3);
+                    return themes.map((t: any) => (
+                      <div key={t.phrase} className="flex items-center gap-2">
+                        <span className="text-sm text-card-foreground">Tema em alta: “{t.phrase}”</span>
+                        <span className="ml-auto text-xs font-medium text-success">{`+${t.delta}% vs período anterior`}</span>
+                        <button onClick={() => { const el = document.getElementById('keywords'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }} className="text-xs text-primary hover:underline">ver detalhes →</button>
+                      </div>
+                    ));
+                  })()}
+                  {((signalKeywords?.bigrams || []) as any[]).filter((t: any) => (t?.delta || 0) > 0).length === 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-card-foreground">A palavra “{topWord.word}” teve aumento</span>
-                      <span className="ml-auto text-xs font-medium text-success">{`+${topWord.delta}% em relação ao período anterior`}</span>
-                      <button onClick={() => { const el = document.getElementById('keywords'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }} className="text-xs text-primary hover:underline">ver detalhes →</button>
+                      <span className="text-xs text-muted-foreground">ℹ️ Nenhum tema relevante em alta neste período.</span>
                     </div>
                   )}
                 </div>
@@ -737,9 +748,9 @@ const Index = () => {
       </CardContent>
       </Card>
 
-      <Card className="mt-8">
+      <Card className="mt-8" id="keywords">
         <CardHeader>
-          <CardTitle>Palavras-chave em alta</CardTitle>
+          <CardTitle>Temas em alta</CardTitle>
           <CardDescription>Leitura rápida do período selecionado</CardDescription>
         </CardHeader>
         <CardContent>
@@ -747,28 +758,18 @@ const Index = () => {
           {!signalKeywordsLoading && signalKeywordsError && (<ErrorState title="Falha ao carregar" message="Não foi possível carregar" retry={refetchKeywords} />)}
           {!signalKeywordsLoading && !signalKeywordsError && signalKeywords && (
             <div>
-              <div className="flex justify-end mb-2 gap-1">
-                <button
-                  onClick={() => setKeywordsMode('themes')}
-                  className={`text-xs px-2 py-1 rounded border ${keywordsMode==='themes' ? 'bg-secondary text-card-foreground' : 'text-muted-foreground'}`}
-                >Temas</button>
-                <button
-                  onClick={() => setKeywordsMode('words')}
-                  className={`text-xs px-2 py-1 rounded border ${keywordsMode==='words' ? 'bg-secondary text-card-foreground' : 'text-muted-foreground'}`}
-                >Palavras</button>
-              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {(keywordsMode === 'themes' ? (signalKeywords.bigrams || []) : (signalKeywords.words || [])).map((k: any) => (
-                  <div key={(k.phrase ?? k.word) + '-' + k.count} className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-2 py-1.5">
-                    <span className="text-sm font-medium text-card-foreground truncate flex-1">{k.phrase ?? k.word}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">{k.count}</span>
-                    {typeof k.delta === 'number' && k.delta > 0 ? (
+                {((signalKeywords.bigrams || []) as any[])
+                  .filter((k: any) => typeof k.delta === 'number' && k.delta > 0)
+                  .sort((a: any, b: any) => (b.delta || 0) - (a.delta || 0))
+                  .slice(0, 6)
+                  .map((k: any) => (
+                    <div key={k.phrase + '-' + k.delta} className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-2 py-1.5">
+                      <span className="text-sm font-medium text-card-foreground truncate flex-1">{k.phrase}</span>
+                      <span className="text-xs font-medium text-success tabular-nums">{`+${k.delta}%`}</span>
                       <ArrowUpRight className="h-3.5 w-3.5 text-success" />
-                    ) : (
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  ))}
               </div>
             </div>
           )}
