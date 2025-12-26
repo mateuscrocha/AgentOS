@@ -397,7 +397,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data: admins } = await supabase
         .from('members')
-        .select('id, name, is_admin, is_owner, is_super_admin')
+        .select('id, name, is_admin, is_owner, is_super_admin, phone_e164')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .or('is_admin.eq.true,is_owner.eq.true,is_super_admin.eq.true');
@@ -405,15 +405,32 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       if (!admins || admins.length === 0) return null;
 
       const adminIds = admins.map(a => a.id);
+      const adminPhones = admins.map(a => a.phone_e164).filter(Boolean) as string[];
+      const adminPhoneSet = new Set(adminPhones);
 
-      const { data: adminMessages } = await supabase
+      const { data: periodMessages } = await supabase
         .from('messages')
-        .select('member_id')
+        .select('member_id, sender_phone')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .in('member_id', adminIds)
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
+
+      const adminMessages = (periodMessages || []).filter(m => {
+        const byId = !!m.member_id && adminIds.includes(m.member_id);
+        const byPhone = !!m.sender_phone && adminPhoneSet.has(m.sender_phone as string);
+        return byId || byPhone;
+      });
+
+      const activeAdminIds = new Set<string>();
+      adminMessages.forEach(m => {
+        if (m.member_id) {
+          activeAdminIds.add(m.member_id);
+        } else if (m.sender_phone) {
+          const admin = admins.find(a => a.phone_e164 === m.sender_phone);
+          if (admin) activeAdminIds.add(admin.id);
+        }
+      });
 
       const { count: totalMessages } = await supabase
         .from('messages')
@@ -423,19 +440,9 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
-      const adminCounts: Record<string, number> = {};
-      adminMessages?.forEach(msg => {
-        if (msg.member_id) {
-          adminCounts[msg.member_id] = (adminCounts[msg.member_id] || 0) + 1;
-        }
-      });
-
-      const activeAdminIds = new Set(Object.keys(adminCounts));
-      const activeCount = activeAdminIds.size;
-
       return {
-        active: activeCount,
-        messagesFromAdmins: adminMessages?.length || 0,
+        active: activeAdminIds.size,
+        messagesFromAdmins: adminMessages.length,
         totalMessages: totalMessages || 0,
       };
     },
@@ -810,7 +817,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data: admins } = await supabase
         .from('members')
-        .select('id, name, is_admin, is_owner, is_super_admin')
+        .select('id, name, is_admin, is_owner, is_super_admin, phone_e164')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .or('is_admin.eq.true,is_owner.eq.true,is_super_admin.eq.true');
@@ -818,15 +825,47 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       if (!admins || admins.length === 0) return null;
 
       const adminIds = admins.map(a => a.id);
+      const adminPhones = admins.map(a => a.phone_e164).filter(Boolean) as string[];
+      const adminPhoneSet = new Set(adminPhones);
 
-      const { data: adminMessages } = await supabase
+      const { data: periodMessages } = await supabase
         .from('messages')
-        .select('member_id')
+        .select('member_id, sender_phone')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .in('member_id', adminIds)
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
+
+      const adminMessages = (periodMessages || []).filter(m => {
+        const byId = !!m.member_id && adminIds.includes(m.member_id);
+        const byPhone = !!m.sender_phone && adminPhoneSet.has(m.sender_phone as string);
+        return byId || byPhone;
+      });
+
+      const adminCounts: Record<string, number> = {};
+      adminMessages.forEach(m => {
+        if (m.member_id) {
+          adminCounts[m.member_id] = (adminCounts[m.member_id] || 0) + 1;
+        } else if (m.sender_phone) {
+          const admin = admins.find(a => a.phone_e164 === m.sender_phone);
+          if (admin) {
+            adminCounts[admin.id] = (adminCounts[admin.id] || 0) + 1;
+          }
+        }
+      });
+
+      const activeAdminIds = new Set(Object.keys(adminCounts));
+      const activeCount = activeAdminIds.size;
+
+      let topAdmin: { name: string; messages: number } | null = null;
+      let maxMessages = 0;
+      admins.forEach(admin => {
+        const count = adminCounts[admin.id] || 0;
+        if (count > maxMessages) {
+          maxMessages = count;
+          topAdmin = { name: admin.name, messages: count };
+        }
+      });
 
       const { count: totalMessages } = await supabase
         .from('messages')
@@ -836,32 +875,11 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const adminCounts: Record<string, number> = {};
-      adminMessages?.forEach(msg => {
-        if (msg.member_id) {
-          adminCounts[msg.member_id] = (adminCounts[msg.member_id] || 0) + 1;
-        }
-      });
-
-      const activeAdminIds = new Set(Object.keys(adminCounts));
-      const activeCount = activeAdminIds.size;
-
-      let topAdmin: { name: string; messages: number } | null = null;
-      let maxMessages = 0;
-      
-      admins.forEach(admin => {
-        const count = adminCounts[admin.id] || 0;
-        if (count > maxMessages) {
-          maxMessages = count;
-          topAdmin = { name: admin.name, messages: count };
-        }
-      });
-
       return {
         total: admins.length,
         active: activeCount,
         inactive: admins.length - activeCount,
-        messagesFromAdmins: adminMessages?.length || 0,
+        messagesFromAdmins: adminMessages.length,
         totalMessages: totalMessages || 0,
         topAdmin,
       };

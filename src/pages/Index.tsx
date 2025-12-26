@@ -17,7 +17,8 @@ import { Building2, Layers, Users as UsersIcon, MessageSquare } from "lucide-rea
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
  
-import { format, addDays, startOfDay, parseISO } from "date-fns";
+import { format, addDays, startOfDay, subDays } from "date-fns";
+import { formatDateKeySP, getHourSP } from "@/lib/date";
 import { ConversationRhythmSection } from "@/components/group-dashboard/ConversationRhythmSection";
 
 const Index = () => {
@@ -59,10 +60,11 @@ const Index = () => {
   };
 
   const periodMs = currentRange.to.getTime() - currentRange.from.getTime();
-  const prevTo = new Date(currentRange.from.getTime() - 24 * 60 * 60 * 1000);
-  const prevFrom = new Date(prevTo.getTime() - periodMs);
-  const periodEndExclusiveISO = startOfDay(addDays(currentRange.to, 1)).toISOString();
-  const prevEndExclusiveISO = startOfDay(addDays(prevTo, 1)).toISOString();
+  const periodDays = Math.ceil(periodMs / (1000 * 60 * 60 * 24));
+  const prevEnd = new Date(currentRange.from.getTime() - 1);
+  const prevFrom = subDays(prevEnd, periodDays - 1);
+  const prevStartISO = prevFrom.toISOString();
+  const prevEndISO = prevEnd.toISOString();
 
   
 
@@ -142,7 +144,7 @@ const Index = () => {
         .select("*", { count: "exact", head: true })
         .is("deleted_at", null)
         .gte("created_at", currentRange.from.toISOString())
-        .lt("created_at", periodEndExclusiveISO);
+        .lte("created_at", currentRange.to.toISOString());
       if (error) throw error;
       return count ?? 0;
     },
@@ -151,14 +153,14 @@ const Index = () => {
   });
 
   const { data: kpiMessagesPrevPeriod } = useQuery({
-    queryKey: ["kpi-messages-prev-period", prevFrom.toISOString(), prevTo.toISOString()],
+    queryKey: ["kpi-messages-prev-period", prevStartISO, prevEndISO],
     queryFn: async () => {
       const { count, error } = await supabase
         .from("messages")
         .select("*", { count: "exact", head: true })
         .is("deleted_at", null)
-        .gte("created_at", prevFrom.toISOString())
-        .lt("created_at", prevEndExclusiveISO);
+        .gte("created_at", prevStartISO)
+        .lte("created_at", prevEndISO);
       if (error) throw error;
       return count ?? 0;
     },
@@ -179,7 +181,7 @@ const Index = () => {
         .is("deleted_at", null)
         .not("member_id", "is", null)
         .gte("created_at", currentRange.from.toISOString())
-        .lt("created_at", periodEndExclusiveISO);
+        .lte("created_at", currentRange.to.toISOString());
       if (error) throw error;
       const set = new Set((data || []).map((row: any) => row.member_id).filter(Boolean));
       return set.size;
@@ -195,7 +197,7 @@ const Index = () => {
         .from("members")
         .select("*", { count: "exact", head: true })
         .gte("created_at", currentRange.from.toISOString())
-        .lt("created_at", periodEndExclusiveISO);
+        .lte("created_at", currentRange.to.toISOString());
       if (error) throw error;
       return count ?? 0;
     },
@@ -204,13 +206,13 @@ const Index = () => {
   });
 
   const { data: newMembersPrevPeriod } = useQuery({
-    queryKey: ["kpi-new-members-prev-period", prevFrom.toISOString(), prevTo.toISOString()],
+    queryKey: ["kpi-new-members-prev-period", prevStartISO, prevEndISO],
     queryFn: async () => {
       const { count, error } = await supabase
         .from("members")
         .select("*", { count: "exact", head: true })
-        .gte("created_at", prevFrom.toISOString())
-        .lt("created_at", prevEndExclusiveISO);
+        .gte("created_at", prevStartISO)
+        .lte("created_at", prevEndISO);
       if (error) throw error;
       return count ?? 0;
     },
@@ -246,7 +248,7 @@ const Index = () => {
         .select("group_id,member_id")
         .is("deleted_at", null)
         .gte("created_at", currentRange.from.toISOString())
-        .lt("created_at", periodEndExclusiveISO);
+        .lte("created_at", currentRange.to.toISOString());
       if (error) throw error;
       const counts: Record<string, number> = {};
       const memberSets: Record<string, Set<string>> = {};
@@ -329,7 +331,7 @@ const Index = () => {
         .select("group_id")
         .is("deleted_at", null)
         .gte("created_at", currentRange.from.toISOString())
-        .lt("created_at", periodEndExclusiveISO);
+        .lte("created_at", currentRange.to.toISOString());
       const activeIds = new Set((msgs || []).map((m: any) => m.group_id).filter(Boolean));
       const list = (groups || []).filter(g => !activeIds.has(g.id)).slice(0, 3);
       return {
@@ -354,7 +356,7 @@ const Index = () => {
         .select("content_preview,message_type,created_at")
         .eq("message_type", "text")
         .gte("created_at", currentRange.from.toISOString())
-        .lt("created_at", periodEndExclusiveISO)
+        .lte("created_at", currentRange.to.toISOString())
         .limit(2000);
       let currRows: string[] = [];
       if (!error) {
@@ -365,7 +367,7 @@ const Index = () => {
           .select("content,message_type,created_at")
           .eq("message_type", "text")
           .gte("created_at", currentRange.from.toISOString())
-          .lt("created_at", periodEndExclusiveISO)
+          .lte("created_at", currentRange.to.toISOString())
           .limit(2000);
         if (fb.error) throw fb.error;
         currRows = (fb.data || []).map((d: any) => d.content || "");
@@ -375,8 +377,8 @@ const Index = () => {
         .from("v_messages_feed")
         .select("content_preview,message_type,created_at")
         .eq("message_type", "text")
-        .gte("created_at", prevFrom.toISOString())
-        .lt("created_at", prevEndExclusiveISO)
+        .gte("created_at", prevStartISO)
+        .lte("created_at", prevEndISO)
         .limit(2000);
       let prevRows: string[] = [];
       if (!prevQuery.error) {
@@ -386,8 +388,8 @@ const Index = () => {
           .from("messages")
           .select("content,message_type,created_at")
           .eq("message_type", "text")
-          .gte("created_at", prevFrom.toISOString())
-          .lt("created_at", prevEndExclusiveISO)
+          .gte("created_at", prevStartISO)
+          .lte("created_at", prevEndISO)
           .limit(2000);
         if (fbPrev.error) throw fbPrev.error;
         prevRows = (fbPrev.data || []).map((d: any) => d.content || "");
@@ -429,29 +431,29 @@ const Index = () => {
         .is("deleted_at", null)
         .in("group_id", activeGroupIds)
         .gte("created_at", currentRange.from.toISOString())
-        .lt("created_at", periodEndExclusiveISO)
+        .lte("created_at", currentRange.to.toISOString())
         .order("created_at", { ascending: true });
-      const counts: Record<string, number> = {};
-      (data || []).forEach((m: any) => {
-        const day = format(parseISO(m.created_at), 'yyyy-MM-dd');
-        counts[day] = (counts[day] || 0) + 1;
-      });
-      const days: string[] = [];
-      const cursor = new Date(currentRange.from);
-      const end = new Date(currentRange.to);
-      while (cursor <= end) {
-        const key = format(cursor, 'yyyy-MM-dd');
-        days.push(key);
-        cursor.setDate(cursor.getDate() + 1);
+      const countsByDay: Record<string, number> = {};
+      const periodDays = Math.ceil((currentRange.to.getTime() - currentRange.from.getTime()) / (1000 * 60 * 60 * 24));
+      for (let i = periodDays - 1; i >= 0; i--) {
+        const date = subDays(currentRange.to, i);
+        const key = formatDateKeySP(date);
+        countsByDay[key] = 0;
       }
-      return days.map(d => ({ date: d, count: counts[d] || 0 }));
+      (data || []).forEach((m: any) => {
+        const key = formatDateKeySP(new Date(m.created_at));
+        if (countsByDay[key] !== undefined) {
+          countsByDay[key] = (countsByDay[key] || 0) + 1;
+        }
+      });
+      return Object.entries(countsByDay).map(([date, count]) => ({ date, count }));
     },
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
   });
 
   const { data: peakData, isLoading: peakLoading } = useQuery({
-    queryKey: ["system-peak-hour", currentRange.from.toISOString(), currentRange.to.toISOString(), prevFrom.toISOString(), prevEndExclusiveISO],
+    queryKey: ["system-peak-hour", currentRange.from.toISOString(), currentRange.to.toISOString(), prevStartISO, prevEndISO],
     queryFn: async () => {
       const { data: groups } = await supabase
         .from("groups")
@@ -466,12 +468,11 @@ const Index = () => {
         .is("deleted_at", null)
         .in("group_id", activeGroupIds)
         .gte("created_at", currentRange.from.toISOString())
-        .lt("created_at", periodEndExclusiveISO)
+        .lte("created_at", currentRange.to.toISOString())
         .order("created_at", { ascending: true });
       const hourCounts: number[] = Array.from({ length: 24 }, () => 0);
       (curr || []).forEach((m: any) => {
-        const d = parseISO(m.created_at);
-        const h = d.getHours();
+        const h = getHourSP(m.created_at);
         hourCounts[h] = (hourCounts[h] || 0) + 1;
       });
       const peakHour = hourCounts.reduce((maxIdx, val, idx, arr) => (val > arr[maxIdx] ? idx : maxIdx), 0);
@@ -482,13 +483,12 @@ const Index = () => {
         .select("created_at,group_id")
         .is("deleted_at", null)
         .in("group_id", activeGroupIds)
-        .gte("created_at", prevFrom.toISOString())
-        .lt("created_at", prevEndExclusiveISO)
+        .gte("created_at", prevStartISO)
+        .lte("created_at", prevEndISO)
         .order("created_at", { ascending: true });
       const prevHourCounts: number[] = Array.from({ length: 24 }, () => 0);
       (prev || []).forEach((m: any) => {
-        const d = parseISO(m.created_at);
-        const h = d.getHours();
+        const h = getHourSP(m.created_at);
         prevHourCounts[h] = (prevHourCounts[h] || 0) + 1;
       });
       const previousPeakHour = prevHourCounts.reduce((maxIdx, val, idx, arr) => (val > arr[maxIdx] ? idx : maxIdx), 0);

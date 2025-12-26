@@ -4,7 +4,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { Users, Trash2 } from "lucide-react";
+import { Users, Trash2, Link as LinkIcon, Edit } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +32,7 @@ interface GroupRow {
   status: string | null;
   organization_id: string;
   organizations?: { name: string } | null;
+  invite_link?: string | null;
 }
 
 interface OrganizationOption { id: string; name: string; }
@@ -51,6 +52,8 @@ export default function SystemGroups() {
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
   const [removeGroup, setRemoveGroup] = useState<GroupRow | null>(null);
   const [removingGroup, setRemovingGroup] = useState(false);
+  const [editInviteGroup, setEditInviteGroup] = useState<GroupRow | null>(null);
+  const [inviteLinkInput, setInviteLinkInput] = useState("");
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
@@ -79,7 +82,7 @@ export default function SystemGroups() {
 
       let query = supabase
         .from("groups")
-        .select("id, name, provider, status, organization_id, organizations(name)", { count: "exact" });
+        .select("id, name, provider, status, organization_id, invite_link, organizations(name)", { count: "exact" });
 
       if (debouncedSearch) {
         query = query.ilike("name", `%${debouncedSearch}%`);
@@ -114,6 +117,25 @@ export default function SystemGroups() {
     },
     onError: (err: any) => {
       toast.error(err?.message || "Erro ao atualizar status");
+    },
+  });
+
+  const updateInviteMutation = useMutation({
+    mutationFn: async ({ id, invite_link }: { id: string; invite_link: string | null }) => {
+      const { error } = await supabase
+        .from("groups")
+        .update({ invite_link })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Link de convite atualizado");
+      setEditInviteGroup(null);
+      setInviteLinkInput("");
+      refetch();
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Erro ao atualizar link de convite");
     },
   });
 
@@ -159,6 +181,28 @@ export default function SystemGroups() {
       ),
     },
     {
+      key: "invite_link",
+      header: "Convite",
+      render: (g: GroupRow) => (
+        <div className="flex items-center gap-2">
+          {g.invite_link ? (
+            <a
+              href={g.invite_link}
+              onClick={(e) => e.stopPropagation()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+            >
+              <LinkIcon className="h-3 w-3" />
+              {g.invite_link.slice(0, 22)}...
+            </a>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          )}
+        </div>
+      ),
+    },
+    {
       key: "actions",
       header: "Ações",
       className: "text-right w-0",
@@ -173,6 +217,18 @@ export default function SystemGroups() {
               Reativar
             </Button>
           )}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditInviteGroup(g);
+              setInviteLinkInput(g.invite_link || "");
+            }}
+          >
+            <Edit className="h-4 w-4 mr-1" />
+            Editar convite
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -287,6 +343,39 @@ export default function SystemGroups() {
                 disabled={removingGroup}
               >
                 Confirmar exclusão
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!editInviteGroup} onOpenChange={(open) => !open && setEditInviteGroup(null)}>
+          <AlertDialogContent className="bg-card border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-card-foreground">Editar link de convite</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground">
+                Informe o link de convite do WhatsApp para revalidar o grupo.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={inviteLinkInput}
+                onChange={(e) => setInviteLinkInput(e.target.value)}
+                placeholder="https://chat.whatsapp.com/…"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="mr-2" onClick={() => setEditInviteGroup(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (!editInviteGroup) return;
+                  const v = inviteLinkInput.trim();
+                  const value = v.length ? v : null;
+                  updateInviteMutation.mutate({ id: editInviteGroup.id, invite_link: value });
+                }}
+              >
+                Salvar
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

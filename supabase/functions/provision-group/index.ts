@@ -18,6 +18,7 @@ interface ProvisionGroupPayload {
     phone: string;
     name: string;
     is_admin: boolean;
+    is_super_admin?: boolean;
     provider_member_id: string;
   }>;
 }
@@ -156,6 +157,7 @@ serve(async (req) => {
         name: p.name || p.phone,
         phone_e164: p.phone ? `+${p.phone.replace(/\D/g, '')}` : null,
         is_admin: p.is_admin || false,
+        is_super_admin: p.is_super_admin || false,
         provider_member_id: p.provider_member_id,
         provider: 'whatsapp',
       }));

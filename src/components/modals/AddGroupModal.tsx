@@ -24,6 +24,7 @@ interface GroupValidation {
     phone: string;
     name: string;
     is_admin: boolean;
+    is_super_admin?: boolean;
     provider_member_id: string;
   }>;
   data_incomplete?: boolean;
