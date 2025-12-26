@@ -34,7 +34,7 @@ const mainNavItems: NavItem[] = [
 
 const bottomNavItems: NavItem[] = [
   { icon: UserCircle, label: "Minha Conta", href: "/account" },
-  { icon: Settings, label: "Configurações", href: "/settings", requiresSystemAdmin: true },
+  { icon: Settings, label: "Configurações", href: "/system/settings", requiresSystemAdmin: true },
 ];
 
 export function AdminSidebar() {

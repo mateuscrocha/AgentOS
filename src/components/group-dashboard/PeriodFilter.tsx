@@ -26,6 +26,7 @@ export type PeriodType =
   | '7d' 
   | '14d' 
   | '30d' 
+  | '90d'
   | 'custom';
 
 export interface DateRange {
@@ -47,6 +48,7 @@ const periodOptions: { value: PeriodType; label: string }[] = [
   { value: '7d', label: 'Últimos 7 dias' },
   { value: '14d', label: 'Últimos 14 dias' },
   { value: '30d', label: 'Últimos 30 dias' },
+  { value: '90d', label: 'Últimos 90 dias' },
   { value: 'custom', label: 'Personalizado' },
 ];
 
@@ -92,6 +94,11 @@ export function getDateRange(period: PeriodType, customRange?: DateRange): DateR
     case '30d':
       return {
         from: startOfDay(subDays(now, 29)),
+        to: endOfDay(now),
+      };
+    case '90d':
+      return {
+        from: startOfDay(subDays(now, 89)),
         to: endOfDay(now),
       };
     case 'custom':

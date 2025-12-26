@@ -6,14 +6,15 @@ interface AdminLayoutProps {
   children: ReactNode;
   title: string;
   subtitle?: string;
+  actions?: ReactNode;
 }
 
-export function AdminLayout({ children, title, subtitle }: AdminLayoutProps) {
+export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <AdminSidebar />
       <div className="pl-64 transition-all duration-300">
-        <AdminHeader title={title} subtitle={subtitle} />
+        <AdminHeader title={title} subtitle={subtitle} actions={actions} />
         <main className="p-6">
           {children}
         </main>

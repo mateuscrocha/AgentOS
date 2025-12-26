@@ -29,14 +29,31 @@ export function StatsCard({
       <Component 
         onClick={onClick}
         className={cn(
-          "rounded-md border border-border bg-card p-5 shadow-none text-left w-full h-[92px]",
+          "rounded-md border border-border bg-card p-5 shadow-none text-left w-full h-[112px]",
           onClick && "hover:bg-secondary/50 transition-colors cursor-pointer"
         )}
       >
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground">{title}</p>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+              <Icon className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-xs font-medium text-muted-foreground">{title}</p>
+          </div>
           <p className="text-4xl font-semibold text-card-foreground tracking-tight">{value}</p>
         </div>
+        {change && (
+          <p
+            className={cn(
+              "mt-2 text-xs font-medium",
+              changeType === "positive" && "text-success",
+              changeType === "negative" && "text-destructive",
+              changeType === "neutral" && "text-muted-foreground"
+            )}
+          >
+            {change}
+          </p>
+        )}
       </Component>
     );
   }

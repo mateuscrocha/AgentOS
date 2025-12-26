@@ -13,13 +13,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Building2, Layers, Users as UsersIcon, MessageSquare } from "lucide-react";
+import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight, ArrowRight } from "lucide-react";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
  
 import { format, addDays, startOfDay, subDays } from "date-fns";
 import { formatDateKeySP, getHourSP } from "@/lib/date";
-import { ConversationRhythmSection } from "@/components/group-dashboard/ConversationRhythmSection";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -51,13 +50,41 @@ const Index = () => {
     }
   }, [authLoading, rolesLoading, isAuthenticated, isSystemAdmin, getAccessibleGroupIds, getAccessibleOrgIds, navigate]);
 
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('30d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const currentRange = getDateRange(selectedPeriod, customRange);
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
     setSelectedPeriod(period);
     if (period === 'custom') setCustomRange(range);
   };
+  const [keywordsMode, setKeywordsMode] = useState<'themes'|'words'>('themes');
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('system-admin-period');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        const p = saved?.period as PeriodType | undefined;
+        if (p) {
+          setSelectedPeriod(p);
+          if (p === 'custom' && saved?.from && saved?.to) {
+            setCustomRange({ from: new Date(saved.from), to: new Date(saved.to) });
+          }
+        }
+      }
+    } catch { void 0; }
+  }, []);
+
+  useEffect(() => {
+    const payload: any = { period: selectedPeriod };
+    if (selectedPeriod === 'custom' && customRange?.from && customRange?.to) {
+      payload.from = customRange.from.toISOString();
+      payload.to = customRange.to.toISOString();
+    }
+    try {
+      localStorage.setItem('system-admin-period', JSON.stringify(payload));
+    } catch { void 0; }
+  }, [selectedPeriod, customRange]);
 
   const periodMs = currentRange.to.getTime() - currentRange.from.getTime();
   const periodDays = Math.ceil(periodMs / (1000 * 60 * 60 * 24));
@@ -126,6 +153,55 @@ const Index = () => {
   } = useQuery({
     queryKey: ["kpi-members-total"],
     queryFn: fetchTotalMembersCount,
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
+  const {
+    data: kpiOrgsPeriod,
+    isLoading: kpiOrgsPeriodLoading,
+    error: kpiOrgsPeriodError,
+  } = useQuery({
+    queryKey: ["kpi-organizations-active-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
+    queryFn: async () => {
+      const { data: msgData, error: msgErr } = await supabase
+        .from("messages")
+        .select("group_id,created_at")
+        .is("deleted_at", null)
+        .gte("created_at", currentRange.from.toISOString())
+        .lte("created_at", currentRange.to.toISOString());
+      if (msgErr) throw msgErr;
+      const groupIds = Array.from(new Set((msgData || []).map((m: any) => m.group_id).filter(Boolean)));
+      if (groupIds.length === 0) return 0;
+      const { data: groupsData, error: grpErr } = await supabase
+        .from("groups")
+        .select("id,organization_id")
+        .in("id", groupIds);
+      if (grpErr) throw grpErr;
+      const orgIds = Array.from(new Set((groupsData || []).map((g: any) => g.organization_id).filter(Boolean)));
+      return orgIds.length;
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
+  const {
+    data: kpiGroupsPeriod,
+    isLoading: kpiGroupsPeriodLoading,
+    error: kpiGroupsPeriodError,
+  } = useQuery({
+    queryKey: ["kpi-groups-active-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("group_id")
+        .is("deleted_at", null)
+        .gte("created_at", currentRange.from.toISOString())
+        .lte("created_at", currentRange.to.toISOString());
+      if (error) throw error;
+      const ids = Array.from(new Set((data || []).map((m: any) => m.group_id).filter(Boolean)));
+      return ids.length;
+    },
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
   });
@@ -313,35 +389,7 @@ const Index = () => {
     retry: 1,
   });
 
-  const {
-    data: signalInactive,
-    isLoading: signalInactiveLoading,
-    error: signalInactiveError,
-    refetch: refetchInactive,
-  } = useQuery({
-    queryKey: ["signal-inactive-groups", currentRange.from.toISOString(), currentRange.to.toISOString()],
-    queryFn: async () => {
-      const { data: groups } = await supabase
-        .from("groups")
-        .select("id,name,is_active,is_archived")
-        .eq("is_active", true)
-        .or("is_archived.eq.false,is_archived.is.null");
-      const { data: msgs } = await supabase
-        .from("messages")
-        .select("group_id")
-        .is("deleted_at", null)
-        .gte("created_at", currentRange.from.toISOString())
-        .lte("created_at", currentRange.to.toISOString());
-      const activeIds = new Set((msgs || []).map((m: any) => m.group_id).filter(Boolean));
-      const list = (groups || []).filter(g => !activeIds.has(g.id)).slice(0, 3);
-      return {
-        count: (groups || []).filter(g => !activeIds.has(g.id)).length,
-        sample: list.map(g => ({ id: g.id, name: g.name })),
-      };
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
+  
 
   const {
     data: signalKeywords,
@@ -406,9 +454,20 @@ const Index = () => {
           return { word: w.word, count: Number(w.count || 0), delta };
         })
         .sort((a, b) => b.count - a.count)
-        .slice(0, 6);
+        .slice(0, 8);
 
-      const bigrams = extractBigramsFromRows(currRows).slice(0, 6);
+      const currBigrams = extractBigramsFromRows(currRows);
+      const prevBigrams = extractBigramsFromRows(prevRows);
+      const prevBigramMap: Record<string, number> = {};
+      (prevBigrams || []).forEach((b) => { prevBigramMap[b.phrase] = Number(b.count || 0); });
+      const bigrams = (currBigrams || [])
+        .map((b) => {
+          const prev = prevBigramMap[b.phrase] || 0;
+          const delta = prev ? Math.round(((Number(b.count || 0) - prev) / prev) * 100) : (b.count ? 100 : 0);
+          return { phrase: b.phrase, count: Number(b.count || 0), delta };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
       return { words, bigrams };
     },
     enabled: isAuthenticated && isSystemAdmin,
@@ -504,9 +563,8 @@ const Index = () => {
 
   useEffect(() => {
     if (signalConcentrationError) toast.error("Falha ao carregar sinal de concentração");
-    if (signalInactiveError) toast.error("Falha ao carregar grupos inativos (24h)");
     if (signalKeywordsError) toast.error("Falha ao carregar palavras-chave em alta");
-  }, [signalConcentrationError, signalInactiveError, signalKeywordsError]);
+  }, [signalConcentrationError, signalKeywordsError]);
 
  
 
@@ -522,58 +580,50 @@ const Index = () => {
     return null;
   }
 
+  const messagesDelta = (() => {
+    const curr = kpiMessagesPeriod || 0;
+    const prev = kpiMessagesPrevPeriod || 0;
+    if (!prev) return 0;
+    return Math.round(((curr - prev) / prev) * 100);
+  })();
+  const messagesChangeLabel = (() => {
+    const d = messagesDelta;
+    const sign = d >= 0 ? "+" : "";
+    return `${sign}${d}% vs período anterior`;
+  })();
+  const messagesChangeType = messagesDelta > 0 ? "positive" : messagesDelta < 0 ? "negative" : "neutral";
+
+  const participationValue = (() => { if (kpiActiveMembersLoading || kpiMembersLoading) return "—"; const total = kpiMembers || 0; const actives = kpiActiveMembersPeriod || 0; if (!total) return "0%"; return String(Math.round((actives / total) * 100)) + "%"; })();
+
   return (
-    <AdminLayout title="Central do Bóris" subtitle="Resumo do período selecionado">
+    <AdminLayout 
+      title="Dashboard do Sistema — Resumo Geral" 
+      subtitle="Panorama geral do Bóris"
+      actions={<PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />}
+    >
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
-        <StatsCard title="Organizações" value={kpiOrgsLoading ? "—" : (kpiOrgsError ? "Erro" : String(kpiOrgs ?? 0))} icon={Building2} variant="kpi" />
-        <StatsCard title="Grupos" value={kpiGroupsLoading ? "—" : (kpiGroupsError ? "Erro" : String(kpiGroups ?? 0))} icon={Layers} variant="kpi" />
-        <StatsCard title="Membros" value={kpiMembersLoading ? "—" : (kpiMembersError ? "Erro" : String(kpiMembers ?? 0))} icon={UsersIcon} variant="kpi" />
-        <StatsCard title="Mensagens no período selecionado" value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0))} icon={MessageSquare} variant="kpi" />
-        <StatsCard title="Participação dos membros" value={(() => { if (kpiActiveMembersLoading || kpiMembersLoading) return "—"; const total = kpiMembers || 0; const actives = kpiActiveMembersPeriod || 0; if (!total) return "0%"; return String(Math.round((actives / total) * 100)) + "%"; })()} icon={UsersIcon} variant="kpi" />
+        <StatsCard title="Organizações ativas" value={kpiOrgsPeriodLoading ? "—" : (kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0))} icon={Building2} variant="kpi" />
+        <StatsCard title="Grupos monitorados" value={kpiGroupsPeriodLoading ? "—" : (kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0))} icon={Layers} variant="kpi" />
+        <StatsCard title="Membros ativos" value={kpiActiveMembersLoading ? "—" : (kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0))} icon={UsersIcon} variant="kpi" />
+        <StatsCard title="Mensagens no período" value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0))} change={kpiMessagesLoading ? undefined : messagesChangeLabel} changeType={messagesChangeType} icon={MessageSquare} variant="kpi" />
+        <StatsCard title="Participação dos membros" value={participationValue} icon={UsersIcon} variant="kpi" />
       </div>
 
-      <div className="mt-8 flex items-center justify-end">
-        <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
-      </div>
+      
 
-      <div className="mt-8">
-        <ConversationRhythmSection 
-          messagesPerDay={(messagesPerDay || [])}
-          peakHour={peakData?.peakHour}
-          peakHourMessages={peakData?.peakHourMessages}
-          previousPeakHour={peakData?.previousPeakHour}
-          previousPeakHourMessages={peakData?.previousPeakHourMessages}
-          isLoading={messagesPerDayLoading || peakLoading}
-          periodLabel={"período selecionado"}
-        />
-      </div>
-
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>Atenção</CardTitle>
-          <CardDescription>O que merece cuidado agora</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {(() => { const curr = kpiMessagesPeriod || 0; const prev = kpiMessagesPrevPeriod || 0; const delta = prev ? Math.round(((curr - prev) / prev) * 100) : 0; return delta < -20 ? (<div className="rounded-md border border-border bg-card p-3"><p className="text-sm font-medium text-card-foreground">Queda de atividade</p><p className="text-xs text-muted-foreground">{`${delta}% vs período anterior`}</p></div>) : null; })()}
-            {(() => { const curr = newMembersPeriod || 0; const prev = newMembersPrevPeriod || 0; const delta = prev ? Math.round(((curr - prev) / prev) * 100) : (curr ? 100 : 0); return Math.abs(delta) > 50 ? (<div className="rounded-md border border-border bg-card p-3"><p className="text-sm font-medium text-card-foreground">Variação de membros</p><p className="text-xs text-muted-foreground">{`${delta}% vs período anterior`}</p></div>) : null; })()}
-            {signalInactive && signalInactive.count > 0 ? (
-              <div className="rounded-md border border-border bg-card p-3"><p className="text-sm font-medium text-card-foreground">Grupos sem mensagens no período</p><p className="text-xs text-muted-foreground">{`${signalInactive.count} grupos`}</p></div>
-            ) : null}
-            {(() => {
-              const words = signalKeywords?.words || [];
-              const sorted = [...words].sort((a: any, b: any) => (b?.delta || 0) - (a?.delta || 0));
-              const top = sorted[0];
-              return top && (top.delta || 0) > 50 ? (
-                <div className="rounded-md border border-border bg-card p-3">
-                  <p className="text-sm font-medium text-card-foreground">Palavras mais usadas</p>
-                  <p className="text-xs text-muted-foreground">{`${top.word} · +${top.delta}%`}</p>
-                </div>
-              ) : null;
-            })()}
+      <div className="mt-8 rounded-xl border border-warning/30 bg-warning/5 p-6">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-card-foreground">Atenção — o que precisa do seu olhar agora</h3>
+            <p className="text-xs text-muted-foreground">Leitura imediata de risco e estado</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {(() => { const curr = kpiMessagesPeriod || 0; const prev = kpiMessagesPrevPeriod || 0; const delta = prev ? Math.round(((curr - prev) / prev) * 100) : 0; return delta < -20 ? (<div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3"><div className="inline-flex items-center rounded-full bg-destructive text-destructive-foreground px-2 py-0.5 text-xs font-semibold">Crítico</div><div className="text-sm text-card-foreground">Queda de atividade</div><div className="ml-auto text-xs font-medium text-destructive">{`${delta}% vs período anterior`}</div></div>) : null; })()}
+          {(() => { const total = kpiOrgs || 0; const active = kpiOrgsPeriod || 0; const inactive = Math.max(0, total - active); return inactive > 0 ? (<div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3"><div className="inline-flex items-center rounded-full bg-warning text-warning-foreground px-2 py-0.5 text-xs font-semibold">Atenção</div><div className="text-sm text-card-foreground">Organizações inativas no período</div><div className="ml-auto text-xs font-medium text-warning">{inactive}</div></div>) : null; })()}
+          {(() => { const words = signalKeywords?.words || []; const sorted = [...words].sort((a: any, b: any) => (b?.delta || 0) - (a?.delta || 0)); const top = sorted[0]; return top && (top.delta || 0) > 50 ? (<div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 p-3"><div className="inline-flex items-center rounded-full bg-success text-success-foreground px-2 py-0.5 text-xs font-semibold">Tudo bem</div><div className="text-sm text-card-foreground">Palavra em alta</div><div className="ml-auto text-xs font-medium text-success">{`${top.word} · +${top.delta}%`}</div></div>) : null; })()}
+        </div>
+      </div>
 
       <Card className="mt-8">
         <CardHeader>
@@ -584,59 +634,73 @@ const Index = () => {
           {signalConcentrationLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
           {!signalConcentrationLoading && signalConcentrationError && (<ErrorState title="Falha ao carregar" message="Não foi possível carregar" retry={refetchConcentration} />)}
           {!signalConcentrationLoading && !signalConcentrationError && signalConcentration && (
-            <div className="space-y-2">
-              {(signalConcentration.topGroups || []).map((g: any, i: number) => (
-                <div key={g.id} className="grid grid-cols-12 items-center rounded-md border border-border bg-card p-3">
-                  <div className="col-span-5 text-sm text-card-foreground">{`${i+1}. ${g.name}`}</div>
-                  <div className="col-span-3 text-sm text-muted-foreground">{g.count} msgs</div>
-                  <div className="col-span-2 text-sm text-muted-foreground">{(() => { const total = (signalConcentration.topGroups || []).reduce((acc: number, it: any) => acc + it.count, 0); return total ? Math.round((g.count / total) * 100) + '%' : '0%'; })()}</div>
-                  <div className="col-span-2 text-sm text-muted-foreground">{`${g.activeMembers || 0} / ${g.totalMembers || 0}`}</div>
-                </div>
-              ))}
+            (() => {
+              const totalTop = (signalConcentration.topGroups || []).reduce((acc: number, it: any) => acc + (it.count || 0), 0);
+              return (
+                <div className="space-y-2">
+                  {(signalConcentration.topGroups || []).map((g: any, i: number) => {
+                    const participation = totalTop ? Math.round((Number(g.count || 0) / totalTop) * 100) : 0;
+                    const avgPerDay = (() => { const d = periodDays || 0; return d ? Math.round(Number(g.count || 0) / d) : 0; })();
+                    return (
+                  <button
+                    key={g.id}
+                    onClick={() => navigate(`/groups/${g.id}`)}
+                    className="w-full text-left rounded-md border border-border bg-card p-3 hover:bg-card/70 transition-colors"
+                  >
+                    <div className="text-sm font-medium text-card-foreground">{`${i + 1}. ${g.name}`}</div>
+                    <div className="mt-1 text-sm text-card-foreground">
+                      <span>📩 </span>
+                      <span className="font-semibold">{Number(g.count || 0)}</span>
+                      <span className="ml-1">msgs</span>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-3">
+                      <span className="whitespace-nowrap">👥 {Number(g.activeMembers || 0)} ativos</span>
+                      <span className="whitespace-nowrap">📆 {avgPerDay}/dia</span>
+                      <span className="whitespace-nowrap">{participation}% do total</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </CardContent>
+          );
+        })()
+      )}
+      </CardContent>
       </Card>
 
       <Card className="mt-8">
         <CardHeader>
-          <CardTitle>Palavras mais usadas</CardTitle>
-          <CardDescription>No período selecionado</CardDescription>
+          <CardTitle>Palavras-chave em alta</CardTitle>
+          <CardDescription>Leitura rápida do período selecionado</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {signalKeywordsLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
-            {!signalKeywordsLoading && signalKeywordsError && (<ErrorState title="Falha ao carregar" message="Não foi possível carregar" retry={refetchKeywords} />)}
-            {!signalKeywordsLoading && !signalKeywordsError && signalKeywords && (
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {(signalKeywords.words || []).map((w: any) => (
-                  <div key={w.word} className="flex items-center justify-between rounded-md border border-border bg-card p-2">
-                    <span className="text-sm text-card-foreground">{w.word}</span>
-                    <span className="text-xs text-muted-foreground">{w.count}{typeof w.delta === 'number' ? ` · ${w.delta > 0 ? '+' : ''}${w.delta}%` : ''}</span>
+          {signalKeywordsLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
+          {!signalKeywordsLoading && signalKeywordsError && (<ErrorState title="Falha ao carregar" message="Não foi possível carregar" retry={refetchKeywords} />)}
+          {!signalKeywordsLoading && !signalKeywordsError && signalKeywords && (
+            <div>
+              <div className="flex justify-end mb-2 gap-1">
+                <button
+                  onClick={() => setKeywordsMode('themes')}
+                  className={`text-xs px-2 py-1 rounded border ${keywordsMode==='themes' ? 'bg-secondary text-card-foreground' : 'text-muted-foreground'}`}
+                >Temas</button>
+                <button
+                  onClick={() => setKeywordsMode('words')}
+                  className={`text-xs px-2 py-1 rounded border ${keywordsMode==='words' ? 'bg-secondary text-card-foreground' : 'text-muted-foreground'}`}
+                >Palavras</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {(keywordsMode === 'themes' ? (signalKeywords.bigrams || []) : (signalKeywords.words || [])).map((k: any) => (
+                  <div key={(k.phrase ?? k.word) + '-' + k.count} className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-2 py-1.5">
+                    <span className="text-sm font-medium text-card-foreground truncate flex-1">{k.phrase ?? k.word}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">{k.count}</span>
+                    {typeof k.delta === 'number' && k.delta > 0 ? (
+                      <ArrowUpRight className="h-3.5 w-3.5 text-success" />
+                    ) : (
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>Grupos sem mensagens no período</CardTitle>
-          <CardDescription>Sem mensagens no período selecionado</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {signalInactiveLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
-          {!signalInactiveLoading && signalInactiveError && (<ErrorState title="Falha ao carregar" message="Não foi possível carregar" retry={refetchInactive} />)}
-          {!signalInactiveLoading && !signalInactiveError && signalInactive && (
-            <div className="space-y-1">
-              {signalInactive.sample.map(item => (
-                <div key={item.id} className="flex items-center justify-between rounded-md border border-border bg-card p-2">
-                  <span className="text-sm text-card-foreground">{item.name}</span>
-                  <span className="text-xs text-muted-foreground">Sem mensagens</span>
-                </div>
-              ))}
             </div>
           )}
         </CardContent>
@@ -644,45 +708,13 @@ const Index = () => {
 
       <Card className="mt-8">
         <CardHeader>
-          <CardTitle>Atalhos rápidos</CardTitle>
-          <CardDescription>Principais atalhos</CardDescription>
+          <CardTitle>Saúde da plataforma</CardTitle>
+          <CardDescription>Status operacional atual</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
-          <button onClick={() => navigate("/system/organizations")} className="flex items-center gap-3 p-4 rounded-md border border-border bg-card text-left">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
-              <Building2 className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-card-foreground">Gerenciar organizações</p>
-            </div>
-          </button>
-          <button onClick={() => navigate("/system/groups")} className="flex items-center gap-3 p-4 rounded-md border border-border bg-card text-left">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
-              <Layers className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-card-foreground">Gerenciar grupos</p>
-            </div>
-          </button>
-          <button onClick={() => navigate("/system/users")} className="flex items-center gap-3 p-4 rounded-md border border-border bg-card text-left">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
-              <UsersIcon className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-card-foreground">Gerenciar usuários</p>
-            </div>
-          </button>
+        <CardContent>
+          <ConnectionStatus />
         </CardContent>
       </Card>
-
-      <Accordion type="single" collapsible className="mt-8">
-        <AccordionItem value="health">
-          <AccordionTrigger>Saúde do sistema</AccordionTrigger>
-          <AccordionContent>
-            <ConnectionStatus />
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
     </AdminLayout>
   );
 };

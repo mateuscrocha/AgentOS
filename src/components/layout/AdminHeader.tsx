@@ -13,13 +13,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { ReactNode } from "react";
 
 interface AdminHeaderProps {
   title: string;
   subtitle?: string;
+  actions?: ReactNode;
 }
 
-export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
+export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
   const navigate = useNavigate();
   const { user, signOut, isAuthenticated } = useAuth();
   const { getRoleLabel, isSystemAdmin, isOrgAdmin, isGroupManager } = useUserRoles();
@@ -73,6 +75,11 @@ export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
+        {actions && (
+          <div className="hidden sm:block">
+            {actions}
+          </div>
+        )}
         {/* User menu */}
         {isAuthenticated ? (
           <DropdownMenu>
