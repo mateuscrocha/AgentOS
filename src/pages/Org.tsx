@@ -230,11 +230,12 @@ const Org = () => {
   });
 
   const path = location.pathname;
-  const isMembersRoute = /\/organization\/.+\/members$/.test(path);
-  const isGroupsRoute = /\/organization\/.+\/groups$/.test(path);
-  const isSettingsRoute = /\/organization\/.+\/settings$/.test(path);
-  const isDashboardRoute = /\/organization\/.+\/dashboard$/.test(path);
-  const isDefaultOrgHome = /\/organization\/.+$/.test(path) && !isMembersRoute && !isGroupsRoute && !isSettingsRoute && !isDashboardRoute;
+  const isMembersRoute = /^\/(org|organization)\/[^/]+\/members$/.test(path);
+  const isGroupsRoute = /^\/(org|organization)\/[^/]+\/groups$/.test(path);
+  const isSettingsRoute = /^\/(org|organization)\/[^/]+\/settings$/.test(path);
+  const isDashboardRoute = /^\/(org|organization)\/[^/]+\/dashboard$/.test(path);
+  const isBaseOrg = /^\/(org|organization)\/[^/]+$/.test(path) || /^\/(org|organization)\/[^/]+\/$/.test(path);
+  const isDefaultOrgHome = isBaseOrg && !isMembersRoute && !isGroupsRoute && !isSettingsRoute && !isDashboardRoute;
 
   // Fetch groups for this organization
   const { data: groupsData, isLoading: groupsLoading, error: groupsError, refetch: refetchGroups } = useQuery({
