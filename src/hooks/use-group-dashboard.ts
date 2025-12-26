@@ -2,16 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { subDays } from "date-fns";
+import { formatDateKeySP, getHourSP } from "@/lib/date";
 
-function getHourInTimeZone(dateStr: string, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone }).formatToParts(new Date(dateStr));
-  const hour = parts.find(p => p.type === "hour")?.value;
-  return hour ? parseInt(hour, 10) : new Date(dateStr).getUTCHours();
-}
-
-function formatDateKeyInTimeZone(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
-}
+ 
 
 interface DateRange {
   from: Date;
@@ -43,7 +36,6 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
   // Chart should respect selected period strictly
   const chartDays = periodDays;
-  const chartStartDate = currentPeriodStart;
   const chartStartISO = currentPeriodStartISO;
 
   // Fetch group details
@@ -126,21 +118,25 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       // Get top participant
       const { data: topParticipantData } = await supabase
         .from('messages')
-        .select('member_id, members!inner(name)')
+        .select('member_id, members!inner(name, profile_pic_url)')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const memberCounts: Record<string, { name: string; count: number }> = {};
+      const memberCounts: Record<string, { name: string; count: number; avatarUrl: string | null }> = {};
       topParticipantData?.forEach((msg: any) => {
         const memberId = msg.member_id;
         const memberName = msg.members?.name || 'Desconhecido';
+        const avatarUrl = (msg.members as any)?.profile_pic_url || null;
         if (!memberCounts[memberId]) {
-          memberCounts[memberId] = { name: memberName, count: 0 };
+          memberCounts[memberId] = { name: memberName, count: 0, avatarUrl };
         }
         memberCounts[memberId].count++;
+        if (!memberCounts[memberId].avatarUrl && avatarUrl) {
+          memberCounts[memberId].avatarUrl = avatarUrl;
+        }
       });
 
       const topParticipant = Object.values(memberCounts)
@@ -246,21 +242,25 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       // Get top participant in previous period
       const { data: topParticipantData } = await supabase
         .from('messages')
-        .select('member_id, members!inner(name)')
+        .select('member_id, members!inner(name, profile_pic_url)')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
-      const memberCounts: Record<string, { name: string; count: number }> = {};
+      const memberCounts: Record<string, { name: string; count: number; avatarUrl: string | null }> = {};
       topParticipantData?.forEach((msg: any) => {
         const memberId = msg.member_id;
         const memberName = msg.members?.name || 'Desconhecido';
+        const avatarUrl = (msg.members as any)?.profile_pic_url || null;
         if (!memberCounts[memberId]) {
-          memberCounts[memberId] = { name: memberName, count: 0 };
+          memberCounts[memberId] = { name: memberName, count: 0, avatarUrl };
         }
         memberCounts[memberId].count++;
+        if (!memberCounts[memberId].avatarUrl && avatarUrl) {
+          memberCounts[memberId].avatarUrl = avatarUrl;
+        }
       });
 
       const topParticipant = Object.values(memberCounts)
@@ -294,9 +294,8 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         countsByHour[i] = 0;
       }
 
-      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       data?.forEach(msg => {
-        const hour = getHourInTimeZone(msg.created_at, tz);
+        const hour = getHourSP(msg.created_at);
         countsByHour[hour]++;
       });
 
@@ -457,17 +456,14 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .order('created_at', { ascending: true });
 
       const countsByDay: Record<string, number> = {};
-      
-      // Initialize all days in range
-      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       for (let i = periodDays - 1; i >= 0; i--) {
         const date = subDays(currentPeriodEnd, i);
-        const dateKey = formatDateKeyInTimeZone(date, tz);
+        const dateKey = formatDateKeySP(date);
         countsByDay[dateKey] = 0;
       }
 
       data?.forEach(msg => {
-        const dateKey = formatDateKeyInTimeZone(new Date(msg.created_at), tz);
+        const dateKey = formatDateKeySP(new Date(msg.created_at));
         if (countsByDay[dateKey] !== undefined) {
           countsByDay[dateKey]++;
         }
@@ -495,15 +491,14 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .order('joined_at', { ascending: true });
 
       const countsByDay: Record<string, number> = {};
-      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       for (let i = chartDays - 1; i >= 0; i--) {
         const date = subDays(currentPeriodEnd, i);
-        const dateKey = formatDateKeyInTimeZone(date, tz);
+        const dateKey = formatDateKeySP(date);
         countsByDay[dateKey] = 0;
       }
 
       data?.forEach(m => {
-        const dateKey = formatDateKeyInTimeZone(new Date(m.joined_at), tz);
+        const dateKey = formatDateKeySP(new Date(m.joined_at));
         if (countsByDay[dateKey] !== undefined) {
           countsByDay[dateKey]++;
         }
@@ -528,15 +523,14 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .order('left_at', { ascending: true });
 
       const countsByDay: Record<string, number> = {};
-      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       for (let i = chartDays - 1; i >= 0; i--) {
         const date = subDays(currentPeriodEnd, i);
-        const dateKey = formatDateKeyInTimeZone(date, tz);
+        const dateKey = formatDateKeySP(date);
         countsByDay[dateKey] = 0;
       }
 
       data?.forEach(m => {
-        const dateKey = formatDateKeyInTimeZone(new Date(m.left_at), tz);
+        const dateKey = formatDateKeySP(new Date(m.left_at));
         if (countsByDay[dateKey] !== undefined) {
           countsByDay[dateKey]++;
         }
@@ -561,18 +555,16 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .lte('created_at', currentPeriodEndISO)
         .order('created_at', { ascending: true });
 
-      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-
       const membersByDay: Record<string, Set<string>> = {};
       // Initialize all days in range to ensure full alignment
       for (let i = periodDays - 1; i >= 0; i--) {
         const date = subDays(currentPeriodEnd, i);
-        const dateKey = formatDateKeyInTimeZone(date, tz);
+        const dateKey = formatDateKeySP(date);
         membersByDay[dateKey] = new Set<string>();
       }
 
       data?.forEach(msg => {
-        const dateKey = formatDateKeyInTimeZone(new Date(msg.created_at), tz);
+        const dateKey = formatDateKeySP(new Date(msg.created_at));
         const memberId = msg.member_id as string | null;
         if (memberId && membersByDay[dateKey]) {
           membersByDay[dateKey].add(memberId);
@@ -604,9 +596,8 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         countsByHour[i] = 0;
       }
 
-      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       data?.forEach(msg => {
-        const hour = getHourInTimeZone(msg.created_at, tz);
+        const hour = getHourSP(msg.created_at);
         countsByHour[hour]++;
       });
 
@@ -639,7 +630,6 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const tz = (group as any)?.metadata?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       const participantsByDay: Record<string, { id: string; avatarUrl: string | null }[]> = {};
       const participantsByHour: Record<number, { id: string; avatarUrl: string | null }[]> = {};
       const seenDay: Record<string, Set<string>> = {};
@@ -653,8 +643,8 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         const memberId = msg.member_id as string | null;
         if (!memberId) return;
         const avatarUrl = msg.member_avatar || null;
-        const dateKey = formatDateKeyInTimeZone(new Date(msg.created_at), tz);
-        const hour = getHourInTimeZone(msg.created_at, tz);
+        const dateKey = formatDateKeySP(new Date(msg.created_at));
+        const hour = getHourSP(msg.created_at);
 
         if (!participantsByDay[dateKey]) {
           participantsByDay[dateKey] = [];
@@ -682,21 +672,25 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data } = await supabase
         .from('messages')
-        .select('member_id, members!inner(name)')
+        .select('member_id, members!inner(name, profile_pic_url)')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .not('member_id', 'is', null)
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const memberCounts: Record<string, { name: string; count: number }> = {};
+      const memberCounts: Record<string, { name: string; count: number; avatarUrl: string | null }> = {};
       data?.forEach((msg: any) => {
         const memberId = msg.member_id;
         const memberName = msg.members?.name || 'Desconhecido';
+        const avatarUrl = (msg.members as any)?.profile_pic_url || null;
         if (!memberCounts[memberId]) {
-          memberCounts[memberId] = { name: memberName, count: 0 };
+          memberCounts[memberId] = { name: memberName, count: 0, avatarUrl };
         }
         memberCounts[memberId].count++;
+        if (!memberCounts[memberId].avatarUrl && avatarUrl) {
+          memberCounts[memberId].avatarUrl = avatarUrl;
+        }
       });
 
       return Object.values(memberCounts)

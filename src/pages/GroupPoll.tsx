@@ -15,6 +15,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { KpiCard } from "@/components/group-dashboard";
+import { formatDateDescriptiveBR, SAO_PAULO_TZ } from "@/lib/date";
 
 export default function GroupPoll() {
   const { groupId, pollId } = useParams();
@@ -120,7 +121,7 @@ export default function GroupPoll() {
   const totalVotes = (pollOptions ?? []).reduce((sum: number, o: any) => sum + o.votesCount, 0);
   const sortedOptions = [...(pollOptions ?? [])].sort((a: any, b: any) => b.votesCount - a.votesCount);
   const chartData = sortedOptions.map((o: any) => ({ name: o.optionText, value: o.votesCount }));
-  const createdAtLabel = poll ? new Date((poll as any).created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : "";
+  const createdAtLabel = poll ? formatDateDescriptiveBR((poll as any).created_at) : "";
 
   return (
     <AdminLayout title="Enquete" subtitle="Detalhes da enquete">
@@ -236,7 +237,7 @@ export default function GroupPoll() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <UserInline name={v.personName || "Participante"} avatarUrl={null} />
-                                  <span className="text-[11px] text-muted-foreground">{new Date(v.createdAt).toLocaleString("pt-BR")}</span>
+                                  <span className="text-[11px] text-muted-foreground">{new Date(v.createdAt).toLocaleString("pt-BR", { timeZone: SAO_PAULO_TZ })}</span>
                                 </div>
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   {(v.votedOptions as string[]).map((o: string, i: number) => (

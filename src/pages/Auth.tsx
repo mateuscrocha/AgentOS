@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Bot, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -12,11 +12,13 @@ const passwordSchema = z.string().min(6, "Senha deve ter pelo menos 6 caracteres
 const Auth = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isRecovery, setIsRecovery] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -26,15 +28,31 @@ const Auth = () => {
   }, [authLoading, isAuthenticated, navigate]);
 
   const validateInputs = () => {
-    try {
-      emailSchema.parse(email);
-      passwordSchema.parse(password);
-      return true;
-    } catch (e) {
-      if (e instanceof z.ZodError) {
-        setError(e.errors[0].message);
+    if (isRecovery) {
+      try {
+        passwordSchema.parse(newPassword);
+      } catch (e) {
+        if (e instanceof z.ZodError) {
+          setError(e.errors[0].message);
+        }
+        return false;
       }
-      return false;
+      if (newPassword !== confirmPassword) {
+        setError("As senhas não coincidem");
+        return false;
+      }
+      return true;
+    } else {
+      try {
+        emailSchema.parse(email);
+        passwordSchema.parse(password);
+        return true;
+      } catch (e) {
+        if (e instanceof z.ZodError) {
+          setError(e.errors[0].message);
+        }
+        return false;
+      }
     }
   };
 
@@ -47,7 +65,15 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (isRecovery) {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+        toast.success("Senha atualizada com sucesso");
+        setIsRecovery(false);
+        setNewPassword("");
+        setConfirmPassword("");
+        navigate("/");
+      } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -55,17 +81,6 @@ const Auth = () => {
         if (error) throw error;
         toast.success("Login realizado com sucesso!");
         navigate("/");
-      } else {
-        const redirectUrl = `${window.location.origin}/`;
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl,
-          },
-        });
-        if (error) throw error;
-        toast.success("Conta criada! Verifique seu email para confirmar o cadastro.");
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro inesperado";
@@ -85,18 +100,47 @@ const Auth = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    setError("");
+    try {
+      emailSchema.parse(email);
+    } catch {
+      setError("Informe um email válido para recuperar a senha");
+      return;
+    }
+    const redirectUrl = `${window.location.origin}/auth`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    toast.success("Enviamos um link de recuperação para o seu email");
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("type") === "recovery") {
+      setIsRecovery(true);
+    }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setIsRecovery(true);
+        setError("");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-primary mb-4">
-            <Bot className="h-8 w-8 text-primary-foreground" />
-          </div>
+          <img src="/admin-logo.png" alt="Bóris Admin" className="h-16 w-auto mb-2" />
           <h1 className="text-2xl font-bold text-foreground">Bóris Admin</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {isLogin ? "Entre na sua conta" : "Crie sua conta"}
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">{isRecovery ? "Defina sua nova senha" : "Entre na sua conta"}</p>
         </div>
 
         {/* Form */}
@@ -111,41 +155,91 @@ const Auth = () => {
             )}
 
             {/* Email */}
-            <div>
-              <label className="text-sm font-medium text-card-foreground mb-1.5 block">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  required
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+            {!isRecovery && (
+              <div>
+                <label className="text-sm font-medium text-card-foreground mb-1.5 block">
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    required
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Password */}
-            <div>
-              <label className="text-sm font-medium text-card-foreground mb-1.5 block">
-                Senha
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  minLength={6}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+            {/* Password / Recovery */}
+            {!isRecovery ? (
+              <div>
+                <label className="text-sm font-medium text-card-foreground mb-1.5 block">
+                  Senha
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Esqueci minha senha
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-card-foreground mb-1.5 block">
+                    Nova senha
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-card-foreground mb-1.5 block">
+                    Confirmar nova senha
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Submit */}
             <button
@@ -156,28 +250,14 @@ const Auth = () => {
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {isLogin ? "Entrando..." : "Criando conta..."}
+                  {isRecovery ? "Atualizando..." : "Entrando..."}
                 </>
               ) : (
-                isLogin ? "Entrar" : "Criar conta"
+                isRecovery ? "Definir nova senha" : "Entrar"
               )}
             </button>
           </div>
-
-          {/* Toggle */}
-          <p className="text-center text-sm text-muted-foreground">
-            {isLogin ? "Não tem uma conta?" : "Já tem uma conta?"}{" "}
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError("");
-              }}
-              className="text-primary hover:underline font-medium"
-            >
-              {isLogin ? "Criar conta" : "Fazer login"}
-            </button>
-          </p>
+          
         </form>
       </div>
     </div>

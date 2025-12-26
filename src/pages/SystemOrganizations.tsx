@@ -4,13 +4,14 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { Building2, Layers, Trash2 } from "lucide-react";
+import { Building2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
+import { formatDateSimpleBR } from "@/lib/date";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -153,7 +154,7 @@ export default function SystemOrganizations() {
     {
       key: "created_at",
       header: "Criado em",
-      render: (org: Organization) => new Date(org.created_at).toLocaleDateString("pt-BR"),
+      render: (org: Organization) => formatDateSimpleBR(org.created_at),
     },
     {
       key: "actions",

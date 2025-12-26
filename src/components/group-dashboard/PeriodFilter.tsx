@@ -68,12 +68,12 @@ export function getDateRange(period: PeriodType, customRange?: DateRange): DateR
     }
     case 'this_week':
       return {
-        from: startOfWeek(now, { weekStartsOn: 0 }),
+        from: startOfWeek(now, { weekStartsOn: 1 }),
         to: endOfDay(now),
       };
     case 'last_week': {
-      const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 0 });
-      const lastWeekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 0 });
+      const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
+      const lastWeekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
       return {
         from: lastWeekStart,
         to: lastWeekEnd,

@@ -1,4 +1,5 @@
 import { SectionHeader } from "./SectionHeader";
+import { formatDateTickBR } from "@/lib/date";
 import { KpiCard } from "./KpiCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -28,7 +29,7 @@ export function GroupGrowthSection({
   periodLabel = "período",
 }: GroupGrowthSectionProps) {
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    return formatDateTickBR(dateStr);
   };
 
   const byDate: Record<string, { date: string; entradas: number; saídas: number }> = {};

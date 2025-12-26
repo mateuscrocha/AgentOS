@@ -12,6 +12,7 @@ import { useState } from "react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
+import { formatDateSimpleBR } from "@/lib/date";
 import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
 import { EditOrganizationContactModal } from "@/components/modals/EditOrganizationContactModal";
 import { EditGroupModal } from "@/components/modals/EditGroupModal";
@@ -239,7 +240,7 @@ const Org = () => {
     { 
       key: 'created_at', 
       header: 'Criado em',
-      render: (group: GroupItem) => new Date(group.created_at).toLocaleDateString('pt-BR')
+      render: (group: GroupItem) => formatDateSimpleBR(group.created_at)
     },
     {
       key: 'actions',
@@ -311,7 +312,7 @@ const Org = () => {
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              Criada em {new Date(org.created_at).toLocaleDateString('pt-BR')}
+              Criada em {formatDateSimpleBR(org.created_at)}
             </p>
           </div>
           <div className="flex items-center gap-3">

@@ -1,4 +1,5 @@
 import { CalendarDays, Clock, ArrowUpRight, ArrowRight } from "lucide-react";
+import { SAO_PAULO_TZ } from "@/lib/date";
 import { filterKeywordItems } from "@/utils/keywords";
 import { SectionHeader } from "./SectionHeader";
 import { useState } from "react";
@@ -32,7 +33,7 @@ export function RecentActivitySection({
     if (!messagesPerDay || messagesPerDay.length === 0) return null;
     const counts: Record<string, number> = {};
     messagesPerDay.forEach((d) => {
-      const day = new Date(d.date).toLocaleDateString("pt-BR", { weekday: "long" });
+      const day = new Date(d.date).toLocaleDateString("pt-BR", { weekday: "long", timeZone: SAO_PAULO_TZ });
       counts[day] = (counts[day] || 0) + d.count;
     });
     const entries = Object.entries(counts);

@@ -26,7 +26,7 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Central de Comando", href: "/" },
+  { icon: LayoutDashboard, label: "Central do Bóris", href: "/" },
   { icon: Building2, label: "Gerenciar organizações", href: "/system/organizations", requiresSystemAdmin: true },
   { icon: Users, label: "Gerenciar grupos", href: "/system/groups", requiresSystemAdmin: true },
   { icon: Users, label: "Pessoas", href: "/system/people", requiresSystemAdmin: true },

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/chart";
 import { Pie, PieChart, Cell } from "recharts";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface MemberEngagement {
   recorrentes: number;
@@ -17,9 +18,9 @@ interface MemberEngagement {
 
 interface PeopleSectionProps {
   groupId: string;
-  topParticipant: { name: string; count: number } | null;
-  previousTopParticipant?: { name: string; count: number } | null;
-  topParticipants: { name: string; count: number }[];
+  topParticipant: { name: string; count: number; avatarUrl?: string | null } | null;
+  previousTopParticipant?: { name: string; count: number; avatarUrl?: string | null } | null;
+  topParticipants: { name: string; count: number; avatarUrl?: string | null }[];
   memberEngagement?: MemberEngagement;
   previousMemberEngagement?: MemberEngagement | null;
   isLoading?: boolean;
@@ -99,11 +100,18 @@ export function PeopleSection({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Top participant highlight */}
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-5 flex flex-col items-center text-center">
-          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+          <div className="mb-3">
             {isLoading ? (
-              <Skeleton className="h-full w-full rounded-full" />
+              <Skeleton className="h-16 w-16 rounded-full" />
             ) : (
-              <Crown className="h-8 w-8 text-primary" />
+              <Avatar className="h-16 w-16">
+                {topParticipant?.avatarUrl ? (
+                  <AvatarImage src={topParticipant.avatarUrl || undefined} alt={topParticipant?.name || "Membro mais ativo"} />
+                ) : null}
+                <AvatarFallback>
+                  <Crown className="h-8 w-8 text-primary" />
+                </AvatarFallback>
+              </Avatar>
             )}
           </div>
           {isLoading ? (
@@ -168,6 +176,14 @@ export function PeopleSection({
                   }`}>
                     {index + 1}
                   </span>
+                  <Avatar className="h-7 w-7">
+                    {participant.avatarUrl ? (
+                      <AvatarImage src={participant.avatarUrl || undefined} alt={participant.name} />
+                    ) : null}
+                    <AvatarFallback>
+                      <User className="h-4 w-4 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
                   <span className="flex-1 text-sm text-card-foreground truncate">
                     {participant.name}
                   </span>

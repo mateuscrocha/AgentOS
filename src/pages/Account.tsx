@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { z } from "zod";
+import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
 
 const nameSchema = z.string().min(1, "Nome é obrigatório").max(100, "Nome deve ter no máximo 100 caracteres");
 const passwordSchema = z.string().min(6, "Senha deve ter pelo menos 6 caracteres");
@@ -268,7 +269,7 @@ const Account = () => {
               <div>
                 <Label className="text-muted-foreground text-xs">Criado em</Label>
                 <p className="text-sm text-card-foreground">
-                  {user?.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '-'}
+                  {user?.created_at ? formatDateSimpleBR(user.created_at) : '-'}
                 </p>
               </div>
             </div>
@@ -339,7 +340,7 @@ const Account = () => {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Último login</span>
                   <span className="text-card-foreground">
-                    {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString('pt-BR') : '-'}
+                    {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString('pt-BR', { timeZone: SAO_PAULO_TZ }) : '-'}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">

@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { UserInline } from "@/components/ui/UserInline";
 import AccessDenied from "./AccessDenied";
+import { formatDateSimpleBR } from "@/lib/date";
 
 interface PersonAgg {
   personKey: string;
@@ -151,7 +152,7 @@ export default function SystemPeople() {
     {
       key: "created_at",
       header: "Criado em",
-      render: (p: PersonAgg) => new Date(p.created_at).toLocaleDateString("pt-BR"),
+      render: (p: PersonAgg) => formatDateSimpleBR(p.created_at),
     },
   ];
 

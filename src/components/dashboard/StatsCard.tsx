@@ -9,7 +9,7 @@ interface StatsCardProps {
   icon: LucideIcon;
   description?: string;
   onClick?: () => void;
-  variant?: "default" | "compact";
+  variant?: "default" | "compact" | "kpi";
 }
 
 export function StatsCard({ 
@@ -24,6 +24,23 @@ export function StatsCard({
 }: StatsCardProps) {
   const Component = onClick ? 'button' : 'div';
   
+  if (variant === "kpi") {
+    return (
+      <Component 
+        onClick={onClick}
+        className={cn(
+          "rounded-md border border-border bg-card p-5 shadow-none text-left w-full h-[92px]",
+          onClick && "hover:bg-secondary/50 transition-colors cursor-pointer"
+        )}
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-muted-foreground">{title}</p>
+          <p className="text-4xl font-semibold text-card-foreground tracking-tight">{value}</p>
+        </div>
+      </Component>
+    );
+  }
+
   if (variant === "compact") {
     return (
       <Component 

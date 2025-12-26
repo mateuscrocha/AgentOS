@@ -12,10 +12,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Calendar, FileText, Users, MessageSquare, Activity, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PeriodFilter, getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/PeriodFilter";
+import { formatDateTimeBR, formatDateTimeSecondsBR } from "@/lib/date";
 
 interface Event {
   id: string;
@@ -36,37 +36,22 @@ interface Column<T> {
 
 const PAGE_SIZE = 20;
 
-const DATE_RANGES = [
-  { value: "24h", label: "Últimas 24 horas" },
-  { value: "7d", label: "Últimos 7 dias" },
-  { value: "30d", label: "Últimos 30 dias" },
-];
-
 export default function GroupEvents() {
   const { groupId } = useParams<{ groupId: string }>();
   const { loading: authLoading } = useAuth();
   const { hasGroupAccess, isLoading: rolesLoading } = useUserRoles();
   
   const [page, setPage] = useState(1);
-  const [dateRange, setDateRange] = useState("7d");
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [eventType, setEventType] = useState("all");
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const hasAccess = groupId ? hasGroupAccess(groupId) : false;
 
-  const getDateFilter = () => {
-    const now = new Date();
-    switch (dateRange) {
-      case "24h":
-        return new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-      case "7d":
-        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      case "30d":
-        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      default:
-        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    }
-  };
+  const currentRange = getDateRange(selectedPeriod, customRange);
+  const currentStartISO = currentRange.from.toISOString();
+  const currentEndISO = currentRange.to.toISOString();
 
   // Fetch group info for breadcrumbs
   const { data: group } = useQuery({
@@ -100,14 +85,15 @@ export default function GroupEvents() {
 
   // Fetch distinct event types for this group
   const { data: eventTypes } = useQuery({
-    queryKey: ["group-event-types", groupId],
+    queryKey: ["group-event-types", groupId, currentStartISO, currentEndISO],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
         .select("event_type")
         .eq("entity_type", "group")
         .eq("entity_id", groupId!)
-        .gte("created_at", getDateFilter())
+        .gte("created_at", currentStartISO)
+        .lte("created_at", currentEndISO)
         .order("event_type");
       
       if (error) throw error;
@@ -119,14 +105,15 @@ export default function GroupEvents() {
 
   // Fetch events for this group
   const { data: eventsData, isLoading: eventsLoading } = useQuery({
-    queryKey: ["group-events", groupId, page, dateRange, eventType],
+    queryKey: ["group-events", groupId, page, selectedPeriod, customRange?.from?.toISOString(), customRange?.to?.toISOString(), eventType],
     queryFn: async () => {
       let query = supabase
         .from("events")
         .select("*", { count: "exact" })
         .eq("entity_type", "group")
         .eq("entity_id", groupId!)
-        .gte("created_at", getDateFilter())
+        .gte("created_at", currentStartISO)
+        .lte("created_at", currentEndISO)
         .order("created_at", { ascending: false })
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
@@ -157,7 +144,7 @@ export default function GroupEvents() {
     {
       key: "created_at",
       header: "Data",
-      render: (event) => format(new Date(event.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR }),
+      render: (event) => formatDateTimeBR(event.created_at),
     },
     {
       key: "event_type",
@@ -241,18 +228,11 @@ export default function GroupEvents() {
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DATE_RANGES.map((range) => (
-                  <SelectItem key={range.value} value={range.value}>
-                    {range.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <PeriodFilter
+              value={selectedPeriod}
+              customRange={customRange}
+              onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
+            />
           </div>
 
           <div className="flex items-center gap-2">
@@ -325,7 +305,7 @@ export default function GroupEvents() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Data</label>
-                  <p>{format(new Date(selectedEvent.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}</p>
+                  <p>{formatDateTimeSecondsBR(selectedEvent.created_at)}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Metadata</label>

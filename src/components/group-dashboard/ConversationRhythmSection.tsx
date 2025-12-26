@@ -14,6 +14,7 @@ import {
   YAxis
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { formatDateTickBR } from "@/lib/date";
 
 interface ConversationRhythmSectionProps {
   messagesPerDay: { date: string; count: number }[];
@@ -48,10 +49,7 @@ export function ConversationRhythmSection({
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'short',
-    });
+    return formatDateTickBR(dateStr);
   };
 
   const formatHour = (hour: number) => {
