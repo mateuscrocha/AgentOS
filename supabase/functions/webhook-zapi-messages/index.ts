@@ -172,6 +172,25 @@ serve(async (req: Request) => {
         );
       }
 
+      // Ensure poll options exist for all voted texts
+      if (votedTexts.length > 0) {
+        const { data: existingOptions } = await supabase
+          .from('poll_options')
+          .select('option_text, option_index')
+          .eq('poll_id', poll.id);
+        const existingTexts = new Set((existingOptions || []).map((o: any) => o.option_text));
+        const missing = votedTexts.filter((t) => !existingTexts.has(t));
+        if (missing.length > 0) {
+          const nextIndexStart = (existingOptions || []).length;
+          const records = missing.map((name, idx) => ({
+            poll_id: poll.id,
+            option_text: name,
+            option_index: nextIndexStart + idx,
+          }));
+          await supabase.from('poll_options').insert(records);
+        }
+      }
+
       // Ensure person exists (group_member)
       const phone = normalizePhoneE164(votePayload.participantPhone || null);
       let personId: string | null = null;
@@ -194,15 +213,30 @@ serve(async (req: Request) => {
         }
       }
 
-      // Dedup vote
-      const { data: existingVote } = await supabase
-        .from('poll_votes')
-        .select('id')
-        .eq('provider', provider)
-        .eq('provider_vote_message_id', votePayload.messageId)
-        .maybeSingle();
+      // Upsert snapshot de voto por (poll_id, person_id). Fallback para provider_vote_message_id.
+      let existingVoteId: string | null = null;
+      if (personId) {
+        const { data: existingByPerson } = await supabase
+          .from('poll_votes')
+          .select('id')
+          .eq('poll_id', poll.id)
+          .eq('person_id', personId)
+          .maybeSingle();
+        existingVoteId = existingByPerson?.id || null;
+      }
+      if (!existingVoteId) {
+        const { data: existingByProvider } = await supabase
+          .from('poll_votes')
+          .select('id')
+          .eq('provider', provider)
+          .eq('provider_vote_message_id', votePayload.messageId)
+          .maybeSingle();
+        existingVoteId = existingByProvider?.id || null;
+      }
 
-      if (!existingVote) {
+      const tsRaw = (votePayload.timestamp && Number(votePayload.timestamp)) || (payload.momment && Number(payload.momment));
+      const createdAt = Number.isFinite(tsRaw) ? new Date(tsRaw).toISOString() : undefined;
+      if (!existingVoteId) {
         await supabase
           .from('poll_votes')
           .insert({
@@ -211,28 +245,23 @@ serve(async (req: Request) => {
             voted_options: votedTexts,
             provider,
             provider_vote_message_id: votePayload.messageId,
+            raw_payload: payload,
+            ...(createdAt ? { created_at: createdAt } : {}),
           });
+      } else {
+        await supabase
+          .from('poll_votes')
+          .update({
+            poll_id: poll.id,
+            person_id: personId,
+            voted_options: votedTexts,
+            raw_payload: payload,
+            ...(createdAt ? { created_at: createdAt } : {}),
+          })
+          .eq('id', existingVoteId);
       }
 
-      // Insert message of type poll_vote
-      if (messageId) {
-        const { data: existingMsg } = await supabase
-          .from('messages')
-          .select('id')
-          .eq('provider', provider)
-          .eq('provider_message_id', messageId)
-          .maybeSingle();
-        if (!existingMsg) {
-          await supabase.from('messages').insert({
-            group_id: groupId,
-            member_id: personId,
-            message_type: 'poll_vote',
-            provider: provider,
-            provider_message_id: messageId,
-            content: votedTexts.length ? `Voto: ${votedTexts.join(', ')}` : 'Voto em enquete',
-          });
-        }
-      }
+      // Não criar mensagens para votos
 
       return new Response(
         JSON.stringify({ success: true, type: 'poll_vote' }),
