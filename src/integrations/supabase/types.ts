@@ -533,11 +533,13 @@ export type Database = {
       }
       organizations: {
         Row: {
+          billing_plan: string | null
           billing_status: string | null
           contact_email: string | null
           contact_name: string | null
           contact_phone: string | null
           created_at: string
+          current_period_end: string | null
           deleted_at: string | null
           id: string
           metadata: Json | null
@@ -547,16 +549,21 @@ export type Database = {
           settings: Json | null
           slug: string | null
           status: string
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
           trial_ends_at: string | null
           trial_started_at: string | null
           updated_at: string
         }
         Insert: {
+          billing_plan?: string | null
           billing_status?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
+          current_period_end?: string | null
           deleted_at?: string | null
           id?: string
           metadata?: Json | null
@@ -566,16 +573,21 @@ export type Database = {
           settings?: Json | null
           slug?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
           updated_at?: string
         }
         Update: {
+          billing_plan?: string | null
           billing_status?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
+          current_period_end?: string | null
           deleted_at?: string | null
           id?: string
           metadata?: Json | null
@@ -585,6 +597,9 @@ export type Database = {
           settings?: Json | null
           slug?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
           updated_at?: string
