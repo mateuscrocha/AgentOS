@@ -15,7 +15,7 @@ import { z } from "zod";
 import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
 
 const nameSchema = z.string().min(1, "Nome é obrigatório").max(100, "Nome deve ter no máximo 100 caracteres");
-const passwordSchema = z.string().min(6, "Senha deve ter pelo menos 6 caracteres");
+const passwordSchema = z.string().min(8, "Senha deve ter pelo menos 8 caracteres");
 
 const Account = () => {
   const { user, loading, signOut, isAuthenticated } = useAuth();
@@ -160,6 +160,20 @@ const Account = () => {
     await signOut();
     toast.success("Logout realizado com sucesso");
     window.location.assign('/auth');
+  };
+
+  const formatProviderLabel = (p: string) => {
+    if (!p) return '-';
+    switch (p.toLowerCase()) {
+      case 'email':
+        return 'e-mail';
+      case 'google':
+        return 'Google';
+      case 'github':
+        return 'GitHub';
+      default:
+        return p;
+    }
   };
 
   if (loading || profileLoading) {
@@ -344,9 +358,9 @@ const Account = () => {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Provider</span>
-                  <span className="text-card-foreground capitalize">
-                    {user?.app_metadata?.provider || 'email'}
+                  <span className="text-muted-foreground">Método de acesso</span>
+                  <span className="text-card-foreground">
+                    {formatProviderLabel(user?.app_metadata?.provider || 'email')}
                   </span>
                 </div>
               </div>

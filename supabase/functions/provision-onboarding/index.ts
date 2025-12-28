@@ -111,19 +111,55 @@ serve(async (req) => {
       console.error('Error setting organization owner:', orgOwnerError);
     }
 
-    const { error: contactInsertError } = await supabase
-      .from('organization_contacts')
-      .insert({
-        organization_id: org.id,
-        name: payload.lead.name,
-        email: payload.lead.email,
-        phone: payload.lead.whatsapp_phone,
-        role_title: 'fundador',
-        is_primary: true,
-      });
+    const normalizePhone = (phone: string | null | undefined): string | null => {
+      const raw = (phone || '').trim();
+      if (!raw) return null;
+      if (raw.startsWith('+')) return raw.replace(/\s+/g, '');
+      const digits = raw.replace(/\D/g, '');
+      if (!digits) return null;
+      if (digits.startsWith('55') && digits.length >= 10) return '+' + digits;
+      return '+55' + digits;
+    };
 
-    if (contactInsertError) {
-      console.error('Error creating primary organization contact:', contactInsertError);
+    const primaryPhone = normalizePhone(payload.lead.whatsapp_phone);
+
+    const { data: existingPrimary } = await supabase
+      .from('organization_contacts')
+      .select('*')
+      .eq('organization_id', org.id)
+      .eq('is_primary', true)
+      .maybeSingle();
+
+    if (existingPrimary) {
+      const { error: contactUpdateError } = await supabase
+        .from('organization_contacts')
+        .update({
+          name: payload.lead.name,
+          email: payload.lead.email,
+          phone: primaryPhone,
+          role_title: existingPrimary.role_title ?? 'fundador',
+          is_primary: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingPrimary.id);
+      if (contactUpdateError) {
+        console.error('Error updating primary organization contact:', contactUpdateError);
+      }
+    } else {
+      const { error: contactInsertError } = await supabase
+        .from('organization_contacts')
+        .insert({
+          organization_id: org.id,
+          name: payload.lead.name,
+          email: payload.lead.email,
+          phone: primaryPhone,
+          role_title: 'fundador',
+          is_primary: true,
+          updated_at: new Date().toISOString(),
+        });
+      if (contactInsertError) {
+        console.error('Error creating primary organization contact:', contactInsertError);
+      }
     }
 
     const { error: orgContactUpdateError } = await supabase
@@ -131,7 +167,7 @@ serve(async (req) => {
       .update({
         contact_name: payload.lead.name,
         contact_email: payload.lead.email,
-        contact_phone: payload.lead.whatsapp_phone || null,
+        contact_phone: primaryPhone,
       })
       .eq('id', org.id);
 

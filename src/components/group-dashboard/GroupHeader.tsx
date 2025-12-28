@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { Users, MessageSquare, Activity, Wifi, WifiOff, AlertCircle, ListChecks, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUserRoles } from "@/hooks/use-user-roles";
 
 interface GroupHeaderProps {
   groupId: string;
@@ -19,6 +20,7 @@ export function GroupHeader({
   lastMessageAt,
   syncStatus
 }: GroupHeaderProps) {
+  const { isSystemAdmin } = useUserRoles();
   const tabs = [
     { label: "Dashboard", href: `/groups/${groupId}`, end: true },
     { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
@@ -63,7 +65,11 @@ export function GroupHeader({
         <div className="flex-1 min-w-0">
           <h2 className="text-xl font-semibold text-card-foreground truncate">{name}</h2>
           <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-muted-foreground">
-            <span className="capitalize">{provider}</span>
+            {isSystemAdmin ? (
+              <span className="capitalize">{provider}</span>
+            ) : (
+              <span>{groupStatus.label === 'Desconectado' ? 'Integração desconectada' : 'Integração ativa'}</span>
+            )}
             <span>•</span>
             <span>{totalMembers} membros</span>
             <span>•</span>

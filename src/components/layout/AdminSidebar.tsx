@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { 
-  LayoutDashboard, 
+import {
+  LayoutDashboard,
   Building2,
-  Users, 
-  Settings, 
+  Users,
+  Settings,
   ChevronLeft,
   ChevronRight,
   Shield,
   UserCircle,
-  Activity
+  Activity,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/hooks/use-user-roles";
@@ -19,28 +20,21 @@ interface NavItem {
   label: string;
   href: string;
   badge?: number;
-  requiresSystemAdmin?: boolean;
-  requiresOrgAdmin?: boolean;
 }
 
-const mainNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Central do Bóris", href: "/" },
-  { icon: Building2, label: "Gerenciar organizações", href: "/system/organizations", requiresSystemAdmin: true },
-  { icon: Users, label: "Gerenciar grupos", href: "/system/groups", requiresSystemAdmin: true },
-  { icon: Users, label: "Pessoas", href: "/system/people", requiresSystemAdmin: true },
-  { icon: Users, label: "Usuários", href: "/system/users", requiresSystemAdmin: true },
-  { icon: Activity, label: "Eventos", href: "/system/events", requiresSystemAdmin: true },
-];
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
 
 const bottomNavItems: NavItem[] = [
   { icon: UserCircle, label: "Minha Conta", href: "/account" },
-  { icon: Settings, label: "Configurações", href: "/system/settings", requiresSystemAdmin: true },
 ];
 
 export function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { isSystemAdmin, isOrgAdmin, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
+  const { isSystemAdmin, isOrgAdmin, isGroupManager, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
 
   const isActive = (href: string) => {
     if (href === "/") return location.pathname === "/";
@@ -48,15 +42,65 @@ export function AdminSidebar() {
     return location.pathname.startsWith(href);
   };
 
-  const shouldShowItem = (item: NavItem) => {
-    if (item.requiresSystemAdmin && !isSystemAdmin) return false;
-    if (item.requiresOrgAdmin && !isOrgAdmin && !isSystemAdmin) return false;
-    return true;
+  const buildSections = (): NavSection[] => {
+    const sections: NavSection[] = [];
+    const orgIds = getAccessibleOrgIds();
+    const groupIds = getAccessibleGroupIds();
+    const orgId = orgIds[0];
+    const groupId = groupIds[0];
+
+    if (isSystemAdmin) {
+      sections.push({
+        title: "Sistema",
+        items: [
+          { icon: LayoutDashboard, label: "Central do Bóris", href: "/" },
+          { icon: Building2, label: "Organizações", href: "/system/organizations" },
+          { icon: Users, label: "Grupos", href: "/system/groups" },
+          { icon: Users, label: "Pessoas", href: "/system/people" },
+          { icon: Users, label: "Usuários & Permissões", href: "/system/users" },
+          { icon: Activity, label: "Suporte & Diagnóstico", href: "/system/events" },
+          { icon: Settings, label: "Configurações do Sistema", href: "/system/settings" },
+        ],
+      });
+    } else if (isOrgAdmin && orgId) {
+      sections.push({
+        title: "Organização",
+        items: [
+          { icon: LayoutDashboard, label: "Dashboard", href: `/organization/${orgId}/dashboard` },
+          { icon: Users, label: "Grupos", href: `/organization/${orgId}/groups` },
+          { icon: MessageSquare, label: "Palavras-chave", href: `/organization/${orgId}/keywords` },
+        ],
+      });
+    } else if (isGroupManager && groupId) {
+      sections.push({
+        title: "Grupo",
+        items: [
+          { icon: LayoutDashboard, label: "Visão do Grupo", href: `/groups/${groupId}` },
+          { icon: MessageSquare, label: "Mensagens & Resumos", href: `/groups/${groupId}/messages` },
+          { icon: Users, label: "Participantes", href: `/groups/${groupId}/members` },
+          { icon: Settings, label: "Configurações do Grupo", href: `/group/${groupId}/edit` },
+        ],
+      });
+    } else if (groupId) {
+      sections.push({
+        title: "Leitura",
+        items: [
+          { icon: LayoutDashboard, label: "Dashboard do Grupo", href: `/groups/${groupId}` },
+        ],
+      });
+    } else if (orgId) {
+      sections.push({
+        title: "Leitura",
+        items: [
+          { icon: LayoutDashboard, label: "Dashboard da Organização", href: `/organization/${orgId}/dashboard` },
+        ],
+      });
+    }
+
+    return sections;
   };
 
   const renderNavItem = (item: NavItem) => {
-    if (!shouldShowItem(item)) return null;
-    
     const active = isActive(item.href);
     return (
       <NavLink
@@ -107,32 +151,15 @@ export function AdminSidebar() {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex flex-col gap-1 p-3">
-        {!collapsed && (
-          <span className="text-xs font-medium text-muted-foreground px-3 py-2">Principal</span>
-        )}
-        {mainNavItems.map(renderNavItem)}
-        {(() => {
-          if (isSystemAdmin) return null;
-          const orgIds = getAccessibleOrgIds();
-          const groupIds = getAccessibleGroupIds();
-          if (isOrgAdmin && orgIds.length > 0) {
-            const orgId = orgIds[0];
-            return (
-              <>
-                {renderNavItem({ icon: LayoutDashboard, label: "Início", href: `/organization/${orgId}` })}
-                {renderNavItem({ icon: Users, label: "Grupos", href: `/organization/${orgId}/groups` })}
-                {renderNavItem({ icon: Users, label: "Membros", href: `/organization/${orgId}/members` })}
-                {renderNavItem({ icon: Activity, label: "Painéis e métricas", href: `/organization/${orgId}/dashboard` })}
-                {renderNavItem({ icon: Settings, label: "Configurações", href: `/organization/${orgId}/settings` })}
-              </>
-            );
-          }
-          if (groupIds.length > 0) {
-            return renderNavItem({ icon: Users, label: "Meus grupos", href: `/groups/${groupIds[0]}` });
-          }
-          return null;
-        })()}
+      <nav className="flex flex-col gap-4 p-3">
+        {buildSections().map((section) => (
+          <div key={section.title} className="flex flex-col gap-1">
+            {!collapsed && (
+              <span className="text-xs font-medium text-muted-foreground px-3 py-2">{section.title}</span>
+            )}
+            {section.items.map(renderNavItem)}
+          </div>
+        ))}
       </nav>
 
 
@@ -159,6 +186,7 @@ export function AdminSidebar() {
       {/* Bottom Navigation */}
       <nav className="flex flex-col gap-1 p-3 border-t border-sidebar-border">
         {bottomNavItems.map(renderNavItem)}
+        {isSystemAdmin && renderNavItem({ icon: Settings, label: "Configurações", href: "/system/settings" })}
       </nav>
 
       {/* Collapse button */}

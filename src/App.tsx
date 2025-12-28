@@ -62,9 +62,8 @@ const App = () => (
             <Route path="/org/:orgId" element={<Org />} />
             <Route path="/organization/:orgId" element={<Org />} />
             <Route path="/organization/:orgId/groups" element={<Org />} />
-            <Route path="/organization/:orgId/members" element={<Org />} />
             <Route path="/organization/:orgId/dashboard" element={<Org />} />
-            <Route path="/organization/:orgId/settings" element={<Org />} />
+            <Route path="/organization/:orgId/keywords" element={<Org />} />
             {/* Group Admin routes (legacy + standardized aliases) */}
             <Route path="/group/:groupId" element={<Group />} />
             <Route path="/group/:groupId/members" element={<GroupMembers />} />

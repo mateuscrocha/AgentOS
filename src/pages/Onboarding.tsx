@@ -601,7 +601,7 @@ export default function Onboarding() {
               <img src="/6.png" alt="Bóris" className="w-full max-h-72 sm:max-h-80 object-contain filter drop-shadow-md sm:drop-shadow-lg brightness-[1.02] saturate-[1.05]" />
             </div>
             <Title>Seu acesso foi criado com sucesso 🎉</Title>
-            <Subtitle delay={0.15}>Agora é só entrar usando seu email e senha.</Subtitle>
+            <Subtitle delay={0.15}>Enviamos um e-mail de confirmação. Você só poderá entrar após confirmar seu e-mail.</Subtitle>
             <div className="flex items-center justify-center gap-2">
               <MailCheck className="w-4 h-4 text-primary" />
             </div>
@@ -660,10 +660,10 @@ export default function Onboarding() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Conectando...
+                  Continuando...
                 </>
               ) : (
-                'Conectar grupo'
+                'Continuar'
               )}
             </Button>
           ) : (

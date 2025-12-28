@@ -19,13 +19,15 @@ const Auth = () => {
   const [isRecovery, setIsRecovery] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
-  // Redirect if already authenticated
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    const params = new URLSearchParams(window.location.search);
+    const isRecoveryParam = params.get("type") === "recovery";
+    if (!authLoading && isAuthenticated && !isRecoveryParam && !isRecovery) {
       navigate('/', { replace: true });
     }
-  }, [authLoading, isAuthenticated, navigate]);
+  }, [authLoading, isAuthenticated, navigate, isRecovery]);
 
   const validateInputs = () => {
     if (isRecovery) {
@@ -102,10 +104,12 @@ const Auth = () => {
 
   const handleForgotPassword = async () => {
     setError("");
+    setResetLoading(true);
     try {
       emailSchema.parse(email);
     } catch {
       setError("Informe um email válido para recuperar a senha");
+      setResetLoading(false);
       return;
     }
     const redirectUrl = `${window.location.origin}/auth`;
@@ -121,9 +125,11 @@ const Auth = () => {
       } else {
         setError(msg);
       }
+      setResetLoading(false);
       return;
     }
     toast.success("Enviamos um link de recuperação para o seu email");
+    setResetLoading(false);
   };
 
   useEffect(() => {
@@ -203,9 +209,10 @@ const Auth = () => {
                   <button
                     type="button"
                     onClick={handleForgotPassword}
-                    className="text-xs text-primary hover:underline"
+                    disabled={resetLoading}
+                    className="text-xs text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Esqueci minha senha
+                    {resetLoading ? "Enviando..." : "Esqueci minha senha"}
                   </button>
                 </div>
               </div>

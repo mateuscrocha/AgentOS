@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
 import {
   Dialog,
@@ -57,6 +58,7 @@ const GroupMembers = () => {
   const [search, setSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isSystemAdmin } = useUserRoles();
 
   const tabs = [
     { label: "Painel", href: `/groups/${groupId}`, end: true },
@@ -397,22 +399,23 @@ const GroupMembers = () => {
                   </div>
                 </div>
 
-                {/* Section: Provedor */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Provedor</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm p-4 rounded-lg bg-secondary/30">
-                    <div>
-                      <span className="text-muted-foreground">Provider</span>
-                      <p className="font-medium text-card-foreground capitalize">{selectedMember.provider}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Provider Member ID</span>
-                      <p className="font-medium text-card-foreground font-mono text-xs break-all">
-                        {selectedMember.provider_member_id || '-'}
-                      </p>
+                {isSystemAdmin && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Provedor</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm p-4 rounded-lg bg-secondary/30">
+                      <div>
+                        <span className="text-muted-foreground">Provider</span>
+                        <p className="font-medium text-card-foreground capitalize">{selectedMember.provider}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Provider Member ID</span>
+                        <p className="font-medium text-card-foreground font-mono text-xs break-all">
+                          {selectedMember.provider_member_id || '-'}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Section: Metadados (collapsible) */}
                 {(selectedMember.metadata && Object.keys(selectedMember.metadata).length > 0) && (
@@ -429,8 +432,7 @@ const GroupMembers = () => {
                   </Collapsible>
                 )}
 
-                {/* Section: Raw Provider (collapsible) */}
-                {(selectedMember.raw_provider && Object.keys(selectedMember.raw_provider).length > 0) && (
+                {isSystemAdmin && (selectedMember.raw_provider && Object.keys(selectedMember.raw_provider).length > 0) && (
                   <Collapsible>
                     <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors">
                       <ChevronDown className="h-4 w-4" />

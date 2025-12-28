@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { UserInline } from "@/components/ui/UserInline";
 import { Activity, FileText, Image, MapPin, Mic, Smile, Video, Shield, User, Database, Link as LinkIcon } from "lucide-react";
+import { useUserRoles } from "@/hooks/use-user-roles";
 
 interface MessageDetailModalProps {
   open: boolean;
@@ -99,6 +100,7 @@ const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string,
 };
 
 export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: MessageDetailModalProps) {
+  const { isSystemAdmin } = useUserRoles();
   const { data: message } = useQuery({
     queryKey: ["modal-message", groupId, messageId],
     queryFn: async () => {
@@ -414,13 +416,13 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                         <p className="capitalize">{message.provider}</p>
                       </div>
                     )}
-                    {message.provider_message_id && (
+                    {isSystemAdmin && message.provider_message_id && (
                       <div>
                         <span className="text-muted-foreground">provider_message_id</span>
                         <p className="font-mono text-xs break-all">{message.provider_message_id}</p>
                       </div>
                     )}
-                    {message.provider_chat_id && (
+                    {isSystemAdmin && message.provider_chat_id && (
                       <div>
                         <span className="text-muted-foreground">provider_group_id</span>
                         <p className="font-mono text-xs break-all">{message.provider_chat_id}</p>
@@ -445,12 +447,18 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                       </div>
                     )}
                   </div>
-                  {message.raw_provider && (
+                  {isSystemAdmin && message.raw_provider && (
                     <div className="mt-3">
                       <span className="text-muted-foreground text-sm">Payload bruto</span>
                       <pre className="p-3 rounded-lg bg-secondary/30 text-xs overflow-auto max-h-60 text-card-foreground">
                         {JSON.stringify(message.raw_provider, null, 2)}
                       </pre>
+                    </div>
+                  )}
+                  {!isSystemAdmin && (
+                    <div className="mt-3">
+                      <span className="text-muted-foreground text-sm">Dados técnicos restritos</span>
+                      <p className="text-xs text-muted-foreground">Alguns identificadores e payloads do provider estão ocultos.</p>
                     </div>
                   )}
                 </AccordionContent>

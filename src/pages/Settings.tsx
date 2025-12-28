@@ -1,11 +1,27 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Settings as SettingsIcon, Database, Shield, Key, CheckCircle, AlertCircle } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useUserRoles } from "@/hooks/use-user-roles";
+import AccessDenied from "./AccessDenied";
+import { LoadingState } from "@/components/ui/loading-state";
 
 const Settings = () => {
+  const { loading: authLoading } = useAuth();
+  const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
   const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
   const maskedAnonKey = SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.slice(0, 8)}...${SUPABASE_ANON_KEY.slice(-4)}` : "Não configurado";
   const isCorrectProject = !!SUPABASE_URL && SUPABASE_URL.includes("ceugwdfpbvziiumnxknt");
+  if (authLoading || rolesLoading) {
+    return (
+      <AdminLayout title="Configurações" subtitle="Carregando...">
+        <LoadingState message="Verificando permissões..." />
+      </AdminLayout>
+    );
+  }
+  if (!isSystemAdmin) {
+    return <AccessDenied />;
+  }
   return (
     <AdminLayout 
       title="Configurações" 

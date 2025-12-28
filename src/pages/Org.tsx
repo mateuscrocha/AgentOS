@@ -5,10 +5,10 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2, Activity, UserCog } from "lucide-react";
+import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2, Activity, Tag } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
@@ -20,6 +20,9 @@ import { AddGroupModal } from "@/components/modals/AddGroupModal";
 import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/group-dashboard/KpiCard";
 import { toast } from "sonner";
+import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
+import { getDateRange, type PeriodType, type DateRange } from "@/components/group-dashboard/period-utils";
+import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import {
   Collapsible,
   CollapsibleContent,
@@ -82,9 +85,42 @@ const Org = () => {
   const [removeGroup, setRemoveGroup] = useState<GroupItem | null>(null);
   const [removing, setRemoving] = useState(false);
   const [editContactOpen, setEditContactOpen] = useState(false);
-  const [assignManagerGroup, setAssignManagerGroup] = useState<GroupItem | null>(null);
-  const [assignManagerUserId, setAssignManagerUserId] = useState("");
-  const [assigningManager, setAssigningManager] = useState(false);
+  
+
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`org-period:${orgId}`);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        const p = saved?.period as PeriodType | undefined;
+        if (p) {
+          setSelectedPeriod(p);
+          if (p === 'custom' && saved?.from && saved?.to) {
+            setCustomRange({ from: new Date(saved.from), to: new Date(saved.to) });
+          }
+        }
+      }
+    } catch { void 0; }
+  }, [orgId]);
+
+  useEffect(() => {
+    const payload: any = { period: selectedPeriod };
+    if (selectedPeriod === 'custom' && customRange?.from && customRange?.to) {
+      payload.from = customRange.from.toISOString();
+      payload.to = customRange.to.toISOString();
+    }
+    try {
+      localStorage.setItem(`org-period:${orgId}`, JSON.stringify(payload));
+    } catch { void 0; }
+  }, [orgId, selectedPeriod, customRange]);
+
+  const handlePeriodChange = (period: PeriodType, range: DateRange) => {
+    setSelectedPeriod(period);
+    setCustomRange(period === 'custom' ? range : undefined);
+  };
 
   // Fetch organization details
   const { data: org, isLoading: orgLoading, error: orgError, refetch: refetchOrg } = useQuery({
@@ -207,38 +243,26 @@ const Org = () => {
     enabled: !!orgId && isAuthenticated,
   });
 
-  const [membersPage, setMembersPage] = useState(1);
-  const [membersSearch, setMembersSearch] = useState("");
+  
 
-  const { data: orgMembersData, isLoading: orgMembersLoading, error: orgMembersError, refetch: refetchOrgMembers } = useQuery({
-    queryKey: ['org-members', orgId, membersPage, membersSearch, orgGroupIds?.join(',')],
-    queryFn: async () => {
-      if (!orgGroupIds || orgGroupIds.length === 0) return { items: [], count: 0 };
-      const from = (membersPage - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      let query = supabase
-        .from('members')
-        .select('*, groups(name)', { count: 'exact' })
-        .in('group_id', orgGroupIds)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-      if (membersSearch) {
-        query = query.or(`name.ilike.%${membersSearch}%,phone_e164.ilike.%${membersSearch}%,display_name.ilike.%${membersSearch}%`);
-      }
-      const { data, count, error } = await query.range(from, to);
-      if (error) throw error;
-      return { items: (data ?? []) as any[], count: count ?? 0 };
-    },
-    enabled: !!orgId && isAuthenticated && Array.isArray(orgGroupIds),
-  });
+  
 
   const path = location.pathname;
-  const isMembersRoute = /^\/(org|organization)\/[^/]+\/members$/.test(path);
   const isGroupsRoute = /^\/(org|organization)\/[^/]+\/groups$/.test(path);
   const isSettingsRoute = /^\/(org|organization)\/[^/]+\/settings$/.test(path);
   const isDashboardRoute = /^\/(org|organization)\/[^/]+\/dashboard$/.test(path);
+  const isKeywordsRoute = /^\/(org|organization)\/[^/]+\/keywords$/.test(path);
   const isBaseOrg = /^\/(org|organization)\/[^/]+$/.test(path) || /^\/(org|organization)\/[^/]+\/$/.test(path);
-  const isDefaultOrgHome = isBaseOrg && !isMembersRoute && !isGroupsRoute && !isSettingsRoute && !isDashboardRoute;
+  const isDefaultOrgHome = isBaseOrg && !isGroupsRoute && !isSettingsRoute && !isDashboardRoute && !isKeywordsRoute;
+
+  const currentRange = getDateRange(selectedPeriod, customRange);
+  const lengthMs = Math.max(0, currentRange.to.getTime() - currentRange.from.getTime());
+  const previousPeriodEnd = new Date(currentRange.from.getTime() - 1);
+  const previousPeriodStart = new Date(previousPeriodEnd.getTime() - lengthMs);
+  const currentStartISO = currentRange.from.toISOString();
+  const currentEndISO = currentRange.to.toISOString();
+  const previousStartISO = previousPeriodStart.toISOString();
+  const previousEndISO = previousPeriodEnd.toISOString();
 
   // Fetch groups for this organization
   const { data: groupsData, isLoading: groupsLoading, error: groupsError, refetch: refetchGroups } = useQuery({
@@ -260,6 +284,76 @@ const Org = () => {
       return { items: (data ?? []) as GroupItem[], count: count ?? 0 };
     },
     enabled: !!orgId && isAuthenticated,
+  });
+
+  
+
+  const { data: orgKeywords, isLoading: keywordsLoading, error: keywordsError, refetch: refetchKeywords } = useQuery({
+    queryKey: ['org-keywords', orgId, orgGroupIds?.join(','), currentStartISO, currentEndISO, previousStartISO, previousEndISO],
+    queryFn: async () => {
+      if (!orgGroupIds || orgGroupIds.length === 0) return { words: [], bigrams: [] } as any;
+
+      const buildRows = async (startISO: string, endISO: string): Promise<string[]> => {
+        const q1 = await supabase
+          .from('messages')
+          .select('content_preview,message_type,created_at,group_id')
+          .in('group_id', orgGroupIds)
+          .eq('message_type', 'text')
+          .is('deleted_at', null)
+          .gte('created_at', startISO)
+          .lte('created_at', endISO)
+          .limit(2000);
+        let rows: string[] = [];
+        if (!q1.error) {
+          rows = (q1.data || []).map((d: any) => d.content_preview || "");
+        } else {
+          const q2 = await supabase
+            .from('messages')
+            .select('content,message_type,created_at,group_id')
+            .in('group_id', orgGroupIds)
+            .eq('message_type', 'text')
+            .is('deleted_at', null)
+            .gte('created_at', startISO)
+            .lte('created_at', endISO)
+            .limit(2000);
+          if (q2.error) throw q2.error;
+          rows = (q2.data || []).map((d: any) => d.content || "");
+        }
+        return rows;
+      };
+
+      const currRows = await buildRows(currentStartISO, currentEndISO);
+      const prevRows = await buildRows(previousStartISO, previousEndISO);
+
+      const currCounts = countWordsFromRows(currRows);
+      const prevCounts = countWordsFromRows(prevRows);
+      const prevMap: Record<string, number> = {};
+      (prevCounts || []).forEach((w) => { prevMap[w.word] = Number(w.count || 0); });
+      const words = (currCounts || [])
+        .map((w) => {
+          const prev = prevMap[w.word] || 0;
+          const delta = prev ? Math.round(((Number(w.count || 0) - prev) / prev) * 100) : (w.count ? 100 : 0);
+          return { word: w.word, count: Number(w.count || 0), delta };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 12);
+
+      const currBigrams = extractBigramsFromRows(currRows);
+      const prevBigrams = extractBigramsFromRows(prevRows);
+      const prevBigramMap: Record<string, number> = {};
+      (prevBigrams || []).forEach((b) => { prevBigramMap[b.phrase] = Number(b.count || 0); });
+      const bigrams = (currBigrams || [])
+        .map((b) => {
+          const prev = prevBigramMap[b.phrase] || 0;
+          const delta = prev ? Math.round(((Number(b.count || 0) - prev) / prev) * 100) : (b.count ? 100 : 0);
+          return { phrase: b.phrase, count: Number(b.count || 0), delta };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      return { words, bigrams } as any;
+    },
+    enabled: !!orgId && isAuthenticated && Array.isArray(orgGroupIds),
   });
 
   // Loading state while checking auth/roles
@@ -306,28 +400,32 @@ const Org = () => {
 
   const groupColumns = [
     { key: 'name', header: 'Nome' },
-    { 
-      key: 'provider', 
-      header: 'Provider',
-      render: (group: GroupItem) => (
-        <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
-          {group.provider}
-        </span>
-      )
-    },
-    { 
-      key: 'sync_status', 
-      header: 'Sync',
-      render: (group: GroupItem) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          group.sync_status === 'synced' ? 'bg-success/10 text-success' :
-          group.sync_status === 'error' ? 'bg-destructive/10 text-destructive' :
-          'bg-muted text-muted-foreground'
-        }`}>
-          {group.sync_status || '-'}
-        </span>
-      )
-    },
+    ...(isSystemAdmin ? [
+      { 
+        key: 'provider', 
+        header: 'Provider',
+        render: (group: GroupItem) => (
+          <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
+            {group.provider}
+          </span>
+        )
+      },
+    ] : []),
+    ...(isSystemAdmin ? [
+      { 
+        key: 'sync_status', 
+        header: 'Sync',
+        render: (group: GroupItem) => (
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+            group.sync_status === 'synced' ? 'bg-success/10 text-success' :
+            group.sync_status === 'error' ? 'bg-destructive/10 text-destructive' :
+            'bg-muted text-muted-foreground'
+          }`}>
+            {group.sync_status || '-'}
+          </span>
+        )
+      },
+    ] : []),
     { 
       key: 'is_active', 
       header: 'Status',
@@ -352,7 +450,7 @@ const Org = () => {
       className: 'w-10',
       render: (group: GroupItem) => {
         const canEdit = canEditGroup(group.id, orgId);
-        const canRemove = userCanEditOrg; // apenas ADMIN_DA_ORGANIZAÇÃO ou SYSTEM_ADMIN
+        const canRemove = userCanEditOrg;
         if (!canEdit && !canRemove) return null;
         return (
           <div className="flex items-center gap-1">
@@ -367,20 +465,6 @@ const Org = () => {
                 className="h-8 w-8 p-0"
               >
                 <Edit className="h-4 w-4" />
-              </Button>
-            )}
-            {userCanEditOrg && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setAssignManagerGroup(group);
-                }}
-                className="h-8 w-8 p-0"
-                title="Atribuir gestor de grupo"
-              >
-                <UserCog className="h-4 w-4" />
               </Button>
             )}
             {canRemove && (
@@ -417,13 +501,22 @@ const Org = () => {
                 { label: org.name },
               ];
               if (isGroupsRoute) items.push({ label: "Grupos" });
-              if (isMembersRoute) items.push({ label: "Membros" });
-              if (isSettingsRoute) items.push({ label: "Configurações" });
               if (isDashboardRoute) items.push({ label: "Painéis e métricas" });
+              if (isKeywordsRoute) items.push({ label: "Palavras-chave" });
               return items;
             }
           )()}
         />
+
+        {isKeywordsRoute && (
+          <div className="flex items-center justify-end">
+            <PeriodFilter
+              value={selectedPeriod}
+              customRange={customRange}
+              onChange={handlePeriodChange}
+            />
+          </div>
+        )}
 
         {(isDashboardRoute || isDefaultOrgHome) && (
           <div id="org-dashboard" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -501,7 +594,7 @@ const Org = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {(isSettingsRoute || isDefaultOrgHome) && (
+          {(isDashboardRoute || isDefaultOrgHome) && (
           <div id="org-settings" className="rounded-xl border border-border bg-card p-6 space-y-4">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Configurações da Organização</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -548,6 +641,7 @@ const Org = () => {
           )}
 
           {/* Section: Contato da Organização */}
+          {(isDashboardRoute || isDefaultOrgHome) && (
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
@@ -594,8 +688,10 @@ const Org = () => {
               </div>
             )}
           </div>
+          )}
 
           {/* Section: Plano / Billing */}
+          {(isDashboardRoute || isDefaultOrgHome) && (
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -634,6 +730,7 @@ const Org = () => {
               </div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Collapsible sections for JSON data */}
@@ -668,6 +765,58 @@ const Org = () => {
             </Collapsible>
           )}
         </div>
+
+        {isKeywordsRoute && (
+          <div id="org-keywords" className="rounded-xl border border-border bg-card p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Palavras-chave e temas do período
+              </h3>
+              <div className="text-xs text-muted-foreground">Amostra até 2000 mensagens de texto</div>
+            </div>
+            {keywordsLoading ? (
+              <LoadingState message="Processando mensagens..." />
+            ) : keywordsError ? (
+              <ErrorState message="Falha ao extrair palavras-chave" retry={() => refetchKeywords()} />
+            ) : !orgKeywords || ((orgKeywords.words || []).length === 0 && (orgKeywords.bigrams || []).length === 0) ? (
+              <EmptyState icon={Tag} title="Nada relevante" message="Nenhuma palavra-chave ou tema recorrente neste período." />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Palavras mais presentes</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(orgKeywords.words || []).map((w: any) => (
+                      <span key={w.word} className="px-2 py-1 rounded-md bg-secondary text-secondary-foreground text-xs">
+                        {w.word}
+                        <span className="ml-2 text-muted-foreground">{w.count}</span>
+                        {typeof w.delta === 'number' && (
+                          <span className={`ml-2 ${w.delta > 0 ? 'text-success' : w.delta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{w.delta > 0 ? `+${w.delta}%` : w.delta < 0 ? `${w.delta}%` : '0%'}</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Temas recorrentes (bigramas)</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(orgKeywords.bigrams || []).map((b: any) => (
+                      <span key={b.phrase} className="px-2 py-1 rounded-md bg-secondary text-secondary-foreground text-xs">
+                        {b.phrase}
+                        <span className="ml-2 text-muted-foreground">{b.count}</span>
+                        {typeof b.delta === 'number' && (
+                          <span className={`ml-2 ${b.delta > 0 ? 'text-success' : b.delta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{b.delta > 0 ? `+${b.delta}%` : b.delta < 0 ? `${b.delta}%` : '0%'}</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        
 
         {(isGroupsRoute || isDefaultOrgHome) && (
         <div id="org-groups">
@@ -716,49 +865,7 @@ const Org = () => {
         </div>
         )}
 
-        {isMembersRoute && (
-        <div id="org-members" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Membros ({orgMembersData?.count ?? 0})
-            </h3>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="Buscar membros por nome ou telefone"
-                value={membersSearch}
-                onChange={(e) => { setMembersSearch(e.target.value); setMembersPage(1); }}
-                className="w-64 px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              />
-            </div>
-          </div>
-          {orgMembersLoading ? (
-            <LoadingState message="Carregando membros..." />
-          ) : orgMembersError ? (
-            <ErrorState message="Falha ao carregar membros" retry={() => refetchOrgMembers()} />
-          ) : (orgMembersData?.items?.length ?? 0) === 0 ? (
-            <EmptyState icon={Users} title="Nenhum membro" message="Nenhum membro encontrado nesta organização." />
-          ) : (
-            <DataTable
-              columns={[
-                { key: 'name', header: 'Nome' },
-                { key: 'phone_e164', header: 'Telefone' },
-                { key: 'groups.name', header: 'Grupo', render: (m: any) => m.groups?.name || '-' },
-                { key: 'status', header: 'Status', render: (m: any) => (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${m.left_at ? 'bg-destructive/10 text-destructive' : m.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>{m.left_at ? 'Saiu' : m.status}</span>
-                ) },
-              ]}
-              data={orgMembersData?.items ?? []}
-              keyExtractor={(m: any) => m.id}
-              page={membersPage}
-              pageSize={PAGE_SIZE}
-              totalCount={orgMembersData?.count}
-              onPageChange={setMembersPage}
-            />
-          )}
-        </div>
-        )}
+        
       </div>
 
       {/* Edit organization modal */}
@@ -836,56 +943,7 @@ const Org = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Assign group manager */}
-      <AlertDialog open={!!assignManagerGroup} onOpenChange={(open) => !open && setAssignManagerGroup(null)}>
-        <AlertDialogContent className="bg-card border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-card-foreground">Atribuir gestor ao grupo</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              Informe o ID do usuário que será gestor deste grupo.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-3">
-            <input
-              type="text"
-              value={assignManagerUserId}
-              onChange={(e) => setAssignManagerUserId(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-              placeholder="UUID do usuário"
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="mr-2" onClick={() => setAssignManagerGroup(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (!assignManagerGroup || !assignManagerUserId) return;
-                setAssigningManager(true);
-                try {
-                  const { error } = await supabase
-                    .from('user_roles')
-                    .insert({
-                      user_id: assignManagerUserId,
-                      role: 'GROUP_MANAGER',
-                      organization_id: orgId!,
-                      group_id: assignManagerGroup.id,
-                    });
-                  if (error) throw error;
-                  toast.success('Gestor atribuído com sucesso');
-                  setAssignManagerGroup(null);
-                  setAssignManagerUserId('');
-                } catch (err: any) {
-                  toast.error(err.message || 'Erro ao atribuir gestor');
-                } finally {
-                  setAssigningManager(false);
-                }
-              }}
-              disabled={assigningManager || !assignManagerUserId}
-            >
-              Confirmar atribuição
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      
     </AdminLayout>
   );
 };

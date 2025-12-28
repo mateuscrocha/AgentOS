@@ -200,7 +200,7 @@ export default function GroupEvents() {
             <div className="flex-1">
               <h2 className="text-lg font-semibold text-card-foreground">Atividade</h2>
               <p className="text-sm text-muted-foreground">
-                Eventos de auditoria do grupo
+                Atividade recente do grupo
               </p>
             </div>
           </div>
