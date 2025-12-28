@@ -3,7 +3,7 @@ import { ShieldAlert, LogOut, HelpCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 
 const NoAccess = () => {
   const navigate = useNavigate();
@@ -11,7 +11,7 @@ const NoAccess = () => {
 
   const handleLogout = async () => {
     await signOut();
-    toast.success("Logout realizado com sucesso");
+    notify.success("Logout realizado", "Até logo!");
     window.location.assign('/auth');
   };
 

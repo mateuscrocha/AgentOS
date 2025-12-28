@@ -37,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { 
   Users as UsersIcon, 
   Building2, 
@@ -209,12 +209,12 @@ export default function Users() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
-      toast.success('Papel atribuído com sucesso');
+      notify.success('Papel atribuído', 'O papel foi adicionado.');
       setIsAddRoleOpen(false);
       resetForm();
     },
-    onError: (error: Error) => {
-      toast.error('Erro ao atribuir papel: ' + error.message);
+    onError: () => {
+      notify.error('Não foi possível concluir', 'Algo deu errado. Tente novamente.');
     },
   });
 
@@ -248,15 +248,15 @@ export default function Users() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
       queryClient.invalidateQueries({ queryKey: ["all-user-roles"] });
-      toast.success("Usuário criado com sucesso");
+      notify.success('Usuário criado', 'Dados salvos com sucesso.');
       setIsAddUserOpen(false);
       setNewUserName("");
       setNewUserEmail("");
       setNewUserPhone("");
       setNewUserPassword("");
     },
-    onError: (error: Error) => {
-      toast.error("Erro ao criar usuário: " + error.message);
+    onError: () => {
+      notify.error('Não foi possível concluir', 'Algo deu errado. Tente novamente.');
     },
   });
 
@@ -272,11 +272,11 @@ export default function Users() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
-      toast.success('Papel removido com sucesso');
+      notify.success('Papel removido', 'Tudo certo.');
       setRoleToDelete(null);
     },
-    onError: (error: Error) => {
-      toast.error('Erro ao remover papel: ' + error.message);
+    onError: () => {
+      notify.error('Não foi possível concluir', 'Algo deu errado. Tente novamente.');
     },
   });
 
@@ -294,7 +294,7 @@ export default function Users() {
     
     if (newRole === 'ORG_ADMIN' || newRole === 'USER') {
       if (!selectedOrgId) {
-        toast.error('Selecione uma organização');
+        notify.warning('Atenção', 'Selecione uma organização.');
         return;
       }
       organizationId = selectedOrgId;
@@ -302,7 +302,7 @@ export default function Users() {
     
     if (newRole === 'GROUP_MANAGER') {
       if (!selectedGroupId) {
-        toast.error('Selecione um grupo');
+        notify.warning('Atenção', 'Selecione um grupo.');
         return;
       }
       groupId = selectedGroupId;
@@ -561,7 +561,7 @@ export default function Users() {
             <Button
               onClick={() => {
                 if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()) {
-                  toast.error("Preencha nome, email e senha");
+                  notify.warning('Atenção', 'Preencha nome, email e senha.');
                   return;
                 }
                 createUserMutation.mutate({

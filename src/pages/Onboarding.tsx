@@ -4,7 +4,7 @@ import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { notify } from "@/components/ui/sonner";
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, Mail, Link2, 
@@ -205,9 +205,9 @@ export default function Onboarding() {
   const copyBorisNumber = async () => {
     try {
       await navigator.clipboard.writeText('+55 61 8150-4160');
-      toast.success('Número copiado');
+      notify.success("Número copiado", "Copiado para a área de transferência.");
     } catch {
-      toast.error('Não foi possível copiar');
+      notify.error("Não foi possível copiar", "Tente novamente.");
     }
   };
 
@@ -229,7 +229,7 @@ export default function Onboarding() {
     }
     await validateGroup();
     if (!groupValidation || !groupValidation.is_valid || !groupValidation.is_boris_in_group || groupValidation.data_incomplete) {
-      toast.error('Valide o grupo antes de continuar');
+      notify.warning("Validação necessária", "Valide o grupo e tente novamente.");
       return;
     }
     setIsSubmitting(true);
@@ -245,7 +245,7 @@ export default function Onboarding() {
 
       if (authError) {
         if (authError.message.includes('already registered')) {
-          toast.error('Este email já está cadastrado. Faça login.');
+          notify.warning("Email já cadastrado", "Faça login para continuar.");
           navigate('/auth');
           return;
         }

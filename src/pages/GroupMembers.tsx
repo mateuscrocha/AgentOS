@@ -1,5 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { DataTable } from "@/components/ui/data-table";
+import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -123,63 +123,63 @@ const GroupMembers = () => {
     { key: 'name', header: 'Nome', render: (m: Member) => (
       <MemberInlineTrigger memberId={m.id} groupId={groupId} name={m.name} avatarUrl={m.profile_pic_url} />
     ) },
-    { key: 'phone_e164', header: 'Telefone', render: (m: Member) => m.phone_e164 || '-' },
-    { 
-      key: 'role', 
+    { key: 'phone_e164', header: 'Telefone', render: (m: Member) => m.phone_e164 || '-', hideOn: 'sm' },
+    {
+      key: 'role',
       header: 'Papel',
+      hideOn: 'md',
       render: (m: Member) => (
         <div className="flex gap-1 flex-wrap">
           {m.is_owner && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-accent/10 text-accent">
+            <span className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">
               Owner
             </span>
           )}
           {m.is_super_admin && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+            <span className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">
               Super Admin
             </span>
           )}
           {m.is_admin && !m.is_super_admin && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+            <span className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">
               Admin
             </span>
           )}
           {!m.is_admin && !m.is_super_admin && !m.is_owner && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+            <span className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">
               Membro
             </span>
           )}
         </div>
-      )
+      ),
     },
-    { 
-      key: 'status', 
+    {
+      key: 'status',
       header: 'Status',
+      hideOn: 'md',
       render: (m: Member) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          m.left_at ? 'bg-destructive/10 text-destructive' :
-          m.status === 'active' ? 'bg-success/10 text-success' : 
-          'bg-muted text-muted-foreground'
-        }`}>
-          {m.left_at ? 'Saiu' : m.status === 'active' ? 'Ativo' : m.status}
+        <span className={cn(
+          'inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium',
+          m.left_at ? 'bg-destructive/10 text-destructive' : m.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+        )}>
+          {m.left_at ? 'Saiu' : m.status === 'active' ? 'Ativo' : (m.status || '—')}
         </span>
-      )
+      ),
     },
     {
       key: 'actions',
       header: '',
-      className: 'w-10',
+      className: 'w-10 text-right',
       render: (m: Member) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedMemberId(m.id);
-          }}
-          className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
-        >
-          <Eye className="h-4 w-4 text-muted-foreground" />
-        </button>
-      )
+        <RowActions>
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelectedMemberId(m.id); }}
+            className="w-full text-left px-2 py-1.5 text-sm"
+          >
+            Ver detalhes
+          </button>
+        </RowActions>
+      ),
     },
   ];
 
@@ -242,32 +242,21 @@ const GroupMembers = () => {
           )}
         </div>
 
-        {/* Table */}
-        {isLoading ? (
-          <LoadingState message="Carregando membros..." />
-        ) : error ? (
-          <ErrorState 
-            message="Falha ao carregar membros"
-            retry={() => refetch()}
-          />
-        ) : membersData?.items.length === 0 ? (
-          <EmptyState
-            icon={Users}
-            title={search ? "Nenhum resultado" : "Nenhum membro"}
-            message={search ? "Tente buscar com outros termos." : "Este grupo ainda não possui membros."}
-          />
-        ) : (
-          <DataTable
-            columns={columns}
-            data={membersData?.items ?? []}
-            keyExtractor={(m) => m.id}
-            onRowClick={(m) => setSelectedMemberId(m.id)}
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalCount={membersData?.count}
-            onPageChange={setPage}
-          />
-        )}
+        <BorisTable
+          columns={columns as any}
+          data={membersData?.items ?? []}
+          keyExtractor={(m) => m.id}
+          onRowClick={(m) => setSelectedMemberId(m.id)}
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={membersData?.count}
+          onPageChange={setPage}
+          loading={isLoading}
+          error={!!error}
+          onRetry={() => refetch()}
+          emptyIcon={Users}
+          emptyMessage={search ? "Nenhum resultado encontrado." : "Este grupo ainda não possui membros."}
+        />
 
         <MemberDetailsDrawer open={!!selectedMemberId} onOpenChange={() => setSelectedMemberId(null)} memberId={selectedMemberId || ""} groupId={groupId} />
       </div>

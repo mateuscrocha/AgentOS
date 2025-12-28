@@ -14,7 +14,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight, ArrowRight } from "lucide-react";
 import { PeriodReportSystem } from "@/components/dashboard/PeriodReport";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
@@ -436,11 +436,11 @@ const Index = () => {
   });
 
   useEffect(() => {
-    if (kpiOrgsError) toast.error("Falha ao carregar Organizações");
-    if (kpiGroupsError) toast.error("Falha ao carregar Grupos");
-    if (kpiMembersError) toast.error("Falha ao carregar Membros");
-    if (kpiMessagesError) toast.error("Falha ao carregar Mensagens do período");
-    if (kpiActiveMembersError) toast.error("Falha ao carregar Membros ativos");
+    if (kpiOrgsError) notify.error("Falha ao carregar Organizações", "Tente novamente.");
+    if (kpiGroupsError) notify.error("Falha ao carregar Grupos", "Tente novamente.");
+    if (kpiMembersError) notify.error("Falha ao carregar Membros", "Tente novamente.");
+    if (kpiMessagesError) notify.error("Falha ao carregar Mensagens do período", "Tente novamente.");
+    if (kpiActiveMembersError) notify.error("Falha ao carregar Membros ativos", "Tente novamente.");
   }, [
     kpiOrgsError,
     kpiGroupsError,
@@ -693,8 +693,8 @@ const Index = () => {
  
 
   useEffect(() => {
-    if (signalConcentrationError) toast.error("Falha ao carregar sinal de concentração");
-    if (signalKeywordsError) toast.error("Falha ao carregar palavras-chave em alta");
+    if (signalConcentrationError) notify.error("Falha ao carregar sinal de concentração", "Tente novamente.");
+    if (signalKeywordsError) notify.error("Falha ao carregar palavras-chave em alta", "Tente novamente.");
   }, [signalConcentrationError, signalKeywordsError]);
 
  

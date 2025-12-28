@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { Loader2, ClipboardList, CheckCircle, AlertTriangle } from "lucide-react";
 import { parseWhatsAppExport, sha256Hex, buildImportKey, ParsedMessage } from "@/utils/whatsapp-import";
 import { useQueryClient } from "@tanstack/react-query";
@@ -54,7 +54,7 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
 
   const handleValidate = async () => {
     if (!raw.trim()) {
-      toast.error("Bloco vazio");
+      notify.warning("Bloco vazio", "Cole o conteúdo exportado e tente novamente.");
       return;
     }
     setValidating(true);
@@ -62,12 +62,12 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
       const result = parseWhatsAppExport(raw);
       setValidated(result);
       if (result.messages.length === 0) {
-        toast.error("Nenhuma mensagem detectada");
+        notify.warning("Nenhuma mensagem detectada", "Verifique o texto e tente novamente.");
       } else {
-        toast.success("Importação validada");
+        notify.success("Validação concluída", "Tudo certo.");
       }
     } catch (e: any) {
-      toast.error("Falha ao validar importação");
+      notify.error("Não foi possível validar", "Algo deu errado. Tente novamente.");
     } finally {
       setValidating(false);
     }
@@ -75,7 +75,7 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
 
   const handleImport = async () => {
     if (!validated?.messages?.length) {
-      toast.error("Validação necessária");
+      notify.warning("Validação necessária", "Valide o texto antes de importar.");
       return;
     }
     setImporting(true);
@@ -93,7 +93,10 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
         throw new Error(data?.message || error?.message || "Falha ao importar mensagens");
       }
 
-      toast.success(`Importadas ${data.inserted} mensagem(ns), ${data.duplicates} duplicada(s)`);
+      notify.success(
+        "Importação concluída",
+        `Foram adicionadas ${data.inserted} mensagens. ${data.duplicates} duplicadas.`,
+      );
       queryClient.invalidateQueries({
         predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("group-dashboard"),
       });
@@ -103,7 +106,7 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
       });
       handleOpenChange(false);
     } catch (e: any) {
-      toast.error(e?.message || "Erro ao importar");
+      notify.error("Não foi possível importar", "Algo deu errado. Tente novamente.");
     } finally {
       setImporting(false);
     }

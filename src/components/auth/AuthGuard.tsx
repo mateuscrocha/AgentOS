@@ -2,7 +2,7 @@ import { useEffect, useCallback, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { notify } from '@/components/ui/sonner';
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -23,7 +23,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, loading } = useAuth();
 
   const handleSessionExpired = useCallback(() => {
-    toast.error("Sessão expirada, faça login novamente.");
+    notify.error("Sessão expirada", "Faça login novamente.");
     navigate('/auth', { replace: true });
   }, [navigate]);
 

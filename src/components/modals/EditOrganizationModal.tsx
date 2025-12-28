@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { Loader2 } from "lucide-react";
 import { logEvent, getChangedFields } from "@/lib/audit";
 import { useAuth } from "@/hooks/use-auth";
@@ -91,9 +91,9 @@ export function EditOrganizationModal({
           .single();
         if (error) {
           if (error.code === "42501" || error.message.includes("policy")) {
-            toast.error("Sem permissão para criar organizações");
+            notify.error("Sem permissão", "Você não pode criar organizações.");
           } else {
-            toast.error(error.message || "Erro ao criar organização");
+            notify.error("Não foi possível criar", "Algo deu errado. Tente novamente.");
           }
           return;
         }
@@ -106,7 +106,7 @@ export function EditOrganizationModal({
             metadata: { name: payload.name, status: payload.status },
           });
         }
-        toast.success("Organização criada com sucesso");
+        notify.success("Organização criada", "Tudo certo.");
         onSuccess();
         onOpenChange(false);
         return;
@@ -127,9 +127,9 @@ export function EditOrganizationModal({
 
       if (error) {
         if (error.code === "42501" || error.message.includes("policy")) {
-          toast.error("Sem permissão para editar esta organização");
+          notify.error("Sem permissão", "Você não pode editar esta organização.");
         } else {
-          toast.error(error.message || "Erro ao atualizar organização");
+          notify.error("Não foi possível atualizar", "Algo deu errado. Tente novamente.");
         }
         return;
       }
@@ -153,11 +153,11 @@ export function EditOrganizationModal({
         });
       }
 
-      toast.success("Organização atualizada com sucesso");
+      notify.success("Organização atualizada", "Dados salvos com sucesso.");
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "Erro ao salvar organização");
+      notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
     }
   };
 

@@ -1,5 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { DataTable } from "@/components/ui/data-table";
+import { BorisTable } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
@@ -129,6 +129,7 @@ export default function SystemPeople() {
     {
       key: "provider",
       header: "Provedor",
+      hideOn: "sm",
       render: (p: PersonAgg) => (
         <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
           {p.provider}
@@ -138,6 +139,7 @@ export default function SystemPeople() {
     {
       key: "groups",
       header: "Grupos",
+      hideOn: "sm",
       render: (p: PersonAgg) => (
         <span className="text-sm text-muted-foreground">{p.groups.length}</span>
       ),
@@ -145,6 +147,7 @@ export default function SystemPeople() {
     {
       key: "organizations",
       header: "Organizações",
+      hideOn: "sm",
       render: (p: PersonAgg) => (
         <span className="text-sm text-muted-foreground">{p.organizations.length}</span>
       ),
@@ -152,6 +155,7 @@ export default function SystemPeople() {
     {
       key: "created_at",
       header: "Criado em",
+      hideOn: "md",
       render: (p: PersonAgg) => formatDateSimpleBR(p.created_at),
     },
   ];
@@ -171,23 +175,19 @@ export default function SystemPeople() {
           />
         </div>
 
-        {isLoading ? (
-          <LoadingState message="Carregando pessoas..." />
-        ) : error ? (
-          <EmptyState icon={Users} title="Falha ao carregar" message="Tente novamente mais tarde." />
-        ) : !data?.items?.length ? (
-          <EmptyState icon={Users} title="Nenhuma pessoa" message="Não há pessoas registradas." />
-        ) : (
-          <DataTable
-            columns={columns}
-            data={data.items}
-            keyExtractor={(p) => p.personKey}
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalCount={data.count}
-            onPageChange={setPage}
-          />
-        )}
+        <BorisTable
+          columns={columns as any}
+          data={data?.items ?? []}
+          keyExtractor={(p) => p.personKey}
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={data?.count}
+          onPageChange={setPage}
+          loading={isLoading}
+          error={!!error}
+          emptyIcon={Users}
+          emptyMessage="Não há pessoas registradas."
+        />
       </div>
     </AdminLayout>
   );

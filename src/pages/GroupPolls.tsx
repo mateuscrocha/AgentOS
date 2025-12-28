@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { DataTable } from "@/components/ui/data-table";
+import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -101,6 +101,7 @@ export default function GroupPolls() {
     {
       key: "created_at",
       header: "Data",
+      hideOn: "md",
       render: (p: PollItem) => (
         <span className="text-xs">{new Date(p.created_at).toLocaleString("pt-BR")}</span>
       ),
@@ -115,6 +116,7 @@ export default function GroupPolls() {
     {
       key: "voters",
       header: "Votantes",
+      hideOn: "sm",
       render: (p: PollItem) => (
         <span className="text-xs text-muted-foreground">{summaryMap?.[p.id] ?? 0}</span>
       ),
@@ -124,15 +126,14 @@ export default function GroupPolls() {
       header: "",
       className: "w-10",
       render: (p: PollItem) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/groups/${groupId}/polls/${p.id}`);
-          }}
-          className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
-        >
-          <Eye className="h-4 w-4 text-muted-foreground" />
-        </button>
+        <RowActions>
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate(`/groups/${groupId}/polls/${p.id}`); }}
+            className="w-full text-left px-2 py-1.5 text-sm"
+          >
+            Ver detalhes
+          </button>
+        </RowActions>
       ),
     },
   ];
@@ -165,26 +166,19 @@ export default function GroupPolls() {
           <GroupTabs groupId={groupId as string} activeTab="enquetes" />
         </div>
 
-        {isLoading ? (
-          <LoadingState message="Carregando enquetes..." />
-        ) : (pollsData?.items?.length ?? 0) === 0 ? (
-          <EmptyState
-            icon={ListChecks}
-            title="Nenhuma enquete"
-            message="Este grupo ainda não possui enquetes."
-          />
-        ) : (
-          <DataTable
-            columns={columns}
-            data={pollsData?.items ?? []}
-            keyExtractor={(p: PollItem) => p.id}
-            onRowClick={(p: PollItem) => navigate(`/groups/${groupId}/polls/${p.id}`)}
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalCount={pollsData?.count}
-            onPageChange={setPage}
-          />
-        )}
+        <BorisTable
+          columns={columns as any}
+          data={pollsData?.items ?? []}
+          keyExtractor={(p: PollItem) => p.id}
+          onRowClick={(p: PollItem) => navigate(`/groups/${groupId}/polls/${p.id}`)}
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={pollsData?.count}
+          onPageChange={setPage}
+          loading={isLoading}
+          emptyIcon={ListChecks}
+          emptyMessage="Este grupo ainda não possui enquetes."
+        />
       </div>
     </AdminLayout>
   );

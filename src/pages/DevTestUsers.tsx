@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import AccessDenied from "./AccessDenied";
 import { Copy, User, Shield, Users, Eye, CheckCircle, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 
 const TEST_USERS = [
   {
@@ -71,7 +71,7 @@ export default function DevTestUsers() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success("Copiado!");
+    notify.success("Copiado", "Conteúdo copiado para a área de transferência.");
   };
 
   if (authLoading || rolesLoading) {

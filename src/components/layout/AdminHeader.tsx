@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,7 +61,7 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
 
   const handleLogout = async () => {
     await signOut();
-    toast.success("Logout realizado com sucesso");
+    notify.success("Você saiu", "Logout realizado com sucesso.");
     window.location.assign('/auth');
   };
 

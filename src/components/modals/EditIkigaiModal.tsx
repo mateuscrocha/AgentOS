@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { Loader2, PencilLine, Plus, Trash2 } from "lucide-react";
 import { logEvent } from "@/lib/audit";
 import { useQueryClient } from "@tanstack/react-query";
@@ -108,9 +108,9 @@ export function EditIkigaiModal({
 
       if (error) {
         if (error.code === "42501" || (error.message || "").includes("policy")) {
-          toast.error("Sem permissão para atualizar os temas deste grupo");
+          notify.error("Sem permissão", "Você não pode atualizar os temas deste grupo.");
         } else {
-          toast.error(error.message || "Erro ao aplicar mudanças");
+          notify.error("Não foi possível aplicar mudanças", "Algo deu errado. Tente novamente.");
         }
         return;
       }
@@ -125,13 +125,13 @@ export function EditIkigaiModal({
         });
       }
 
-      toast.success("Temas do grupo atualizados");
+      notify.success("Temas atualizados", "Tudo certo.");
       queryClient.invalidateQueries({ queryKey: ['group-dashboard'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['group-ikigai-suggestions'], exact: false });
       onOpenChange(false);
       if (onApplied) onApplied(keywords);
     } catch (e: any) {
-      toast.error(e.message || "Erro ao aplicar mudanças");
+      notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
     } finally {
       setSaving(false);
     }

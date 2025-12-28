@@ -19,7 +19,7 @@ import { EditGroupModal } from "@/components/modals/EditGroupModal";
 import { AddGroupModal } from "@/components/modals/AddGroupModal";
 import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/group-dashboard/KpiCard";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, type PeriodType, type DateRange } from "@/components/group-dashboard/period-utils";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
@@ -926,11 +926,11 @@ const Org = () => {
                     .update({ is_archived: true })
                     .eq('id', removeGroup.id);
                   if (error) throw error;
-                  toast.success('Grupo removido da organização com sucesso');
+                  notify.success('Grupo removido', 'Dados salvos com sucesso.');
                   setRemoveGroup(null);
                   refetchGroups();
                 } catch (err: any) {
-                  toast.error(err.message || 'Erro ao remover grupo');
+                  notify.error('Não foi possível concluir', 'Algo deu errado. Tente novamente.');
                 } finally {
                   setRemoving(false);
                 }

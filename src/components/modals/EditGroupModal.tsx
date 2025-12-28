@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { Loader2, AlertCircle, Lock } from "lucide-react";
 import { logEvent, getChangedFields } from "@/lib/audit";
 import { useAuth } from "@/hooks/use-auth";
@@ -80,11 +80,10 @@ export function EditGroupModal({
         .eq("id", group.id);
 
       if (error) {
-        // Check for RLS permission error
         if (error.code === '42501' || error.message.includes('policy')) {
-          toast.error("Sem permissão para editar este grupo");
+          notify.error("Sem permissão", "Você não pode editar este grupo.");
         } else {
-          toast.error(error.message || "Erro ao atualizar grupo");
+          notify.error("Não foi possível atualizar", "Algo deu errado. Tente novamente.");
         }
         return;
       }
@@ -105,11 +104,11 @@ export function EditGroupModal({
         });
       }
 
-      toast.success("Grupo atualizado com sucesso");
+      notify.success("Grupo atualizado", "Dados salvos com sucesso.");
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "Erro ao atualizar grupo");
+      notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
     } finally {
       setSaving(false);
     }

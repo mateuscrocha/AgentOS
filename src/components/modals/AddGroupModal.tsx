@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { notify } from '@/components/ui/sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link2, CheckCircle, Loader2, Users, AlertTriangle } from 'lucide-react';
 
@@ -105,7 +105,7 @@ export function AddGroupModal({
 
   const handleSubmit = async () => {
     if (!groupValidation || !groupValidation.is_valid || !groupValidation.is_boris_in_group || groupValidation.data_incomplete) {
-      toast.error('Validação do grupo necessária');
+      notify.warning('Validação necessária', 'Valide o grupo antes de continuar.');
       return;
     }
 
@@ -148,12 +148,12 @@ export function AddGroupModal({
         }
       }
 
-      toast.success('Grupo incluído com sucesso!');
+      notify.success('Grupo incluído', 'Tudo certo.');
       handleOpenChange(false);
       onSuccess(data.group_id);
     } catch (error: any) {
       console.error('Error adding group:', error);
-      toast.error(error.message || 'Erro ao incluir grupo');
+      notify.error('Não foi possível incluir', 'Algo deu errado. Tente novamente.');
     } finally {
       setIsSubmitting(false);
     }

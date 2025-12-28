@@ -1,5 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { DataTable } from "@/components/ui/data-table";
+import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
 import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
 
@@ -114,11 +114,11 @@ export default function SystemOrganizations() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Status atualizado");
+      notify.success("Status atualizado", "Dados salvos com sucesso.");
       refetchOrgs();
     },
-    onError: (err: any) => {
-      toast.error(err?.message || "Erro ao atualizar status");
+    onError: () => {
+      notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
     },
   });
 
@@ -150,6 +150,7 @@ export default function SystemOrganizations() {
     {
       key: "groups_count",
       header: "Grupos",
+      hideOn: "sm",
       render: (org: Organization) => (
         <span className="text-sm text-muted-foreground">{orgGroupCounts?.[org.id] ?? 0}</span>
       ),
@@ -157,39 +158,40 @@ export default function SystemOrganizations() {
     {
       key: "created_at",
       header: "Criado em",
+      hideOn: "md",
       render: (org: Organization) => formatDateSimpleBR(org.created_at),
     },
     {
       key: "actions",
-      header: "Ações",
+      header: "",
       className: "text-right w-0",
       render: (org: Organization) => (
-        <div className="flex items-center justify-end gap-2">
-          {org.status === "active" ? (
-            <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: org.id, status: "inactive" }); }}>
-              Desativar
-            </Button>
-          ) : (
-            <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: org.id, status: "active" }); }}>
-              Reativar
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Excluir organização"
-            onClick={(e) => { e.stopPropagation(); setRemoveOrg(org); }}
+        <RowActions>
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate(`/org/${org.id}`); }}
+            className="w-full text-left px-2 py-1.5 text-sm"
           >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
+            Abrir organização
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: org.id, status: org.status === "active" ? "inactive" : "active" }); }}
+            className="w-full text-left px-2 py-1.5 text-sm"
+          >
+            {org.status === "active" ? "Desativar" : "Reativar"}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setRemoveOrg(org); }}
+            className="w-full text-left px-2 py-1.5 text-sm"
+          >
+            Excluir
+          </button>
+          <button
             onClick={(e) => { e.stopPropagation(); setCascadeOrg(org); setConfirmCascadeName(""); }}
+            className="w-full text-left px-2 py-1.5 text-sm text-destructive"
           >
             Excluir em cascata
-          </Button>
-        </div>
+          </button>
+        </RowActions>
       ),
     },
   ];
@@ -237,24 +239,21 @@ export default function SystemOrganizations() {
           </Button>
         </div>
 
-        {orgsLoading ? (
-          <LoadingState message="Carregando organizações..." />
-        ) : orgsError ? (
-          <ErrorState message="Falha ao carregar organizações" retry={() => refetchOrgs()} />
-        ) : orgsData?.items.length === 0 ? (
-          <EmptyState icon={Building2} title="Nenhuma organização" message="Não há organizações cadastradas." />
-        ) : (
-          <DataTable
-            columns={columns}
-            data={orgsData?.items ?? []}
-            keyExtractor={(org) => org.id}
-            onRowClick={(org) => navigate(`/org/${org.id}`)}
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalCount={orgsData?.count}
-            onPageChange={setPage}
-          />
-        )}
+        <BorisTable
+          columns={columns as any}
+          data={orgsData?.items ?? []}
+          keyExtractor={(org) => org.id}
+          onRowClick={(org) => navigate(`/org/${org.id}`)}
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={orgsData?.count}
+          onPageChange={setPage}
+          loading={orgsLoading}
+          error={!!orgsError}
+          onRetry={() => refetchOrgs()}
+          emptyIcon={Building2}
+          emptyMessage="Não há organizações cadastradas."
+        />
 
         <AlertDialog open={!!removeOrg} onOpenChange={(open) => !open && setRemoveOrg(null)}>
           <AlertDialogContent className="bg-card border-border">
@@ -272,7 +271,7 @@ export default function SystemOrganizations() {
                   if (!removeOrg) return;
                   const groupsCount = orgGroupCounts?.[removeOrg.id] ?? 0;
                   if (groupsCount > 0) {
-                    toast.error("A organização possui grupos. Exclua os grupos antes de excluir a organização.");
+                    notify.warning("Atenção", "Exclua os grupos antes de remover a organização.");
                     return;
                   }
                   setRemovingOrg(true);
@@ -282,11 +281,11 @@ export default function SystemOrganizations() {
                       .delete()
                       .eq("id", removeOrg.id);
                     if (error) throw error;
-                    toast.success("Organização excluída com sucesso");
+                    notify.success("Organização excluída", "Tudo certo.");
                     setRemoveOrg(null);
                     refetchOrgs();
                   } catch (err: any) {
-                    toast.error(err.message || "Erro ao excluir organização");
+                    notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
                   } finally {
                     setRemovingOrg(false);
                   }
@@ -323,7 +322,7 @@ export default function SystemOrganizations() {
                 onClick={async () => {
                   if (!cascadeOrg) return;
                   if (confirmCascadeName !== cascadeOrg.name) {
-                    toast.error("O nome digitado não confere");
+                    notify.warning("Atenção", "O nome digitado não confere.");
                     return;
                   }
                   setDeletingCascade(true);
@@ -332,11 +331,11 @@ export default function SystemOrganizations() {
                       body: { resourceType: "organization", resourceId: cascadeOrg.id },
                     });
                     if (error) throw error;
-                    toast.success("Organização excluída em cascata");
+                    notify.success("Organização excluída", "Tudo certo.");
                     setCascadeOrg(null);
                     refetchOrgs();
                   } catch (err: any) {
-                    toast.error(err?.message || "Erro ao excluir em cascata");
+                    notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
                   } finally {
                     setDeletingCascade(false);
                   }

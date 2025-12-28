@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { DataTable } from "@/components/ui/data-table";
+import { BorisTable, type BorisColumn } from "@/components/ui/boris-table";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -26,12 +26,7 @@ interface Event {
   created_at: string;
 }
 
-interface Column<T> {
-  key: string;
-  header: string;
-  render?: (item: T) => React.ReactNode;
-  className?: string;
-}
+ 
 
 const PAGE_SIZE = 20;
 
@@ -114,7 +109,7 @@ export default function SystemEvents() {
     return <AccessDenied />;
   }
 
-  const columns: Column<Event>[] = [
+  const columns: BorisColumn<Event>[] = [
     {
       key: "created_at",
       header: "Data",
@@ -139,6 +134,7 @@ export default function SystemEvents() {
     {
       key: "entity_id",
       header: "ID",
+      hideOn: "md" as any,
       render: (event) => (
         <span className="font-mono text-xs text-muted-foreground">
           {event.entity_id.slice(0, 8)}...
@@ -148,6 +144,7 @@ export default function SystemEvents() {
     {
       key: "metadata",
       header: "Resumo",
+      hideOn: "sm" as any,
       render: (event) => {
         if (!event.metadata) return <span className="text-muted-foreground">-</span>;
         const preview = JSON.stringify(event.metadata).slice(0, 50);
@@ -217,26 +214,19 @@ export default function SystemEvents() {
         </div>
 
         {/* Events Table */}
-        {eventsLoading ? (
-          <LoadingState message="Carregando eventos..." />
-        ) : !eventsData?.events?.length ? (
-          <EmptyState
-            icon={FileText}
-            title="Nenhum evento encontrado"
-            message="Nenhum evento encontrado no período selecionado."
-          />
-        ) : (
-          <DataTable
-            columns={columns}
-            data={eventsData.events}
-            keyExtractor={(event) => event.id}
-            onRowClick={(event) => setSelectedEvent(event)}
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalCount={eventsData.total}
-            onPageChange={setPage}
-          />
-        )}
+        <BorisTable
+          columns={columns as any}
+          data={eventsData?.events ?? []}
+          keyExtractor={(event) => event.id}
+          onRowClick={(event) => setSelectedEvent(event)}
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={eventsData?.total}
+          onPageChange={setPage}
+          loading={eventsLoading}
+          emptyIcon={FileText}
+          emptyMessage="Nenhum evento encontrado no período selecionado."
+        />
 
         {/* Event Detail Drawer */}
         <Sheet open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>

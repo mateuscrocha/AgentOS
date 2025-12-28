@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Email inválido");
@@ -70,7 +70,7 @@ const Auth = () => {
       if (isRecovery) {
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (error) throw error;
-        toast.success("Senha atualizada com sucesso");
+        notify.success("Senha atualizada", "Você pode acessar com a nova senha.");
         setIsRecovery(false);
         setNewPassword("");
         setConfirmPassword("");
@@ -81,7 +81,7 @@ const Auth = () => {
           password,
         });
         if (error) throw error;
-        toast.success("Login realizado com sucesso!");
+        notify.success("Login realizado", "Bem-vindo de volta.");
         navigate("/");
       }
     } catch (err: unknown) {
@@ -128,7 +128,7 @@ const Auth = () => {
       setResetLoading(false);
       return;
     }
-    toast.success("Enviamos um link de recuperação para o seu email");
+    notify.info("Link enviado", "Verifique seu email para recuperar a senha.");
     setResetLoading(false);
   };
 

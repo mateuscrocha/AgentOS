@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -138,16 +138,16 @@ export function EditOrganizationContactModal({ organizationId, contact, open, on
         }
       }
 
-      toast.success("Contato da organização atualizado");
+      notify.success("Contato atualizado", "Tudo certo.");
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
       if (error.code === "42501" || (error.message || "").includes("policy")) {
-        toast.error("Sem permissão para editar o contato");
+        notify.error("Sem permissão", "Você não pode editar este contato.");
       } else if ((error.message || "").includes("organization_contacts_primary_unique")) {
-        toast.error("Já existe um contato primário. Edite o existente.");
+        notify.warning("Contato primário já existe", "Edite o contato existente.");
       } else {
-        toast.error(error.message || "Erro ao salvar contato");
+        notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
       }
     }
   };

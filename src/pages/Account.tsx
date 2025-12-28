@@ -7,7 +7,7 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { UserCircle, Mail, Shield, Key, LogOut, Save, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
  
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,17 +100,17 @@ const Account = () => {
 
       if (error) {
         if (error.code === '42501' || error.message.includes('policy')) {
-          toast.error("Sem permissão para editar seu perfil");
+          notify.error("Sem permissão", "Você não pode editar seu perfil.");
         } else {
-          toast.error(error.message);
+          notify.error("Não foi possível atualizar", "Algo deu errado. Tente novamente.");
         }
         return;
       }
 
-      toast.success("Nome atualizado com sucesso");
+      notify.success("Nome atualizado", "Suas informações foram salvas.");
       refetchProfile();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao atualizar nome");
+      notify.error("Não foi possível atualizar", "Algo deu errado. Tente novamente.");
     } finally {
       setSavingName(false);
     }
@@ -142,7 +142,7 @@ const Account = () => {
 
       if (error) throw error;
 
-      toast.success("Senha alterada com sucesso");
+      notify.success("Senha alterada", "Você pode usar a nova senha.");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: any) {
@@ -158,7 +158,7 @@ const Account = () => {
 
   const handleLogout = async () => {
     await signOut();
-    toast.success("Logout realizado com sucesso");
+    notify.success("Logout realizado", "Até logo!");
     window.location.assign('/auth');
   };
 

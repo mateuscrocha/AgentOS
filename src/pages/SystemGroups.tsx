@@ -1,5 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { DataTable } from "@/components/ui/data-table";
+import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
 
 interface GroupRow {
@@ -115,11 +115,11 @@ export default function SystemGroups() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Status atualizado");
+      notify.success("Status atualizado", "Dados salvos com sucesso.");
       refetch();
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Erro ao atualizar status");
+      notify.error("Não foi possível atualizar status", "Algo deu errado. Tente novamente.");
     },
   });
 
@@ -132,13 +132,13 @@ export default function SystemGroups() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Link de convite atualizado");
+      notify.success("Convite atualizado", "Dados salvos com sucesso.");
       setEditInviteGroup(null);
       setInviteLinkInput("");
       refetch();
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Erro ao atualizar link de convite");
+      notify.error("Não foi possível atualizar convite", "Algo deu errado. Tente novamente.");
     },
   });
 
@@ -159,6 +159,7 @@ export default function SystemGroups() {
     {
       key: "organizations",
       header: "Organização",
+      hideOn: "sm",
       render: (g: GroupRow) => (
         <span className="text-sm text-muted-foreground">{g.organizations?.name || "-"}</span>
       ),
@@ -166,6 +167,7 @@ export default function SystemGroups() {
     {
       key: "provider",
       header: "Provedor",
+      hideOn: "sm",
       render: (g: GroupRow) => (
         <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
           {g.provider}
@@ -186,6 +188,7 @@ export default function SystemGroups() {
     {
       key: "invite_link",
       header: "Convite",
+      hideOn: "md",
       render: (g: GroupRow) => (
         <div className="flex items-center gap-2">
           {g.invite_link ? (
@@ -207,47 +210,41 @@ export default function SystemGroups() {
     },
     {
       key: "actions",
-      header: "Ações",
+      header: "",
       className: "text-right w-0",
       render: (g: GroupRow) => (
-        <div className="flex items-center justify-end gap-2">
-          {g.status === "active" ? (
-            <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: g.id, status: "inactive" }); }}>
-              Desativar
-            </Button>
-          ) : (
-            <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: g.id, status: "active" }); }}>
-              Reativar
-            </Button>
-          )}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditInviteGroup(g);
-              setInviteLinkInput(g.invite_link || "");
-            }}
+        <RowActions>
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate(`/groups/${g.id}`); }}
+            className="w-full text-left px-2 py-1.5 text-sm"
           >
-            <Edit className="h-4 w-4 mr-1" />
+            Abrir grupo
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: g.id, status: g.status === "active" ? "inactive" : "active" }); }}
+            className="w-full text-left px-2 py-1.5 text-sm"
+          >
+            {g.status === "active" ? "Desativar" : "Reativar"}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setEditInviteGroup(g); setInviteLinkInput(g.invite_link || ""); }}
+            className="w-full text-left px-2 py-1.5 text-sm"
+          >
             Editar convite
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Arquivar grupo"
+          </button>
+          <button
             onClick={(e) => { e.stopPropagation(); setRemoveGroup(g); }}
+            className="w-full text-left px-2 py-1.5 text-sm"
           >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
+            Arquivar
+          </button>
+          <button
             onClick={(e) => { e.stopPropagation(); setCascadeGroup(g); setConfirmCascadeName(""); }}
+            className="w-full text-left px-2 py-1.5 text-sm text-destructive"
           >
             Excluir em cascata
-          </Button>
-        </div>
+          </button>
+        </RowActions>
       ),
     },
   ];
@@ -302,24 +299,21 @@ export default function SystemGroups() {
           </select>
         </div>
 
-        {isLoading ? (
-          <LoadingState message="Carregando grupos..." />
-        ) : error ? (
-          <ErrorState message="Falha ao carregar grupos" retry={() => refetch()} />
-        ) : groupsData?.items.length === 0 ? (
-          <EmptyState icon={Users} title="Nenhum grupo" message="Não há grupos cadastrados." />
-        ) : (
-          <DataTable
-            columns={columns}
-            data={groupsData?.items ?? []}
-            keyExtractor={(g) => g.id}
-            onRowClick={(g) => navigate(`/groups/${g.id}`)}
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalCount={groupsData?.count}
-            onPageChange={setPage}
-          />
-        )}
+        <BorisTable
+          columns={columns as any}
+          data={groupsData?.items ?? []}
+          keyExtractor={(g) => g.id}
+          onRowClick={(g) => navigate(`/groups/${g.id}`)}
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={groupsData?.count}
+          onPageChange={setPage}
+          loading={isLoading}
+          error={!!error}
+          onRetry={() => refetch()}
+          emptyIcon={Users}
+          emptyMessage="Não há grupos cadastrados."
+        />
 
         <AlertDialog open={!!removeGroup} onOpenChange={(open) => !open && setRemoveGroup(null)}>
           <AlertDialogContent className="bg-card border-border">
@@ -341,11 +335,11 @@ export default function SystemGroups() {
                       .update({ is_archived: true })
                       .eq("id", removeGroup.id);
                     if (error) throw error;
-                    toast.success("Grupo arquivado com sucesso");
+                    notify.success("Grupo arquivado", "Tudo certo.");
                     setRemoveGroup(null);
                     refetch();
                   } catch (err: any) {
-                    toast.error(err.message || "Erro ao arquivar grupo");
+                    notify.error("Não foi possível arquivar", "Algo deu errado. Tente novamente.");
                   } finally {
                     setRemovingGroup(false);
                   }
@@ -415,7 +409,7 @@ export default function SystemGroups() {
                 onClick={async () => {
                   if (!cascadeGroup) return;
                   if (confirmCascadeName !== cascadeGroup.name) {
-                    toast.error("O nome digitado não confere");
+                    notify.warning("Confirmação incorreta", "Digite o nome do grupo exatamente.");
                     return;
                   }
                   setDeletingCascade(true);
@@ -424,11 +418,11 @@ export default function SystemGroups() {
                       body: { resourceType: "group", resourceId: cascadeGroup.id },
                     });
                     if (error) throw error;
-                    toast.success("Grupo excluído em cascata");
+                    notify.success("Grupo excluído", "Tudo certo.");
                     setCascadeGroup(null);
                     refetch();
                   } catch (err: any) {
-                    toast.error(err?.message || "Erro ao excluir em cascata");
+                    notify.error("Não foi possível excluir", "Algo deu errado. Tente novamente.");
                   } finally {
                     setDeletingCascade(false);
                   }

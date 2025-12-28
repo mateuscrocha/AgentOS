@@ -30,7 +30,7 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GroupTabs } from "@/components/group-navigation/GroupTabs";
@@ -229,12 +229,12 @@ export default function GroupEdit() {
       if (error) throw error;
     },
     onSuccess: async () => {
-      toast.success("Configurações salvas");
+      notify.success("Configurações salvas", "Tudo certo.");
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["group-edit"] });
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Falha ao salvar");
+      notify.error("Não foi possível salvar", "Algo deu errado. Tente novamente.");
     },
   });
 
@@ -257,10 +257,10 @@ export default function GroupEdit() {
       if (error) throw error;
     },
     onSuccess: async () => {
-      toast.success("Conteúdo salvo");
+      notify.success("Conteúdo salvo", "Tudo certo.");
       await refetch();
     },
-    onError: (err: any) => toast.error(err?.message || "Erro ao salvar conteúdo"),
+    onError: (err: any) => notify.error("Não foi possível salvar conteúdo", "Algo deu errado. Tente novamente."),
   });
 
   const updateStatusOnly = useMutation({
@@ -269,10 +269,10 @@ export default function GroupEdit() {
       if (error) throw error;
     },
     onSuccess: async () => {
-      toast.success("Status atualizado");
+      notify.success("Status atualizado", "Tudo certo.");
       await refetch();
     },
-    onError: (err: any) => toast.error(err?.message || "Erro ao atualizar status"),
+    onError: (err: any) => notify.error("Não foi possível atualizar status", "Algo deu errado. Tente novamente."),
   });
 
   const updateInviteMutation = useMutation({
@@ -286,10 +286,10 @@ export default function GroupEdit() {
       if (error) throw error;
     },
     onSuccess: async () => {
-      toast.success("Link de convite atualizado");
+      notify.success("Convite atualizado", "Tudo certo.");
       await refetch();
     },
-    onError: (err: any) => toast.error(err?.message || "Erro ao atualizar link de convite"),
+    onError: (err: any) => notify.error("Não foi possível atualizar convite", "Algo deu errado. Tente novamente."),
   });
 
   const normalizePhoneE164 = (phone: string): string => {
@@ -306,7 +306,7 @@ export default function GroupEdit() {
   const handleRevalidateGroup = async () => {
     const val = inviteLinkInput.trim() || group.invite_link || "";
     if (!val) {
-      toast.error("Configure o link de convite do grupo para revalidar");
+      notify.warning("Convite necessário", "Configure o link do grupo e tente de novo.");
       return;
     }
     setRevalidating(true);
@@ -319,7 +319,7 @@ export default function GroupEdit() {
       }
       const data = response.data as any;
       if (!data?.is_valid || !data?.is_boris_in_group) {
-        toast.error("Não foi possível validar o grupo agora");
+        notify.warning("Não foi possível validar", "Tente novamente mais tarde.");
         return;
       }
       const participants = Array.isArray(data.participants) ? data.participants : [];
@@ -379,13 +379,13 @@ export default function GroupEdit() {
           .in("phone_e164", superAdminPhones);
       }
 
-      toast.success("Admins atualizados");
+      notify.success("Admins atualizados", "Tudo certo.");
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["group-dashboard-admins"] });
       queryClient.invalidateQueries({ queryKey: ["group-dashboard-previous-admins"] });
       queryClient.invalidateQueries({ queryKey: ["group-members"] });
     } catch (e: any) {
-      toast.error(e.message || "Erro ao revalidar o grupo");
+      notify.error("Não foi possível revalidar", "Algo deu errado. Tente novamente.");
     } finally {
       setRevalidating(false);
     }
@@ -397,9 +397,9 @@ export default function GroupEdit() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Grupo arquivado");
+      notify.success("Grupo arquivado", "Tudo certo.");
     },
-    onError: (err: any) => toast.error(err?.message || "Erro ao arquivar grupo"),
+    onError: (err: any) => notify.error("Não foi possível arquivar", "Algo deu errado. Tente novamente."),
   });
 
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
