@@ -16,7 +16,8 @@ import { toast } from "sonner";
 import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight, ArrowRight } from "lucide-react";
 import { PeriodReportSystem } from "@/components/dashboard/PeriodReport";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
-import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
+import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
+import { PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/period-utils";
  
 import { format, addDays, startOfDay, endOfDay, subDays } from "date-fns";
 import { formatDateKeySP, getHourSP } from "@/lib/date";
@@ -56,7 +57,7 @@ const Index = () => {
   const currentRange = getDateRange(selectedPeriod, customRange);
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
     setSelectedPeriod(period);
-    if (period === 'custom') setCustomRange(range);
+    setCustomRange(period === 'custom' ? range : undefined);
   };
   const [keywordsMode, setKeywordsMode] = useState<'themes'|'words'>('themes');
 

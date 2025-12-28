@@ -12,7 +12,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
 import { Calendar, Filter, FileText } from "lucide-react";
-import { PeriodFilter, getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/PeriodFilter";
+import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
+import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 import { formatDateTimeBR, formatDateTimeSecondsBR } from "@/lib/date";
 
 interface Event {

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, subDays, subWeeks } from "date-fns";
+import { useState, useEffect } from "react";
+import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,23 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-
-export type PeriodType = 
-  | 'today' 
-  | 'yesterday' 
-  | 'this_week' 
-  | 'last_week' 
-  | 'this_month'
-  | '7d' 
-  | '14d' 
-  | '30d' 
-  | '90d'
-  | 'custom';
-
-export interface DateRange {
-  from: Date;
-  to: Date;
-}
+import { getDateRange, type PeriodType, type DateRange } from "./period-utils";
 
 interface PeriodFilterProps {
   value: PeriodType;
@@ -54,73 +38,6 @@ const periodOptions: { value: PeriodType; label: string }[] = [
   { value: 'custom', label: 'Personalizado' },
 ];
 
-export function getDateRange(period: PeriodType, customRange?: DateRange): DateRange {
-  const now = new Date();
-  
-  switch (period) {
-    case 'today':
-      return {
-        from: startOfDay(now),
-        to: endOfDay(now),
-      };
-    case 'yesterday': {
-      const yesterday = subDays(now, 1);
-      return {
-        from: startOfDay(yesterday),
-        to: endOfDay(yesterday),
-      };
-    }
-    case 'this_week':
-      return {
-        from: startOfWeek(now, { weekStartsOn: 1 }),
-        to: endOfDay(now),
-      };
-    case 'this_month':
-      return {
-        from: startOfMonth(now),
-        to: endOfDay(now),
-      };
-    case 'last_week': {
-      const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-      const lastWeekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-      return {
-        from: lastWeekStart,
-        to: lastWeekEnd,
-      };
-    }
-    case '7d':
-      return {
-        from: startOfDay(subDays(now, 6)),
-        to: endOfDay(now),
-      };
-    case '14d':
-      return {
-        from: startOfDay(subDays(now, 13)),
-        to: endOfDay(now),
-      };
-    case '30d':
-      return {
-        from: startOfDay(subDays(now, 29)),
-        to: endOfDay(now),
-      };
-    case '90d':
-      return {
-        from: startOfDay(subDays(now, 89)),
-        to: endOfDay(now),
-      };
-    case 'custom':
-      return customRange || {
-        from: startOfDay(subDays(now, 6)),
-        to: endOfDay(now),
-      };
-    default:
-      return {
-        from: startOfDay(subDays(now, 6)),
-        to: endOfDay(now),
-      };
-  }
-}
-
 export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps) {
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [tempRange, setTempRange] = useState<{ from?: Date; to?: Date }>({
@@ -128,8 +45,14 @@ export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps
     to: customRange?.to,
   });
 
+  useEffect(() => {
+    setTempRange({ from: customRange?.from, to: customRange?.to });
+  }, [customRange?.from, customRange?.to]);
+
   const handlePeriodChange = (newPeriod: PeriodType) => {
     if (newPeriod === 'custom') {
+      const initial = getDateRange('custom', customRange);
+      onChange('custom', initial);
       setIsCustomOpen(true);
       return;
     }

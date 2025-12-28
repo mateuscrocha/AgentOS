@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -21,7 +21,8 @@ import AccessDenied from "./AccessDenied";
     PurposeAlignmentSection,
   } from "@/components/group-dashboard";
 import { PeriodReport } from "@/components/group-dashboard";
-import { PeriodFilter, PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/PeriodFilter";
+import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
+import { PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/period-utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { HelpCircle } from "lucide-react";
 import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
@@ -41,6 +42,33 @@ const Group = () => {
   
   
   const currentRange = getDateRange(selectedPeriod, customRange);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`group-period:${groupId}`);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        const p = saved?.period as PeriodType | undefined;
+        if (p) {
+          setSelectedPeriod(p);
+          if (p === 'custom' && saved?.from && saved?.to) {
+            setCustomRange({ from: new Date(saved.from), to: new Date(saved.to) });
+          }
+        }
+      }
+    } catch { void 0; }
+  }, [groupId]);
+
+  useEffect(() => {
+    const payload: any = { period: selectedPeriod };
+    if (selectedPeriod === 'custom' && customRange?.from && customRange?.to) {
+      payload.from = customRange.from.toISOString();
+      payload.to = customRange.to.toISOString();
+    }
+    try {
+      localStorage.setItem(`group-period:${groupId}`, JSON.stringify(payload));
+    } catch { void 0; }
+  }, [groupId, selectedPeriod, customRange]);
 
 
   const {
@@ -94,9 +122,7 @@ const Group = () => {
 
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
     setSelectedPeriod(period);
-    if (period === 'custom') {
-      setCustomRange(range);
-    }
+    setCustomRange(period === 'custom' ? range : undefined);
   };
 
   // Loading state while checking auth/roles
