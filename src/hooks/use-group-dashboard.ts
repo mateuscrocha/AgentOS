@@ -160,8 +160,9 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         }
       });
 
-      const topParticipant = Object.values(memberCounts)
-        .sort((a, b) => b.count - a.count)[0] || null;
+      const topParticipantEntry = Object.entries(memberCounts)
+        .sort((a, b) => b[1].count - a[1].count)[0];
+      const topParticipant = topParticipantEntry ? { id: topParticipantEntry[0], ...topParticipantEntry[1] } : null;
 
       // Get last message timestamp
       const { data: lastMessageData } = await supabase
@@ -284,8 +285,9 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         }
       });
 
-      const topParticipant = Object.values(memberCounts)
-        .sort((a, b) => b.count - a.count)[0] || null;
+      const prevTopEntry = Object.entries(memberCounts)
+        .sort((a, b) => b[1].count - a[1].count)[0];
+      const topParticipant = prevTopEntry ? { id: prevTopEntry[0], ...prevTopEntry[1] } : null;
 
       return {
         totalMessages: totalMessages || 0,
@@ -721,7 +723,8 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         }
       });
 
-      return Object.values(memberCounts)
+      return Object.entries(memberCounts)
+        .map(([id, v]) => ({ id, ...v }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
     },

@@ -9,6 +9,7 @@ import {
 import { Pie, PieChart, Cell } from "recharts";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 
 interface MemberEngagement {
   recorrentes: number;
@@ -18,9 +19,9 @@ interface MemberEngagement {
 
 interface PeopleSectionProps {
   groupId: string;
-  topParticipant: { name: string; count: number; avatarUrl?: string | null } | null;
-  previousTopParticipant?: { name: string; count: number; avatarUrl?: string | null } | null;
-  topParticipants: { name: string; count: number; avatarUrl?: string | null }[];
+  topParticipant: { id?: string; name: string; count: number; avatarUrl?: string | null } | null;
+  previousTopParticipant?: { id?: string; name: string; count: number; avatarUrl?: string | null } | null;
+  topParticipants: { id: string; name: string; count: number; avatarUrl?: string | null }[];
   memberEngagement?: MemberEngagement;
   previousMemberEngagement?: MemberEngagement | null;
   isLoading?: boolean;
@@ -103,6 +104,14 @@ export function PeopleSection({
           <div className="mb-3">
             {isLoading ? (
               <Skeleton className="h-16 w-16 rounded-full" />
+            ) : topParticipant?.id ? (
+              <MemberInlineTrigger
+                memberId={topParticipant.id}
+                groupId={groupId}
+                name={topParticipant.name}
+                avatarUrl={topParticipant.avatarUrl}
+                size="md"
+              />
             ) : (
               <Avatar className="h-16 w-16">
                 {topParticipant?.avatarUrl ? (
@@ -121,9 +130,11 @@ export function PeopleSection({
             </>
           ) : topParticipant ? (
             <>
-              <p className="font-semibold text-card-foreground truncate max-w-full">
-                {topParticipant.name}
-              </p>
+              {!topParticipant.id && (
+                <p className="font-semibold text-card-foreground truncate max-w-full">
+                  {topParticipant.name}
+                </p>
+              )}
               <div className="flex items-center gap-2">
                 <p className="text-sm text-muted-foreground">
                   {topParticipant.count} mensagens
@@ -176,17 +187,15 @@ export function PeopleSection({
                   }`}>
                     {index + 1}
                   </span>
-                  <Avatar className="h-7 w-7">
-                    {participant.avatarUrl ? (
-                      <AvatarImage src={participant.avatarUrl || undefined} alt={participant.name} />
-                    ) : null}
-                    <AvatarFallback>
-                      <User className="h-4 w-4 text-muted-foreground" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="flex-1 text-sm text-card-foreground truncate">
-                    {participant.name}
-                  </span>
+                  <div className="flex-1">
+                    <MemberInlineTrigger
+                      memberId={participant.id}
+                      groupId={groupId}
+                      name={participant.name}
+                      avatarUrl={participant.avatarUrl}
+                      size="sm"
+                    />
+                  </div>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {participant.count}
                   </span>

@@ -7,6 +7,7 @@ import { KpiCard } from "./KpiCard";
 import { InsightCard } from "./InsightCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 
 interface RecentActivitySectionProps {
   messagesPerDay: { date: string; count: number }[];
@@ -79,13 +80,7 @@ export function RecentActivitySection({
     <div className="flex items-center">
       {items.slice(0, 8).map((m, i) => (
         <div key={m.id} className={i === 0 ? "" : "-ml-2"}>
-          <Avatar className="h-6 w-6 ring-1 ring-border">
-            {m.avatarUrl ? (
-              <AvatarImage src={m.avatarUrl} alt="" referrerPolicy="no-referrer" />
-            ) : (
-              <AvatarFallback />
-            )}
-          </Avatar>
+          <MemberInlineTrigger memberId={m.id} name="" avatarUrl={m.avatarUrl} size="xs" compact={true} />
         </div>
       ))}
     </div>
