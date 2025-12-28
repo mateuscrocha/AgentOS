@@ -5,7 +5,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2, Activity } from "lucide-react";
+import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2, Activity, UserCog } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -82,6 +82,9 @@ const Org = () => {
   const [removeGroup, setRemoveGroup] = useState<GroupItem | null>(null);
   const [removing, setRemoving] = useState(false);
   const [editContactOpen, setEditContactOpen] = useState(false);
+  const [assignManagerGroup, setAssignManagerGroup] = useState<GroupItem | null>(null);
+  const [assignManagerUserId, setAssignManagerUserId] = useState("");
+  const [assigningManager, setAssigningManager] = useState(false);
 
   // Fetch organization details
   const { data: org, isLoading: orgLoading, error: orgError, refetch: refetchOrg } = useQuery({
@@ -364,6 +367,20 @@ const Org = () => {
                 className="h-8 w-8 p-0"
               >
                 <Edit className="h-4 w-4" />
+              </Button>
+            )}
+            {userCanEditOrg && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAssignManagerGroup(group);
+                }}
+                className="h-8 w-8 p-0"
+                title="Atribuir gestor de grupo"
+              >
+                <UserCog className="h-4 w-4" />
               </Button>
             )}
             {canRemove && (
@@ -797,7 +814,6 @@ const Org = () => {
                 if (!removeGroup) return;
                 setRemoving(true);
                 try {
-                  // Primeiro, tentar arquivar o grupo para removê-lo da listagem
                   const { error } = await supabase
                     .from('groups')
                     .update({ is_archived: true })
@@ -815,6 +831,57 @@ const Org = () => {
               disabled={removing}
             >
               Confirmar remoção
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Assign group manager */}
+      <AlertDialog open={!!assignManagerGroup} onOpenChange={(open) => !open && setAssignManagerGroup(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-card-foreground">Atribuir gestor ao grupo</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Informe o ID do usuário que será gestor deste grupo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={assignManagerUserId}
+              onChange={(e) => setAssignManagerUserId(e.target.value)}
+              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+              placeholder="UUID do usuário"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="mr-2" onClick={() => setAssignManagerGroup(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!assignManagerGroup || !assignManagerUserId) return;
+                setAssigningManager(true);
+                try {
+                  const { error } = await supabase
+                    .from('user_roles')
+                    .insert({
+                      user_id: assignManagerUserId,
+                      role: 'GROUP_MANAGER',
+                      organization_id: orgId!,
+                      group_id: assignManagerGroup.id,
+                    });
+                  if (error) throw error;
+                  toast.success('Gestor atribuído com sucesso');
+                  setAssignManagerGroup(null);
+                  setAssignManagerUserId('');
+                } catch (err: any) {
+                  toast.error(err.message || 'Erro ao atribuir gestor');
+                } finally {
+                  setAssigningManager(false);
+                }
+              }}
+              disabled={assigningManager || !assignManagerUserId}
+            >
+              Confirmar atribuição
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
