@@ -9,7 +9,7 @@ import {
   Users, MessageSquare, Filter, Eye, Activity, ListChecks,
   Image, Mic, Video, FileText, MapPin, Smile 
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,10 @@ import AccessDenied from "./AccessDenied";
 import { ReactionBadges } from "@/components/messages/ReactionBadges";
 import { MessageDetailModal } from "@/components/messages/MessageDetailModal";
 import { UserInline } from "@/components/ui/UserInline";
+import { Button } from "@/components/ui/button";
+import { Upload } from "lucide-react";
+import { useUserRoles } from "@/hooks/use-user-roles";
+import { ImportMessagesModal } from "@/components/modals/ImportMessagesModal";
  
  
 
@@ -292,6 +296,9 @@ const GroupMessages = () => {
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
+  const { canEditGroup, isLoading: rolesLoading } = useUserRoles();
+  const [importOpen, setImportOpen] = useState(false);
   const navigate = useNavigate();
 
   const tabs = [
@@ -475,7 +482,7 @@ const GroupMessages = () => {
   };
 
   // Loading state
-  if (authLoading) {
+  if (authLoading || rolesLoading) {
     return (
       <AdminLayout title="Messages" subtitle="Verificando acesso...">
         <LoadingState message="Verificando permissões..." />
@@ -583,6 +590,12 @@ const GroupMessages = () => {
                 {messagesData?.count ?? 0} mensagens neste grupo
               </p>
             </div>
+            {canEditGroup(groupId as string, groupInfo?.orgId) ? (
+              <Button onClick={() => setImportOpen(true)} variant="secondary">
+                <Upload className="h-4 w-4 mr-2" />
+                Importar mensagens
+              </Button>
+            ) : null}
           </div>
           
           <div className="flex gap-1 p-2 bg-secondary/30">
@@ -680,6 +693,20 @@ const GroupMessages = () => {
           }}
           groupId={groupId as string}
           messageId={selectedMessageId as string}
+        />
+
+        <ImportMessagesModal
+          groupId={groupId as string}
+          open={importOpen}
+          onOpenChange={(o) => {
+            setImportOpen(o);
+            if (!o) {
+              queryClient.invalidateQueries({ queryKey: ["group-messages-feed", groupId], exact: false });
+              queryClient.invalidateQueries({
+                predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("group-dashboard"),
+              });
+            }
+          }}
         />
       </div>
     </AdminLayout>

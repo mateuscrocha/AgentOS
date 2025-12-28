@@ -12,7 +12,6 @@ import Index from "./pages/Index";
 import SystemEvents from "./pages/SystemEvents";
 import SystemOrganizations from "./pages/SystemOrganizations";
 import SystemGroups from "./pages/SystemGroups";
-import SystemPeople from "./pages/SystemPeople";
 import Org from "./pages/Org";
 import Group from "./pages/Group";
 import GroupMembers from "./pages/GroupMembers";
@@ -55,7 +54,6 @@ const App = () => (
             <Route path="/overview" element={<Navigate to="/" replace />} />
             <Route path="/system/organizations" element={<SystemOrganizations />} />
             <Route path="/system/groups" element={<SystemGroups />} />
-            <Route path="/system/people" element={<SystemPeople />} />
             <Route path="/system/users" element={<Users />} />
             <Route path="/system/events" element={<SystemEvents />} />
             <Route path="/system/settings" element={<Settings />} />

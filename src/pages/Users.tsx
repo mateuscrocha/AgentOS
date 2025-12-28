@@ -8,6 +8,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
   Dialog, 
@@ -107,6 +108,11 @@ export default function Users() {
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<UserRole | null>(null);
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPhone, setNewUserPhone] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
   
   // Form state for adding role
   const [newRole, setNewRole] = useState<AppRole>('USER');
@@ -207,6 +213,48 @@ export default function Users() {
     },
     onError: (error: Error) => {
       toast.error('Erro ao atribuir papel: ' + error.message);
+    },
+  });
+
+  const normalizePhoneE164 = (phone: string): string => {
+    const raw = (phone || "").trim();
+    if (!raw) return "";
+    if (raw.startsWith("+")) {
+      return raw.replace(/\s+/g, "");
+    }
+    const digits = raw.replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("55") && digits.length >= 10) {
+      return "+" + digits;
+    }
+    return "+55" + digits;
+  };
+
+  const createUserMutation = useMutation({
+    mutationFn: async ({ name, email, whatsapp_phone, password }: {
+      name: string;
+      email: string;
+      whatsapp_phone: string;
+      password: string;
+    }) => {
+      const { data, error } = await supabase.functions.invoke("admin-create-user", {
+        body: { name, email, whatsapp_phone, password },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.message || "Falha ao criar usuário");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["all-user-roles"] });
+      toast.success("Usuário criado com sucesso");
+      setIsAddUserOpen(false);
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserPhone("");
+      setNewUserPassword("");
+    },
+    onError: (error: Error) => {
+      toast.error("Erro ao criar usuário: " + error.message);
     },
   });
 
@@ -429,8 +477,12 @@ export default function Users() {
 
         {/* Users Table */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-border">
+          <div className="p-4 border-b border-border flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-card-foreground">Todos os Usuários</h2>
+            <Button onClick={() => setIsAddUserOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Novo Usuário
+            </Button>
           </div>
           {profilesLoading || rolesDataLoading ? (
             <div className="p-8">
@@ -469,6 +521,68 @@ export default function Users() {
           )}
         </div>
       </div>
+
+      <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Novo Usuário</DialogTitle>
+            <DialogDescription>Preencha os dados para criar um usuário.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Input
+                placeholder="Nome"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Input
+                type="email"
+                placeholder="Email"
+                value={newUserEmail}
+                onChange={(e) => setNewUserEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <Input
+                placeholder="WhatsApp (opcional)"
+                value={newUserPhone}
+                onChange={(e) => setNewUserPhone(e.target.value)}
+              />
+            </div>
+            <div>
+              <Input
+                type="password"
+                placeholder="Senha"
+                value={newUserPassword}
+                onChange={(e) => setNewUserPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>Fechar</Button>
+            <Button
+              onClick={() => {
+                if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()) {
+                  toast.error("Preencha nome, email e senha");
+                  return;
+                }
+                createUserMutation.mutate({
+                  name: newUserName.trim(),
+                  email: newUserEmail.trim(),
+                  password: newUserPassword,
+                  whatsapp_phone: normalizePhoneE164(newUserPhone),
+                });
+              }}
+              disabled={createUserMutation.isPending}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Criar Usuário
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Manage User Roles Dialog */}
       <Dialog open={isAddRoleOpen} onOpenChange={setIsAddRoleOpen}>

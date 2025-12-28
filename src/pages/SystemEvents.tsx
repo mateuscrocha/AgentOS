@@ -14,7 +14,7 @@ import AccessDenied from "./AccessDenied";
 import { Calendar, Filter, FileText } from "lucide-react";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
-import { formatDateTimeBR, formatDateTimeSecondsBR } from "@/lib/date";
+import { formatDateTimeBR, formatDateTimeSecondsBR, formatDateSimpleBR } from "@/lib/date";
 
 interface Event {
   id: string;
@@ -56,6 +56,7 @@ export default function SystemEvents() {
   const currentRange = getDateRange(selectedPeriod, customRange);
   const currentStartISO = currentRange.from.toISOString();
   const currentEndISO = currentRange.to.toISOString();
+  const periodLabel = `${formatDateSimpleBR(currentRange.from)} — ${formatDateSimpleBR(currentRange.to)}`;
 
   // Fetch distinct event types for dropdown
   const { data: eventTypes } = useQuery({
@@ -178,6 +179,7 @@ export default function SystemEvents() {
               customRange={customRange}
               onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
             />
+            <span className="text-xs text-muted-foreground">Período: {periodLabel}</span>
           </div>
 
           <div className="flex items-center gap-2">

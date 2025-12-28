@@ -56,7 +56,6 @@ export function AdminSidebar() {
           { icon: LayoutDashboard, label: "Central do Bóris", href: "/" },
           { icon: Building2, label: "Organizações", href: "/system/organizations" },
           { icon: Users, label: "Grupos", href: "/system/groups" },
-          { icon: Users, label: "Pessoas", href: "/system/people" },
           { icon: Users, label: "Usuários & Permissões", href: "/system/users" },
           { icon: Activity, label: "Suporte & Diagnóstico", href: "/system/events" },
           { icon: Settings, label: "Configurações do Sistema", href: "/system/settings" },

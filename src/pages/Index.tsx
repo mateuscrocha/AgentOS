@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ConnectionStatus } from "@/components/dashboard/ConnectionStatus";
@@ -8,6 +8,8 @@ import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
  
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
@@ -19,8 +21,9 @@ import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/period-utils";
  
-import { format, addDays, startOfDay, endOfDay, subDays } from "date-fns";
-import { formatDateKeySP, getHourSP } from "@/lib/date";
+import { format, addDays, subDays } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import { formatDateKeySP, getHourSP, formatDateSimpleBR, formatDateTickBR, SAO_PAULO_TZ } from "@/lib/date";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -55,6 +58,7 @@ const Index = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('30d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const currentRange = getDateRange(selectedPeriod, customRange);
+  const queryClient = useQueryClient();
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
     setSelectedPeriod(period);
     setCustomRange(period === 'custom' ? range : undefined);
@@ -88,6 +92,17 @@ const Index = () => {
     } catch { void 0; }
   }, [selectedPeriod, customRange]);
 
+  useEffect(() => {
+    try {
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          const k = q.queryKey?.[0] as string | undefined;
+          return typeof k === 'string' && (k.startsWith('kpi-') || k.startsWith('system-') || k.startsWith('signal-'));
+        }
+      });
+    } catch { void 0; }
+  }, [selectedPeriod, customRange, queryClient]);
+
   const periodMs = currentRange.to.getTime() - currentRange.from.getTime();
   const periodDays = Math.ceil(periodMs / (1000 * 60 * 60 * 24));
 
@@ -97,27 +112,31 @@ const Index = () => {
     let currTo = currentRange.to;
     let prevFrom: Date;
     let prevTo: Date;
+    const startOfDaySP = (date: Date) => {
+      const dStr = formatInTimeZone(date, SAO_PAULO_TZ, 'yyyy-MM-dd');
+      return fromZonedTime(`${dStr}T00:00:00`, SAO_PAULO_TZ);
+    };
+    const endOfDaySP = (date: Date) => {
+      const dStr = formatInTimeZone(date, SAO_PAULO_TZ, 'yyyy-MM-dd');
+      return fromZonedTime(`${dStr}T23:59:59`, SAO_PAULO_TZ);
+    };
     if (selectedPeriod === 'today') {
       currTo = now;
-      const yesterdayStart = startOfDay(subDays(now, 1));
-      const elapsedMs = Math.max(0, currTo.getTime() - startOfDay(now).getTime());
+      const yesterdayStart = startOfDaySP(addDays(now, -1));
+      const todayStart = startOfDaySP(now);
+      const elapsedMs = Math.max(0, currTo.getTime() - todayStart.getTime());
       prevFrom = yesterdayStart;
       prevTo = new Date(yesterdayStart.getTime() + elapsedMs);
     } else if (selectedPeriod === 'yesterday') {
-      const anteontem = subDays(startOfDay(currentRange.from), 1);
-      prevFrom = startOfDay(anteontem);
-      prevTo = endOfDay(anteontem);
+      const anteontemStart = startOfDaySP(addDays(currentRange.from, -1));
+      prevFrom = anteontemStart;
+      prevTo = endOfDaySP(addDays(currentRange.from, -1));
     } else {
       const lengthMs = Math.max(0, currentRange.to.getTime() - currentRange.from.getTime());
       prevTo = new Date(currentRange.from.getTime() - 1);
       prevFrom = new Date(prevTo.getTime() - lengthMs);
     }
-    return {
-      currFrom,
-      currTo,
-      prevFrom,
-      prevTo,
-    };
+    return { currFrom, currTo, prevFrom, prevTo };
   };
 
   const { currFrom, currTo, prevFrom, prevTo } = computeComparisonRange();
@@ -597,18 +616,10 @@ const Index = () => {
   const { data: messagesPerDay, isLoading: messagesPerDayLoading } = useQuery({
     queryKey: ["system-messages-per-day", currentRange.from.toISOString(), currentRange.to.toISOString()],
     queryFn: async () => {
-      const { data: groups } = await supabase
-        .from("groups")
-        .select("id,is_active,is_archived")
-        .eq("is_active", true)
-        .or("is_archived.eq.false,is_archived.is.null");
-      const activeGroupIds = (groups || []).map((g: any) => g.id);
-
       const { data } = await supabase
         .from("messages")
-        .select("created_at,group_id")
+        .select("created_at")
         .is("deleted_at", null)
-        .in("group_id", activeGroupIds)
         .gte("created_at", currentRange.from.toISOString())
         .lte("created_at", currentRange.to.toISOString())
         .order("created_at", { ascending: true });
@@ -775,11 +786,18 @@ const Index = () => {
     return { label: `${formatted} p.p. ${comparisonSuffix}`, type };
   })();
 
+  const periodLabel = `${formatDateSimpleBR(currentRange.from)} — ${formatDateSimpleBR(currentRange.to)}`;
+
   return (
     <AdminLayout 
       title="Dashboard do Sistema — Resumo Geral" 
       subtitle="Panorama geral do Bóris"
-      actions={<PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />}
+      actions={(
+        <div className="flex items-center gap-3">
+          <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
+          <span className="text-xs text-muted-foreground">Período: {periodLabel}</span>
+        </div>
+      )}
     >
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         <StatsCard title="Organizações ativas" value={kpiOrgsPeriodLoading ? "—" : (kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0))} change={kpiOrgsPeriodLoading ? undefined : orgsChange.label} changeType={orgsChange.type} icon={Building2} variant="kpi" />
@@ -797,6 +815,70 @@ const Index = () => {
         totalOrgs={kpiOrgs || 0}
         trendingBigrams={(signalKeywords?.bigrams || []) as any}
       />
+
+      <Card className="mt-8" id="conversation-rhythm">
+        <CardHeader>
+          <CardTitle>Ritmo da Conversa</CardTitle>
+          <CardDescription>Evolução diária de mensagens no período selecionado</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {messagesPerDayLoading ? (
+            <div className="h-[220px] w-full rounded-lg border border-border bg-secondary/30" />
+          ) : !messagesPerDay || messagesPerDay.length === 0 ? (
+            <div className="h-[220px] flex items-center justify-center bg-secondary/30 rounded-lg">
+              <p className="text-sm text-muted-foreground">Sem dados de atividade</p>
+            </div>
+          ) : (
+            <ChartContainer
+              config={{ count: { label: "Mensagens", color: "hsl(var(--primary))" } }}
+              className="h-[220px] w-full"
+            >
+              <LineChart data={messagesPerDay}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(d) => formatDateTickBR(String(d))}
+                  tick={{ fontSize: 11 }}
+                  className="text-muted-foreground"
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  className="text-muted-foreground"
+                  axisLine={false}
+                  tickLine={false}
+                  width={40}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      hideLabel
+                      hideIndicator
+                      formatter={(value, _name, item: any) => {
+                        const d = item && item.payload ? item.payload.date : "";
+                        const dateStr = formatDateTickBR(String(d));
+                        const countStr = Number(value || 0).toLocaleString("pt-BR");
+                        return (
+                          <span className="font-medium">{dateStr} • {countStr} mensagens</span>
+                        );
+                      }}
+                    />
+                  }
+                />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={{ r: 2 }}
+                  activeDot={{ r: 3 }}
+                />
+              </LineChart>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="mt-8" id="keywords">
         <CardHeader>

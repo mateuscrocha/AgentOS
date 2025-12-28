@@ -112,21 +112,40 @@ export function AddGroupModal({
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('provision-group', {
-        body: {
-          organization_id: organizationId,
-          group: {
-            provider: groupValidation.provider,
-            provider_group_id: groupValidation.provider_group_id,
-            name: groupValidation.group_name,
-            invite_link: inviteLink,
-          },
-          participants: groupValidation.participants,
+      const payload = {
+        organization_id: organizationId,
+        group: {
+          provider: groupValidation.provider,
+          provider_group_id: groupValidation.provider_group_id,
+          name: groupValidation.group_name,
+          invite_link: inviteLink,
         },
+        participants: groupValidation.participants,
+      };
+
+      const { data, error } = await supabase.functions.invoke('provision-group', {
+        body: payload,
       });
 
       if (error || !data?.success) {
-        throw new Error(data?.message || error?.message || 'Erro ao criar grupo');
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData?.session?.access_token || '';
+          const url = `${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/provision-group`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: token ? `Bearer ${token}` : '',
+            },
+            body: JSON.stringify(payload),
+          });
+          const json = await res.json().catch(() => null);
+          const msg = (json && (json.message || json.error || json.detail)) || (error?.message) || 'Erro ao criar grupo';
+          throw new Error(msg);
+        } catch (fallbackErr: any) {
+          throw new Error(fallbackErr?.message || error?.message || 'Erro ao criar grupo');
+        }
       }
 
       toast.success('Grupo incluído com sucesso!');

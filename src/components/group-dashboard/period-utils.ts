@@ -1,4 +1,6 @@
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, subDays, subWeeks } from "date-fns";
+import { addDays, addMonths } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import { SAO_PAULO_TZ } from "@/lib/date";
 
 export type PeriodType =
   | 'today'
@@ -20,34 +22,89 @@ export interface DateRange {
 export function getDateRange(period: PeriodType, customRange?: DateRange): DateRange {
   const now = new Date();
 
+  const startOfDaySP = (date: Date) => {
+    const dStr = formatInTimeZone(date, SAO_PAULO_TZ, "yyyy-MM-dd");
+    return fromZonedTime(`${dStr}T00:00:00`, SAO_PAULO_TZ);
+  };
+
+  const endOfDaySP = (date: Date) => {
+    const dStr = formatInTimeZone(date, SAO_PAULO_TZ, "yyyy-MM-dd");
+    return fromZonedTime(`${dStr}T23:59:59`, SAO_PAULO_TZ);
+  };
+
+  const todayStartUTC = startOfDaySP(now);
+  const todayEndUTC = endOfDaySP(now);
+  const isoDow = Number(formatInTimeZone(now, SAO_PAULO_TZ, "i"));
+
   switch (period) {
-    case 'today':
-      return { from: startOfDay(now), to: endOfDay(now) };
+    case 'today': {
+      return { from: todayStartUTC, to: todayEndUTC };
+    }
     case 'yesterday': {
-      const yesterday = subDays(now, 1);
-      return { from: startOfDay(yesterday), to: endOfDay(yesterday) };
+      const yStart = addDays(todayStartUTC, -1);
+      const yStr = formatInTimeZone(yStart, SAO_PAULO_TZ, "yyyy-MM-dd");
+      const from = fromZonedTime(`${yStr}T00:00:00`, SAO_PAULO_TZ);
+      const to = fromZonedTime(`${yStr}T23:59:59`, SAO_PAULO_TZ);
+      return { from, to };
     }
-    case 'this_week':
-      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfDay(now) };
-    case 'this_month':
-      return { from: startOfMonth(now), to: endOfDay(now) };
+    case 'this_week': {
+      const mondayStart = addDays(todayStartUTC, -(isoDow - 1));
+      const sundayStr = formatInTimeZone(addDays(mondayStart, 6), SAO_PAULO_TZ, "yyyy-MM-dd");
+      const from = fromZonedTime(`${formatInTimeZone(mondayStart, SAO_PAULO_TZ, "yyyy-MM-dd")}T00:00:00`, SAO_PAULO_TZ);
+      const to = fromZonedTime(`${sundayStr}T23:59:59`, SAO_PAULO_TZ);
+      return { from, to };
+    }
     case 'last_week': {
-      const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-      const lastWeekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-      return { from: lastWeekStart, to: lastWeekEnd };
+      const mondayStartPrev = addDays(todayStartUTC, -(isoDow - 1 + 7));
+      const sundayStrPrev = formatInTimeZone(addDays(mondayStartPrev, 6), SAO_PAULO_TZ, "yyyy-MM-dd");
+      const from = fromZonedTime(`${formatInTimeZone(mondayStartPrev, SAO_PAULO_TZ, "yyyy-MM-dd")}T00:00:00`, SAO_PAULO_TZ);
+      const to = fromZonedTime(`${sundayStrPrev}T23:59:59`, SAO_PAULO_TZ);
+      return { from, to };
     }
-    case '7d':
-      return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
-    case '14d':
-      return { from: startOfDay(subDays(now, 13)), to: endOfDay(now) };
-    case '30d':
-      return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
-    case '90d':
-      return { from: startOfDay(subDays(now, 89)), to: endOfDay(now) };
-    case 'custom':
-      return customRange || { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
-    default:
-      return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
+    case 'this_month': {
+      const ym = formatInTimeZone(now, SAO_PAULO_TZ, "yyyy-MM");
+      const from = fromZonedTime(`${ym}-01T00:00:00`, SAO_PAULO_TZ);
+      const nextMonthStr = formatInTimeZone(addMonths(from, 1), SAO_PAULO_TZ, "yyyy-MM");
+      const nextStart = fromZonedTime(`${nextMonthStr}-01T00:00:00`, SAO_PAULO_TZ);
+      const to = new Date(nextStart.getTime() - 1000);
+      return { from, to };
+    }
+    case '7d': {
+      const startStr = formatInTimeZone(addDays(todayStartUTC, -6), SAO_PAULO_TZ, "yyyy-MM-dd");
+      const from = fromZonedTime(`${startStr}T00:00:00`, SAO_PAULO_TZ);
+      const to = todayEndUTC;
+      return { from, to };
+    }
+    case '14d': {
+      const startStr = formatInTimeZone(addDays(todayStartUTC, -13), SAO_PAULO_TZ, "yyyy-MM-dd");
+      const from = fromZonedTime(`${startStr}T00:00:00`, SAO_PAULO_TZ);
+      const to = todayEndUTC;
+      return { from, to };
+    }
+    case '30d': {
+      const startStr = formatInTimeZone(addDays(todayStartUTC, -29), SAO_PAULO_TZ, "yyyy-MM-dd");
+      const from = fromZonedTime(`${startStr}T00:00:00`, SAO_PAULO_TZ);
+      const to = todayEndUTC;
+      return { from, to };
+    }
+    case '90d': {
+      const startStr = formatInTimeZone(addDays(todayStartUTC, -89), SAO_PAULO_TZ, "yyyy-MM-dd");
+      const from = fromZonedTime(`${startStr}T00:00:00`, SAO_PAULO_TZ);
+      const to = todayEndUTC;
+      return { from, to };
+    }
+    case 'custom': {
+      if (customRange?.from && customRange?.to) return customRange;
+      const startStr = formatInTimeZone(addDays(todayStartUTC, -6), SAO_PAULO_TZ, "yyyy-MM-dd");
+      const from = fromZonedTime(`${startStr}T00:00:00`, SAO_PAULO_TZ);
+      const to = todayEndUTC;
+      return { from, to };
+    }
+    default: {
+      const startStr = formatInTimeZone(addDays(todayStartUTC, -6), SAO_PAULO_TZ, "yyyy-MM-dd");
+      const from = fromZonedTime(`${startStr}T00:00:00`, SAO_PAULO_TZ);
+      const to = todayEndUTC;
+      return { from, to };
+    }
   }
 }
-
