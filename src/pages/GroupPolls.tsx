@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, NavLink, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
 import { Users, MessageSquare, Activity, ListChecks, Eye } from "lucide-react";
+import { GroupTabs } from "@/components/group-navigation/GroupTabs";
 import { cn } from "@/lib/utils";
 
 interface PollItem {
@@ -28,13 +29,6 @@ export default function GroupPolls() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [page, setPage] = useState(1);
 
-  const tabs = [
-    { label: "Visão Geral", href: `/groups/${groupId}`, end: true },
-    { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
-    { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
-    { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
-    { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
-  ];
 
   const { data: groupInfo } = useQuery({
     queryKey: ["group-info", groupId],
@@ -168,24 +162,7 @@ export default function GroupPolls() {
             </div>
           </div>
 
-          <div className="flex gap-1 p-2 bg-secondary/30">
-            {tabs.map((tab) => (
-              <NavLink
-                key={tab.href}
-                to={tab.href}
-                end={tab.end}
-                className={({ isActive }) => cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive 
-                    ? "bg-card text-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-                )}
-              >
-                {tab.icon && <tab.icon className="h-4 w-4" />}
-                {tab.label}
-              </NavLink>
-            ))}
-          </div>
+          <GroupTabs groupId={groupId as string} activeTab="enquetes" />
         </div>
 
         {isLoading ? (

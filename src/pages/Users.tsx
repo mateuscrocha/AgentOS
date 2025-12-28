@@ -7,6 +7,7 @@ import { useUserRoles, AppRole } from "@/hooks/use-user-roles";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -421,6 +422,7 @@ export default function Users() {
       subtitle="Gerenciamento de usuários e papéis do sistema"
     >
       <div className="space-y-6">
+        <Breadcrumbs items={[{ label: "Central de Comando", href: "/" }, { label: "Usuários" }]} />
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-card border border-border rounded-xl p-4">

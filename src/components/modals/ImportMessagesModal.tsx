@@ -30,6 +30,16 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
     return { count, from, to };
   }, [validated]);
 
+  const senders = useMemo(() => {
+    if (!validated?.messages?.length) return [] as Array<[string, number]>;
+    const map = new Map<string, number>();
+    for (const m of validated.messages) {
+      const k = m.senderRaw || "Desconhecido";
+      map.set(k, (map.get(k) || 0) + 1);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [validated]);
+
   const reset = () => {
     setRaw("");
     setValidated(null);
@@ -72,7 +82,7 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
     try {
       const enriched = await Promise.all(validated.messages.map(async (m) => {
         const textHash = await sha256Hex(m.text || "");
-        const key = buildImportKey(groupId, m.senderPhone, m.createdAtISO, textHash);
+        const key = buildImportKey(groupId, m.senderRaw, m.createdAtISO, textHash);
         return { ...m, textHash, importKey: key };
       }));
 
@@ -149,6 +159,21 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
                     <div className="font-semibold">{stats?.to || "-"}</div>
                   </div>
                 </div>
+                {senders.length > 0 && (
+                  <div className="mt-3 text-xs">
+                    <div className="text-muted-foreground">Remetentes detectados</div>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {senders.slice(0, 10).map(([name, count]) => (
+                        <div key={name} className="rounded bg-muted px-2 py-1">
+                          {name} ({count})
+                        </div>
+                      ))}
+                      {senders.length > 10 ? (
+                        <div className="rounded bg-muted px-2 py-1">+ {senders.length - 10} outros</div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
                 {validated.errors?.length ? (
                   <div className="mt-3 text-xs text-muted-foreground">
                     {validated.errors.slice(0, 5).map((e, i) => (

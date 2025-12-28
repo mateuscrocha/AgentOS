@@ -49,6 +49,9 @@ export default function SystemOrganizations() {
   const [removeOrg, setRemoveOrg] = useState<Organization | null>(null);
   const [removingOrg, setRemovingOrg] = useState(false);
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
+  const [cascadeOrg, setCascadeOrg] = useState<Organization | null>(null);
+  const [confirmCascadeName, setConfirmCascadeName] = useState("");
+  const [deletingCascade, setDeletingCascade] = useState(false);
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
@@ -179,6 +182,13 @@ export default function SystemOrganizations() {
           >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); setCascadeOrg(org); setConfirmCascadeName(""); }}
+          >
+            Excluir em cascata
+          </Button>
         </div>
       ),
     },
@@ -282,6 +292,56 @@ export default function SystemOrganizations() {
                   }
                 }}
                 disabled={removingOrg}
+              >
+                Confirmar exclusão
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!cascadeOrg} onOpenChange={(open) => !open && setCascadeOrg(null)}>
+          <AlertDialogContent className="bg-card border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-card-foreground">Excluir organização em cascata</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground">
+                Esta ação é irreversível e removerá a organização e todos os seus grupos e dados associados.
+                Digite o nome da organização para confirmar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={confirmCascadeName}
+                onChange={(e) => setConfirmCascadeName(e.target.value)}
+                placeholder={cascadeOrg?.name || "Nome da organização"}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="mr-2" onClick={() => setCascadeOrg(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (!cascadeOrg) return;
+                  if (confirmCascadeName !== cascadeOrg.name) {
+                    toast.error("O nome digitado não confere");
+                    return;
+                  }
+                  setDeletingCascade(true);
+                  try {
+                    const { error } = await supabase.functions.invoke("delete-resource-cascade", {
+                      body: { resourceType: "organization", resourceId: cascadeOrg.id },
+                    });
+                    if (error) throw error;
+                    toast.success("Organização excluída em cascata");
+                    setCascadeOrg(null);
+                    refetchOrgs();
+                  } catch (err: any) {
+                    toast.error(err?.message || "Erro ao excluir em cascata");
+                  } finally {
+                    setDeletingCascade(false);
+                  }
+                }}
+                disabled={deletingCascade || confirmCascadeName !== cascadeOrg?.name}
               >
                 Confirmar exclusão
               </AlertDialogAction>

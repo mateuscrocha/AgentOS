@@ -4,8 +4,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { useParams, NavLink } from "react-router-dom";
-import { Users, MessageSquare, Search, X, Eye, Activity, ListChecks } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { Users, Search, X, Eye } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -13,19 +13,9 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
-import { UserInline } from "@/components/ui/UserInline";
+import { MemberDetailsDrawer } from "@/components/members/MemberDetailsDrawer";
+import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
+import { GroupTabs } from "@/components/group-navigation/GroupTabs";
 
 const PAGE_SIZE = 10;
 
@@ -56,17 +46,10 @@ const GroupMembers = () => {
   const { groupId } = useParams();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isSystemAdmin } = useUserRoles();
 
-  const tabs = [
-    { label: "Painel", href: `/groups/${groupId}`, end: true },
-    { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
-    { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
-    { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
-    { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
-  ];
 
   // Fetch group info for breadcrumbs
   const { data: groupInfo } = useQuery({
@@ -138,7 +121,7 @@ const GroupMembers = () => {
 
   const columns = [
     { key: 'name', header: 'Nome', render: (m: Member) => (
-      <UserInline name={m.name} avatarUrl={m.profile_pic_url} />
+      <MemberInlineTrigger memberId={m.id} groupId={groupId} name={m.name} avatarUrl={m.profile_pic_url} />
     ) },
     { key: 'phone_e164', header: 'Telefone', render: (m: Member) => m.phone_e164 || '-' },
     { 
@@ -190,7 +173,7 @@ const GroupMembers = () => {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setSelectedMember(m);
+            setSelectedMemberId(m.id);
           }}
           className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
         >
@@ -230,24 +213,7 @@ const GroupMembers = () => {
             </div>
           </div>
           
-          <div className="flex gap-1 p-2 bg-secondary/30">
-            {tabs.map((tab) => (
-              <NavLink
-                key={tab.href}
-                to={tab.href}
-                end={tab.end}
-                className={({ isActive }) => cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive 
-                    ? "bg-card text-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-                )}
-              >
-                {tab.icon && <tab.icon className="h-4 w-4" />}
-                {tab.label}
-              </NavLink>
-            ))}
-          </div>
+          <GroupTabs groupId={groupId as string} activeTab="membros" />
         </div>
 
         {/* Search */}
@@ -295,7 +261,7 @@ const GroupMembers = () => {
             columns={columns}
             data={membersData?.items ?? []}
             keyExtractor={(m) => m.id}
-            onRowClick={(m) => setSelectedMember(m)}
+            onRowClick={(m) => setSelectedMemberId(m.id)}
             page={page}
             pageSize={PAGE_SIZE}
             totalCount={membersData?.count}
@@ -303,152 +269,7 @@ const GroupMembers = () => {
           />
         )}
 
-        {/* Member detail dialog - Organized in sections */}
-        <Dialog open={!!selectedMember} onOpenChange={() => setSelectedMember(null)}>
-          <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-card-foreground">Detalhes do Membro</DialogTitle>
-            </DialogHeader>
-            {selectedMember && (
-              <div className="space-y-6">
-                {/* Header with avatar */}
-                <div className="flex items-center gap-4">
-                  {selectedMember.profile_pic_url ? (
-                    <img 
-                      src={selectedMember.profile_pic_url} 
-                      alt={selectedMember.name}
-                      className="h-16 w-16 rounded-xl object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10">
-                      <Users className="h-8 w-8 text-primary" />
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="font-semibold text-lg text-card-foreground">{selectedMember.name}</h3>
-                    {selectedMember.display_name && selectedMember.display_name !== selectedMember.name && (
-                      <p className="text-sm text-muted-foreground">{selectedMember.display_name}</p>
-                    )}
-                    <div className="flex gap-1 mt-1">
-                      {selectedMember.is_owner && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-accent/10 text-accent">Owner</span>
-                      )}
-                      {selectedMember.is_super_admin && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">Super Admin</span>
-                      )}
-                      {selectedMember.is_admin && !selectedMember.is_super_admin && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">Admin</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Identidade/Contato */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Identidade / Contato</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm p-4 rounded-lg bg-secondary/30">
-                    <div>
-                      <span className="text-muted-foreground">Telefone (E.164)</span>
-                      <p className="font-medium text-card-foreground">{selectedMember.phone_e164 || '-'}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">LID</span>
-                      <p className="font-medium text-card-foreground font-mono text-xs">{selectedMember.lid || '-'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Status/Sincronização */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Status / Sincronização</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm p-4 rounded-lg bg-secondary/30">
-                    <div>
-                      <span className="text-muted-foreground">Status</span>
-                      <p className="font-medium text-card-foreground">{selectedMember.status}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Entrou em</span>
-                      <p className="font-medium text-card-foreground">
-                        {selectedMember.joined_at ? new Date(selectedMember.joined_at).toLocaleString('pt-BR') : '-'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Saiu em</span>
-                      <p className="font-medium text-card-foreground">
-                        {selectedMember.left_at ? new Date(selectedMember.left_at).toLocaleString('pt-BR') : '-'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Última msg vista</span>
-                      <p className="font-medium text-card-foreground">
-                        {selectedMember.last_seen_message_at ? new Date(selectedMember.last_seen_message_at).toLocaleString('pt-BR') : '-'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Criado em</span>
-                      <p className="font-medium text-card-foreground">
-                        {new Date(selectedMember.created_at).toLocaleString('pt-BR')}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Atualizado em</span>
-                      <p className="font-medium text-card-foreground">
-                        {new Date(selectedMember.updated_at).toLocaleString('pt-BR')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {isSystemAdmin && (
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Provedor</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm p-4 rounded-lg bg-secondary/30">
-                      <div>
-                        <span className="text-muted-foreground">Provider</span>
-                        <p className="font-medium text-card-foreground capitalize">{selectedMember.provider}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Provider Member ID</span>
-                        <p className="font-medium text-card-foreground font-mono text-xs break-all">
-                          {selectedMember.provider_member_id || '-'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Section: Metadados (collapsible) */}
-                {(selectedMember.metadata && Object.keys(selectedMember.metadata).length > 0) && (
-                  <Collapsible>
-                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors">
-                      <ChevronDown className="h-4 w-4" />
-                      Metadados
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-3">
-                      <pre className="p-4 rounded-lg bg-secondary/30 text-xs overflow-auto max-h-48 text-card-foreground">
-                        {JSON.stringify(selectedMember.metadata, null, 2)}
-                      </pre>
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-
-                {isSystemAdmin && (selectedMember.raw_provider && Object.keys(selectedMember.raw_provider).length > 0) && (
-                  <Collapsible>
-                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors">
-                      <ChevronDown className="h-4 w-4" />
-                      Raw Provider
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-3">
-                      <pre className="p-4 rounded-lg bg-secondary/30 text-xs overflow-auto max-h-48 text-card-foreground">
-                        {JSON.stringify(selectedMember.raw_provider, null, 2)}
-                      </pre>
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        <MemberDetailsDrawer open={!!selectedMemberId} onOpenChange={() => setSelectedMemberId(null)} memberId={selectedMemberId || ""} groupId={groupId} />
       </div>
     </AdminLayout>
   );

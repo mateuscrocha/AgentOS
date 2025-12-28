@@ -8,7 +8,7 @@ import { UserInline } from "@/components/ui/UserInline";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageDetailModal } from "@/components/messages/MessageDetailModal";
+import { MessageDetailsDrawer } from "@/components/messages/MessageDetailsDrawer";
 
 interface AtRiskMember {
   id: string;
@@ -187,13 +187,14 @@ export function AlertsSection({
         )}
       </div>
 
-      <MessageDetailModal 
+      <MessageDetailsDrawer 
         open={!!selectedMessageId}
         onOpenChange={(open) => {
           if (!open) setSelectedMessageId(null);
         }}
         groupId={(groupId || routeGroupId) as string}
         messageId={selectedMessageId as string}
+        variant="sheet"
       />
     </section>
   );

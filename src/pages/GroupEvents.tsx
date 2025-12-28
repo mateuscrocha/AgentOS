@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, NavLink } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 import { formatDateTimeBR, formatDateTimeSecondsBR } from "@/lib/date";
+import { GroupTabs } from "@/components/group-navigation/GroupTabs";
 
 interface Event {
   id: string;
@@ -171,13 +172,6 @@ export default function GroupEvents() {
     },
   ];
 
-  const tabs = [
-    { label: "Visão Geral", href: `/groups/${groupId}`, end: true },
-    { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
-    { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
-    { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
-    { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
-  ];
 
   return (
     <AdminLayout title="Eventos do Grupo" subtitle={group?.name || "Carregando..."}>
@@ -205,24 +199,7 @@ export default function GroupEvents() {
             </div>
           </div>
           
-          <div className="flex gap-1 p-2 bg-secondary/30">
-            {tabs.map((tab) => (
-              <NavLink
-                key={tab.href}
-                to={tab.href}
-                end={tab.end}
-                className={({ isActive }) => cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive 
-                    ? "bg-card text-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-                )}
-              >
-                {tab.icon && <tab.icon className="h-4 w-4" />}
-                {tab.label}
-              </NavLink>
-            ))}
-          </div>
+          <GroupTabs groupId={groupId as string} activeTab="atividade" />
         </div>
 
         {/* Filters */}

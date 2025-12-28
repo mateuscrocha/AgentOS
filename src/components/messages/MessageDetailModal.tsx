@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { UserInline } from "@/components/ui/UserInline";
+import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 import { Activity, FileText, Image, MapPin, Mic, Smile, Video, Shield, User, Database, Link as LinkIcon } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 
@@ -259,7 +259,11 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
               <div>
                 <span className="text-muted-foreground">Autor</span>
                 <div className="mt-1 flex items-center gap-2">
-                  <UserInline name={author?.name || message.sender_name || "Desconhecido"} avatarUrl={(author as any)?.profile_pic_url || null} />
+                  {author?.id ? (
+                    <MemberInlineTrigger memberId={author.id} groupId={groupId} name={author?.name || message.sender_name || "Desconhecido"} avatarUrl={(author as any)?.profile_pic_url || null} />
+                  ) : (
+                    <span className="text-sm text-muted-foreground">{author?.name || message.sender_name || "Desconhecido"}</span>
+                  )}
                   <Badge variant="secondary" className="flex items-center gap-1 text-[10px] px-1.5 py-0.5">
                     <RoleIcon className="h-3 w-3" />
                     {roleLabel}

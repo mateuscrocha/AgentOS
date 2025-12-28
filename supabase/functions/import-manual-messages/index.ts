@@ -2,90 +2,164 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const cors = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type Item = {
-  createdAtISO: string;
-  senderPhone: string;
-  text: string;
-  textHash: string;
-  importKey: string;
-};
+function normalizePhoneE164(input: string | null): string | null {
+  const raw = (input || "").trim();
+  if (!raw) return null;
+  const cleaned = raw.replace(/[\s\-()]/g, "");
+  if (cleaned.startsWith("+")) {
+    const digits = cleaned.replace(/[^+\d]/g, "");
+    return digits || null;
+  }
+  const digits = cleaned.replace(/\D/g, "");
+  return digits ? `+55${digits}` : null;
+}
 
-serve(async (req: Request) => {
+serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: cors });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const url = Deno.env.get("SUPABASE_URL")!;
-    const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const userClient = createClient(url, anon, {
-      global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const serviceClient = createClient(url, service, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
     const groupId: string = body?.group_id;
-    const items: Item[] = Array.isArray(body?.items) ? body.items : [];
+    const items: Array<{
+      createdAtISO: string;
+      senderRaw: string;
+      senderPhone: string | null;
+      senderName: string | null;
+      text: string;
+      textHash: string;
+      importKey: string;
+    }> = Array.isArray(body?.items) ? body.items : [];
 
-    if (!groupId) {
-      return new Response(JSON.stringify({ success: false, message: "group_id obrigatório" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
-    }
-    if (!items || items.length === 0) {
-      return new Response(JSON.stringify({ success: false, message: "Nenhuma mensagem" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
-    }
-
-    const { data: user } = await userClient.auth.getUser();
-    const userId = user?.user?.id || null;
-    if (!userId) {
-      return new Response(JSON.stringify({ success: false, message: "Não autenticado" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } });
-    }
-
-    const { data: canEdit } = await serviceClient.rpc("can_edit_group", { _group_id: groupId, _user_id: userId });
-    if (!canEdit) {
-      return new Response(JSON.stringify({ success: false, message: "Sem permissão" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+    if (!groupId || items.length === 0) {
+      return new Response(
+        JSON.stringify({ success: false, message: "Parâmetros inválidos" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     let inserted = 0;
     let duplicates = 0;
+    let errors = 0;
 
     for (const it of items) {
-      const exists = await serviceClient
+      let memberId: string | null = null;
+      const phone = normalizePhoneE164(it.senderPhone);
+      if (phone) {
+        const { data: existingByPhone } = await supabase
+          .from("members")
+          .select("id")
+          .eq("group_id", groupId)
+          .eq("phone_e164", phone)
+          .maybeSingle();
+        if (existingByPhone?.id) {
+          memberId = existingByPhone.id;
+        } else {
+          const { data: created } = await supabase
+            .from("members")
+            .insert({
+              group_id: groupId,
+              name: phone,
+              display_name: phone,
+              phone_e164: phone,
+              provider: "whatsapp",
+              metadata: { origin: "manual_import" },
+            })
+            .select("id")
+            .single();
+          memberId = created?.id || null;
+        }
+      } else {
+        const name = (it.senderName || it.senderRaw || "").trim();
+        if (!name) {
+          errors++;
+          continue;
+        }
+        const { data: existingByName } = await supabase
+          .from("members")
+          .select("id, name, display_name")
+          .eq("group_id", groupId)
+          .or(`name.ilike.${name},display_name.ilike.${name}`)
+          .maybeSingle();
+        if (existingByName?.id) {
+          memberId = existingByName.id;
+        } else {
+          const { data: created } = await supabase
+            .from("members")
+            .insert({
+              group_id: groupId,
+              name,
+              display_name: name,
+              phone_e164: null,
+              provider: "whatsapp",
+              metadata: { origin: "manual_import" },
+            })
+            .select("id")
+            .single();
+          memberId = created?.id || null;
+        }
+      }
+
+      if (!memberId) {
+        errors++;
+        continue;
+      }
+
+      const createdAtISO = it.createdAtISO;
+      const textHash = it.textHash;
+      const { data: existing } = await supabase
         .from("messages")
         .select("id")
-        .eq("provider", "manual_import")
-        .eq("provider_message_id", it.importKey)
+        .eq("group_id", groupId)
+        .eq("member_id", memberId)
+        .eq("created_at", createdAtISO)
+        .contains("metadata", { text_hash: textHash })
         .maybeSingle();
-      if (exists.data?.id) {
+      if (existing?.id) {
         duplicates++;
         continue;
       }
-      const ins = await serviceClient.from("messages").insert({
-        group_id: groupId,
-        message_type: "text",
-        provider: "manual_import",
-        provider_message_id: it.importKey,
-        sender_phone: it.senderPhone,
-        text: it.text,
-        created_at: it.createdAtISO,
-        metadata: { source: "manual_import", text_hash: it.textHash },
-      });
-      if (!ins.error) inserted++;
+
+      const { error: insErr } = await supabase
+        .from("messages")
+        .insert({
+          group_id: groupId,
+          member_id: memberId,
+          message_type: "text",
+          provider: "manual_import",
+          provider_message_id: it.importKey,
+          sender_phone: phone,
+          sender_name: phone ? null : (it.senderName || it.senderRaw),
+          text: it.text,
+          created_at: createdAtISO,
+          metadata: { source: "manual_import", text_hash: textHash },
+        });
+      if (insErr) {
+        errors++;
+      } else {
+        inserted++;
+      }
     }
 
-    return new Response(JSON.stringify({ success: true, inserted, duplicates }), { headers: { ...cors, "Content-Type": "application/json" } });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro";
-    return new Response(JSON.stringify({ success: false, message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({ success: true, inserted, duplicates, errors }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ success: false, message: (e as Error)?.message || "Erro interno" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
 

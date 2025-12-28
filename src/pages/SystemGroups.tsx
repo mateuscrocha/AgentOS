@@ -54,6 +54,9 @@ export default function SystemGroups() {
   const [removingGroup, setRemovingGroup] = useState(false);
   const [editInviteGroup, setEditInviteGroup] = useState<GroupRow | null>(null);
   const [inviteLinkInput, setInviteLinkInput] = useState("");
+  const [cascadeGroup, setCascadeGroup] = useState<GroupRow | null>(null);
+  const [confirmCascadeName, setConfirmCascadeName] = useState("");
+  const [deletingCascade, setDeletingCascade] = useState(false);
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
@@ -232,10 +235,17 @@ export default function SystemGroups() {
           <Button
             variant="ghost"
             size="icon"
-            title="Excluir grupo"
+            title="Arquivar grupo"
             onClick={(e) => { e.stopPropagation(); setRemoveGroup(g); }}
           >
             <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); setCascadeGroup(g); setConfirmCascadeName(""); }}
+          >
+            Excluir em cascata
           </Button>
         </div>
       ),
@@ -314,9 +324,9 @@ export default function SystemGroups() {
         <AlertDialog open={!!removeGroup} onOpenChange={(open) => !open && setRemoveGroup(null)}>
           <AlertDialogContent className="bg-card border-border">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-card-foreground">Excluir grupo</AlertDialogTitle>
+              <AlertDialogTitle className="text-card-foreground">Arquivar grupo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
-                Esta ação é irreversível e removerá o grupo do sistema.
+                O grupo será arquivado e não aparecerá nas listas. Os dados históricos serão preservados.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -328,21 +338,21 @@ export default function SystemGroups() {
                   try {
                     const { error } = await supabase
                       .from("groups")
-                      .delete()
+                      .update({ is_archived: true })
                       .eq("id", removeGroup.id);
                     if (error) throw error;
-                    toast.success("Grupo excluído com sucesso");
+                    toast.success("Grupo arquivado com sucesso");
                     setRemoveGroup(null);
                     refetch();
                   } catch (err: any) {
-                    toast.error(err.message || "Erro ao excluir grupo");
+                    toast.error(err.message || "Erro ao arquivar grupo");
                   } finally {
                     setRemovingGroup(false);
                   }
                 }}
                 disabled={removingGroup}
               >
-                Confirmar exclusão
+                Confirmar arquivamento
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -376,6 +386,56 @@ export default function SystemGroups() {
                 }}
               >
                 Salvar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!cascadeGroup} onOpenChange={(open) => !open && setCascadeGroup(null)}>
+          <AlertDialogContent className="bg-card border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-card-foreground">Excluir grupo em cascata</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground">
+                Esta ação é irreversível e removerá o grupo e todos os dados associados.
+                Digite o nome do grupo para confirmar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={confirmCascadeName}
+                onChange={(e) => setConfirmCascadeName(e.target.value)}
+                placeholder={cascadeGroup?.name || "Nome do grupo"}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="mr-2" onClick={() => setCascadeGroup(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (!cascadeGroup) return;
+                  if (confirmCascadeName !== cascadeGroup.name) {
+                    toast.error("O nome digitado não confere");
+                    return;
+                  }
+                  setDeletingCascade(true);
+                  try {
+                    const { error } = await supabase.functions.invoke("delete-resource-cascade", {
+                      body: { resourceType: "group", resourceId: cascadeGroup.id },
+                    });
+                    if (error) throw error;
+                    toast.success("Grupo excluído em cascata");
+                    setCascadeGroup(null);
+                    refetch();
+                  } catch (err: any) {
+                    toast.error(err?.message || "Erro ao excluir em cascata");
+                  } finally {
+                    setDeletingCascade(false);
+                  }
+                }}
+                disabled={deletingCascade || confirmCascadeName !== cascadeGroup?.name}
+              >
+                Confirmar exclusão
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

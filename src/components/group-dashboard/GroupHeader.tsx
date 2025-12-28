@@ -1,5 +1,4 @@
-import { NavLink } from "react-router-dom";
-import { Users, MessageSquare, Activity, Wifi, WifiOff, AlertCircle, ListChecks, Settings } from "lucide-react";
+import { Users, Wifi, WifiOff, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/hooks/use-user-roles";
 
@@ -21,14 +20,7 @@ export function GroupHeader({
   syncStatus
 }: GroupHeaderProps) {
   const { isSystemAdmin } = useUserRoles();
-  const tabs = [
-    { label: "Dashboard", href: `/groups/${groupId}`, end: true },
-    { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
-    { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
-    { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
-    { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
-    { label: "Configurações", href: `/groups/${groupId}/edit`, icon: Settings },
-  ];
+  
 
   const getGroupStatus = () => {
     if (syncStatus === 'error') {
@@ -92,25 +84,7 @@ export function GroupHeader({
         </div>
       </div>
       
-      {/* Tab navigation */}
-      <div className="flex gap-1 p-2 bg-secondary/30 overflow-x-auto">
-        {tabs.map((tab) => (
-          <NavLink
-            key={tab.href}
-            to={tab.href}
-            end={tab.end}
-            className={({ isActive }) => cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-              isActive 
-                ? "bg-card text-foreground shadow-sm" 
-                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-            )}
-          >
-            {tab.icon && <tab.icon className="h-4 w-4" />}
-            {tab.label}
-          </NavLink>
-        ))}
-      </div>
+      
     </div>
   );
 }

@@ -33,6 +33,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GroupTabs } from "@/components/group-navigation/GroupTabs";
+import { GroupHeader } from "@/components/group-dashboard";
 
 type FeatureKey =
   | "WELCOME_MESSAGE"
@@ -51,6 +53,8 @@ interface GroupRow {
   metadata: Record<string, any> | null;
   organization_id: string;
   invite_link: string | null;
+  provider?: string;
+  sync_status?: string | null;
 }
 
 const FEATURE_LABELS: Record<FeatureKey, { name: string; description: string; hasContent: boolean }> = {
@@ -97,7 +101,7 @@ export default function GroupEdit() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("groups")
-        .select("id, name, description, status, is_archived, metadata, organization_id, invite_link")
+        .select("id, name, description, status, is_archived, metadata, organization_id, invite_link, provider, sync_status")
         .eq("id", groupId!)
         .maybeSingle();
       if (error) throw error;
@@ -120,6 +124,36 @@ export default function GroupEdit() {
   const [privacy, setPrivacy] = useState<string>("");
   const [inviteLinkInput, setInviteLinkInput] = useState<string>("");
   const [revalidating, setRevalidating] = useState(false);
+
+  const { data: membersCount } = useQuery({
+    queryKey: ["group-members-count", groupId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("members")
+        .select("id", { count: "exact" })
+        .eq("group_id", groupId!)
+        .is("deleted_at", null);
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
+
+  const { data: lastActivityAt } = useQuery({
+    queryKey: ["group-last-activity", groupId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("messages")
+        .select("created_at")
+        .eq("group_id", groupId!)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data as any)?.created_at || null;
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
 
   const [featuresState, setFeaturesState] = useState<Record<FeatureKey, { enabled: boolean; content?: string }>>({
     WELCOME_MESSAGE: { enabled: false, content: "" },
@@ -359,13 +393,13 @@ export default function GroupEdit() {
 
   const deleteGroupMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("groups").delete().eq("id", groupId!);
+      const { error } = await supabase.from("groups").update({ is_archived: true }).eq("id", groupId!);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Grupo removido");
+      toast.success("Grupo arquivado");
     },
-    onError: (err: any) => toast.error(err?.message || "Erro ao remover grupo"),
+    onError: (err: any) => toast.error(err?.message || "Erro ao arquivar grupo"),
   });
 
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
@@ -410,6 +444,19 @@ export default function GroupEdit() {
     <AdminLayout title="Editar grupo" subtitle="Ajuste as configurações e recursos deste grupo.">
       <div className="space-y-6 animate-fade-in">
         <Breadcrumbs items={breadcrumbItems} />
+        {group && (
+          <>
+            <GroupHeader
+              groupId={group.id}
+              name={group.name}
+              provider={group.provider || ""}
+              totalMembers={membersCount || 0}
+              lastMessageAt={lastActivityAt || null}
+              syncStatus={group.sync_status || null}
+            />
+            <GroupTabs groupId={group.id} activeTab="configuracoes" />
+          </>
+        )}
 
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center justify-between">
@@ -617,28 +664,28 @@ export default function GroupEdit() {
 
             <Button variant="destructive" className="inline-flex items-center gap-2" onClick={() => setConfirmRemoveOpen(true)}>
               <Trash2 className="h-4 w-4" />
-              Remover grupo
+              Arquivar grupo
             </Button>
           </div>
 
           <AlertDialog open={confirmRemoveOpen} onOpenChange={setConfirmRemoveOpen}>
             <AlertDialogContent className="bg-card border-border">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-card-foreground">Remover grupo</AlertDialogTitle>
+                <AlertDialogTitle className="text-card-foreground">Arquivar grupo</AlertDialogTitle>
                 <AlertDialogDescription className="text-muted-foreground">
-                  Esta ação é irreversível. Digite <span className="font-semibold">REMOVER</span> para confirmar.
+                  O grupo será arquivado e deixará de aparecer nas listas. Digite <span className="font-semibold">ARQUIVAR</span> para confirmar.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <div className="mt-2">
-                <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="REMOVER" />
+                <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="ARQUIVAR" />
               </div>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
-                  disabled={deleteGroupMutation.isPending || confirmText.trim().toUpperCase() !== "REMOVER"}
+                  disabled={deleteGroupMutation.isPending || confirmText.trim().toUpperCase() !== "ARQUIVAR"}
                   onClick={() => deleteGroupMutation.mutate()}
                 >
-                  Confirmar remoção
+                  Confirmar arquivamento
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

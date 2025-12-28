@@ -20,6 +20,7 @@ import AccessDenied from "./AccessDenied";
     AdminsSection,
     PurposeAlignmentSection,
   } from "@/components/group-dashboard";
+import { GroupTabs } from "@/components/group-navigation/GroupTabs";
 import { PeriodReport } from "@/components/group-dashboard";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/period-utils";
@@ -296,6 +297,8 @@ const Group = () => {
           lastMessageAt={stats.lastMessageAt}
           syncStatus={group.sync_status}
         />
+
+        <GroupTabs groupId={group.id} activeTab="painel" />
 
         {/* 2. Summary Section - KPIs */}
         {(() => {

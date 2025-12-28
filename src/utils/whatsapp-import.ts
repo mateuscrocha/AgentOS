@@ -3,7 +3,9 @@ import { SAO_PAULO_TZ } from "@/lib/date";
 
 export interface ParsedMessage {
   createdAtISO: string;
-  senderPhone: string;
+  senderRaw: string;
+  senderPhone: string | null;
+  senderName: string | null;
   text: string;
 }
 
@@ -15,6 +17,11 @@ export interface ParseResult {
 }
 
 const headerRegex = /^\[(\d{2}):(\d{2}),\s*(\d{2})\/(\d{2})\/(\d{4})\]\s+(.+?):\s*(.*)$/;
+
+function isPhoneLike(input: string): boolean {
+  const digits = (input || "").replace(/\D/g, "");
+  return digits.length >= 8;
+}
 
 export function normalizePhoneE164(input: string): string {
   const raw = (input || "").trim();
@@ -51,9 +58,14 @@ export function parseWhatsAppExport(raw: string): ParseResult {
       if (current) {
         const tsStr = `${current.yyyy}-${current.MM}-${current.dd}T${current.hh}:${current.mm}:00`;
         const dt = fromZonedTime(tsStr, SAO_PAULO_TZ);
+        const senderRaw = current.sender.trim();
+        const phone = isPhoneLike(senderRaw) ? normalizePhoneE164(senderRaw) : null;
+        const name = phone ? null : senderRaw;
         messages.push({
           createdAtISO: dt.toISOString(),
-          senderPhone: normalizePhoneE164(current.sender),
+          senderRaw,
+          senderPhone: phone,
+          senderName: name,
           text: current.content,
         });
       }
@@ -77,9 +89,14 @@ export function parseWhatsAppExport(raw: string): ParseResult {
   if (current) {
     const tsStr = `${current.yyyy}-${current.MM}-${current.dd}T${current.hh}:${current.mm}:00`;
     const dt = fromZonedTime(tsStr, SAO_PAULO_TZ);
+    const senderRaw = current.sender.trim();
+    const phone = isPhoneLike(senderRaw) ? normalizePhoneE164(senderRaw) : null;
+    const name = phone ? null : senderRaw;
     messages.push({
       createdAtISO: dt.toISOString(),
-      senderPhone: normalizePhoneE164(current.sender),
+      senderRaw,
+      senderPhone: phone,
+      senderName: name,
       text: current.content,
     });
   }
@@ -96,6 +113,6 @@ export function parseWhatsAppExport(raw: string): ParseResult {
   return { messages, errors };
 }
 
-export function buildImportKey(groupId: string, senderPhone: string, createdAtISO: string, textHash: string): string {
-  return `${groupId}:${senderPhone}:${createdAtISO}:${textHash}`;
+export function buildImportKey(groupId: string, senderLabel: string, createdAtISO: string, textHash: string): string {
+  return `${groupId}:${senderLabel}:${createdAtISO}:${textHash}`;
 }

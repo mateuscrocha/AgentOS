@@ -4,9 +4,9 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { useParams, NavLink, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { 
-  Users, MessageSquare, Filter, Eye, Activity, ListChecks,
+  Users, MessageSquare, Filter, Eye, Activity,
   Image, Mic, Video, FileText, MapPin, Smile 
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,12 +16,13 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
 import { ReactionBadges } from "@/components/messages/ReactionBadges";
-import { MessageDetailModal } from "@/components/messages/MessageDetailModal";
-import { UserInline } from "@/components/ui/UserInline";
+import { MessageDetailsDrawer } from "@/components/messages/MessageDetailsDrawer";
+import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { ImportMessagesModal } from "@/components/modals/ImportMessagesModal";
+import { GroupTabs } from "@/components/group-navigation/GroupTabs";
  
  
 
@@ -301,13 +302,6 @@ const GroupMessages = () => {
   const [importOpen, setImportOpen] = useState(false);
   const navigate = useNavigate();
 
-  const tabs = [
-    { label: "Painel", href: `/groups/${groupId}`, end: true },
-    { label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
-    { label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
-    { label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
-    { label: "Atividade", href: `/groups/${groupId}/events`, icon: Activity },
-  ];
 
   // Fetch group info for breadcrumbs
   const { data: groupInfo } = useQuery({
@@ -514,7 +508,11 @@ const GroupMessages = () => {
       key: 'member_name', 
       header: 'Membro',
       render: (m: MessageFeed) => (
-        <UserInline name={m.member_name} avatarUrl={m.member_avatar} />
+        m.member_id ? (
+          <MemberInlineTrigger memberId={m.member_id} groupId={groupId} name={m.member_name} avatarUrl={m.member_avatar} />
+        ) : (
+          <span className="text-sm text-muted-foreground">Sistema</span>
+        )
       )
     },
     { 
@@ -598,24 +596,7 @@ const GroupMessages = () => {
             ) : null}
           </div>
           
-          <div className="flex gap-1 p-2 bg-secondary/30">
-            {tabs.map((tab) => (
-              <NavLink
-                key={tab.href}
-                to={tab.href}
-                end={tab.end}
-                className={({ isActive }) => cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive 
-                    ? "bg-card text-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-                )}
-              >
-                {tab.icon && <tab.icon className="h-4 w-4" />}
-                {tab.label}
-              </NavLink>
-            ))}
-          </div>
+          <GroupTabs groupId={groupId as string} activeTab="mensagens" />
         </div>
 
         {/* Filter */}
@@ -686,13 +667,14 @@ const GroupMessages = () => {
           />
         )}
 
-        <MessageDetailModal 
+        <MessageDetailsDrawer 
           open={!!selectedMessageId}
           onOpenChange={(open) => {
             if (!open) setSelectedMessageId(null);
           }}
           groupId={groupId as string}
           messageId={selectedMessageId as string}
+          variant="sheet"
         />
 
         <ImportMessagesModal
