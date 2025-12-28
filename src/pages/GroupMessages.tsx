@@ -1,5 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { DataTable } from "@/components/ui/data-table";
+import { BorisTable } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -655,8 +655,8 @@ const GroupMessages = () => {
             message={typeFilter ? `Nenhuma mensagem do tipo "${typeFilter}" encontrada.` : "Este grupo ainda não possui mensagens."}
           />
         ) : (
-          <DataTable
-            columns={columns}
+          <BorisTable
+            columns={columns as any}
             data={messagesData?.items ?? []}
             keyExtractor={(m) => m.message_id}
             onRowClick={(m) => handleViewDetail(m)}

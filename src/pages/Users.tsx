@@ -11,6 +11,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { 
   Dialog, 
   DialogContent, 
@@ -350,71 +351,89 @@ export default function Users() {
     return <AccessDenied />;
   }
 
-  const renderUserRow = (profile: Profile) => {
-    const userRoles = getUserRoles(profile.id);
-    return (
-      <tr key={profile.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
-        <td className="px-4 py-3">
-          <div className="font-medium text-card-foreground">
-            {profile.name || 'Sem nome'}
+  const columns = [
+    {
+      key: 'name',
+      header: 'Nome',
+      render: (profile: Profile) => (
+        <div className="font-medium text-card-foreground">{profile.name || 'Sem nome'}</div>
+      ),
+    },
+    {
+      key: 'phone_e164',
+      header: 'Telefone',
+      hideOn: 'sm' as const,
+      render: (profile: Profile) => (
+        <span className="text-muted-foreground">{profile.phone_e164 || '-'}</span>
+      ),
+    },
+    {
+      key: 'roles',
+      header: 'Papéis',
+      render: (profile: Profile) => {
+        const userRoles = getUserRoles(profile.id);
+        if (userRoles.length === 0) {
+          return <span className="text-muted-foreground text-sm">Sem papéis</span>;
+        }
+        return (
+          <div className="flex flex-wrap gap-1">
+            {userRoles.map((role) => {
+              const Icon = ROLE_ICONS[role.role];
+              return (
+                <Badge key={role.id} className={`${ROLE_COLORS[role.role]} flex items-center gap-1`}>
+                  <Icon className="h-3 w-3" />
+                  <span className="text-xs">
+                    {role.role === 'SYSTEM_ADMIN' && 'Admin'}
+                    {role.role === 'ORG_ADMIN' && getOrgName(role.organization_id)}
+                    {role.role === 'GROUP_MANAGER' && getGroupName(role.group_id)}
+                    {role.role === 'USER' && getOrgName(role.organization_id)}
+                  </span>
+                </Badge>
+              );
+            })}
           </div>
-        </td>
-        <td className="px-4 py-3">
-          <span className="text-muted-foreground">
-            {profile.phone_e164 || '-'}
-          </span>
-        </td>
-        <td className="px-4 py-3">
-          {userRoles.length === 0 ? (
-            <span className="text-muted-foreground text-sm">Sem papéis</span>
-          ) : (
-            <div className="flex flex-wrap gap-1">
-              {userRoles.map((role) => {
-                const Icon = ROLE_ICONS[role.role];
-                return (
-                  <Badge 
-                    key={role.id} 
-                    className={`${ROLE_COLORS[role.role]} flex items-center gap-1`}
-                  >
-                    <Icon className="h-3 w-3" />
-                    <span className="text-xs">
-                      {role.role === 'SYSTEM_ADMIN' && 'Admin'}
-                      {role.role === 'ORG_ADMIN' && getOrgName(role.organization_id)}
-                      {role.role === 'GROUP_MANAGER' && getGroupName(role.group_id)}
-                      {role.role === 'USER' && getOrgName(role.organization_id)}
-                    </span>
-                  </Badge>
-                );
-              })}
-            </div>
-          )}
-        </td>
-        <td className="px-4 py-3">
-          <Badge variant={profile.status === 'active' ? 'default' : 'secondary'}>
-            {profile.status === 'active' ? 'Ativo' : profile.status || 'Desconhecido'}
-          </Badge>
-        </td>
-        <td className="px-4 py-3">
-          <span className="text-muted-foreground text-sm">
-            {format(new Date(profile.created_at), "dd/MM/yyyy", { locale: ptBR })}
-          </span>
-        </td>
-        <td className="px-4 py-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
+        );
+      },
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (profile: Profile) => (
+        <Badge variant={profile.status === 'active' ? 'default' : 'secondary'}>
+          {profile.status === 'active' ? 'Ativo' : profile.status || 'Desconhecido'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'created_at',
+      header: 'Criado em',
+      hideOn: 'md' as const,
+      render: (profile: Profile) => (
+        <span className="text-muted-foreground text-sm">
+          {format(new Date(profile.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-10',
+      render: (profile: Profile) => (
+        <RowActions>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
               setSelectedUser(profile);
               setIsAddRoleOpen(true);
             }}
+            className="w-full text-left px-2 py-1.5 text-sm"
           >
-            <UserCog className="h-4 w-4 mr-1" />
-            Gerenciar
-          </Button>
-        </td>
-      </tr>
-    );
-  };
+            Gerenciar papéis
+          </button>
+        </RowActions>
+      ),
+    },
+  ];
 
   return (
     <AdminLayout 
@@ -423,6 +442,14 @@ export default function Users() {
     >
       <div className="space-y-6">
         <Breadcrumbs items={[{ label: "Central de Comando", href: "/" }, { label: "Usuários" }]} />
+        {/* Ações */}
+        <div className="flex items-center justify-end">
+          <Button onClick={() => setIsAddUserOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Novo Usuário
+          </Button>
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-card border border-border rounded-xl p-4">
@@ -479,48 +506,15 @@ export default function Users() {
 
         {/* Users Table */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-card-foreground">Todos os Usuários</h2>
-            <Button onClick={() => setIsAddUserOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              Novo Usuário
-            </Button>
-          </div>
-          {profilesLoading || rolesDataLoading ? (
-            <div className="p-8">
-              <LoadingState message="Carregando usuários..." />
-            </div>
-          ) : profilesError ? (
-            <div className="p-8">
-              <ErrorState message="Erro ao carregar usuários" />
-            </div>
-          ) : !profiles || profiles.length === 0 ? (
-            <div className="p-8">
-              <EmptyState
-                icon={UsersIcon}
-                title="Nenhum usuário encontrado"
-                message="Não há usuários cadastrados no sistema."
-              />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-secondary/30">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nome</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Telefone</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Papéis</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Criado em</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {profiles.map(renderUserRow)}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <BorisTable
+            columns={columns as any}
+            data={profiles ?? []}
+            keyExtractor={(profile) => profile.id}
+            loading={profilesLoading || rolesDataLoading}
+            error={!!profilesError}
+            emptyIcon={UsersIcon}
+            emptyMessage="Não há usuários cadastrados no sistema."
+          />
         </div>
       </div>
 

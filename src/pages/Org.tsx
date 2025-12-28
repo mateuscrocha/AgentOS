@@ -1,5 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { DataTable } from "@/components/ui/data-table";
+import { BorisTable } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -851,8 +851,8 @@ const Org = () => {
               message="Esta organização ainda não possui grupos cadastrados."
             />
           ) : (
-            <DataTable
-              columns={groupColumns}
+            <BorisTable
+              columns={groupColumns as any}
               data={groupsData?.items ?? []}
               keyExtractor={(group) => group.id}
               onRowClick={(group) => navigate(`/groups/${group.id}`)}
