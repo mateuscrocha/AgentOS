@@ -297,7 +297,6 @@ export default function Onboarding() {
         setAccessError(`Senha deve ter pelo menos ${required} caracteres`);
         setCurrentStep('password');
       } else {
-        console.error('Onboarding error:', error);
         navigate('/onboarding/error', { 
           state: { message: error.message || 'Erro durante o onboarding' } 
         });

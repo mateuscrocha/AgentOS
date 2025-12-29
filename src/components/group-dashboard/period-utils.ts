@@ -26,7 +26,9 @@ export function startOfDaySP(date: Date): Date {
 
 export function endOfDaySP(date: Date): Date {
   const dStr = formatInTimeZone(date, SAO_PAULO_TZ, "yyyy-MM-dd");
-  return fromZonedTime(`${dStr}T23:59:59`, SAO_PAULO_TZ);
+  const start = fromZonedTime(`${dStr}T00:00:00`, SAO_PAULO_TZ);
+  const nextStart = addDays(start, 1);
+  return new Date(nextStart.getTime() - 1);
 }
 
 export function getDateRange(period: PeriodType, customRange?: DateRange): DateRange {
@@ -44,21 +46,19 @@ export function getDateRange(period: PeriodType, customRange?: DateRange): DateR
       const yStart = addDays(todayStartUTC, -1);
       const yStr = formatInTimeZone(yStart, SAO_PAULO_TZ, "yyyy-MM-dd");
       const from = fromZonedTime(`${yStr}T00:00:00`, SAO_PAULO_TZ);
-      const to = fromZonedTime(`${yStr}T23:59:59`, SAO_PAULO_TZ);
+      const to = new Date(addDays(from, 1).getTime() - 1);
       return { from, to };
     }
     case 'this_week': {
       const mondayStart = addDays(todayStartUTC, -(isoDow - 1));
-      const sundayStr = formatInTimeZone(addDays(mondayStart, 6), SAO_PAULO_TZ, "yyyy-MM-dd");
       const from = fromZonedTime(`${formatInTimeZone(mondayStart, SAO_PAULO_TZ, "yyyy-MM-dd")}T00:00:00`, SAO_PAULO_TZ);
-      const to = fromZonedTime(`${sundayStr}T23:59:59`, SAO_PAULO_TZ);
+      const to = new Date(addDays(from, 7).getTime() - 1);
       return { from, to };
     }
     case 'last_week': {
       const mondayStartPrev = addDays(todayStartUTC, -(isoDow - 1 + 7));
-      const sundayStrPrev = formatInTimeZone(addDays(mondayStartPrev, 6), SAO_PAULO_TZ, "yyyy-MM-dd");
       const from = fromZonedTime(`${formatInTimeZone(mondayStartPrev, SAO_PAULO_TZ, "yyyy-MM-dd")}T00:00:00`, SAO_PAULO_TZ);
-      const to = fromZonedTime(`${sundayStrPrev}T23:59:59`, SAO_PAULO_TZ);
+      const to = new Date(addDays(from, 7).getTime() - 1);
       return { from, to };
     }
     case 'this_month': {
@@ -106,5 +106,5 @@ export function getDateRange(period: PeriodType, customRange?: DateRange): DateR
       const to = todayEndUTC;
       return { from, to };
     }
-  }
+}
 }

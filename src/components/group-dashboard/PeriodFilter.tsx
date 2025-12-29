@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
@@ -66,10 +66,10 @@ export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps
     if (tempRange.from && tempRange.to) {
       const fromStr = formatInTimeZone(tempRange.from, SAO_PAULO_TZ, 'yyyy-MM-dd');
       const toStr = formatInTimeZone(tempRange.to, SAO_PAULO_TZ, 'yyyy-MM-dd');
-      onChange('custom', {
-        from: fromZonedTime(`${fromStr}T00:00:00`, SAO_PAULO_TZ),
-        to: fromZonedTime(`${toStr}T23:59:59`, SAO_PAULO_TZ),
-      });
+      const from = fromZonedTime(`${fromStr}T00:00:00`, SAO_PAULO_TZ);
+      const toNextStart = addDays(fromZonedTime(`${toStr}T00:00:00`, SAO_PAULO_TZ), 1);
+      const to = new Date(toNextStart.getTime() - 1);
+      onChange('custom', { from, to });
       setIsCustomOpen(false);
     }
   };

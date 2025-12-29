@@ -96,7 +96,6 @@ export function AddGroupModal({
         setValidationError('Ainda não encontrei o Bóris no grupo. Adicione o Bóris ao grupo e clique em Validar novamente.');
       }
     } catch (error: any) {
-      console.error('Error validating group:', error);
       setValidationError('Erro ao validar grupo. Tente novamente.');
     } finally {
       setIsValidating(false);
@@ -152,7 +151,6 @@ export function AddGroupModal({
       handleOpenChange(false);
       onSuccess(data.group_id);
     } catch (error: any) {
-      console.error('Error adding group:', error);
       notify.error('Não foi possível incluir', 'Algo deu errado. Tente novamente.');
     } finally {
       setIsSubmitting(false);

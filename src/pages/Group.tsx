@@ -35,8 +35,29 @@ const Group = () => {
   const { isLoading: rolesLoading } = useUserRoles();
   
   // Period filter state
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
-  const [customRange, setCustomRange] = useState<DateRange | undefined>();
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>(() => {
+    try {
+      const raw = localStorage.getItem(`group-period:${groupId}`);
+      const saved = raw ? JSON.parse(raw) : null;
+      const p = saved?.period as PeriodType | undefined;
+      return p || '7d';
+    } catch {
+      return '7d';
+    }
+  });
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(() => {
+    try {
+      const raw = localStorage.getItem(`group-period:${groupId}`);
+      const saved = raw ? JSON.parse(raw) : null;
+      const p = saved?.period as PeriodType | undefined;
+      if (p === 'custom' && saved?.from && saved?.to) {
+        return { from: new Date(saved.from), to: new Date(saved.to) };
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  });
   const [helpOpen, setHelpOpen] = useState(false);
   const [ikigaiOpen, setIkigaiOpen] = useState(false);
   
@@ -48,21 +69,7 @@ const Group = () => {
     setCustomRange(undefined);
   };
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(`group-period:${groupId}`);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        const p = saved?.period as PeriodType | undefined;
-        if (p) {
-          setSelectedPeriod(p);
-          if (p === 'custom' && saved?.from && saved?.to) {
-            setCustomRange({ from: new Date(saved.from), to: new Date(saved.to) });
-          }
-        }
-      }
-    } catch { void 0; }
-  }, [groupId]);
+  useEffect(() => { void 0; }, [groupId]);
 
   useEffect(() => {
     const payload: any = { period: selectedPeriod };
@@ -77,10 +84,7 @@ const Group = () => {
 
   const queryClient = useQueryClient();
   useEffect(() => {
-    if (!groupId) return;
-    queryClient.invalidateQueries({
-      predicate: (q) => Array.isArray(q.queryKey) && String(q.queryKey[0]).startsWith('group-dashboard') && q.queryKey[1] === groupId,
-    });
+    void 0;
   }, [groupId, selectedPeriod, customRange, queryClient]);
 
 

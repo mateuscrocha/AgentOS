@@ -36,8 +36,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
           handleSessionExpired();
         }
       } else if (event === 'TOKEN_REFRESHED') {
-        // Token was refreshed successfully
-        console.log('Token refreshed');
+        void 0;
       }
     });
 

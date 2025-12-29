@@ -38,11 +38,10 @@ export async function logEvent({
     });
 
     if (error) {
-      console.warn('Failed to log event:', error.message);
+      void 0;
     }
   } catch (err) {
-    // Silent fail - don't break the main flow
-    console.warn('Event logging failed:', err);
+    void 0;
   }
 }
 

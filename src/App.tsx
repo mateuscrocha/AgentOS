@@ -32,13 +32,27 @@ import Users from "./pages/Users";
 const originalConsoleError = console.error;
 console.error = (...args: any[]) => {
   const joined = args.map((a) => String(a)).join(" ");
-  if (joined.includes("net::ERR_ABORTED") || joined.includes("AbortError")) {
+  if (
+    joined.includes("net::ERR_ABORTED") ||
+    joined.includes("AbortError") ||
+    joined.includes("net::ERR_INSUFFICIENT_RESOURCES")
+  ) {
     return;
   }
   originalConsoleError(...args);
 };
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: 1,
+      staleTime: 60 * 1000,
+      gcTime: 5 * 60 * 1000,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { subDays } from "date-fns";
 import { startOfDaySP, endOfDaySP } from "@/components/group-dashboard/period-utils";
 import { formatDateKeySP, getHourSP } from "@/lib/date";
+import { notify } from "@/components/ui/sonner";
 
  
 
@@ -22,6 +24,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
   // Use provided date range or default to 7 days
   const now = new Date();
+  const nowRef = useRef<Date>(now);
   const currentPeriodEnd = dateRange?.to || now;
   const currentPeriodStart = dateRange?.from || subDays(now, 6);
 
@@ -36,7 +39,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   let previousPeriodStart: Date;
   let previousPeriodEnd: Date;
   if (isTodayRange) {
-    effectiveCurrEnd = now;
+    effectiveCurrEnd = nowRef.current;
     const elapsedMs = Math.max(0, effectiveCurrEnd.getTime() - startToday.getTime());
     const yesterdayStart = startOfDaySP(subDays(now, 1));
     previousPeriodStart = yesterdayStart;
@@ -54,9 +57,12 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const periodDays = Math.ceil((currentPeriodEnd.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
 
   const currentPeriodStartISO = currentPeriodStart.toISOString();
-  const currentPeriodEndISO = effectiveCurrEnd.toISOString();
+  const queryEnd = isTodayRange ? nowRef.current : effectiveCurrEnd;
+  const currentPeriodEndISO = queryEnd.toISOString();
   const previousPeriodStartISO = previousPeriodStart.toISOString();
   const previousPeriodEndISO = previousPeriodEnd.toISOString();
+
+  void 0;
 
   // Chart should respect selected period strictly
   const chartDays = periodDays;
@@ -119,7 +125,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     : [];
 
   // Fetch current period stats
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['group-dashboard-stats', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       let totalMembers: number | null = (groupOverview as any)?.members_count ?? null;
@@ -218,6 +224,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
+
+  if (statsError) {
+    notify.error('Falha ao carregar dados', 'Não foi possível carregar estatísticas do período.');
+  }
 
   const hasIkigai = (ikigaiKeywords || []).length > 0;
 
@@ -517,7 +527,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   });
 
   // Fetch messages per day for chart
-  const { data: messagesPerDay, isLoading: chartLoading } = useQuery({
+  const { data: messagesPerDay, isLoading: chartLoading, error: chartError } = useQuery({
     queryKey: ['group-dashboard-chart', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
@@ -550,6 +560,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
+
+  if (chartError) {
+    notify.error('Falha ao carregar dados', 'Não foi possível carregar o gráfico de mensagens por dia.');
+  }
 
   // Fetch member entries per day
   const { data: memberEntriesPerDay } = useQuery({
@@ -654,7 +668,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   });
 
   // Fetch activity by hour
-  const { data: activityData } = useQuery({
+  const { data: activityData, error: activityError } = useQuery({
     queryKey: ['group-dashboard-activity-hour', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
@@ -691,6 +705,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
+
+  if (activityError) {
+    notify.error('Falha ao carregar dados', 'Não foi possível carregar a atividade por hora.');
+  }
 
   // Fetch participants in period with member avatars to build day/hour stacks
   const { data: periodParticipants } = useQuery({

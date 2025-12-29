@@ -375,7 +375,6 @@ const GroupMessages = () => {
       
       if (error) {
         // Fallback to manual query if view doesn't exist
-        console.warn('v_messages_feed not available, using fallback', error);
         
         let fallbackQuery = supabase
           .from('messages')
@@ -460,7 +459,6 @@ const GroupMessages = () => {
         .in('message_id', messageIds);
       
       if (error) {
-        console.warn('v_message_reactions_summary not available', error);
         return {};
       }
 
