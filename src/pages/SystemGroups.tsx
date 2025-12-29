@@ -3,7 +3,8 @@ import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Users, Trash2, Link as LinkIcon, Edit } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -24,6 +25,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { notify } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
+import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
+import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 
 interface GroupRow {
   id: string;
@@ -50,6 +53,8 @@ export default function SystemGroups() {
   const [orgFilter, setOrgFilter] = useState<string>("");
   const [orderBy, setOrderBy] = useState<"created_at" | "name">("created_at");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [removeGroup, setRemoveGroup] = useState<GroupRow | null>(null);
   const [removingGroup, setRemovingGroup] = useState(false);
   const [editInviteGroup, setEditInviteGroup] = useState<GroupRow | null>(null);
@@ -78,14 +83,20 @@ export default function SystemGroups() {
   });
 
   const { data: groupsData, isLoading, error, refetch } = useQuery({
-    queryKey: ["system-groups", page, debouncedSearch, statusFilter, orgFilter, orderBy, orderDir],
+    queryKey: ["system-groups", page, debouncedSearch, statusFilter, orgFilter, orderBy, orderDir, selectedPeriod, customRange?.from?.toISOString(), customRange?.to?.toISOString()],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
+      const range = getDateRange(selectedPeriod, customRange);
+
       let query = supabase
         .from("groups")
         .select("id, name, provider, status, organization_id, invite_link, organizations(name)", { count: "exact" });
+
+      query = query
+        .gte("created_at", range.from.toISOString())
+        .lte("created_at", range.to.toISOString());
 
       if (debouncedSearch) {
         query = query.ilike("name", `%${debouncedSearch}%`);
@@ -252,52 +263,72 @@ export default function SystemGroups() {
   return (
     <AdminLayout title="Gerenciar grupos" subtitle="Central de Comando › Grupos">
       <div className="space-y-6 animate-fade-in">
-        <Breadcrumbs items={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]} />
-
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Buscar por nome"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-64 px-3 py-2 rounded-lg border border-border bg-card text-sm"
-          />
-          <select
-            value={orgFilter}
-            onChange={(e) => { setOrgFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-          >
-            <option value="">Todas as organizações</option>
-            {(organizations ?? []).map((org) => (
-              <option key={org.id} value={org.id}>{org.name}</option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1); }}
-            className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-          >
-            <option value="all">Todos</option>
-            <option value="active">Ativos</option>
-            <option value="inactive">Inativos</option>
-          </select>
-          <select
-            value={orderBy}
-            onChange={(e) => setOrderBy(e.target.value as any)}
-            className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-          >
-            <option value="created_at">Ordenar por Data</option>
-            <option value="name">Ordenar por Nome</option>
-          </select>
-          <select
-            value={orderDir}
-            onChange={(e) => setOrderDir(e.target.value as any)}
-            className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-          >
-            <option value="asc">Asc</option>
-            <option value="desc">Desc</option>
-          </select>
-        </div>
+        <AdminPageHeader
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
+          title="Grupos"
+          description="Gerenciar grupos do sistema"
+          filters={(
+            <div className="flex flex-wrap items-center gap-2">
+              <PeriodFilter
+                value={selectedPeriod}
+                customRange={customRange}
+                onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
+              />
+              <input
+                type="text"
+                placeholder="Buscar por nome"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="w-64 px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              />
+              <select
+                value={orgFilter}
+                onChange={(e) => { setOrgFilter(e.target.value); setPage(1); }}
+                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              >
+                <option value="">Todas as organizações</option>
+                {(organizations ?? []).map((org) => (
+                  <option key={org.id} value={org.id}>{org.name}</option>
+                ))}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1); }}
+                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              >
+                <option value="all">Todos</option>
+                <option value="active">Ativos</option>
+                <option value="inactive">Inativos</option>
+              </select>
+              <select
+                value={orderBy}
+                onChange={(e) => setOrderBy(e.target.value as any)}
+                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              >
+                <option value="created_at">Ordenar por Data</option>
+                <option value="name">Ordenar por Nome</option>
+              </select>
+              <select
+                value={orderDir}
+                onChange={(e) => setOrderDir(e.target.value as any)}
+                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              >
+                <option value="asc">Asc</option>
+                <option value="desc">Desc</option>
+              </select>
+            </div>
+          )}
+          showClearFilters={selectedPeriod !== '7d' || !!customRange || !!search || !!orgFilter || statusFilter !== 'all'}
+          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setSearch(""); setOrgFilter(""); setStatusFilter('all'); setOrderBy('created_at'); setOrderDir('desc'); setPage(1); }}
+          filteredKpis={(
+            <StatsCard
+              title="Grupos no período"
+              value={groupsData?.count ?? '—'}
+              icon={Users}
+              variant="kpi"
+            />
+          )}
+        />
 
         <BorisTable
           columns={columns as any}

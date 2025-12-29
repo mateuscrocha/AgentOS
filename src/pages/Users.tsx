@@ -7,7 +7,7 @@ import { useUserRoles, AppRole } from "@/hooks/use-user-roles";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +50,9 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import AccessDenied from "./AccessDenied";
+import { StatsCard } from "@/components/dashboard/StatsCard";
+import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
+import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 
 interface Profile {
   id: string;
@@ -107,6 +110,8 @@ export default function Users() {
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
   const queryClient = useQueryClient();
   
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<UserRole | null>(null);
@@ -121,13 +126,18 @@ export default function Users() {
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
 
-  // Fetch all profiles
+  const currentRange = getDateRange(selectedPeriod, customRange);
+  const currentStartISO = currentRange.from.toISOString();
+  const currentEndISO = currentRange.to.toISOString();
+
   const { data: profiles, isLoading: profilesLoading, error: profilesError } = useQuery({
-    queryKey: ['all-profiles'],
+    queryKey: ['all-profiles', selectedPeriod, customRange?.from?.toISOString(), customRange?.to?.toISOString()],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, phone_e164, status, created_at')
+        .gte('created_at', currentStartISO)
+        .lte('created_at', currentEndISO)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -441,68 +451,58 @@ export default function Users() {
       subtitle="Gerenciamento de usuários e papéis do sistema"
     >
       <div className="space-y-6">
-        <Breadcrumbs items={[{ label: "Central de Comando", href: "/" }, { label: "Usuários" }]} />
-        {/* Ações */}
-        <div className="flex items-center justify-end">
-          <Button onClick={() => setIsAddUserOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Novo Usuário
-          </Button>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <UsersIcon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-card-foreground">{profiles?.length || 0}</p>
-                <p className="text-sm text-muted-foreground">Total de Usuários</p>
-              </div>
+        <AdminPageHeader
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Usuários" }]}
+          title="Usuários"
+          description="Gerenciamento de usuários e papéis do sistema"
+          actions={(
+            <Button onClick={() => setIsAddUserOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Novo Usuário
+            </Button>
+          )}
+          filters={(
+            <div className="flex flex-wrap items-center gap-2">
+              <PeriodFilter
+                value={selectedPeriod}
+                customRange={customRange}
+                onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); }}
+              />
             </div>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-destructive/10">
-                <Crown className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-card-foreground">
-                  {allRoles?.filter(r => r.role === 'SYSTEM_ADMIN').length || 0}
-                </p>
-                <p className="text-sm text-muted-foreground">Admins do Sistema</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-warning/10">
-                <Building2 className="h-5 w-5 text-warning" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-card-foreground">
-                  {allRoles?.filter(r => r.role === 'ORG_ADMIN').length || 0}
-                </p>
-                <p className="text-sm text-muted-foreground">Gestores de Org</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <UserCog className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-card-foreground">
-                  {allRoles?.filter(r => r.role === 'GROUP_MANAGER').length || 0}
-                </p>
-                <p className="text-sm text-muted-foreground">Gestores de Grupo</p>
-              </div>
-            </div>
-          </div>
-        </div>
+          )}
+          showClearFilters={selectedPeriod !== '7d' || !!customRange}
+          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); }}
+          filteredKpis={(
+            <StatsCard
+              title="Usuários no período"
+              value={profiles?.length ?? '—'}
+              icon={UsersIcon}
+              variant="kpi"
+            />
+          )}
+          generalKpis={(
+            <>
+              <StatsCard
+                title="Admins do Sistema"
+                value={allRoles?.filter(r => r.role === 'SYSTEM_ADMIN').length || 0}
+                icon={Crown}
+                variant="compact"
+              />
+              <StatsCard
+                title="Gestores de Org"
+                value={allRoles?.filter(r => r.role === 'ORG_ADMIN').length || 0}
+                icon={Building2}
+                variant="compact"
+              />
+              <StatsCard
+                title="Gestores de Grupo"
+                value={allRoles?.filter(r => r.role === 'GROUP_MANAGER').length || 0}
+                icon={UserCog}
+                variant="compact"
+              />
+            </>
+          )}
+        />
 
         {/* Users Table */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">

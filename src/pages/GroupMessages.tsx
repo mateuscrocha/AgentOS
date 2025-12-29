@@ -3,7 +3,8 @@ import { BorisTable } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   Users, MessageSquare, Filter, Eye, Activity,
@@ -566,79 +567,78 @@ const GroupMessages = () => {
       subtitle={`Mensagens do grupo`}
     >
       <div className="space-y-6 animate-fade-in">
-        {/* Breadcrumbs */}
-        <Breadcrumbs
-          items={[
+        <AdminPageHeader
+          breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
             { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Mensagens" },
           ]}
+          title="Mensagens"
+          description={messagesData?.count !== undefined ? `${messagesData?.count} mensagens neste grupo` : "Mensagens do grupo"}
+          actions={canEditGroup(groupId as string, groupInfo?.orgId) ? (
+            <Button onClick={() => setImportOpen(true)} variant="secondary">
+              <Upload className="h-4 w-4 mr-2" />
+              Importar mensagens
+            </Button>
+          ) : null}
+          filters={(
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Tipo:</span>
+              </div>
+              <div className="flex gap-1 flex-wrap">
+                <button
+                  onClick={() => {
+                    setTypeFilter("");
+                    setPage(1);
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                    !typeFilter 
+                      ? "bg-primary text-primary-foreground" 
+                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  )}
+                >
+                  Todos
+                </button>
+                {MESSAGE_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setTypeFilter(type);
+                      setPage(1);
+                    }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                      typeFilter === type 
+                        ? "bg-primary text-primary-foreground" 
+                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                    )}
+                  >
+                    {translateMessageType(type)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          showClearFilters={!!typeFilter}
+          onClearFilters={() => {
+            setTypeFilter("");
+            setPage(1);
+          }}
+          filteredKpis={(
+            <StatsCard
+              title={typeFilter ? `Mensagens (${translateMessageType(typeFilter)})` : "Mensagens"}
+              value={messagesData?.count ?? "—"}
+              icon={MessageSquare}
+              variant="kpi"
+            />
+          )}
         />
 
-        {/* Header with tabs */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-3 p-4 border-b border-border">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <MessageSquare className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-card-foreground">Mensagens</h2>
-              <p className="text-sm text-muted-foreground">
-                {messagesData?.count ?? 0} mensagens neste grupo
-              </p>
-            </div>
-            {canEditGroup(groupId as string, groupInfo?.orgId) ? (
-              <Button onClick={() => setImportOpen(true)} variant="secondary">
-                <Upload className="h-4 w-4 mr-2" />
-                Importar mensagens
-              </Button>
-            ) : null}
-          </div>
-          
-          <GroupTabs groupId={groupId as string} activeTab="mensagens" />
-        </div>
-
-        {/* Filter */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Tipo:</span>
-          </div>
-          <div className="flex gap-1 flex-wrap">
-            <button
-              onClick={() => {
-                setTypeFilter("");
-                setPage(1);
-              }}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                !typeFilter 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              )}
-            >
-              Todos
-            </button>
-            {MESSAGE_TYPES.map((type) => (
-              <button
-                key={type}
-                onClick={() => {
-                  setTypeFilter(type);
-                  setPage(1);
-                }}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                  typeFilter === type 
-                    ? "bg-primary text-primary-foreground" 
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                )}
-              >
-                {translateMessageType(type)}
-              </button>
-            ))}
-          </div>
-        </div>
+        <GroupTabs groupId={groupId as string} activeTab="mensagens" />
 
         {/* Table */}
         {isLoading ? (

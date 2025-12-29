@@ -3,7 +3,8 @@ import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 import { useParams } from "react-router-dom";
 import { Users, Search, X, Eye } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -100,6 +101,20 @@ const GroupMembers = () => {
     enabled: !!groupId && isAuthenticated,
   });
 
+  const { data: totalMembersCount } = useQuery({
+    queryKey: ['group-members-total', groupId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId)
+        .is('deleted_at', null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
+
   // Loading state
   if (authLoading) {
     return (
@@ -189,58 +204,62 @@ const GroupMembers = () => {
       subtitle={`Membros do grupo`}
     >
       <div className="space-y-6 animate-fade-in">
-        {/* Breadcrumbs */}
-        <Breadcrumbs
-          items={[
+        <AdminPageHeader
+          breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
             { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Membros" },
           ]}
+          title="Membros"
+          description={membersData?.count !== undefined ? `${membersData?.count} membros neste grupo` : "Membros do grupo"}
+          generalKpis={(
+            <StatsCard
+              title="Total de membros"
+              value={totalMembersCount ?? "—"}
+              icon={Users}
+              variant="kpi"
+            />
+          )}
+          filters={(
+            <div className="relative w-full max-w-lg">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar por nome ou telefone..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              {search && (
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-secondary"
+                >
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+          )}
+          showClearFilters={!!search}
+          onClearFilters={() => { setSearch(""); setPage(1); }}
+          filteredKpis={search ? (
+            <StatsCard
+              title="Resultados da busca"
+              value={membersData?.count ?? 0}
+              icon={Users}
+              variant="kpi"
+            />
+          ) : null}
         />
 
-        {/* Header with tabs */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-3 p-4 border-b border-border">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <Users className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-card-foreground">Membros</h2>
-              <p className="text-sm text-muted-foreground">
-                {membersData?.count ?? 0} membros neste grupo
-              </p>
-            </div>
-          </div>
-          
-          <GroupTabs groupId={groupId as string} activeTab="membros" />
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Buscar por nome ou telefone..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-          {search && (
-            <button
-              onClick={() => {
-                setSearch("");
-                setPage(1);
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-secondary"
-            >
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
-          )}
-        </div>
+        <GroupTabs groupId={groupId as string} activeTab="membros" />
 
         <BorisTable
           columns={columns as any}

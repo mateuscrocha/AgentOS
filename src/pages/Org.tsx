@@ -3,9 +3,9 @@ import { BorisTable } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Building2, Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2, Activity, Tag } from "lucide-react";
+import { Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2, Activity, Tag } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -248,12 +248,23 @@ const Org = () => {
   
 
   const path = location.pathname;
-  const isGroupsRoute = /^\/(org|organization)\/[^/]+\/groups$/.test(path);
-  const isSettingsRoute = /^\/(org|organization)\/[^/]+\/settings$/.test(path);
-  const isDashboardRoute = /^\/(org|organization)\/[^/]+\/dashboard$/.test(path);
-  const isKeywordsRoute = /^\/(org|organization)\/[^/]+\/keywords$/.test(path);
-  const isBaseOrg = /^\/(org|organization)\/[^/]+$/.test(path) || /^\/(org|organization)\/[^/]+\/$/.test(path);
+  const isGroupsRoute = /^\/\(org|organization\)\/[^/]+\/groups$/.test(path);
+  const isSettingsRoute = /^\/\(org|organization\)\/[^/]+\/settings$/.test(path);
+  const isDashboardRoute = /^\/\(org|organization\)\/[^/]+\/dashboard$/.test(path);
+  const isKeywordsRoute = /^\/\(org|organization\)\/[^/]+\/keywords$/.test(path);
+  const isBaseOrg = /^\/\(org|organization\)\/[^/]+$/.test(path) || /^\/\(org|organization\)\/[^/]+\/$/.test(path);
   const isDefaultOrgHome = isBaseOrg && !isGroupsRoute && !isSettingsRoute && !isDashboardRoute && !isKeywordsRoute;
+
+  const breadcrumbItems = (() => {
+    const items = [
+      { label: "Central de Comando", href: "/" },
+      { label: org.name },
+    ];
+    if (isGroupsRoute) items.push({ label: "Grupos" });
+    if (isDashboardRoute) items.push({ label: "Painéis e métricas" });
+    if (isKeywordsRoute) items.push({ label: "Palavras-chave" });
+    return items;
+  })();
 
   const currentRange = getDateRange(selectedPeriod, customRange);
   const lengthMs = Math.max(0, currentRange.to.getTime() - currentRange.from.getTime());
@@ -493,30 +504,48 @@ const Org = () => {
       subtitle={org.name}
     >
       <div className="space-y-6 animate-fade-in">
-        <Breadcrumbs
-          items={(
-            () => {
-              const items = [
-                { label: "Central do Bóris", href: "/" },
-                { label: org.name },
-              ];
-              if (isGroupsRoute) items.push({ label: "Grupos" });
-              if (isDashboardRoute) items.push({ label: "Painéis e métricas" });
-              if (isKeywordsRoute) items.push({ label: "Palavras-chave" });
-              return items;
-            }
-          )()}
+        <AdminPageHeader
+          breadcrumbItems={breadcrumbItems}
+          title={org.name}
+          description={`Criada em ${formatDateSimpleBR(org.created_at)}`}
+          actions={(
+            <div className="flex items-center gap-3">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                org.status === 'active' ? 'bg-success/10 text-success' :
+                org.status === 'inactive' ? 'bg-muted text-muted-foreground' :
+                'bg-destructive/10 text-destructive'
+              }`}>
+                {org.status === 'active' ? 'Ativo' : org.status === 'inactive' ? 'Inativo' : 'Suspenso'}
+              </span>
+              {userCanEditOrg && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditOrgOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
+              )}
+            </div>
+          )}
+          filters={(
+            isKeywordsRoute ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <PeriodFilter
+                  value={selectedPeriod}
+                  customRange={customRange}
+                  onChange={handlePeriodChange}
+                />
+              </div>
+            ) : null
+          )}
+          showClearFilters={isKeywordsRoute && (selectedPeriod !== '7d' || !!customRange)}
+          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); }}
         />
 
-        {isKeywordsRoute && (
-          <div className="flex items-center justify-end">
-            <PeriodFilter
-              value={selectedPeriod}
-              customRange={customRange}
-              onChange={handlePeriodChange}
-            />
-          </div>
-        )}
+        
 
         {(isDashboardRoute || isDefaultOrgHome) && (
           <div id="org-dashboard" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -555,43 +584,6 @@ const Org = () => {
           </div>
         )}
 
-        {/* Organization header */}
-        <div className="flex items-center gap-4 p-6 rounded-xl border border-border bg-card">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
-            <Building2 className="h-7 w-7 text-primary" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold text-card-foreground">{org.name}</h2>
-              {org.slug && (
-                <span className="text-sm text-muted-foreground font-mono">({org.slug})</span>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Criada em {formatDateSimpleBR(org.created_at)}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              org.status === 'active' ? 'bg-success/10 text-success' :
-              org.status === 'inactive' ? 'bg-muted text-muted-foreground' :
-              'bg-destructive/10 text-destructive'
-            }`}>
-              {org.status === 'active' ? 'Ativo' : org.status === 'inactive' ? 'Inativo' : 'Suspenso'}
-            </span>
-            {userCanEditOrg && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditOrgOpen(true)}
-                className="flex items-center gap-2"
-              >
-                <Edit className="h-4 w-4" />
-                Editar
-              </Button>
-            )}
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {(isDashboardRoute || isDefaultOrgHome) && (

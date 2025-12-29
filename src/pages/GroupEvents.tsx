@@ -6,7 +6,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { BorisTable, type BorisColumn } from "@/components/ui/boris-table";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -172,60 +173,57 @@ export default function GroupEvents() {
   return (
     <AdminLayout title="Eventos do Grupo" subtitle={group?.name || "Carregando..."}>
       <div className="space-y-6 animate-fade-in">
-        <Breadcrumbs
-          items={[
+        <AdminPageHeader
+          breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
             ...(org ? [{ label: org.name, href: `/organization/${org.id}` }] : []),
             ...(group ? [{ label: group.name, href: `/groups/${group.id}` }] : []),
             { label: "Atividade" },
           ]}
+          title="Atividade"
+          description="Atividade recente do grupo"
+          filters={(
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <PeriodFilter
+                  value={selectedPeriod}
+                  customRange={customRange}
+                  onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <Select value={eventType} onValueChange={setEventType}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Tipo de evento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    {eventTypes?.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          showClearFilters={selectedPeriod !== '7d' || !!customRange || eventType !== 'all'}
+          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setEventType('all'); setPage(1); }}
+          filteredKpis={(
+            <StatsCard
+              title="Eventos no período"
+              value={eventsData?.total ?? "—"}
+              icon={Activity}
+              variant="kpi"
+            />
+          )}
         />
 
-        {/* Header with tabs */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-3 p-4 border-b border-border">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <Activity className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-card-foreground">Atividade</h2>
-              <p className="text-sm text-muted-foreground">
-                Atividade recente do grupo
-              </p>
-            </div>
-          </div>
-          
-          <GroupTabs groupId={groupId as string} activeTab="atividade" />
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <PeriodFilter
-              value={selectedPeriod}
-              customRange={customRange}
-              onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <Select value={eventType} onValueChange={setEventType}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tipo de evento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os tipos</SelectItem>
-                {eventTypes?.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <GroupTabs groupId={groupId as string} activeTab="atividade" />
 
         {/* Events Table */}
         <BorisTable

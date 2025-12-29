@@ -1,7 +1,7 @@
 import { useParams, NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
 import { supabase } from "@/integrations/supabase/client";
@@ -126,13 +126,20 @@ export default function GroupPoll() {
   return (
     <AdminLayout title="Enquete" subtitle="Detalhes da enquete">
       <div className="space-y-6 animate-fade-in">
-        <Breadcrumbs
-          items={[
-            { label: "Central do Bóris", href: "/" },
+        <AdminPageHeader
+          breadcrumbItems={[
+            { label: "Central de Comando", href: "/" },
             { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Enquete" },
           ]}
+          title="Enquete"
+          description={createdAtLabel}
+          actions={(
+            <NavLink to={`/groups/${groupId}/messages`} className="ml-auto">
+              <Button variant="outline" size="sm">Voltar às mensagens</Button>
+            </NavLink>
+          )}
         />
 
         <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -144,9 +151,7 @@ export default function GroupPoll() {
               <h1 className="text-xl md:text-2xl font-semibold text-card-foreground">{(poll as any)?.question || "Enquete"}</h1>
               <p className="text-xs md:text-sm text-muted-foreground">Criada em {createdAtLabel}</p>
             </div>
-            <NavLink to={`/groups/${groupId}/messages`} className="ml-auto">
-              <Button variant="outline" size="sm">Voltar às mensagens</Button>
-            </NavLink>
+            
           </div>
 
           <div className="p-4 space-y-4">

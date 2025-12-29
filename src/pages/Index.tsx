@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ConnectionStatus } from "@/components/dashboard/ConnectionStatus";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
@@ -62,6 +63,11 @@ const Index = () => {
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
     setSelectedPeriod(period);
     setCustomRange(period === 'custom' ? range : undefined);
+  };
+  const hasActiveFilters = selectedPeriod !== '30d' || !!customRange;
+  const handleClearFilters = () => {
+    setSelectedPeriod('30d');
+    setCustomRange(undefined);
   };
   const [keywordsMode, setKeywordsMode] = useState<'themes'|'words'>('themes');
 
@@ -790,22 +796,31 @@ const Index = () => {
 
   return (
     <AdminLayout 
-      title="Dashboard do Sistema — Resumo Geral" 
+      title="Central do Bóris" 
       subtitle="Panorama geral do Bóris"
-      actions={(
-        <div className="flex items-center gap-3">
-          <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
-          <span className="text-xs text-muted-foreground">Período: {periodLabel}</span>
-        </div>
-      )}
     >
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
-        <StatsCard title="Organizações ativas" value={kpiOrgsPeriodLoading ? "—" : (kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0))} change={kpiOrgsPeriodLoading ? undefined : orgsChange.label} changeType={orgsChange.type} icon={Building2} variant="kpi" />
-        <StatsCard title="Grupos monitorados" value={kpiGroupsPeriodLoading ? "—" : (kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0))} change={kpiGroupsPeriodLoading ? undefined : groupsChange.label} changeType={groupsChange.type} icon={Layers} variant="kpi" />
-        <StatsCard title="Membros ativos" value={kpiActiveMembersLoading ? "—" : (kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0))} change={kpiActiveMembersLoading ? undefined : activeMembersChange.label} changeType={activeMembersChange.type} icon={UsersIcon} variant="kpi" />
-        <StatsCard title="Mensagens no período" value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0))} change={kpiMessagesLoading ? undefined : messagesChangeLabel} changeType={messagesChangeType} icon={MessageSquare} variant="kpi" />
-        <StatsCard title="Participação dos membros" value={participationValue} change={participationChange.label} changeType={participationChange.type} icon={UsersIcon} variant="kpi" />
-      </div>
+      <AdminPageHeader
+        breadcrumbItems={[{ label: "Central do Bóris" }]}
+        title="Central do Bóris"
+        description="Panorama geral do Bóris"
+        filters={(
+          <div className="flex items-center gap-3">
+            <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
+            <span className="text-xs text-muted-foreground">Período: {periodLabel}</span>
+          </div>
+        )}
+        showClearFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
+        filteredKpis={(
+          <>
+            <StatsCard title="Organizações ativas" value={kpiOrgsPeriodLoading ? "—" : (kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0))} change={kpiOrgsPeriodLoading ? undefined : orgsChange.label} changeType={orgsChange.type} icon={Building2} variant="kpi" />
+            <StatsCard title="Grupos monitorados" value={kpiGroupsPeriodLoading ? "—" : (kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0))} change={kpiGroupsPeriodLoading ? undefined : groupsChange.label} changeType={groupsChange.type} icon={Layers} variant="kpi" />
+            <StatsCard title="Membros ativos" value={kpiActiveMembersLoading ? "—" : (kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0))} change={kpiActiveMembersLoading ? undefined : activeMembersChange.label} changeType={activeMembersChange.type} icon={UsersIcon} variant="kpi" />
+            <StatsCard title="Mensagens no período" value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0))} change={kpiMessagesLoading ? undefined : messagesChangeLabel} changeType={messagesChangeType} icon={MessageSquare} variant="kpi" />
+            <StatsCard title="Participação dos membros" value={participationValue} change={participationChange.label} changeType={participationChange.type} icon={UsersIcon} variant="kpi" />
+          </>
+        )}
+      />
       <PeriodReportSystem
         messagesCurrent={kpiMessagesPeriod || 0}
         messagesPrev={kpiMessagesPrevPeriod || 0}

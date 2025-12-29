@@ -2,7 +2,8 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { BorisTable } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +13,8 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { UserInline } from "@/components/ui/UserInline";
 import AccessDenied from "./AccessDenied";
 import { formatDateSimpleBR } from "@/lib/date";
+import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
+import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 
 interface PersonAgg {
   personKey: string;
@@ -32,14 +35,20 @@ export default function SystemPeople() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
 
+  const currentRange = getDateRange(selectedPeriod, customRange);
+  const currentStartISO = currentRange.from.toISOString();
+  const currentEndISO = currentRange.to.toISOString();
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["system-people", page, debouncedSearch],
+    queryKey: ["system-people", page, debouncedSearch, selectedPeriod, customRange?.from?.toISOString(), customRange?.to?.toISOString()],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -55,6 +64,10 @@ export default function SystemPeople() {
       if (debouncedSearch) {
         query = query.or(`name.ilike.%${debouncedSearch}%,display_name.ilike.%${debouncedSearch}%`);
       }
+
+      query = query
+        .gte("created_at", currentStartISO)
+        .lte("created_at", currentEndISO);
 
       const { data, error, count } = await query
         .order("created_at", { ascending: false })
@@ -163,17 +176,37 @@ export default function SystemPeople() {
   return (
     <AdminLayout title="Pessoas" subtitle="Central de Comando › Pessoas">
       <div className="space-y-6 animate-fade-in">
-        <Breadcrumbs items={[{ label: "Central de Comando", href: "/" }, { label: "Pessoas" }]} />
-
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Buscar por nome"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-64 px-3 py-2 rounded-lg border border-border bg-card text-sm"
-          />
-        </div>
+        <AdminPageHeader
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Pessoas" }]}
+          title="Pessoas"
+          description="Visão consolidada de pessoas no sistema"
+          filters={(
+            <div className="flex flex-wrap items-center gap-2">
+              <PeriodFilter
+                value={selectedPeriod}
+                customRange={customRange}
+                onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
+              />
+              <input
+                type="text"
+                placeholder="Buscar por nome"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="w-64 px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              />
+            </div>
+          )}
+          showClearFilters={selectedPeriod !== '7d' || !!customRange || !!search}
+          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setSearch(""); setPage(1); }}
+          filteredKpis={(
+            <StatsCard
+              title="Pessoas no período"
+              value={data?.count ?? '—'}
+              icon={Users}
+              variant="kpi"
+            />
+          )}
+        />
 
         <BorisTable
           columns={columns as any}

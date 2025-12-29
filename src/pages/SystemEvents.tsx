@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { BorisTable, type BorisColumn } from "@/components/ui/boris-table";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -160,58 +161,67 @@ export default function SystemEvents() {
   return (
     <AdminLayout title="Eventos do Sistema" subtitle="Auditoria e observabilidade">
       <div className="space-y-6">
-        <Breadcrumbs
-          items={[
-            { label: "Central de Comando", href: "/" },
-            { label: "Eventos" },
-          ]}
-        />
+        <AdminPageHeader
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Eventos" }]}
+          title="Eventos do Sistema"
+          description="Auditoria e observabilidade"
+          filters={(
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <PeriodFilter
+                  value={selectedPeriod}
+                  customRange={customRange}
+                  onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
+                />
+                <span className="text-xs text-muted-foreground">Período: {periodLabel}</span>
+              </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <PeriodFilter
-              value={selectedPeriod}
-              customRange={customRange}
-              onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={entityType} onValueChange={setEntityType}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ENTITY_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <Select value={eventType} onValueChange={setEventType}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Tipo de evento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    {eventTypes?.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          showClearFilters={selectedPeriod !== '7d' || !!customRange || entityType !== 'all' || eventType !== 'all'}
+          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setEntityType('all'); setEventType('all'); setPage(1); }}
+          filteredKpis={(
+            <StatsCard
+              title="Eventos no período"
+              value={eventsData?.total ?? '—'}
+              icon={Activity}
+              variant="kpi"
             />
-            <span className="text-xs text-muted-foreground">Período: {periodLabel}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={entityType} onValueChange={setEntityType}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ENTITY_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <Select value={eventType} onValueChange={setEventType}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tipo de evento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os tipos</SelectItem>
-                {eventTypes?.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+          )}
+        />
 
         {/* Events Table */}
         <BorisTable

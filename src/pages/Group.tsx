@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
@@ -43,6 +43,11 @@ const Group = () => {
   
   
   const currentRange = getDateRange(selectedPeriod, customRange);
+  const hasActiveFilters = selectedPeriod !== '7d' || !!customRange;
+  const handleClearFilters = () => {
+    setSelectedPeriod('7d');
+    setCustomRange(undefined);
+  };
 
   useEffect(() => {
     try {
@@ -190,22 +195,15 @@ const Group = () => {
       subtitle={group.name}
     >
       <div className="space-y-8 animate-fade-in">
-        {/* Breadcrumbs + Period Filter */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <Breadcrumbs
-            items={[
-              { label: "Central do Bóris", href: "/" },
-              { label: orgName || "Organização", href: `/organization/${group.organization_id}` },
-              { label: group.name },
-            ]}
-          />
-
-          <div className="flex items-center gap-3">
-            <PeriodFilter
-              value={selectedPeriod}
-              customRange={customRange}
-              onChange={handlePeriodChange}
-            />
+        <AdminPageHeader
+          breadcrumbItems={[
+            { label: "Central do Bóris", href: "/" },
+            { label: orgName || "Organização", href: `/organization/${group.organization_id}` },
+            { label: group.name },
+          ]}
+          title="Dashboard do Grupo"
+          description={group.name}
+          actions={(
             <button
               onClick={() => setHelpOpen(true)}
               className="flex items-center gap-2 text-xs text-primary hover:underline"
@@ -213,8 +211,17 @@ const Group = () => {
               <HelpCircle className="h-4 w-4" />
               Como ler este dashboard
             </button>
-          </div>
-        </div>
+          )}
+          filters={(
+            <PeriodFilter
+              value={selectedPeriod}
+              customRange={customRange}
+              onChange={handlePeriodChange}
+            />
+          )}
+          showClearFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+        />
 
         
 

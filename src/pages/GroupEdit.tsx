@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Button } from "@/components/ui/button";
@@ -443,7 +443,19 @@ export default function GroupEdit() {
   return (
     <AdminLayout title="Editar grupo" subtitle="Ajuste as configurações e recursos deste grupo.">
       <div className="space-y-6 animate-fade-in">
-        <Breadcrumbs items={breadcrumbItems} />
+        <AdminPageHeader
+          breadcrumbItems={breadcrumbItems}
+          title="Editar grupo"
+          description={group.name}
+          actions={(
+            <NavLink
+              to={`/groups/${group.id}`}
+              className={cn("inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground")}
+            >
+              Voltar ao grupo
+            </NavLink>
+          )}
+        />
         {group && (
           <>
             <GroupHeader
@@ -463,14 +475,6 @@ export default function GroupEdit() {
             <div>
               <h3 className="text-lg font-semibold">Informações do grupo</h3>
               <p className="text-sm text-muted-foreground">Edite os dados básicos do grupo.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <NavLink
-                to={`/groups/${group.id}`}
-                className={cn("inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground")}
-              >
-                Voltar ao grupo
-              </NavLink>
             </div>
           </div>
 

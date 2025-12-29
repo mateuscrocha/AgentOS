@@ -5,13 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { BorisTable, RowActions } from "@/components/ui/boris-table";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
 import { Users, MessageSquare, Activity, ListChecks, Eye } from "lucide-react";
 import { GroupTabs } from "@/components/group-navigation/GroupTabs";
 import { cn } from "@/lib/utils";
+import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
+import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 
 interface PollItem {
   id: string;
@@ -28,6 +31,10 @@ export default function GroupPolls() {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [page, setPage] = useState(1);
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
+  const currentRange = getDateRange(selectedPeriod, customRange);
+  const hasActiveFilters = selectedPeriod !== '7d' || !!customRange;
 
 
   const { data: groupInfo } = useQuery({
@@ -58,6 +65,8 @@ export default function GroupPolls() {
         .from("polls")
         .select("id, question, created_at, max_options, provider_poll_message_id", { count: "exact" })
         .eq("group_id", groupId)
+        .gte("created_at", currentRange.from.toISOString())
+        .lte("created_at", currentRange.to.toISOString())
         .order("created_at", { ascending: false })
         .range(from, to);
       if (error) throw error;
@@ -141,44 +150,49 @@ export default function GroupPolls() {
   return (
     <AdminLayout title="Enquetes" subtitle={groupInfo?.groupName || "Carregando..."}>
       <div className="space-y-6 animate-fade-in">
-        <Breadcrumbs
-          items={[
+        <AdminPageHeader
+          breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
             { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Enquetes" },
           ]}
+          title="Enquetes"
+          description={(pollsData?.count ?? 0) + " enquetes neste grupo"}
+          filters={(
+            <PeriodFilter
+              value={selectedPeriod}
+              customRange={customRange}
+              onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
+            />
+          )}
+          showClearFilters={hasActiveFilters}
+          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setPage(1); }}
+          filteredKpis={(
+            <StatsCard
+              title="Enquetes no período"
+              value={pollsData?.count ?? "—"}
+              icon={ListChecks}
+              variant="kpi"
+            />
+          )}
         />
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-3 p-4 border-b border-border">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <ListChecks className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-card-foreground">Enquetes</h2>
-              <p className="text-sm text-muted-foreground">
-                {(pollsData?.count ?? 0)} enquetes neste grupo
-              </p>
-            </div>
-          </div>
+        <GroupTabs groupId={groupId as string} activeTab="enquetes" />
 
-          <GroupTabs groupId={groupId as string} activeTab="enquetes" />
-        </div>
-
-        <BorisTable
-          columns={columns as any}
-          data={pollsData?.items ?? []}
-          keyExtractor={(p: PollItem) => p.id}
-          onRowClick={(p: PollItem) => navigate(`/groups/${groupId}/polls/${p.id}`)}
-          page={page}
-          pageSize={PAGE_SIZE}
-          totalCount={pollsData?.count}
-          onPageChange={setPage}
-          loading={isLoading}
-          emptyIcon={ListChecks}
-          emptyMessage="Este grupo ainda não possui enquetes."
-        />
+      <BorisTable
+        columns={columns as any}
+        data={pollsData?.items ?? []}
+        keyExtractor={(p: PollItem) => p.id}
+        onRowClick={(p: PollItem) => navigate(`/groups/${groupId}/polls/${p.id}`)}
+        page={page}
+        pageSize={PAGE_SIZE}
+        totalCount={pollsData?.count}
+        onPageChange={setPage}
+        loading={isLoading}
+        emptyIcon={ListChecks}
+        emptyMessage="Este grupo ainda não possui enquetes."
+      />
       </div>
     </AdminLayout>
   );
