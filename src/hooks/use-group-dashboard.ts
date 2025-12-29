@@ -122,15 +122,22 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       // Fetch active members in period
       const { data: activeMembersData } = await supabase
         .from('messages')
-        .select('member_id')
+        .select('member_id, sender_phone, from_me, direction, message_type')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .not('member_id', 'is', null)
+        .eq('direction', 'inbound')
+        .eq('from_me', false)
+        .neq('message_type', 'poll_vote')
+        .or('member_id.not.is.null,sender_phone.not.is.null')
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const uniqueActiveMembers = new Set(activeMembersData?.map(m => m.member_id) || []);
-      const activeMembers = uniqueActiveMembers.size;
+      const uniqueActivePeople = new Set<string>();
+      (activeMembersData || []).forEach((msg: any) => {
+        const key = (msg.member_id as string) || (msg.sender_phone as string);
+        if (key) uniqueActivePeople.add(key);
+      });
+      const activeMembers = uniqueActivePeople.size;
 
       const engagementRate = totalMembers && totalMembers > 0 
         ? Math.round((activeMembers / totalMembers) * 100) 
@@ -225,14 +232,21 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
       const { data: activeMembersData } = await supabase
         .from('messages')
-        .select('member_id')
+        .select('member_id, sender_phone, from_me, direction, message_type')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .not('member_id', 'is', null)
+        .eq('direction', 'inbound')
+        .eq('from_me', false)
+        .neq('message_type', 'poll_vote')
+        .or('member_id.not.is.null,sender_phone.not.is.null')
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
-      const uniqueActiveMembers = new Set(activeMembersData?.map(m => m.member_id) || []);
+      const uniqueActiveMembers = new Set<string>();
+      (activeMembersData || []).forEach((msg: any) => {
+        const key = (msg.member_id as string) || (msg.sender_phone as string);
+        if (key) uniqueActiveMembers.add(key);
+      });
       // Compute snapshot of total members at end of previous period
       const { count: joinedBeforePrevEnd } = await supabase
         .from('members')

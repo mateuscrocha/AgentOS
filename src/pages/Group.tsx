@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -75,6 +76,14 @@ const Group = () => {
       localStorage.setItem(`group-period:${groupId}`, JSON.stringify(payload));
     } catch { void 0; }
   }, [groupId, selectedPeriod, customRange]);
+
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!groupId) return;
+    queryClient.invalidateQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && String(q.queryKey[0]).startsWith('group-dashboard') && q.queryKey[1] === groupId,
+    });
+  }, [groupId, selectedPeriod, customRange, queryClient]);
 
 
   const {
