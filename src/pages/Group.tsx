@@ -3,14 +3,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import { useGroupDashboard } from "@/hooks/use-group-dashboard";
 import AccessDenied from "./AccessDenied";
   import {
-    GroupHeader,
     SummarySection,
     RecentActivitySection,
     ConversationRhythmSection,
@@ -21,7 +20,6 @@ import AccessDenied from "./AccessDenied";
     AdminsSection,
     PurposeAlignmentSection,
   } from "@/components/group-dashboard";
-import { GroupTabs } from "@/components/group-navigation/GroupTabs";
 import { PeriodReport } from "@/components/group-dashboard";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/period-utils";
@@ -201,26 +199,24 @@ const Group = () => {
   return (
     <AdminLayout 
       title="Dashboard do Grupo" 
-      subtitle={group.name}
+      subtitle={group?.name || "Grupo"}
     >
       <div className="space-y-8 animate-fade-in">
-        <AdminPageHeader
+        <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
-            { label: orgName || "Organização", href: `/organization/${group.organization_id}` },
-            { label: group.name },
+            { label: orgName || "Organização", href: `/organization/${group?.organization_id}` },
+            { label: group?.name || "Grupo" },
           ]}
-          title="Dashboard do Grupo"
-          description={group.name}
-          actions={(
-            <button
-              onClick={() => setHelpOpen(true)}
-              className="flex items-center gap-2 text-xs text-primary hover:underline"
-            >
-              <HelpCircle className="h-4 w-4" />
-              Como ler este dashboard
-            </button>
-          )}
+          group={{
+            groupId: group.id,
+            name: group?.name || "",
+            provider: group?.provider || "",
+            totalMembers: stats.totalMembers,
+            lastMessageAt: stats.lastMessageAt,
+            syncStatus: group?.sync_status,
+          }}
+          activeTab="painel"
           filters={(
             <PeriodFilter
               value={selectedPeriod}
@@ -230,6 +226,15 @@ const Group = () => {
           )}
           showClearFilters={hasActiveFilters}
           onClearFilters={handleClearFilters}
+          rightActions={(
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="flex items-center gap-2 text-xs text-primary hover:underline"
+            >
+              <HelpCircle className="h-4 w-4" />
+              Como ler este dashboard
+            </button>
+          )}
         />
 
         
@@ -304,17 +309,7 @@ const Group = () => {
           </SheetContent>
         </Sheet>
 
-        {/* 1. Group Header */}
-        <GroupHeader
-          groupId={group.id}
-          name={group.name}
-          provider={group.provider}
-          totalMembers={stats.totalMembers}
-          lastMessageAt={stats.lastMessageAt}
-          syncStatus={group.sync_status}
-        />
-
-        <GroupTabs groupId={group.id} activeTab="painel" />
+        
 
         {/* 2. Summary Section - KPIs */}
         {(() => {

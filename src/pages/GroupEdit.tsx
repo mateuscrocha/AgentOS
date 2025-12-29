@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GroupTabs } from "@/components/group-navigation/GroupTabs";
-import { GroupHeader } from "@/components/group-dashboard";
 
 type FeatureKey =
   | "WELCOME_MESSAGE"
@@ -443,11 +441,18 @@ export default function GroupEdit() {
   return (
     <AdminLayout title="Editar grupo" subtitle="Ajuste as configurações e recursos deste grupo.">
       <div className="space-y-6 animate-fade-in">
-        <AdminPageHeader
+        <GroupPageTop
           breadcrumbItems={breadcrumbItems}
-          title="Editar grupo"
-          description={group.name}
-          actions={(
+          group={{
+            groupId: group.id,
+            name: group.name,
+            provider: group.provider || "",
+            totalMembers: membersCount || 0,
+            lastMessageAt: lastActivityAt || null,
+            syncStatus: group.sync_status || null,
+          }}
+          activeTab="configuracoes"
+          rightActions={(
             <NavLink
               to={`/groups/${group.id}`}
               className={cn("inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground")}
@@ -456,19 +461,6 @@ export default function GroupEdit() {
             </NavLink>
           )}
         />
-        {group && (
-          <>
-            <GroupHeader
-              groupId={group.id}
-              name={group.name}
-              provider={group.provider || ""}
-              totalMembers={membersCount || 0}
-              lastMessageAt={lastActivityAt || null}
-              syncStatus={group.sync_status || null}
-            />
-            <GroupTabs groupId={group.id} activeTab="configuracoes" />
-          </>
-        )}
 
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center justify-between">

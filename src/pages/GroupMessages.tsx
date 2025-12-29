@@ -3,11 +3,10 @@ import { BorisTable } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
+import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
-  Users, MessageSquare, Filter, Eye, Activity,
+  MessageSquare, Filter, Eye, Activity,
   Image, Mic, Video, FileText, MapPin, Smile 
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { ImportMessagesModal } from "@/components/modals/ImportMessagesModal";
-import { GroupTabs } from "@/components/group-navigation/GroupTabs";
  
  
 
@@ -310,19 +308,47 @@ const GroupMessages = () => {
     queryFn: async () => {
       const { data: group } = await supabase
         .from('groups')
-        .select('name, organization_id')
+        .select('name, organization_id, provider, sync_status')
         .eq('id', groupId)
         .maybeSingle();
-      
       if (!group) return null;
-
       const { data: org } = await supabase
         .from('organizations')
         .select('name')
         .eq('id', group.organization_id)
         .maybeSingle();
+      return { groupName: group.name, orgName: org?.name, orgId: group.organization_id, provider: group.provider, syncStatus: group.sync_status };
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
 
-      return { groupName: group.name, orgName: org?.name, orgId: group.organization_id };
+  const { data: totalMembersCount } = useQuery({
+    queryKey: ['group-members-total', groupId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId)
+        .is('deleted_at', null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
+
+  const { data: lastMessageAt } = useQuery({
+    queryKey: ['group-last-message', groupId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('created_at')
+        .eq('group_id', groupId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const first = (data ?? [])[0] as { created_at: string } | undefined;
+      return first?.created_at ?? null;
     },
     enabled: !!groupId && isAuthenticated,
   });
@@ -564,24 +590,25 @@ const GroupMessages = () => {
   return (
     <AdminLayout 
       title="Mensagens" 
-      subtitle={`Mensagens do grupo`}
+      subtitle={`${messagesData?.count ?? 0} mensagens`}
     >
       <div className="space-y-6 animate-fade-in">
-        <AdminPageHeader
+        <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
             { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Mensagens" },
           ]}
-          title="Mensagens"
-          description={messagesData?.count !== undefined ? `${messagesData?.count} mensagens neste grupo` : "Mensagens do grupo"}
-          actions={canEditGroup(groupId as string, groupInfo?.orgId) ? (
-            <Button onClick={() => setImportOpen(true)} variant="secondary">
-              <Upload className="h-4 w-4 mr-2" />
-              Importar mensagens
-            </Button>
-          ) : null}
+          group={{
+            groupId: groupId as string,
+            name: groupInfo?.groupName || "",
+            provider: groupInfo?.provider || "",
+            totalMembers: (totalMembersCount ?? 0) as number,
+            lastMessageAt: lastMessageAt ?? null,
+            syncStatus: groupInfo?.syncStatus || null,
+          }}
+          activeTab="mensagens"
           filters={(
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
@@ -628,17 +655,13 @@ const GroupMessages = () => {
             setTypeFilter("");
             setPage(1);
           }}
-          filteredKpis={(
-            <StatsCard
-              title={typeFilter ? `Mensagens (${translateMessageType(typeFilter)})` : "Mensagens"}
-              value={messagesData?.count ?? "—"}
-              icon={MessageSquare}
-              variant="kpi"
-            />
-          )}
+          rightActions={canEditGroup(groupId as string, groupInfo?.orgId) ? (
+            <Button onClick={() => setImportOpen(true)} variant="secondary">
+              <Upload className="h-4 w-4 mr-2" />
+              Importar mensagens
+            </Button>
+          ) : null}
         />
-
-        <GroupTabs groupId={groupId as string} activeTab="mensagens" />
 
         {/* Table */}
         {isLoading ? (

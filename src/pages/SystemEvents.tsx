@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
-import { Calendar, Filter, FileText } from "lucide-react";
+import { Calendar, Filter, FileText, Activity } from "lucide-react";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 import { formatDateTimeBR, formatDateTimeSecondsBR, formatDateSimpleBR } from "@/lib/date";
@@ -29,7 +29,7 @@ interface Event {
 
  
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 100;
 
 const ENTITY_TYPES = [
   { value: "all", label: "Todos" },

@@ -1,5 +1,6 @@
 import { Users, Wifi, WifiOff, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ReactNode } from "react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 
 interface GroupHeaderProps {
@@ -9,6 +10,7 @@ interface GroupHeaderProps {
   totalMembers: number;
   lastMessageAt: string | null;
   syncStatus: string | null;
+  bottomSlot?: ReactNode;
 }
 
 export function GroupHeader({ 
@@ -17,7 +19,8 @@ export function GroupHeader({
   provider, 
   totalMembers, 
   lastMessageAt,
-  syncStatus
+  syncStatus,
+  bottomSlot
 }: GroupHeaderProps) {
   const { isSystemAdmin } = useUserRoles();
   
@@ -83,6 +86,11 @@ export function GroupHeader({
           )}
         </div>
       </div>
+      {bottomSlot && (
+        <div className="px-5 py-3">
+          {bottomSlot}
+        </div>
+      )}
       
       
     </div>

@@ -6,19 +6,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { BorisTable, type BorisColumn } from "@/components/ui/boris-table";
-import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
+import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { EmptyState } from "@/components/ui/empty-state";
+ 
 import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
-import { Calendar, FileText, Users, MessageSquare, Activity, ListChecks } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Calendar, FileText } from "lucide-react";
+ 
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 import { formatDateTimeBR, formatDateTimeSecondsBR } from "@/lib/date";
-import { GroupTabs } from "@/components/group-navigation/GroupTabs";
 
 interface Event {
   id: string;
@@ -32,7 +30,7 @@ interface Event {
 
  
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 100;
 
 export default function GroupEvents() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -57,7 +55,7 @@ export default function GroupEvents() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("groups")
-        .select("id, name, organization_id")
+        .select("id, name, organization_id, provider, sync_status")
         .eq("id", groupId!)
         .maybeSingle();
       if (error) throw error;
@@ -97,6 +95,37 @@ export default function GroupEvents() {
       if (error) throw error;
       const unique = [...new Set(data?.map(e => e.event_type) || [])];
       return unique;
+    },
+    enabled: !!groupId && hasAccess,
+  });
+
+  const { data: totalMembersCount } = useQuery({
+    queryKey: ['group-members-total', groupId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId)
+        .is('deleted_at', null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!groupId && hasAccess,
+  });
+
+  const { data: lastMessageAt } = useQuery({
+    queryKey: ['group-last-message', groupId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('created_at')
+        .eq('group_id', groupId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const first = (data ?? [])[0] as { created_at: string } | undefined;
+      return first?.created_at ?? null;
     },
     enabled: !!groupId && hasAccess,
   });
@@ -171,17 +200,24 @@ export default function GroupEvents() {
 
 
   return (
-    <AdminLayout title="Eventos do Grupo" subtitle={group?.name || "Carregando..."}>
+    <AdminLayout title="Eventos do Grupo" subtitle={`${group?.name ? `${group.name} — ` : ""}${eventsData?.total ?? 0} eventos no período selecionado`}>
       <div className="space-y-6 animate-fade-in">
-        <AdminPageHeader
+        <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
             ...(org ? [{ label: org.name, href: `/organization/${org.id}` }] : []),
             ...(group ? [{ label: group.name, href: `/groups/${group.id}` }] : []),
             { label: "Atividade" },
           ]}
-          title="Atividade"
-          description="Atividade recente do grupo"
+          group={{
+            groupId: groupId as string,
+            name: group?.name || "",
+            provider: group?.provider || "",
+            totalMembers: (totalMembersCount ?? 0) as number,
+            lastMessageAt: lastMessageAt ?? null,
+            syncStatus: group?.sync_status || null,
+          }}
+          activeTab="atividade"
           filters={(
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
@@ -213,17 +249,9 @@ export default function GroupEvents() {
           )}
           showClearFilters={selectedPeriod !== '7d' || !!customRange || eventType !== 'all'}
           onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setEventType('all'); setPage(1); }}
-          filteredKpis={(
-            <StatsCard
-              title="Eventos no período"
-              value={eventsData?.total ?? "—"}
-              icon={Activity}
-              variant="kpi"
-            />
-          )}
         />
 
-        <GroupTabs groupId={groupId as string} activeTab="atividade" />
+        {/* KPIs removidos: mantemos apenas descrição textual no header */}
 
         {/* Events Table */}
         <BorisTable

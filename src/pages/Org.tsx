@@ -248,17 +248,17 @@ const Org = () => {
   
 
   const path = location.pathname;
-  const isGroupsRoute = /^\/\(org|organization\)\/[^/]+\/groups$/.test(path);
-  const isSettingsRoute = /^\/\(org|organization\)\/[^/]+\/settings$/.test(path);
-  const isDashboardRoute = /^\/\(org|organization\)\/[^/]+\/dashboard$/.test(path);
-  const isKeywordsRoute = /^\/\(org|organization\)\/[^/]+\/keywords$/.test(path);
-  const isBaseOrg = /^\/\(org|organization\)\/[^/]+$/.test(path) || /^\/\(org|organization\)\/[^/]+\/$/.test(path);
+  const isGroupsRoute = /^\/(?:org|organization)\/[^/]+\/groups$/.test(path);
+  const isSettingsRoute = /^\/(?:org|organization)\/[^/]+\/settings$/.test(path);
+  const isDashboardRoute = /^\/(?:org|organization)\/[^/]+\/dashboard$/.test(path);
+  const isKeywordsRoute = /^\/(?:org|organization)\/[^/]+\/keywords$/.test(path);
+  const isBaseOrg = /^\/(?:org|organization)\/[^/]+\/?$/.test(path);
   const isDefaultOrgHome = isBaseOrg && !isGroupsRoute && !isSettingsRoute && !isDashboardRoute && !isKeywordsRoute;
 
   const breadcrumbItems = (() => {
     const items = [
       { label: "Central de Comando", href: "/" },
-      { label: org.name },
+      { label: org?.name || "Organização" },
     ];
     if (isGroupsRoute) items.push({ label: "Grupos" });
     if (isDashboardRoute) items.push({ label: "Painéis e métricas" });
@@ -501,12 +501,12 @@ const Org = () => {
   return (
     <AdminLayout 
       title="Organização" 
-      subtitle={org.name}
+      subtitle={org?.name || "Organização"}
     >
       <div className="space-y-6 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={breadcrumbItems}
-          title={org.name}
+          title={org?.name || "Organização"}
           description={`Criada em ${formatDateSimpleBR(org.created_at)}`}
           actions={(
             <div className="flex items-center gap-3">
@@ -592,7 +592,7 @@ const Org = () => {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Nome</span>
-                <p className="font-medium text-card-foreground">{org.name}</p>
+                <p className="font-medium text-card-foreground">{org?.name || '-'}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Slug</span>
@@ -887,7 +887,7 @@ const Org = () => {
       {/* Add group modal */}
       <AddGroupModal
         organizationId={orgId!}
-        organizationName={org.name}
+        organizationName={org?.name || ''}
         open={addGroupOpen}
         onOpenChange={setAddGroupOpen}
         onSuccess={(groupId) => {

@@ -1,17 +1,19 @@
-import { NavLink } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Users, MessageSquare, Activity, ListChecks, Settings, LayoutDashboard } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ActiveTab = "painel" | "membros" | "mensagens" | "enquetes" | "atividade" | "configuracoes";
 
 interface GroupTabsProps {
   groupId: string;
   activeTab?: ActiveTab;
+  variant?: "standalone" | "embedded";
 }
 
-export function GroupTabs({ groupId, activeTab }: GroupTabsProps) {
-  const tabs: { key: ActiveTab; label: string; href: string; icon?: any; end?: boolean }[] = [
-    { key: "painel", label: "Painel", href: `/groups/${groupId}`, icon: LayoutDashboard, end: true },
+export function GroupTabs({ groupId, activeTab, variant = "standalone" }: GroupTabsProps) {
+  const navigate = useNavigate();
+  const tabs: { key: ActiveTab; label: string; href: string; icon?: any }[] = [
+    { key: "painel", label: "Painel", href: `/groups/${groupId}`, icon: LayoutDashboard },
     { key: "membros", label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
     { key: "mensagens", label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
     { key: "enquetes", label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
@@ -19,24 +21,32 @@ export function GroupTabs({ groupId, activeTab }: GroupTabsProps) {
     { key: "configuracoes", label: "Configurações", href: `/groups/${groupId}/edit`, icon: Settings },
   ];
 
+  const content = (
+    <Tabs value={activeTab} onValueChange={(val) => {
+      const t = tabs.find((x) => x.key === (val as ActiveTab));
+      if (t) navigate(t.href);
+    }}>
+      <TabsList className={variant === "embedded" ? "border-0" : undefined}>
+        {tabs.map((tab) => (
+          <TabsTrigger
+            key={tab.key}
+            value={tab.key}
+          >
+            {tab.icon && <tab.icon className="h-4 w-4" />}
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  );
+
+  if (variant === "embedded") {
+    return content;
+  }
+
   return (
-    <div className="flex gap-1 p-2 bg-secondary/30 overflow-x-auto">
-      {tabs.map((tab) => (
-        <NavLink
-          key={tab.href}
-          to={tab.href}
-          end={tab.end}
-          className={({ isActive }) => cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-            (isActive || activeTab === tab.key)
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-          )}
-        >
-          {tab.icon && <tab.icon className="h-4 w-4" />}
-          {tab.label}
-        </NavLink>
-      ))}
+    <div className="border-x border-b border-border bg-card rounded-b-xl -mt-px">
+      {content}
     </div>
   );
 }

@@ -1,22 +1,18 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
-import { ErrorState } from "@/components/ui/error-state";
-import { EmptyState } from "@/components/ui/empty-state";
-import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
+import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { useParams } from "react-router-dom";
-import { Users, Search, X, Eye } from "lucide-react";
+import { Users, Search, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
-import { useUserRoles } from "@/hooks/use-user-roles";
+ 
 import AccessDenied from "./AccessDenied";
 import { MemberDetailsDrawer } from "@/components/members/MemberDetailsDrawer";
 import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
-import { GroupTabs } from "@/components/group-navigation/GroupTabs";
 
 const PAGE_SIZE = 10;
 
@@ -49,7 +45,7 @@ const GroupMembers = () => {
   const [search, setSearch] = useState("");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { isSystemAdmin } = useUserRoles();
+  
 
 
   // Fetch group info for breadcrumbs
@@ -58,7 +54,7 @@ const GroupMembers = () => {
     queryFn: async () => {
       const { data: group } = await supabase
         .from('groups')
-        .select('name, organization_id')
+        .select('name, organization_id, provider, sync_status')
         .eq('id', groupId)
         .maybeSingle();
       
@@ -70,7 +66,7 @@ const GroupMembers = () => {
         .eq('id', group.organization_id)
         .maybeSingle();
 
-      return { groupName: group.name, orgName: org?.name, orgId: group.organization_id };
+      return { groupName: group.name, orgName: org?.name, orgId: group.organization_id, provider: group.provider, syncStatus: group.sync_status };
     },
     enabled: !!groupId && isAuthenticated,
   });
@@ -111,6 +107,23 @@ const GroupMembers = () => {
         .is('deleted_at', null);
       if (error) throw error;
       return count ?? 0;
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
+
+  const { data: lastMessageAt } = useQuery({
+    queryKey: ['group-last-message', groupId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('created_at')
+        .eq('group_id', groupId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const first = (data ?? [])[0] as { created_at: string } | undefined;
+      return first?.created_at ?? null;
     },
     enabled: !!groupId && isAuthenticated,
   });
@@ -201,26 +214,25 @@ const GroupMembers = () => {
   return (
     <AdminLayout 
       title="Membros" 
-      subtitle={`Membros do grupo`}
+      subtitle={`${(totalMembersCount ?? 0)} cadastrados${search ? ` • ${(membersData?.count ?? 0)} resultados da busca` : ""}`}
     >
       <div className="space-y-6 animate-fade-in">
-        <AdminPageHeader
+        <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
             { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Membros" },
           ]}
-          title="Membros"
-          description={membersData?.count !== undefined ? `${membersData?.count} membros neste grupo` : "Membros do grupo"}
-          generalKpis={(
-            <StatsCard
-              title="Total de membros"
-              value={totalMembersCount ?? "—"}
-              icon={Users}
-              variant="kpi"
-            />
-          )}
+          group={{
+            groupId: groupId as string,
+            name: groupInfo?.groupName || "",
+            provider: groupInfo?.provider || "",
+            totalMembers: (totalMembersCount ?? 0) as number,
+            lastMessageAt: lastMessageAt ?? null,
+            syncStatus: groupInfo?.syncStatus || null,
+          }}
+          activeTab="membros"
           filters={(
             <div className="relative w-full max-w-lg">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -249,17 +261,9 @@ const GroupMembers = () => {
           )}
           showClearFilters={!!search}
           onClearFilters={() => { setSearch(""); setPage(1); }}
-          filteredKpis={search ? (
-            <StatsCard
-              title="Resultados da busca"
-              value={membersData?.count ?? 0}
-              icon={Users}
-              variant="kpi"
-            />
-          ) : null}
         />
 
-        <GroupTabs groupId={groupId as string} activeTab="membros" />
+        {/* KPIs removidos: mantemos apenas descrição textual no header */}
 
         <BorisTable
           columns={columns as any}

@@ -5,14 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { BorisTable, RowActions } from "@/components/ui/boris-table";
-import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { EmptyState } from "@/components/ui/empty-state";
+import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
+ 
 import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
-import { Users, MessageSquare, Activity, ListChecks, Eye } from "lucide-react";
-import { GroupTabs } from "@/components/group-navigation/GroupTabs";
-import { cn } from "@/lib/utils";
+import { ListChecks } from "lucide-react";
+ 
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 
@@ -42,7 +40,7 @@ export default function GroupPolls() {
     queryFn: async () => {
       const { data: group } = await supabase
         .from("groups")
-        .select("name, organization_id")
+        .select("name, organization_id, provider, sync_status")
         .eq("id", groupId)
         .maybeSingle();
       if (!group) return null;
@@ -51,12 +49,43 @@ export default function GroupPolls() {
         .select("name")
         .eq("id", group.organization_id)
         .maybeSingle();
-      return { groupName: group.name, orgName: org?.name, orgId: group.organization_id };
+      return { groupName: group.name, orgName: org?.name, orgId: group.organization_id, provider: group.provider, syncStatus: group.sync_status };
     },
     enabled: !!groupId && isAuthenticated,
   });
 
-  const { data: pollsData, isLoading, error, refetch } = useQuery({
+  const { data: totalMembersCount } = useQuery({
+    queryKey: ['group-members-total', groupId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId)
+        .is('deleted_at', null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
+
+  const { data: lastMessageAt } = useQuery({
+    queryKey: ['group-last-message', groupId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('created_at')
+        .eq('group_id', groupId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const first = (data ?? [])[0] as { created_at: string } | undefined;
+      return first?.created_at ?? null;
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
+
+  const { data: pollsData, isLoading, error } = useQuery({
     queryKey: ["group-polls", groupId, page],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
@@ -148,17 +177,24 @@ export default function GroupPolls() {
   ];
 
   return (
-    <AdminLayout title="Enquetes" subtitle={groupInfo?.groupName || "Carregando..."}>
+    <AdminLayout title="Enquetes" subtitle={`${groupInfo?.groupName ? `${groupInfo.groupName} — ` : ""}${pollsData?.count ?? 0} no período selecionado`}>
       <div className="space-y-6 animate-fade-in">
-        <AdminPageHeader
+        <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
             { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Enquetes" },
           ]}
-          title="Enquetes"
-          description={(pollsData?.count ?? 0) + " enquetes neste grupo"}
+          group={{
+            groupId: groupId as string,
+            name: groupInfo?.groupName || "",
+            provider: groupInfo?.provider || "",
+            totalMembers: (totalMembersCount ?? 0) as number,
+            lastMessageAt: lastMessageAt ?? null,
+            syncStatus: groupInfo?.syncStatus || null,
+          }}
+          activeTab="enquetes"
           filters={(
             <PeriodFilter
               value={selectedPeriod}
@@ -168,18 +204,8 @@ export default function GroupPolls() {
           )}
           showClearFilters={hasActiveFilters}
           onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setPage(1); }}
-          filteredKpis={(
-            <StatsCard
-              title="Enquetes no período"
-              value={pollsData?.count ?? "—"}
-              icon={ListChecks}
-              variant="kpi"
-            />
-          )}
         />
-
-        <GroupTabs groupId={groupId as string} activeTab="enquetes" />
-
+      {/* KPIs removidos: mantemos apenas descrição textual no header */}
       <BorisTable
         columns={columns as any}
         data={pollsData?.items ?? []}
