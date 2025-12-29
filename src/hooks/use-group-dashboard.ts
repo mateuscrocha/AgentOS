@@ -76,6 +76,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       return data;
     },
     enabled: !!groupId && isAuthenticated,
+    staleTime: 60000,
   });
 
   // Fetch org name for breadcrumb
@@ -90,6 +91,21 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       return data;
     },
     enabled: !!group?.organization_id,
+    staleTime: 60000,
+  });
+
+  const { data: groupOverview } = useQuery({
+    queryKey: ['group-overview', groupId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('v_group_overview')
+        .select('group_id, messages_count, members_count, last_message_at')
+        .eq('group_id', groupId!)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!groupId && isAuthenticated,
+    staleTime: 60000,
   });
 
   const ikigaiKeywords: string[] = Array.isArray((group as any)?.metadata?.ikigai_keywords)
@@ -106,12 +122,15 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['group-dashboard-stats', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      // Fetch total members
-      const { count: totalMembers } = await supabase
-        .from('members')
-        .select('*', { count: 'exact', head: true })
-        .eq('group_id', groupId!)
-        .is('deleted_at', null);
+      let totalMembers: number | null = (groupOverview as any)?.members_count ?? null;
+      if (totalMembers === null || totalMembers === undefined) {
+        const { count } = await supabase
+          .from('members')
+          .select('*', { count: 'exact', head: true })
+          .eq('group_id', groupId!)
+          .is('deleted_at', null);
+        totalMembers = count ?? 0;
+      }
 
       // Fetch messages in current period
       const { count: totalMessages } = await supabase
@@ -194,7 +213,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         activeMembers,
         engagementRate,
         topParticipant,
-        lastMessageAt: lastMessageData?.created_at || null,
+        lastMessageAt: groupOverview?.last_message_at || lastMessageData?.created_at || null,
       };
     },
     enabled: !!groupId && !!group && isAuthenticated,
