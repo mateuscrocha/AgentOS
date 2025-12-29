@@ -19,6 +19,7 @@ import AccessDenied from "./AccessDenied";
     EffortNoiseSection,
     AdminsSection,
     PurposeAlignmentSection,
+    TopicsKeywordsSection,
   } from "@/components/group-dashboard";
 import { PeriodReport } from "@/components/group-dashboard";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
@@ -133,6 +134,9 @@ const Group = () => {
     recurringPercent,
     ikigaiKeywordsList,
     ikigaiSuggestions,
+    previousIkigaiSuggestions,
+    topicBlocks,
+    previousTopicBlocks,
   } = useGroupDashboard({ groupId, dateRange: currentRange });
 
   
@@ -356,6 +360,14 @@ const Group = () => {
           previousExitedMembersCount={previousExitedMembersCount}
           periodLabel={getPeriodLabel()}
           groupId={group.id}
+        />
+
+        {/* Assuntos e Palavras-chave */}
+        <TopicsKeywordsSection
+          blocks={topicBlocks as any}
+          previousBlocks={previousTopicBlocks as any}
+          isLoading={isLoading}
+          periodLabel={getPeriodLabel()}
         />
 
         {/* Recent Activity Patterns */}

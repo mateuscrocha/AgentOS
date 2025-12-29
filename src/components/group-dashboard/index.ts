@@ -16,3 +16,4 @@ export { getDateRange } from './period-utils';
 export type { PeriodType, DateRange } from './period-utils';
 export { RecentActivitySection } from './RecentActivitySection';
 export { PeriodReport } from './PeriodReport';
+export { TopicsKeywordsSection } from './TopicsKeywordsSection';
