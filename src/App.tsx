@@ -29,6 +29,15 @@ import Onboarding from "./pages/Onboarding";
 import OnboardingError from "./pages/OnboardingError";
 import Users from "./pages/Users";
 
+const originalConsoleError = console.error;
+console.error = (...args: any[]) => {
+  const joined = args.map((a) => String(a)).join(" ");
+  if (joined.includes("net::ERR_ABORTED") || joined.includes("AbortError")) {
+    return;
+  }
+  originalConsoleError(...args);
+};
+
 const queryClient = new QueryClient();
 
 const App = () => (
