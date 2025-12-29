@@ -19,19 +19,19 @@ export interface DateRange {
   to: Date;
 }
 
+export function startOfDaySP(date: Date): Date {
+  const dStr = formatInTimeZone(date, SAO_PAULO_TZ, "yyyy-MM-dd");
+  return fromZonedTime(`${dStr}T00:00:00`, SAO_PAULO_TZ);
+}
+
+export function endOfDaySP(date: Date): Date {
+  const dStr = formatInTimeZone(date, SAO_PAULO_TZ, "yyyy-MM-dd");
+  return fromZonedTime(`${dStr}T23:59:59`, SAO_PAULO_TZ);
+}
+
 export function getDateRange(period: PeriodType, customRange?: DateRange): DateRange {
   const now = new Date();
-
-  const startOfDaySP = (date: Date) => {
-    const dStr = formatInTimeZone(date, SAO_PAULO_TZ, "yyyy-MM-dd");
-    return fromZonedTime(`${dStr}T00:00:00`, SAO_PAULO_TZ);
-  };
-
-  const endOfDaySP = (date: Date) => {
-    const dStr = formatInTimeZone(date, SAO_PAULO_TZ, "yyyy-MM-dd");
-    return fromZonedTime(`${dStr}T23:59:59`, SAO_PAULO_TZ);
-  };
-
+ 
   const todayStartUTC = startOfDaySP(now);
   const todayEndUTC = endOfDaySP(now);
   const isoDow = Number(formatInTimeZone(now, SAO_PAULO_TZ, "i"));

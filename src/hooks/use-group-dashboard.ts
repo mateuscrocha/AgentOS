@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { subDays, startOfDay, endOfDay } from "date-fns";
+import { subDays } from "date-fns";
+import { startOfDaySP, endOfDaySP } from "@/components/group-dashboard/period-utils";
 import { formatDateKeySP, getHourSP } from "@/lib/date";
 
  
@@ -24,10 +25,12 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const currentPeriodEnd = dateRange?.to || now;
   const currentPeriodStart = dateRange?.from || subDays(now, 6);
 
-  const startToday = startOfDay(now);
-  const endToday = endOfDay(now);
+  const startToday = startOfDaySP(now);
+  const endToday = endOfDaySP(now);
   const isTodayRange = currentPeriodStart.getTime() === startToday.getTime() && currentPeriodEnd.getTime() === endToday.getTime();
-  const isYesterdayRange = currentPeriodStart.getTime() === startOfDay(subDays(now, 1)).getTime() && currentPeriodEnd.getTime() === endOfDay(subDays(now, 1)).getTime();
+  const yesterdayStartSP = startOfDaySP(subDays(now, 1));
+  const yesterdayEndSP = endOfDaySP(subDays(now, 1));
+  const isYesterdayRange = currentPeriodStart.getTime() === yesterdayStartSP.getTime() && currentPeriodEnd.getTime() === yesterdayEndSP.getTime();
 
   let effectiveCurrEnd = currentPeriodEnd;
   let previousPeriodStart: Date;
@@ -35,13 +38,13 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   if (isTodayRange) {
     effectiveCurrEnd = now;
     const elapsedMs = Math.max(0, effectiveCurrEnd.getTime() - startToday.getTime());
-    const yesterdayStart = startOfDay(subDays(now, 1));
+    const yesterdayStart = startOfDaySP(subDays(now, 1));
     previousPeriodStart = yesterdayStart;
     previousPeriodEnd = new Date(yesterdayStart.getTime() + elapsedMs);
   } else if (isYesterdayRange) {
-    const anteontem = subDays(startOfDay(currentPeriodStart), 1);
-    previousPeriodStart = startOfDay(anteontem);
-    previousPeriodEnd = endOfDay(anteontem);
+    const anteontem = subDays(startOfDaySP(currentPeriodStart), 1);
+    previousPeriodStart = startOfDaySP(anteontem);
+    previousPeriodEnd = endOfDaySP(anteontem);
   } else {
     const lengthMs = Math.max(0, currentPeriodEnd.getTime() - currentPeriodStart.getTime());
     previousPeriodEnd = new Date(currentPeriodStart.getTime() - 1);
@@ -128,16 +131,20 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .eq('direction', 'inbound')
         .eq('from_me', false)
         .neq('message_type', 'poll_vote')
-        .or('member_id.not.is.null,sender_phone.not.is.null')
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
       const uniqueActivePeople = new Set<string>();
+      let hasUnknownInbound = false;
       (activeMembersData || []).forEach((msg: any) => {
         const key = (msg.member_id as string) || (msg.sender_phone as string);
-        if (key) uniqueActivePeople.add(key);
+        if (key) {
+          uniqueActivePeople.add(key);
+        } else {
+          hasUnknownInbound = true;
+        }
       });
-      const activeMembers = uniqueActivePeople.size;
+      const activeMembers = uniqueActivePeople.size + (hasUnknownInbound ? 1 : 0);
 
       const engagementRate = totalMembers && totalMembers > 0 
         ? Math.round((activeMembers / totalMembers) * 100) 
@@ -238,14 +245,18 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .eq('direction', 'inbound')
         .eq('from_me', false)
         .neq('message_type', 'poll_vote')
-        .or('member_id.not.is.null,sender_phone.not.is.null')
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
       const uniqueActiveMembers = new Set<string>();
+      let prevHasUnknownInbound = false;
       (activeMembersData || []).forEach((msg: any) => {
         const key = (msg.member_id as string) || (msg.sender_phone as string);
-        if (key) uniqueActiveMembers.add(key);
+        if (key) {
+          uniqueActiveMembers.add(key);
+        } else {
+          prevHasUnknownInbound = true;
+        }
       });
       // Compute snapshot of total members at end of previous period
       const { count: joinedBeforePrevEnd } = await supabase
@@ -305,7 +316,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
       return {
         totalMessages: totalMessages || 0,
-        activeMembers: uniqueActiveMembers.size,
+        activeMembers: uniqueActiveMembers.size + (prevHasUnknownInbound ? 1 : 0),
         totalMembers,
         engagementRate,
         topParticipant,
