@@ -204,6 +204,67 @@ export type Database = {
           },
         ]
       }
+      member_events: {
+        Row: {
+          created_at: string
+          event_type: Database["public"]["Enums"]["member_event_type"]
+          external_member_id: string
+          group_id: string
+          id: string
+          member_id: string | null
+          meta: Json | null
+          occurred_at: string
+          payload_raw: Json | null
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: Database["public"]["Enums"]["member_event_type"]
+          external_member_id: string
+          group_id: string
+          id?: string
+          member_id?: string | null
+          meta?: Json | null
+          occurred_at: string
+          payload_raw?: Json | null
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["member_event_type"]
+          external_member_id?: string
+          group_id?: string
+          id?: string
+          member_id?: string | null
+          meta?: Json | null
+          occurred_at?: string
+          payload_raw?: Json | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_events_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_events_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "member_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "group_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           created_at: string
@@ -893,6 +954,12 @@ export type Database = {
     }
     Enums: {
       app_role: "SYSTEM_ADMIN" | "ORG_ADMIN" | "GROUP_MANAGER" | "USER"
+      member_event_type:
+        | "MEMBERSHIP_APPROVAL_REQUEST"
+        | "REVOKED_MEMBERSHIP_REQUESTS"
+        | "GROUP_PARTICIPANT_ADD"
+        | "GROUP_PARTICIPANT_LEAVE"
+        | "GROUP_PARTICIPANT_REMOVE"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1021,6 +1088,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["SYSTEM_ADMIN", "ORG_ADMIN", "GROUP_MANAGER", "USER"],
+      member_event_type: [
+        "MEMBERSHIP_APPROVAL_REQUEST",
+        "REVOKED_MEMBERSHIP_REQUESTS",
+        "GROUP_PARTICIPANT_ADD",
+        "GROUP_PARTICIPANT_LEAVE",
+        "GROUP_PARTICIPANT_REMOVE",
+      ],
     },
   },
 } as const
