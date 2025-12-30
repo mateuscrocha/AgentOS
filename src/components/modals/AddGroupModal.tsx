@@ -39,6 +39,11 @@ interface AddGroupModalProps {
   onSuccess: (groupId: string) => void;
 }
 
+type SubmitErrorState = {
+  code?: string;
+  message: string;
+};
+
 export function AddGroupModal({
   organizationId,
   organizationName,
@@ -52,11 +57,13 @@ export function AddGroupModal({
   const [isValidating, setIsValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<SubmitErrorState | null>(null);
 
   const resetState = () => {
     setInviteLink('');
     setGroupValidation(null);
     setValidationError(null);
+    setSubmitError(null);
     setIsValidating(false);
     setIsSubmitting(false);
   };
@@ -76,6 +83,7 @@ export function AddGroupModal({
 
     setIsValidating(true);
     setValidationError(null);
+    setSubmitError(null);
     setGroupValidation(null);
 
     try {
@@ -109,12 +117,19 @@ export function AddGroupModal({
     }
 
     setIsSubmitting(true);
+    setSubmitError(null);
+
+    const makeError = (message: string, code?: string) => {
+      const err = new Error(message) as any;
+      err.code = code;
+      return err;
+    };
 
     try {
       const payload = {
         organization_id: organizationId,
         group: {
-          provider: groupValidation.provider,
+          provider: 'whatsapp',
           whatsapp_provider_id: groupValidation.whatsapp_provider_id,
           name: groupValidation.group_name,
           invite_link: inviteLink,
@@ -126,25 +141,48 @@ export function AddGroupModal({
         body: payload,
       });
 
-      if (error || !data?.success) {
+      if (error) {
         try {
           const { data: sessionData } = await supabase.auth.getSession();
           const token = sessionData?.session?.access_token || '';
+          const apikey = (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
           const url = `${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/provision-group`;
           const res = await fetch(url, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...(apikey ? { apikey } : {}),
               Authorization: token ? `Bearer ${token}` : '',
             },
             body: JSON.stringify(payload),
           });
-          const json = await res.json().catch(() => null);
-          const msg = (json && (json.message || json.error || json.detail)) || (error?.message) || 'Erro ao criar grupo';
-          throw new Error(msg);
+
+          const raw = await res.text().catch(() => '');
+          const json = (() => {
+            try {
+              return raw ? JSON.parse(raw) : null;
+            } catch {
+              return null;
+            }
+          })();
+
+          const code: string | undefined =
+            json?.code || json?.error?.code || json?.data?.code || (error as any)?.code;
+
+          const msg: string =
+            (json && (json.message || json.error?.message || json.error || json.detail)) ||
+            (error?.message as string | undefined) ||
+            (res.ok ? 'Erro ao criar grupo' : `HTTP ${res.status} ao criar grupo`);
+
+          throw makeError(msg, code);
         } catch (fallbackErr: any) {
-          throw new Error(fallbackErr?.message || error?.message || 'Erro ao criar grupo');
+          throw makeError(fallbackErr?.message || error?.message || 'Erro ao criar grupo', fallbackErr?.code);
         }
+      }
+
+      if (!data?.success) {
+        const directMsg = data?.message || 'Erro ao criar grupo';
+        throw makeError(directMsg, data?.code);
       }
 
       notify.success('Grupo incluído', 'Tudo certo.');
@@ -152,6 +190,8 @@ export function AddGroupModal({
       onSuccess(data.group_id);
     } catch (error: any) {
       const errMsg = error?.message || 'Algo deu errado. Tente novamente.';
+      const code = error?.code as string | undefined;
+      setSubmitError({ code, message: errMsg });
       notify.error('Não foi possível incluir', errMsg);
     } finally {
       setIsSubmitting(false);
@@ -159,6 +199,64 @@ export function AddGroupModal({
   };
 
   const isValid = groupValidation?.is_valid && groupValidation?.is_boris_in_group && !groupValidation?.data_incomplete;
+
+  const getSubmitErrorTitle = (code?: string): string => {
+    if (!code) return 'Não foi possível incluir o grupo';
+    if (code === 'AUTH_REQUIRED' || code === 'AUTH_INVALID') return 'Sessão inválida';
+    if (code === 'ORG_ACCESS_DENIED' || code === 'RLS_DENIED' || code === 'FORBIDDEN') return 'Sem permissão';
+    if (code === 'GROUP_ALREADY_EXISTS') return 'Grupo já incluído';
+    if (
+      code === 'ORG_ID_REQUIRED' ||
+      code === 'GROUP_DATA_INCOMPLETE' ||
+      code === 'INVALID_PARTICIPANTS' ||
+      code === 'UNSUPPORTED_PROVIDER'
+    ) {
+      return 'Dados inválidos';
+    }
+    return 'Erro ao incluir o grupo';
+  };
+
+  const getSubmitErrorHint = (code?: string): string | null => {
+    if (code === 'AUTH_REQUIRED' || code === 'AUTH_INVALID') {
+      return 'Faça login novamente e tente de novo.';
+    }
+    if (code === 'ORG_ACCESS_DENIED' || code === 'RLS_DENIED' || code === 'FORBIDDEN') {
+      return 'Para incluir grupos, você precisa ser Gestor de Organização (desta organização) ou Admin do Sistema.';
+    }
+    if (code === 'GROUP_ALREADY_EXISTS') {
+      return 'Use a lista de grupos da organização para localizar o grupo existente.';
+    }
+    if (
+      code === 'ORG_ID_REQUIRED' ||
+      code === 'GROUP_DATA_INCOMPLETE' ||
+      code === 'INVALID_PARTICIPANTS' ||
+      code === 'UNSUPPORTED_PROVIDER'
+    ) {
+      return 'Valide o grupo novamente e confirme o link de convite completo.';
+    }
+    return null;
+  };
+
+  const copyErrorDetails = async () => {
+    if (!submitError) return;
+    const txt = JSON.stringify(
+      {
+        context: 'provision-group',
+        organization_id: organizationId,
+        code: submitError.code,
+        message: submitError.message,
+        invite_link: inviteLink,
+      },
+      null,
+      2
+    );
+    try {
+      await navigator.clipboard.writeText(txt);
+      notify.success('Detalhes copiados', 'Envie isso para suporte/diagnóstico.');
+    } catch {
+      notify.error('Não foi possível copiar', 'Copie manualmente pela tela de diagnóstico.');
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -188,6 +286,7 @@ export function AddGroupModal({
                 setInviteLink(e.target.value);
                 setGroupValidation(null);
                 setValidationError(null);
+                setSubmitError(null);
               }}
               maxLength={100}
               disabled={isSubmitting}
@@ -262,6 +361,107 @@ export function AddGroupModal({
                     <span className="text-muted-foreground">Participantes</span>
                     <p className="font-medium">{groupValidation.participants_count}</p>
                   </div>
+                </div>
+              </motion.div>
+            )}
+
+            {submitError && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm space-y-2"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <div className="font-medium">{getSubmitErrorTitle(submitError.code)}</div>
+                    <div>{submitError.message}</div>
+                    {getSubmitErrorHint(submitError.code) && (
+                      <div className="text-xs text-destructive/80">{getSubmitErrorHint(submitError.code)}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {(submitError.code === 'AUTH_REQUIRED' || submitError.code === 'AUTH_INVALID') && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => navigate('/auth')}
+                      disabled={isSubmitting}
+                    >
+                      Fazer login
+                    </Button>
+                  )}
+
+                  {(submitError.code === 'ORG_ACCESS_DENIED' || submitError.code === 'RLS_DENIED' || submitError.code === 'FORBIDDEN') && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => navigate('/account')}
+                        disabled={isSubmitting}
+                      >
+                        Ver minha conta
+                      </Button>
+                    </>
+                  )}
+
+                  {submitError.code === 'GROUP_ALREADY_EXISTS' && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        handleOpenChange(false);
+                        navigate(`/organization/${organizationId}/groups`);
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      Ver grupos
+                    </Button>
+                  )}
+
+                  {(submitError.code === 'ORG_ID_REQUIRED' ||
+                    submitError.code === 'GROUP_DATA_INCOMPLETE' ||
+                    submitError.code === 'INVALID_PARTICIPANTS' ||
+                    submitError.code === 'UNSUPPORTED_PROVIDER') && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={validateGroup}
+                      disabled={isValidating || isSubmitting}
+                    >
+                      Revalidar grupo
+                    </Button>
+                  )}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSubmit}
+                    disabled={!isValid || isSubmitting}
+                  >
+                    Tentar novamente
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={copyErrorDetails}
+                    disabled={isSubmitting}
+                  >
+                    Copiar detalhes
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setSubmitError(null)}
+                    disabled={isSubmitting}
+                  >
+                    Ocultar
+                  </Button>
                 </div>
               </motion.div>
             )}

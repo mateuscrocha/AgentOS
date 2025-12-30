@@ -306,7 +306,7 @@ const Org = () => {
 
       const buildRows = async (startISO: string, endISO: string): Promise<string[]> => {
         const q1 = await supabase
-          .from('messages')
+          .from('v_messages_feed')
           .select('content_preview,message_type,created_at,group_id')
           .in('group_id', orgGroupIds)
           .eq('message_type', 'text')

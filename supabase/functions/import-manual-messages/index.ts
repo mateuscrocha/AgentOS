@@ -140,6 +140,7 @@ serve(async (req) => {
           whatsapp_provider_id: it.importKey,
           sender_phone: phone,
           sender_name: phone ? null : (it.senderName || it.senderRaw),
+          content: it.text,
           text: it.text,
           created_at: createdAtISO,
           metadata: { source: "manual_import", text_hash: textHash },

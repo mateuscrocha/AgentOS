@@ -64,7 +64,7 @@ serve(async (req) => {
         JSON.stringify({
           is_valid: true,
           is_boris_in_group: false,
-          provider: 'zapi',
+          provider: 'whatsapp',
           whatsapp_provider_id: '',
           group_name: '',
           participants_count: 0,
@@ -107,7 +107,7 @@ serve(async (req) => {
         JSON.stringify({
           is_valid: true,
           is_boris_in_group: true,
-          provider: 'zapi',
+          provider: 'whatsapp',
           whatsapp_provider_id: providerId,
           group_name: groupName,
           participants_count: participants.length,
@@ -125,7 +125,7 @@ serve(async (req) => {
       JSON.stringify({
         is_valid: false,
         is_boris_in_group: false,
-          provider: 'zapi',
+          provider: 'whatsapp',
           whatsapp_provider_id: '',
           group_name: '',
           participants_count: 0,
