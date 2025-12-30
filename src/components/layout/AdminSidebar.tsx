@@ -67,7 +67,6 @@ export function AdminSidebar() {
         items: [
           { icon: LayoutDashboard, label: "Dashboard", href: `/organization/${orgId}/dashboard` },
           { icon: Users, label: "Grupos", href: `/organization/${orgId}/groups` },
-          { icon: MessageSquare, label: "Palavras-chave", href: `/organization/${orgId}/keywords` },
         ],
       });
     } else if (isGroupManager && groupId) {
