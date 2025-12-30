@@ -65,7 +65,7 @@ serve(async (req) => {
           is_valid: true,
           is_boris_in_group: false,
           provider: 'zapi',
-          provider_group_id: '',
+          whatsapp_provider_id: '',
           group_name: '',
           participants_count: 0,
           participants: [],
@@ -85,7 +85,7 @@ serve(async (req) => {
         name: p.phone,
         is_admin: p.isAdmin || p.isSuperAdmin || false,
         is_super_admin: p.isSuperAdmin || false,
-        provider_member_id: p.lid || p.phone,
+        whatsapp_provider_id: p.lid || p.phone,
       }));
 
       const groupName = groupData.name || groupData.subject || '';
@@ -108,7 +108,7 @@ serve(async (req) => {
           is_valid: true,
           is_boris_in_group: true,
           provider: 'zapi',
-          provider_group_id: providerId,
+          whatsapp_provider_id: providerId,
           group_name: groupName,
           participants_count: participants.length,
           participants,
@@ -125,13 +125,13 @@ serve(async (req) => {
       JSON.stringify({
         is_valid: false,
         is_boris_in_group: false,
-        provider: 'zapi',
-        provider_group_id: '',
-        group_name: '',
-        participants_count: 0,
-        participants: [],
-        error: 'Unknown response format from validation service',
-      }),
+          provider: 'zapi',
+          whatsapp_provider_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+          error: 'Unknown response format from validation service',
+        }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

@@ -323,11 +323,11 @@ export default function GroupEdit() {
       const participants = Array.isArray(data.participants) ? data.participants : [];
       const adminProviderIds = participants
         .filter((p: any) => p.is_admin)
-        .map((p: any) => p.provider_member_id)
+        .map((p: any) => p.whatsapp_provider_id)
         .filter(Boolean);
       const superAdminProviderIds = participants
         .filter((p: any) => p.is_super_admin)
-        .map((p: any) => p.provider_member_id)
+        .map((p: any) => p.whatsapp_provider_id)
         .filter(Boolean);
       const adminPhones = participants
         .filter((p: any) => p.is_admin)
@@ -350,7 +350,7 @@ export default function GroupEdit() {
           .update({ is_admin: true })
           .eq("group_id", group.id)
           .is("deleted_at", null)
-          .in("provider_member_id", adminProviderIds);
+          .in("whatsapp_provider_id", adminProviderIds);
       }
       if (adminPhones.length > 0) {
         await supabase
@@ -366,7 +366,7 @@ export default function GroupEdit() {
           .update({ is_super_admin: true })
           .eq("group_id", group.id)
           .is("deleted_at", null)
-          .in("provider_member_id", superAdminProviderIds);
+          .in("whatsapp_provider_id", superAdminProviderIds);
       }
       if (superAdminPhones.length > 0) {
         await supabase

@@ -148,9 +148,9 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
       ];
       const { data: byProvider } = await supabase
         .from("members")
-        .select("provider_member_id,name,display_name")
+        .select("whatsapp_provider_id,name,display_name")
         .eq("group_id", groupId)
-        .in("provider_member_id", providerCandidates);
+        .in("whatsapp_provider_id", providerCandidates);
       const { data: byPhone } = await supabase
         .from("members")
         .select("phone_e164,name,display_name")
@@ -159,7 +159,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
       const map: Record<string, string> = {};
       const toDigits = (s: string) => s.replace(/\D/g, "");
       (byProvider || []).forEach(m => {
-        const keyFull = (m as any).provider_member_id as string;
+        const keyFull = (m as any).whatsapp_provider_id as string;
         const key = toDigits(keyFull || "");
         const val = ((m as any).display_name as string) || ((m as any).name as string);
         if (key) map[key] = val;

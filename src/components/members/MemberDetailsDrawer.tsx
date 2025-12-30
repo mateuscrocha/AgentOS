@@ -59,7 +59,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
     queryFn: async () => {
       const { data } = await supabase
         .from("members")
-        .select("id, name, display_name, phone_e164, profile_pic_url, is_admin, is_super_admin, is_owner, joined_at, left_at, last_seen_message_at, status, provider, provider_member_id, metadata, group_id")
+        .select("id, name, display_name, phone_e164, profile_pic_url, is_admin, is_super_admin, is_owner, joined_at, left_at, last_seen_message_at, status, provider, whatsapp_provider_id, metadata, group_id")
         .eq("id", memberId)
         .maybeSingle();
       return data as any;
@@ -199,7 +199,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
       if (!member) return [] as any[];
       const conditions: string[] = [];
       if (member.phone_e164) conditions.push(`phone_e164.eq.${member.phone_e164}`);
-      if (member.provider_member_id) conditions.push(`provider_member_id.eq.${member.provider_member_id}`);
+      if ((member as any).whatsapp_provider_id) conditions.push(`whatsapp_provider_id.eq.${(member as any).whatsapp_provider_id}`);
       if (conditions.length === 0) return [];
       const { data } = await supabase
         .from("members")
@@ -479,8 +479,8 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
                     <div className="text-card-foreground">{member?.provider || "—"}</div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground">provider_member_id</div>
-                    <div className="font-mono text-xs break-all">{member?.provider_member_id || ""}</div>
+                    <div className="text-muted-foreground">whatsapp_provider_id</div>
+                    <div className="font-mono text-xs break-all">{(member as any)?.whatsapp_provider_id || ""}</div>
                   </div>
                 </div>
               </TabsContent>

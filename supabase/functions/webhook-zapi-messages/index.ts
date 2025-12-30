@@ -69,7 +69,7 @@ serve(async (req: Request) => {
       const { data: group } = await supabase
         .from('groups')
         .select('id')
-        .eq('provider_group_id', providerGroupId)
+        .eq('whatsapp_provider_id', providerGroupId)
         .maybeSingle();
       return group?.id || null;
     };
@@ -96,7 +96,7 @@ serve(async (req: Request) => {
         .from('polls')
         .select('id')
         .eq('provider', provider)
-        .eq('provider_poll_message_id', pollPayload.messageId)
+        .eq('whatsapp_provider_id', pollPayload.messageId)
         .maybeSingle();
 
       let pollId = existingPoll?.id || null;
@@ -107,7 +107,7 @@ serve(async (req: Request) => {
           .insert({
             group_id: groupId,
             provider,
-            provider_poll_message_id: pollPayload.messageId,
+            whatsapp_provider_id: pollPayload.messageId,
             question,
             max_options: maxOptions,
           })
@@ -132,14 +132,14 @@ serve(async (req: Request) => {
           .from('messages')
           .select('id')
           .eq('provider', provider)
-          .eq('provider_message_id', messageId)
+          .eq('whatsapp_provider_id', messageId)
           .maybeSingle();
         if (!existingMsg) {
           await supabase.from('messages').insert({
             group_id: groupId,
             message_type: 'poll',
             provider: provider,
-            provider_message_id: messageId,
+            whatsapp_provider_id: messageId,
             content: question,
           });
         }
@@ -162,7 +162,7 @@ serve(async (req: Request) => {
         .from('polls')
         .select('id')
         .eq('provider', provider)
-        .eq('provider_poll_message_id', votePayload.pollVote.pollMessageId)
+        .eq('whatsapp_provider_id', votePayload.pollVote.pollMessageId)
         .maybeSingle();
 
       if (!poll) {
@@ -224,15 +224,7 @@ serve(async (req: Request) => {
           .maybeSingle();
         existingVoteId = existingByPerson?.id || null;
       }
-      if (!existingVoteId) {
-        const { data: existingByProvider } = await supabase
-          .from('poll_votes')
-          .select('id')
-          .eq('provider', provider)
-          .eq('provider_vote_message_id', votePayload.messageId)
-          .maybeSingle();
-        existingVoteId = existingByProvider?.id || null;
-      }
+      // Provider vote message id not tracked; rely on person_id for dedup
 
       const tsRaw = (votePayload.timestamp && Number(votePayload.timestamp)) || (payload.momment && Number(payload.momment));
       const createdAt = Number.isFinite(tsRaw) ? new Date(tsRaw).toISOString() : undefined;
@@ -244,7 +236,6 @@ serve(async (req: Request) => {
             person_id: personId,
             voted_options: votedTexts,
             provider,
-            provider_vote_message_id: votePayload.messageId,
             raw_payload: payload,
             ...(createdAt ? { created_at: createdAt } : {}),
           });

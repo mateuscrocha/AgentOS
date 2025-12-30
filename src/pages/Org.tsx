@@ -67,7 +67,7 @@ interface GroupItem {
   provider: string;
   created_at: string;
   organization_id: string;
-  provider_group_id: string | null;
+  whatsapp_provider_id: string | null;
   is_active: boolean | null;
   sync_status: string | null;
 }

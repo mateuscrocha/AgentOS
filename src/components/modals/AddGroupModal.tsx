@@ -17,7 +17,7 @@ interface GroupValidation {
   is_valid: boolean;
   is_boris_in_group: boolean;
   provider: string;
-  provider_group_id: string;
+  whatsapp_provider_id: string;
   group_name: string;
   participants_count: number;
   participants: Array<{
@@ -25,7 +25,7 @@ interface GroupValidation {
     name: string;
     is_admin: boolean;
     is_super_admin?: boolean;
-    provider_member_id: string;
+    whatsapp_provider_id: string;
   }>;
   data_incomplete?: boolean;
   data_incomplete_reason?: string;
@@ -115,7 +115,7 @@ export function AddGroupModal({
         organization_id: organizationId,
         group: {
           provider: groupValidation.provider,
-          provider_group_id: groupValidation.provider_group_id,
+          whatsapp_provider_id: groupValidation.whatsapp_provider_id,
           name: groupValidation.group_name,
           invite_link: inviteLink,
         },

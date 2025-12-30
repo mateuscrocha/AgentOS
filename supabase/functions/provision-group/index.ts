@@ -10,7 +10,7 @@ interface ProvisionGroupPayload {
   organization_id: string;
   group: {
     provider: string;
-    provider_group_id: string;
+    whatsapp_provider_id: string;
     name: string;
     invite_link: string;
   };
@@ -19,7 +19,7 @@ interface ProvisionGroupPayload {
     name: string;
     is_admin: boolean;
     is_super_admin?: boolean;
-    provider_member_id: string;
+    whatsapp_provider_id: string;
   }>;
 }
 
@@ -55,7 +55,7 @@ serve(async (req) => {
       );
     }
 
-    if (!payload.group?.name || !payload.group?.provider_group_id) {
+    if (!payload.group?.name || !payload.group?.whatsapp_provider_id) {
       return new Response(
         JSON.stringify({ success: false, message: 'Group data is incomplete' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -108,7 +108,7 @@ serve(async (req) => {
     const { data: existingGroup } = await supabaseUser
       .from('groups')
       .select('id, name')
-      .eq('provider_group_id', payload.group.provider_group_id)
+      .eq('whatsapp_provider_id', payload.group.whatsapp_provider_id)
       .maybeSingle();
 
     if (existingGroup) {
@@ -128,7 +128,7 @@ serve(async (req) => {
         name: payload.group.name,
         organization_id: payload.organization_id,
         provider: 'whatsapp',
-        provider_group_id: payload.group.provider_group_id,
+        whatsapp_provider_id: payload.group.whatsapp_provider_id,
         invite_link: payload.group.invite_link,
       })
       .select('id')
@@ -158,7 +158,7 @@ serve(async (req) => {
         phone_e164: p.phone ? `+${p.phone.replace(/\D/g, '')}` : null,
         is_admin: p.is_admin || false,
         is_super_admin: p.is_super_admin || false,
-        provider_member_id: p.provider_member_id,
+        whatsapp_provider_id: p.whatsapp_provider_id,
         provider: 'whatsapp',
       }));
 

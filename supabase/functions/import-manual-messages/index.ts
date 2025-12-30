@@ -137,7 +137,7 @@ serve(async (req) => {
           member_id: memberId,
           message_type: "text",
           provider: "manual_import",
-          provider_message_id: it.importKey,
+          whatsapp_provider_id: it.importKey,
           sender_phone: phone,
           sender_name: phone ? null : (it.senderName || it.senderRaw),
           text: it.text,
@@ -162,4 +162,3 @@ serve(async (req) => {
     );
   }
 });
-

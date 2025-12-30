@@ -138,7 +138,7 @@ export type Database = {
           name: string
           organization_id: string
           provider: string
-          provider_group_id: string | null
+          whatsapp_provider_id: string | null
           provider_phone: string | null
           raw_provider: Json | null
           status: string | null
@@ -162,7 +162,7 @@ export type Database = {
           name: string
           organization_id: string
           provider?: string
-          provider_group_id?: string | null
+          whatsapp_provider_id?: string | null
           provider_phone?: string | null
           raw_provider?: Json | null
           status?: string | null
@@ -186,7 +186,7 @@ export type Database = {
           name?: string
           organization_id?: string
           provider?: string
-          provider_group_id?: string | null
+          whatsapp_provider_id?: string | null
           provider_phone?: string | null
           raw_provider?: Json | null
           status?: string | null
@@ -284,7 +284,7 @@ export type Database = {
           phone_e164: string | null
           profile_pic_url: string | null
           provider: string | null
-          provider_member_id: string | null
+          whatsapp_provider_id: string | null
           raw_provider: Json | null
           status: string | null
           updated_at: string
@@ -307,7 +307,7 @@ export type Database = {
           phone_e164?: string | null
           profile_pic_url?: string | null
           provider?: string | null
-          provider_member_id?: string | null
+          whatsapp_provider_id?: string | null
           raw_provider?: Json | null
           status?: string | null
           updated_at?: string
@@ -330,7 +330,7 @@ export type Database = {
           phone_e164?: string | null
           profile_pic_url?: string | null
           provider?: string | null
-          provider_member_id?: string | null
+          whatsapp_provider_id?: string | null
           raw_provider?: Json | null
           status?: string | null
           updated_at?: string
@@ -363,7 +363,7 @@ export type Database = {
           message_id: string
           metadata: Json | null
           provider: string | null
-          provider_message_id: string | null
+          whatsapp_provider_id: string | null
           provider_reaction_key: string | null
           raw_provider: Json | null
           reacted_at: string
@@ -381,7 +381,7 @@ export type Database = {
           message_id: string
           metadata?: Json | null
           provider?: string | null
-          provider_message_id?: string | null
+          whatsapp_provider_id?: string | null
           provider_reaction_key?: string | null
           raw_provider?: Json | null
           reacted_at?: string
@@ -399,7 +399,7 @@ export type Database = {
           message_id?: string
           metadata?: Json | null
           provider?: string | null
-          provider_message_id?: string | null
+          whatsapp_provider_id?: string | null
           provider_reaction_key?: string | null
           raw_provider?: Json | null
           reacted_at?: string
@@ -434,12 +434,12 @@ export type Database = {
           message_type: string
           metadata: Json | null
           provider: string | null
-          provider_chat_id: string | null
-          provider_message_id: string | null
+          chat_whatsapp_provider_id: string | null
+          whatsapp_provider_id: string | null
           raw_provider: Json | null
           read_count: number | null
           reference_message_id: string | null
-          reply_to_provider_message_id: string | null
+          reply_to_whatsapp_provider_id: string | null
           sender_name: string | null
           sender_phone: string | null
           status: string | null
@@ -472,12 +472,12 @@ export type Database = {
           message_type?: string
           metadata?: Json | null
           provider?: string | null
-          provider_chat_id?: string | null
-          provider_message_id?: string | null
+          chat_whatsapp_provider_id?: string | null
+          whatsapp_provider_id?: string | null
           raw_provider?: Json | null
           read_count?: number | null
           reference_message_id?: string | null
-          reply_to_provider_message_id?: string | null
+          reply_to_whatsapp_provider_id?: string | null
           sender_name?: string | null
           sender_phone?: string | null
           status?: string | null
@@ -510,12 +510,12 @@ export type Database = {
           message_type?: string
           metadata?: Json | null
           provider?: string | null
-          provider_chat_id?: string | null
-          provider_message_id?: string | null
+          chat_whatsapp_provider_id?: string | null
+          whatsapp_provider_id?: string | null
           raw_provider?: Json | null
           read_count?: number | null
           reference_message_id?: string | null
-          reply_to_provider_message_id?: string | null
+          reply_to_whatsapp_provider_id?: string | null
           sender_name?: string | null
           sender_phone?: string | null
           status?: string | null
@@ -797,7 +797,7 @@ export type Database = {
           messages_count: number | null
           organization_id: string | null
           provider: string | null
-          provider_group_id: string | null
+          whatsapp_provider_id: string | null
           sync_status: string | null
         }
         Insert: {
@@ -816,7 +816,7 @@ export type Database = {
           messages_count?: never
           organization_id?: string | null
           provider?: string | null
-          provider_group_id?: string | null
+          whatsapp_provider_id?: string | null
           sync_status?: string | null
         }
         Update: {
@@ -835,7 +835,7 @@ export type Database = {
           messages_count?: never
           organization_id?: string | null
           provider?: string | null
-          provider_group_id?: string | null
+          whatsapp_provider_id?: string | null
           sync_status?: string | null
         }
         Relationships: [
@@ -858,7 +858,7 @@ export type Database = {
           member_name: string | null
           member_phone: string | null
           message_id: string | null
-          provider_message_id: string | null
+          whatsapp_provider_id: string | null
           reacted_at: string | null
           reaction_id: string | null
           reaction_status: string | null
@@ -892,7 +892,7 @@ export type Database = {
           message_id: string | null
           message_type: string | null
           provider: string | null
-          provider_message_id: string | null
+          whatsapp_provider_id: string | null
           sender_phone: string | null
           status: string | null
           type: string | null

@@ -56,7 +56,7 @@ export default function SystemPeople() {
       let query = supabase
         .from("members")
         .select(
-          "id, group_id, provider, provider_member_id, name, display_name, profile_pic_url, created_at",
+          "id, group_id, provider, whatsapp_provider_id, name, display_name, profile_pic_url, created_at",
           { count: "exact" }
         )
         .is("deleted_at", null);
@@ -88,7 +88,7 @@ export default function SystemPeople() {
 
       const map: Record<string, PersonAgg> = {};
       (data ?? []).forEach((m: any) => {
-        const provider_user_id = m.provider_member_id || "";
+        const provider_user_id = m.whatsapp_provider_id || "";
         const key = `${m.provider}:${provider_user_id}`;
         const display = m.display_name || m.name;
         if (!map[key]) {

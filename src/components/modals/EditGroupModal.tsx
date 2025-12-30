@@ -25,7 +25,7 @@ interface Group {
   name: string;
   organization_id: string;
   provider: string;
-  provider_group_id: string | null;
+  whatsapp_provider_id: string | null;
 }
 
 interface EditGroupModalProps {
@@ -157,12 +157,12 @@ export function EditGroupModal({
                   </p>
                 </div>
                 
-                {group.provider_group_id && (
+                {group.whatsapp_provider_id && (
                   <div className="space-y-1">
-                    <Label className="text-muted-foreground text-xs">Provider ID</Label>
-                    <p className="text-sm text-card-foreground font-mono text-xs">
-                      {group.provider_group_id}
-                    </p>
+                  <Label className="text-muted-foreground text-xs">Provider ID</Label>
+                  <p className="text-sm text-card-foreground font-mono text-xs">
+                      {group.whatsapp_provider_id}
+                  </p>
                   </div>
                 )}
               </div>

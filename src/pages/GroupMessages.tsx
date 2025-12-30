@@ -36,7 +36,7 @@ interface MessageFeed {
   member_id: string | null;
   member_name: string;
   member_avatar: string | null;
-  provider_message_id: string | null;
+  whatsapp_provider_id: string | null;
   media_url: string | null;
   media_mime_type: string | null;
   thumbnail_url: string | null;
@@ -99,7 +99,7 @@ const PollInlineSummary = ({ groupId, providerMessageId }: { groupId: string; pr
         .from('polls')
         .select('id')
         .eq('group_id', groupId)
-        .eq('provider_poll_message_id', providerMessageId)
+        .eq('whatsapp_provider_id', providerMessageId)
         .maybeSingle();
       return data;
     },
@@ -261,7 +261,7 @@ const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
               {message.content_preview || '[Enquete]'}
             </span>
           </div>
-          <PollInlineSummary groupId={message.group_id!} providerMessageId={message.provider_message_id || null} />
+          <PollInlineSummary groupId={message.group_id!} providerMessageId={message.whatsapp_provider_id || null} />
         </div>
       );
 
@@ -414,7 +414,7 @@ const GroupMessages = () => {
             member_id: m.member_id,
             member_name: memberName,
             member_avatar: memberAvatar,
-            provider_message_id: m.provider_message_id,
+            whatsapp_provider_id: m.whatsapp_provider_id,
             media_url: m.media_url,
             media_mime_type: m.media_mime_type,
             thumbnail_url: m.thumbnail_url,
@@ -434,7 +434,7 @@ const GroupMessages = () => {
         member_id: d.member_id,
         member_name: d.member_name || d.member_display_name || 'Unknown',
         member_avatar: d.member_avatar || null,
-        provider_message_id: d.provider_message_id,
+        whatsapp_provider_id: d.whatsapp_provider_id,
         media_url: d.media_url,
         media_mime_type: d.media_mime_type,
         thumbnail_url: d.thumbnail_url,
@@ -489,7 +489,7 @@ const GroupMessages = () => {
         .from('polls')
         .select('id')
         .eq('group_id', groupId)
-        .eq('provider_poll_message_id', m.provider_message_id)
+        .eq('whatsapp_provider_id', m.whatsapp_provider_id)
         .maybeSingle();
 
       if (poll?.id) {

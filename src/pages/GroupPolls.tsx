@@ -19,7 +19,7 @@ interface PollItem {
   question: string;
   created_at: string;
   max_options: number | null;
-  provider_poll_message_id: string | null;
+  whatsapp_provider_id: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -92,7 +92,7 @@ export default function GroupPolls() {
       const to = from + PAGE_SIZE - 1;
       const { data, error, count } = await (supabase as any)
         .from("polls")
-        .select("id, question, created_at, max_options, provider_poll_message_id", { count: "exact" })
+        .select("id, question, created_at, max_options, whatsapp_provider_id", { count: "exact" })
         .eq("group_id", groupId)
         .gte("created_at", currentRange.from.toISOString())
         .lte("created_at", currentRange.to.toISOString())

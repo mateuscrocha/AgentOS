@@ -1,6 +1,6 @@
 import { MessageSquare, Users, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
-import { PeriodType } from "./PeriodFilter";
+import type { PeriodType } from "./period-utils";
 
 interface SummarySectionProps {
   stats: {

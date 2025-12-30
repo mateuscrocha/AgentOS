@@ -28,7 +28,7 @@ interface Member {
   created_at: string;
   updated_at: string;
   provider: string;
-  provider_member_id: string | null;
+  whatsapp_provider_id: string | null;
   profile_pic_url: string | null;
   joined_at: string | null;
   left_at: string | null;
