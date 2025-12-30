@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -27,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,6 +86,24 @@ interface Group {
   organization_id: string;
 }
 
+interface UserAccessScope {
+  id: string;
+  user_id: string;
+  scope_type: 'organization' | 'group';
+  scope_id: string;
+  created_at: string;
+}
+
+type CreateUserPayload = {
+  name: string;
+  email: string;
+  whatsapp_phone: string;
+  password: string;
+  scope_type: 'organization' | 'group';
+  scope_id: string;
+  assign_org_admin?: boolean;
+};
+
 const ROLE_LABELS: Record<AppRole, string> = {
   'SYSTEM_ADMIN': 'Administrador do Sistema',
   'ORG_ADMIN': 'Gestor de Organização',
@@ -120,6 +140,11 @@ export default function Users() {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPhone, setNewUserPhone] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserPasswordConfirm, setNewUserPasswordConfirm] = useState("");
+  const [scopeType, setScopeType] = useState<'organization' | 'group' | ''>('');
+  const [selectedScopeOrgId, setSelectedScopeOrgId] = useState<string>('');
+  const [selectedScopeGroupId, setSelectedScopeGroupId] = useState<string>('');
+  const [assignOrgAdmin, setAssignOrgAdmin] = useState(false);
   
   // Form state for adding role
   const [newRole, setNewRole] = useState<AppRole>('USER');
@@ -198,6 +223,19 @@ export default function Users() {
     enabled: isAuthenticated && isSystemAdmin,
   });
 
+  const { data: accessScopes, isLoading: scopesLoading } = useQuery({
+    queryKey: ['all-user-access-scopes'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('user_access_scope')
+        .select('id, user_id, scope_type, scope_id, created_at')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data as UserAccessScope[];
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+  });
+
   // Add role mutation
   const addRoleMutation = useMutation({
     mutationFn: async ({ userId, role, organizationId, groupId }: {
@@ -243,30 +281,77 @@ export default function Users() {
   };
 
   const createUserMutation = useMutation({
-    mutationFn: async ({ name, email, whatsapp_phone, password }: {
-      name: string;
-      email: string;
-      whatsapp_phone: string;
-      password: string;
-    }) => {
-      const { data, error } = await supabase.functions.invoke("admin-create-user", {
-        body: { name, email, whatsapp_phone, password },
-      });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.message || "Falha ao criar usuário");
+    mutationFn: async (payload: CreateUserPayload) => {
+      let attempt = 0;
+      const maxRetries = 3;
+      let lastErr: any = null;
+      while (attempt <= maxRetries) {
+        const { data, error } = await supabase.functions.invoke("admin-create-user", { body: payload });
+        if (!error && data?.success) return data;
+        let message = error?.message || data?.message || "Falha ao criar usuário";
+        let status: number | undefined = undefined;
+        if (error instanceof FunctionsHttpError && (error as any).context) {
+          try {
+            const body = await (error as any).context.json();
+            if (body?.message) message = body.message;
+            if (typeof body?.status === "number") status = body.status;
+            if (!status && body?.code === "EMAIL_EXISTS") status = 409;
+          } catch (e) { void 0; }
+        }
+        lastErr = Object.assign(new Error(message), { status });
+        const msg = (message || "").toLowerCase();
+        const isNetwork = msg.includes("failed to send a request") || msg.includes("fetch") || msg.includes("network");
+        if (!isNetwork || attempt === maxRetries) throw lastErr;
+        const delay = Math.round(400 * Math.pow(2, attempt) + Math.random() * 120);
+        await new Promise((r) => setTimeout(r, delay));
+        attempt += 1;
+      }
+      if (lastErr) throw lastErr;
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
+      const assigned = !!result?.assigned_org_admin;
       queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
       queryClient.invalidateQueries({ queryKey: ["all-user-roles"] });
-      notify.success('Usuário criado', 'Dados salvos com sucesso.');
+      queryClient.invalidateQueries({ queryKey: ["all-user-access-scopes"] });
+      if (assigned) {
+        notify.success('Usuário criado como Gestor de Organização', 'Privilégios aplicados com sucesso.');
+      } else {
+        notify.success('Usuário criado com sucesso e com acesso configurado', 'Tudo certo.');
+      }
       setIsAddUserOpen(false);
       setNewUserName("");
       setNewUserEmail("");
       setNewUserPhone("");
       setNewUserPassword("");
+      setNewUserPasswordConfirm("");
+      setScopeType('');
+      setSelectedScopeOrgId('');
+      setSelectedScopeGroupId('');
+      setAssignOrgAdmin(false);
     },
-    onError: () => {
-      notify.error('Não foi possível concluir', 'Algo deu errado. Tente novamente.');
+    onError: (err: any) => {
+      const raw = (err?.message || '').toLowerCase();
+      if (raw.includes('already registered') || raw.includes('email exists') || err?.status === 409) {
+        notify.error('Email já existente', 'Escolha outro email.');
+        return;
+      }
+      if (raw.includes('unauthorized')) {
+        notify.error('Sem autorização', 'Faça login novamente como administrador do sistema.');
+        return;
+      }
+      if (raw.includes('forbidden')) {
+        notify.error('Acesso negado', 'Você não possui permissão para criar usuários.');
+        return;
+      }
+      if (raw.includes('escopo inicial obrigatório') || raw.includes('escopo inválido')) {
+        notify.error('Dados inválidos', 'Selecione corretamente o escopo inicial.');
+        return;
+      }
+      if (raw.includes('erro ao criar escopo inicial')) {
+        notify.error('Falha na permissão', 'O escopo não pôde ser criado. Tente novamente.');
+        return;
+      }
+      notify.error('Falha na criação ou permissão', err?.message || 'Algo deu errado. Tente novamente.');
     },
   });
 
@@ -376,6 +461,22 @@ export default function Users() {
       render: (profile: Profile) => (
         <span className="text-muted-foreground">{profile.phone_e164 || '-'}</span>
       ),
+    },
+    {
+      key: 'access_scope',
+      header: 'Acesso',
+      render: (profile: Profile) => {
+        const scopes = (accessScopes || []).filter(s => s.user_id === profile.id);
+        if (scopes.length === 0) return <span className="text-muted-foreground text-sm">Sem escopo</span>;
+        const s = scopes[0];
+        if (s.scope_type === 'organization') {
+          return <span className="text-sm">Organização: {getOrgName(s.scope_id)}</span>;
+        }
+        if (s.scope_type === 'group') {
+          return <span className="text-sm">Grupo: {getGroupName(s.scope_id)}</span>;
+        }
+        return <span className="text-muted-foreground text-sm">-</span>;
+      },
     },
     {
       key: 'roles',
@@ -555,20 +656,109 @@ export default function Users() {
                 onChange={(e) => setNewUserPassword(e.target.value)}
               />
             </div>
+            <div>
+              <Input
+                type="password"
+                placeholder="Confirmar senha"
+                value={newUserPasswordConfirm}
+                onChange={(e) => setNewUserPasswordConfirm(e.target.value)}
+              />
+            </div>
+            <div className="pt-2 border-t border-border space-y-2">
+              <div className="text-sm font-medium text-card-foreground">Permissão inicial</div>
+              <RadioGroup value={scopeType} onValueChange={(v) => setScopeType(v as 'organization' | 'group')}>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="organization" id="scope-org" />
+                  <label htmlFor="scope-org" className="text-sm">Acessa uma organização</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="group" id="scope-group" />
+                  <label htmlFor="scope-group" className="text-sm">Acessa um grupo específico</label>
+                </div>
+              </RadioGroup>
+              {scopeType === 'organization' && (
+                <Select value={selectedScopeOrgId} onValueChange={setSelectedScopeOrgId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Organização" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations?.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {scopeType === 'group' && (
+                <Select value={selectedScopeGroupId} onValueChange={setSelectedScopeGroupId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Grupo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {groups?.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {getOrgName(group.organization_id)} – {group.name}
+                      </SelectItem>
+                    ))}
+                    </SelectContent>
+                  </Select>
+              )}
+              {scopeType === 'organization' && (
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    id="assign-org-admin"
+                    type="checkbox"
+                    checked={assignOrgAdmin}
+                    onChange={(e) => setAssignOrgAdmin(e.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <label htmlFor="assign-org-admin" className="text-sm text-card-foreground">
+                    Conceder papel de Gestor de Organização para esta organização
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>Fechar</Button>
             <Button
               onClick={() => {
-                if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()) {
-                  notify.warning('Atenção', 'Preencha nome, email e senha.');
+                const name = newUserName.trim();
+                const email = newUserEmail.trim();
+                const password = newUserPassword;
+                const confirm = newUserPasswordConfirm;
+                const phone = normalizePhoneE164(newUserPhone);
+                if (!name || !email || !password || !confirm) {
+                  notify.warning('Atenção', 'Preencha todos os campos obrigatórios.');
+                  return;
+                }
+                const emailOk = /.+@.+\..+/.test(email);
+                if (!emailOk) {
+                  notify.warning('Atenção', 'Informe um email válido.');
+                  return;
+                }
+                if (password !== confirm) {
+                  notify.warning('Atenção', 'Senha e confirmação devem ser iguais.');
+                  return;
+                }
+                if (!scopeType) {
+                  notify.warning('Atenção', 'Selecione o escopo de acesso.');
+                  return;
+                }
+                let scopeId = '';
+                if (scopeType === 'organization') scopeId = selectedScopeOrgId;
+                if (scopeType === 'group') scopeId = selectedScopeGroupId;
+                if (!scopeId) {
+                  notify.warning('Atenção', 'Selecione a organização ou grupo.');
                   return;
                 }
                 createUserMutation.mutate({
-                  name: newUserName.trim(),
-                  email: newUserEmail.trim(),
-                  password: newUserPassword,
-                  whatsapp_phone: normalizePhoneE164(newUserPhone),
+                  name,
+                  email,
+                  password,
+                  whatsapp_phone: phone,
+                  scope_type: scopeType as 'organization' | 'group',
+                  scope_id: scopeId,
+                  assign_org_admin: scopeType === 'organization' && assignOrgAdmin,
                 });
               }}
               disabled={createUserMutation.isPending}

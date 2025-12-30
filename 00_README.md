@@ -37,6 +37,7 @@
 - Papéis de acesso: `SYSTEM_ADMIN`, `ORG_ADMIN`, `GROUP_MANAGER`, `READ_ONLY`.
 - Onboarding cria automaticamente `User`, `Organization`, `Group` e vínculos.
 - Pós-onboarding redireciona para a página do grupo.
+ - Criação de usuário por Admin: opção de conceder `ORG_ADMIN` ao criar com escopo de organização, com verificação de privilégios e registro de auditoria.
 
 ## O que não é responsabilidade deste escopo
 - Desenhar UI ou temas.

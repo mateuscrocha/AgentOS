@@ -5,7 +5,8 @@ export type EventType =
   | 'GROUP_UPDATED' 
   | 'MEMBER_UPDATED' 
   | 'ORG_CREATED' 
-  | 'GROUP_CREATED';
+  | 'GROUP_CREATED'
+  | 'ORG_ADMIN_ASSIGNED';
 
 export type EntityType = 'organization' | 'group' | 'member' | 'message';
 

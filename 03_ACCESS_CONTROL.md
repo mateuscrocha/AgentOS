@@ -79,6 +79,26 @@
   - `src/hooks/use-auth.ts:39` (`isAuthenticated`).
   - `src/components/auth/AuthGuard.tsx:11` (rotas públicas) e `src/components/auth/AuthGuard.tsx:43` (proteção).
 
+## Criação de usuário por Admin (novo)
+- Fluxo de criação em `src/pages/Users.tsx`:
+  - Seleção de "Permissão inicial" (organização ou grupo).
+  - Para organização, existe a opção "Conceder papel de Gestor de Organização".
+  - Invocação da função `admin-create-user` com payload incluindo `assign_org_admin`.
+- Lado servidor (Edge Function): `supabase/functions/admin-create-user/index.ts`
+  - Cria usuário via `auth.admin.createUser`.
+  - Registra `user_access_scope` inicial (organization/group).
+  - Quando `assign_org_admin=true` e `scope_type=organization`, atribui `ORG_ADMIN` em `user_roles`.
+  - Verifica privilégios imediatamente com `can_edit_org` e `has_org_access`.
+  - Registra evento de auditoria `ORG_ADMIN_ASSIGNED` em `events`.
+  - Tratamento de erros com códigos: `EMAIL_EXISTS`, `INSERT_SCOPE_FAILED`, `ASSIGN_ORG_ADMIN_FAILED`, `VERIFY_ORG_ADMIN_FAILED`.
+
+## Correção em lote (existentes)
+- Objetivo: normalizar usuários com escopo inicial de organização sem papéis ou com owner sem `ORG_ADMIN`.
+- Estratégia:
+  - Inserir papel `USER` para usuários com `user_access_scope=organization` e sem nenhum papel na organização.
+  - Inserir `ORG_ADMIN` para `organizations.owner_user_id` sem papel `ORG_ADMIN`.
+  - Registrar `ORG_ADMIN_ASSIGNED` para atribuições de admin realizadas por lote.
+
 ## Referências no código (paths quando fizer sentido)
 - Enum e tabela de papéis:
   - `supabase/migrations/20251216203053_90e174c6-bed4-42e3-a4db-c5100aa7030b.sql:2` (`public.app_role`).
@@ -104,4 +124,12 @@
 - Gestão de papéis no frontend:
   - `src/pages/Users.tsx:144` (listar organizações e grupos para atribuição).
   - `src/pages/Users.tsx:202` (mutação de criação de papel em `user_roles`).
-
+  - `src/pages/Users.tsx:667` (UI de "Permissão inicial").
+  - `src/pages/Users.tsx:705` (checkbox "Gestor de Organização").
+  - `src/pages/Users.tsx:754` (payload com `assign_org_admin`).
+  - `src/pages/Users.tsx:311` (notificação de sucesso com verificação de `assigned_org_admin`).
+ - Edge Function de criação:
+  - `supabase/functions/admin-create-user/index.ts:136` (atribuição `ORG_ADMIN`).
+  - `supabase/functions/admin-create-user/index.ts:148` (verificação `can_edit_org`).
+  - `supabase/functions/admin-create-user/index.ts:149` (verificação `has_org_access`).
+  - `supabase/functions/admin-create-user/index.ts:154` (evento `ORG_ADMIN_ASSIGNED`).

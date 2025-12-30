@@ -22,9 +22,7 @@ const Auth = () => {
   const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const isRecoveryParam = params.get("type") === "recovery";
-    if (!authLoading && isAuthenticated && !isRecoveryParam && !isRecovery) {
+    if (!authLoading && isAuthenticated && !isRecovery) {
       navigate('/', { replace: true });
     }
   }, [authLoading, isAuthenticated, navigate, isRecovery]);
@@ -86,9 +84,9 @@ const Auth = () => {
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro inesperado";
-      
-      // Friendly error messages
-      if (message.includes("Invalid login credentials")) {
+      if (isRecovery && (/session/i.test(message) || /expired/i.test(message))) {
+        setError("Link de recuperação inválido ou expirado. Solicite novamente.");
+      } else if (message.includes("Invalid login credentials")) {
         setError("Email ou senha incorretos");
       } else if (message.includes("User already registered")) {
         setError("Este email já está cadastrado");
@@ -122,6 +120,8 @@ const Auth = () => {
       if (rateMatch) {
         const secs = rateMatch[1];
         setError(`Por segurança, você só pode solicitar novamente após ${secs} segundos.`);
+      } else if (/redirect/i.test(msg) && /not.*allowed|invalid/i.test(msg)) {
+        setError("URL de redirecionamento não permitida. Verifique a configuração de Redirect URLs no Supabase.");
       } else {
         setError(msg);
       }
@@ -133,10 +133,6 @@ const Auth = () => {
   };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("type") === "recovery") {
-      setIsRecovery(true);
-    }
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setIsRecovery(true);

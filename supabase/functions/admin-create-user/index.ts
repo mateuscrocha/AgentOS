@@ -1,6 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 function normalizePhoneE164(phone: string): string {
   const raw = (phone || "").trim();
   if (!raw) return "";
@@ -12,10 +18,14 @@ function normalizePhoneE164(phone: string): string {
 }
 
 export default Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
   const json = (body: any, status = 200) =>
     new Response(JSON.stringify(body), {
       status,
       headers: {
+        ...corsHeaders,
         "Content-Type": "application/json",
         "Connection": "keep-alive",
       },
@@ -37,7 +47,8 @@ export default Deno.serve(async (req: Request) => {
 
     const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser();
     if (getUserErr || !userData?.user?.id) {
-      return json({ success: false, message: "Unauthorized" }, 401);
+      console.log(JSON.stringify({ stage: 'auth_get_user', error: getUserErr?.message, status: 401 }));
+      return json({ success: false, message: "Unauthorized", code: 'UNAUTHORIZED' }, 401);
     }
 
     const requesterId = userData.user.id;
@@ -46,10 +57,12 @@ export default Deno.serve(async (req: Request) => {
       _user_id: requesterId,
     });
     if (isAdminErr) {
-      return json({ success: false, message: isAdminErr.message }, 500);
+      console.log(JSON.stringify({ stage: 'check_admin', error: isAdminErr.message, status: 500 }));
+      return json({ success: false, message: isAdminErr.message, code: 'SERVER_ERROR' }, 500);
     }
     if (!isAdmin) {
-      return json({ success: false, message: "Forbidden" }, 403);
+      console.log(JSON.stringify({ stage: 'check_admin', requesterId, status: 403 }));
+      return json({ success: false, message: "Forbidden", code: 'FORBIDDEN' }, 403);
     }
 
     const payload = await req.json().catch(() => null) as {
@@ -57,10 +70,22 @@ export default Deno.serve(async (req: Request) => {
       email?: string;
       whatsapp_phone?: string;
       password?: string;
+      scope_type?: 'organization' | 'group';
+      scope_id?: string;
+      assign_org_admin?: boolean;
     } | null;
 
     if (!payload || !payload.name || !payload.email || !payload.password) {
-      return json({ success: false, message: "Dados obrigatórios ausentes" }, 400);
+      console.log(JSON.stringify({ stage: 'validation', payload: { name: !!payload?.name, email: !!payload?.email, scope_type: payload?.scope_type, scope_id: payload?.scope_id }, status: 400 }));
+      return json({ success: false, message: "Dados obrigatórios ausentes", code: 'VALIDATION_ERROR' }, 400);
+    }
+    if (!payload.scope_type || !payload.scope_id) {
+      console.log(JSON.stringify({ stage: 'validation_scope', payload: { scope_type: payload.scope_type, scope_id: payload.scope_id }, status: 400 }));
+      return json({ success: false, message: "Escopo inicial obrigatório", code: 'VALIDATION_ERROR' }, 400);
+    }
+    if (!(payload.scope_type === 'organization' || payload.scope_type === 'group')) {
+      console.log(JSON.stringify({ stage: 'validation_scope_type', payload: { scope_type: payload.scope_type }, status: 400 }));
+      return json({ success: false, message: "Escopo inválido", code: 'VALIDATION_ERROR' }, 400);
     }
 
     const supabaseAdmin = createClient(url, service);
@@ -69,18 +94,22 @@ export default Deno.serve(async (req: Request) => {
       email: payload.email,
       password: payload.password,
       user_metadata: { name: payload.name },
-      email_confirm: false,
+      email_confirm: true,
     });
 
     if (createErr) {
       const msg = createErr.message || "Erro ao criar usuário";
-      const status = msg.includes("already registered") ? 409 : 400;
-      return json({ success: false, message: msg }, status);
+      const m = (msg || '').toLowerCase();
+      const isEmailExists = /already.*registered/.test(m) || m.includes('email exists');
+      const status = isEmailExists ? 409 : 400;
+      console.log(JSON.stringify({ stage: 'admin_create_user', error: msg, status }));
+      return json({ success: false, message: msg, code: isEmailExists ? 'EMAIL_EXISTS' : 'CREATE_USER_FAILED' }, status);
     }
 
     const newUserId = created?.user?.id;
     if (!newUserId) {
-      return json({ success: false, message: "Usuário não retornado" }, 500);
+      console.log(JSON.stringify({ stage: 'admin_create_user', error: 'user_id_missing', status: 500 }));
+      return json({ success: false, message: "Usuário não retornado", code: 'SERVER_ERROR' }, 500);
     }
 
     const phone = normalizePhoneE164(payload.whatsapp_phone || "");
@@ -90,9 +119,51 @@ export default Deno.serve(async (req: Request) => {
       .update({ name: payload.name, phone_e164: phone, status: "active" })
       .eq("id", newUserId);
 
-    return json({ success: true, user_id: newUserId });
+    const { error: scopeErr } = await supabaseAdmin
+      .from("user_access_scope")
+      .insert({
+        user_id: newUserId,
+        scope_type: payload.scope_type,
+        scope_id: payload.scope_id,
+      });
+
+    if (scopeErr) {
+      await supabaseAdmin.auth.admin.deleteUser(newUserId);
+      const msg = scopeErr.message || "Erro ao criar escopo inicial";
+      console.log(JSON.stringify({ stage: 'insert_user_access_scope', error: msg, status: 400 }));
+      return json({ success: false, message: msg, code: 'INSERT_SCOPE_FAILED' }, 400);
+    }
+    if (payload.assign_org_admin && payload.scope_type === 'organization') {
+      const { error: roleErr } = await supabaseAdmin
+        .from("user_roles")
+        .insert({
+          user_id: newUserId,
+          role: 'ORG_ADMIN',
+          organization_id: payload.scope_id,
+        });
+      if (roleErr) {
+        console.log(JSON.stringify({ stage: 'assign_org_admin', error: roleErr.message, status: 400 }));
+        return json({ success: false, message: 'Falha ao atribuir privilégios de admin organizacional', code: 'ASSIGN_ORG_ADMIN_FAILED' }, 400);
+      }
+      const { data: canEditOrg, error: canEditErr } = await supabaseAdmin.rpc("can_edit_org", { _user_id: newUserId, _org_id: payload.scope_id });
+      const { data: hasOrgAccess, error: hasAccessErr } = await supabaseAdmin.rpc("has_org_access", { _user_id: newUserId, _org_id: payload.scope_id });
+      if (canEditErr || hasAccessErr || !canEditOrg || !hasOrgAccess) {
+        console.log(JSON.stringify({ stage: 'verify_org_admin', canEditErr: canEditErr?.message, hasAccessErr: hasAccessErr?.message, canEditOrg, hasOrgAccess, status: 500 }));
+        return json({ success: false, message: 'Verificação de privilégios falhou', code: 'VERIFY_ORG_ADMIN_FAILED' }, 500);
+      }
+      await supabaseAdmin.from("events").insert({
+        event_type: 'ORG_ADMIN_ASSIGNED',
+        entity_type: 'organization',
+        entity_id: payload.scope_id,
+        user_id: newUserId,
+        metadata: { requested_by: requesterId },
+      });
+    }
+
+    console.log(JSON.stringify({ stage: 'success', requesterId, user_id: newUserId, scope_type: payload.scope_type, assign_org_admin: !!payload.assign_org_admin, status: 200 }));
+    return json({ success: true, user_id: newUserId, scope: { scope_type: payload.scope_type, scope_id: payload.scope_id }, assigned_org_admin: !!payload.assign_org_admin });
   } catch (err: any) {
-    return json({ success: false, message: err?.message || "Erro interno" }, 500);
+    console.log(JSON.stringify({ stage: 'catch', error: err?.message, status: 500 }));
+    return json({ success: false, message: err?.message || "Erro interno", code: 'SERVER_ERROR' }, 500);
   }
 });
-
