@@ -4,8 +4,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { Users, Trash2, Link as LinkIcon, Edit } from "lucide-react";
+import { Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,8 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { notify } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
-import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
-import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
+import { AddGroupModal } from "@/components/modals/AddGroupModal";
 
 interface GroupRow {
   id: string;
@@ -53,8 +52,6 @@ export default function SystemGroups() {
   const [orgFilter, setOrgFilter] = useState<string>("");
   const [orderBy, setOrderBy] = useState<"created_at" | "name">("created_at");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
-  const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [removeGroup, setRemoveGroup] = useState<GroupRow | null>(null);
   const [removingGroup, setRemovingGroup] = useState(false);
   const [editInviteGroup, setEditInviteGroup] = useState<GroupRow | null>(null);
@@ -62,6 +59,10 @@ export default function SystemGroups() {
   const [cascadeGroup, setCascadeGroup] = useState<GroupRow | null>(null);
   const [confirmCascadeName, setConfirmCascadeName] = useState("");
   const [deletingCascade, setDeletingCascade] = useState(false);
+
+  const [selectCreateOrgOpen, setSelectCreateOrgOpen] = useState(false);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [createGroupOrgId, setCreateGroupOrgId] = useState<string>("");
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
@@ -83,20 +84,14 @@ export default function SystemGroups() {
   });
 
   const { data: groupsData, isLoading, error, refetch } = useQuery({
-    queryKey: ["system-groups", page, debouncedSearch, statusFilter, orgFilter, orderBy, orderDir, selectedPeriod, customRange?.from?.toISOString(), customRange?.to?.toISOString()],
+    queryKey: ["system-groups", page, debouncedSearch, statusFilter, orgFilter, orderBy, orderDir],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      const range = getDateRange(selectedPeriod, customRange);
-
       let query = supabase
         .from("groups")
         .select("id, name, provider, status, organization_id, invite_link, organizations(name)", { count: "exact" });
-
-      query = query
-        .gte("created_at", range.from.toISOString())
-        .lte("created_at", range.to.toISOString());
 
       if (debouncedSearch) {
         query = query.ilike("name", `%${debouncedSearch}%`);
@@ -165,6 +160,14 @@ export default function SystemGroups() {
     return <AccessDenied />;
   }
 
+  const getStatusLabel = (status: GroupRow["status"]) => {
+    if (!status) return "Indefinido";
+    if (status === "active") return "Ativo";
+    if (status === "inactive") return "Inativo";
+    if (status === "suspended") return "Suspenso";
+    return status;
+  };
+
   const columns = [
     { key: "name", header: "Nome" },
     {
@@ -176,47 +179,18 @@ export default function SystemGroups() {
       ),
     },
     {
-      key: "provider",
-      header: "Provedor",
-      hideOn: "sm",
-      render: (g: GroupRow) => (
-        <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
-          {g.provider}
-        </span>
-      ),
-    },
-    {
       key: "status",
       header: "Status",
       render: (g: GroupRow) => (
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          g.status === "active" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+          g.status === "active"
+            ? "bg-success/10 text-success"
+            : g.status === "suspended"
+              ? "bg-destructive/10 text-destructive"
+              : "bg-muted text-muted-foreground"
         }`}>
-          {g.status || "indefinido"}
+          {getStatusLabel(g.status)}
         </span>
-      ),
-    },
-    {
-      key: "invite_link",
-      header: "Convite",
-      hideOn: "md",
-      render: (g: GroupRow) => (
-        <div className="flex items-center gap-2">
-          {g.invite_link ? (
-            <a
-              href={g.invite_link}
-              onClick={(e) => e.stopPropagation()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-            >
-              <LinkIcon className="h-3 w-3" />
-              {g.invite_link.slice(0, 22)}...
-            </a>
-          ) : (
-            <span className="text-xs text-muted-foreground">—</span>
-          )}
-        </div>
       ),
     },
     {
@@ -267,13 +241,29 @@ export default function SystemGroups() {
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
           title="Grupos"
           description="Gerenciar grupos do sistema"
+          actions={(
+            <Button
+              onClick={() => {
+                if (orgFilter) {
+                  setCreateGroupOrgId(orgFilter);
+                  setCreateGroupOpen(true);
+                  return;
+                }
+
+                if (!organizations?.length) {
+                  notify.warning("Atenção", "Selecione uma organização para incluir um grupo.");
+                  return;
+                }
+
+                setCreateGroupOrgId(organizations[0].id);
+                setSelectCreateOrgOpen(true);
+              }}
+            >
+              Novo grupo
+            </Button>
+          )}
           filters={(
             <div className="flex flex-wrap items-center gap-2">
-              <PeriodFilter
-                value={selectedPeriod}
-                customRange={customRange}
-                onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
-              />
               <input
                 type="text"
                 placeholder="Buscar por nome"
@@ -318,17 +308,16 @@ export default function SystemGroups() {
               </select>
             </div>
           )}
-          showClearFilters={selectedPeriod !== '7d' || !!customRange || !!search || !!orgFilter || statusFilter !== 'all'}
-          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setSearch(""); setOrgFilter(""); setStatusFilter('all'); setOrderBy('created_at'); setOrderDir('desc'); setPage(1); }}
-          filteredKpis={(
-            <StatsCard
-              title="Grupos no período"
-              value={groupsData?.count ?? '—'}
-              icon={Users}
-              variant="kpi"
-            />
-          )}
+          showClearFilters={!!search || !!orgFilter || statusFilter !== 'all'}
+          onClearFilters={() => { setSearch(""); setOrgFilter(""); setStatusFilter('all'); setOrderBy('created_at'); setOrderDir('desc'); setPage(1); }}
         />
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Total de grupos</span>
+          <Badge variant="secondary" className="tabular-nums">
+            {typeof groupsData?.count === "number" ? groupsData.count.toLocaleString("pt-BR") : "—"}
+          </Badge>
+        </div>
 
         <BorisTable
           columns={columns as any}
@@ -465,7 +454,57 @@ export default function SystemGroups() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <AlertDialog open={selectCreateOrgOpen} onOpenChange={setSelectCreateOrgOpen}>
+          <AlertDialogContent className="bg-card border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-card-foreground">Novo grupo</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground">
+                Selecione a organização onde o grupo será incluído.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-3">
+              <select
+                value={createGroupOrgId}
+                onChange={(e) => setCreateGroupOrgId(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+              >
+                {(organizations ?? []).map((org) => (
+                  <option key={org.id} value={org.id}>{org.name}</option>
+                ))}
+              </select>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="mr-2">Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (!createGroupOrgId) {
+                    notify.warning("Atenção", "Selecione uma organização.");
+                    return;
+                  }
+                  setOrgFilter(createGroupOrgId);
+                  setPage(1);
+                  setSelectCreateOrgOpen(false);
+                  setCreateGroupOpen(true);
+                }}
+              >
+                Continuar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
+
+      <AddGroupModal
+        organizationId={createGroupOrgId}
+        organizationName={(organizations ?? []).find((o) => o.id === createGroupOrgId)?.name || ""}
+        open={createGroupOpen}
+        onOpenChange={setCreateGroupOpen}
+        onSuccess={(groupId) => {
+          refetch();
+          navigate(`/groups/${groupId}`);
+        }}
+      />
     </AdminLayout>
   );
 }

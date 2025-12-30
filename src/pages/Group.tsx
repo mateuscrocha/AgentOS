@@ -25,8 +25,9 @@ import { PeriodReport } from "@/components/group-dashboard";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/period-utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { HelpCircle } from "lucide-react";
+import { BarChart3, HelpCircle, MessageSquare, Target, TrendingUp, Users } from "lucide-react";
 import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
+import { Button } from "@/components/ui/button";
  
 
 const Group = () => {
@@ -235,13 +236,10 @@ const Group = () => {
           showClearFilters={hasActiveFilters}
           onClearFilters={handleClearFilters}
           rightActions={(
-            <button
-              onClick={() => setHelpOpen(true)}
-              className="flex items-center gap-2 text-xs text-primary hover:underline"
-            >
+            <Button variant="link" size="sm" className="h-8 px-0 text-xs" onClick={() => setHelpOpen(true)}>
               <HelpCircle className="h-4 w-4" />
               Como ler este dashboard
-            </button>
+            </Button>
           )}
         />
 
@@ -319,149 +317,209 @@ const Group = () => {
 
         
 
-        {/* 2. Summary Section - KPIs */}
         {(() => {
-          const summaryStats = {
-            totalMessages: Number((stats as any)?.totalMessages ?? (stats as any)?.totalMessages7d ?? 0),
-            activeMembers: Number((stats as any)?.activeMembers ?? (stats as any)?.activeMembers7d ?? 0),
-            engagementRate: Number((stats as any)?.engagementRate ?? 0),
-            totalMembers: Number((stats as any)?.totalMembers ?? currentMembers ?? 0),
-          };
-          const prevSummaryStats = previousStats ? {
-            totalMessages: Number((previousStats as any)?.totalMessages ?? (previousStats as any)?.totalMessages7d ?? 0),
-            activeMembers: Number((previousStats as any)?.activeMembers ?? (previousStats as any)?.activeMembers7d ?? 0),
-            totalMembers: Number((previousStats as any)?.totalMembers ?? (previousStats as any)?.totalMembersSnapshot ?? 0),
-            engagementRate: Number((previousStats as any)?.engagementRate ?? 0),
-          } : undefined;
+          const navItems = [
+            { id: "visao-geral", label: "Visão geral", Icon: BarChart3 },
+            { id: "conversas", label: "Conversas", Icon: MessageSquare },
+            { id: "participacao", label: "Participação", Icon: Users },
+            { id: "crescimento", label: "Crescimento", Icon: TrendingUp },
+            { id: "proposito", label: "Propósito", Icon: Target },
+          ];
+
+          const nav = navItems.map(({ id, label, Icon }) => (
+            <Button
+              key={id}
+              asChild
+              variant="ghost"
+              size="sm"
+              className="shrink-0 justify-start gap-2 text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60"
+            >
+              <a href={`#${id}`}>
+                <Icon className="h-4 w-4" />
+                {label}
+              </a>
+            </Button>
+          ));
+
           return (
-            <SummarySection
-              stats={summaryStats}
-              previousStats={prevSummaryStats}
-              currentMembers={currentMembers}
-              selectedPeriod={selectedPeriod}
-              newMembersCount={newMembersCount}
-              previousNewMembersCount={previousNewMembersCount}
-              exitedMembersCount={exitedMembersCount}
-              previousExitedMembersCount={previousExitedMembersCount}
-              isLoading={isLoading}
-            />
+            <div className="space-y-4">
+              <div className="lg:hidden">
+                <div className="text-xs font-medium text-muted-foreground mb-2">Seções do painel</div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {nav}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
+                <aside className="hidden lg:block sticky top-20 self-start">
+                  <div className="rounded-xl border border-border bg-muted/20 p-3">
+                    <div className="text-xs font-medium text-muted-foreground mb-2">Seções do painel</div>
+                    <div className="flex flex-col gap-2">
+                      {navItems.map(({ id, label, Icon }) => (
+                        <Button
+                          key={id}
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                        >
+                          <a href={`#${id}`}>
+                            <Icon className="h-4 w-4" />
+                            {label}
+                          </a>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </aside>
+
+                <div className="space-y-10">
+                  <section id="visao-geral" className="scroll-mt-24 space-y-8">
+                    {(() => {
+                      const summaryStats = {
+                        totalMessages: Number((stats as any)?.totalMessages ?? (stats as any)?.totalMessages7d ?? 0),
+                        activeMembers: Number((stats as any)?.activeMembers ?? (stats as any)?.activeMembers7d ?? 0),
+                        engagementRate: Number((stats as any)?.engagementRate ?? 0),
+                        totalMembers: Number((stats as any)?.totalMembers ?? currentMembers ?? 0),
+                      };
+                      const prevSummaryStats = previousStats ? {
+                        totalMessages: Number((previousStats as any)?.totalMessages ?? (previousStats as any)?.totalMessages7d ?? 0),
+                        activeMembers: Number((previousStats as any)?.activeMembers ?? (previousStats as any)?.activeMembers7d ?? 0),
+                        totalMembers: Number((previousStats as any)?.totalMembers ?? (previousStats as any)?.totalMembersSnapshot ?? 0),
+                        engagementRate: Number((previousStats as any)?.engagementRate ?? 0),
+                      } : undefined;
+                      return (
+                        <SummarySection
+                          stats={summaryStats}
+                          previousStats={prevSummaryStats}
+                          currentMembers={currentMembers}
+                          selectedPeriod={selectedPeriod}
+                          newMembersCount={newMembersCount}
+                          previousNewMembersCount={previousNewMembersCount}
+                          exitedMembersCount={exitedMembersCount}
+                          previousExitedMembersCount={previousExitedMembersCount}
+                          isLoading={isLoading}
+                        />
+                      );
+                    })()}
+
+                    <PeriodReport
+                      stats={stats}
+                      previousStats={previousStats || undefined}
+                      currentMembers={currentMembers}
+                      themes={(ikigaiSuggestions as any)?.themes || []}
+                      atRiskMembersCount={atRiskMembers.length}
+                      newMembersCount={newMembersCount}
+                      previousNewMembersCount={previousNewMembersCount}
+                      exitedMembersCount={exitedMembersCount}
+                      previousExitedMembersCount={previousExitedMembersCount}
+                      periodLabel={getPeriodLabel()}
+                      groupId={group.id}
+                    />
+
+                    <RecentActivitySection
+                      messagesPerDay={messagesPerDay}
+                      activityByHour={activityByHour}
+                      ikigaiSuggestions={ikigaiSuggestions as any}
+                      busyDayAvatars={busyDayAvatars as any}
+                      peakWindowAvatars={peakWindowAvatars as any}
+                      themeAvatars={themeAvatars as any}
+                      isLoading={isLoading}
+                      periodLabel={getPeriodLabel()}
+                    />
+                  </section>
+
+                  <section id="conversas" className="scroll-mt-24 space-y-8">
+                    <ConversationRhythmSection
+                      messagesPerDay={messagesPerDay}
+                      activeMembersPerDay={activeMembersPerDay}
+                      peakHour={peakHour ?? undefined}
+                      peakHourMessages={peakHourMessages}
+                      previousPeakHour={previousPeakHour}
+                      previousPeakHourMessages={previousPeakHourMessages}
+                      isLoading={isLoading}
+                      periodLabel={getPeriodLabel()}
+                    />
+
+                    <EffortNoiseSection
+                      stats={stats}
+                      messagesPerDay={messagesPerDay}
+                      membersOverview={membersOverview}
+                      periodDays={periodDays}
+                      isLoading={isLoading}
+                      periodLabel={getPeriodLabel()}
+                      currentMembers={currentMembers}
+                    />
+                  </section>
+
+                  <section id="participacao" className="scroll-mt-24 space-y-8">
+                    <PeopleSection
+                      groupId={group.id}
+                      topParticipant={stats.topParticipant}
+                      previousTopParticipant={previousStats?.topParticipant}
+                      topParticipants={topParticipants}
+                      memberEngagement={memberEngagement}
+                      previousMemberEngagement={previousMemberEngagement}
+                      isLoading={isLoading}
+                      periodLabel={getPeriodLabel()}
+                    />
+
+                    <ParticipationQualitySection
+                      membersOverview={membersOverview}
+                      previousMembersOverview={previousMembersOverview}
+                      stats={stats}
+                      previousStats={previousStats || undefined}
+                      currentMembers={currentMembers}
+                      isLoading={isLoading}
+                      periodLabel={getPeriodLabel()}
+                    />
+
+                    <AdminsSection
+                      adminStats={adminStats || undefined}
+                      previousAdminStats={previousAdminStats}
+                      isLoading={isLoading}
+                      periodLabel={getPeriodLabel()}
+                    />
+                  </section>
+
+                  <section id="crescimento" className="scroll-mt-24 space-y-8">
+                    <GroupGrowthSection
+                      entriesPerDay={memberEntriesPerDay}
+                      exitsPerDay={memberExitsPerDay}
+                      currentMembers={currentMembers}
+                      membersAtPeriodStart={membersAtPeriodStart}
+                      daysWithActivity={daysWithActivity}
+                      periodDays={periodDays}
+                      isLoading={isLoading}
+                      periodLabel={getPeriodLabel()}
+                    />
+                  </section>
+
+                  <section id="proposito" className="scroll-mt-24 space-y-8">
+                    <PurposeAlignmentSection
+                      alignedPercent={alignedMessagesPercent}
+                      activePercent={activePercent}
+                      recurringPercent={recurringPercent}
+                      activeDaysPercent={activeDaysPercent}
+                      lowEffortPercent={lowEffortPercent}
+                      isLoading={isLoading}
+                      hasIkigai={hasIkigai}
+                      periodLabel={getPeriodLabel()}
+                      onOpenIkigai={() => setIkigaiOpen(true)}
+                    />
+
+                    <TopicsKeywordsSection
+                      blocks={topicBlocks as any}
+                      previousBlocks={previousTopicBlocks as any}
+                      isLoading={isLoading}
+                      periodLabel={getPeriodLabel()}
+                    />
+                  </section>
+                </div>
+              </div>
+            </div>
           );
         })()}
-
-        <PeriodReport
-          stats={stats}
-          previousStats={previousStats || undefined}
-          currentMembers={currentMembers}
-          themes={(ikigaiSuggestions as any)?.themes || []}
-          atRiskMembersCount={atRiskMembers.length}
-          newMembersCount={newMembersCount}
-          previousNewMembersCount={previousNewMembersCount}
-          exitedMembersCount={exitedMembersCount}
-          previousExitedMembersCount={previousExitedMembersCount}
-          periodLabel={getPeriodLabel()}
-          groupId={group.id}
-        />
-
-        {/* Assuntos e Palavras-chave */}
-        <TopicsKeywordsSection
-          blocks={topicBlocks as any}
-          previousBlocks={previousTopicBlocks as any}
-          isLoading={isLoading}
-          periodLabel={getPeriodLabel()}
-        />
-
-        {/* Recent Activity Patterns */}
-        <RecentActivitySection
-          messagesPerDay={messagesPerDay}
-          activityByHour={activityByHour}
-          ikigaiSuggestions={ikigaiSuggestions as any}
-          busyDayAvatars={busyDayAvatars as any}
-          peakWindowAvatars={peakWindowAvatars as any}
-          themeAvatars={themeAvatars as any}
-          isLoading={isLoading}
-          periodLabel={getPeriodLabel()}
-        />
-
-        {/* 3. Conversation Rhythm Section */}
-        <ConversationRhythmSection
-          messagesPerDay={messagesPerDay}
-          activeMembersPerDay={activeMembersPerDay}
-          peakHour={peakHour ?? undefined}
-          peakHourMessages={peakHourMessages}
-          previousPeakHour={previousPeakHour}
-          previousPeakHourMessages={previousPeakHourMessages}
-          isLoading={isLoading}
-          periodLabel={getPeriodLabel()}
-        />
-
-        {/* 4. People Section */}
-        <PeopleSection
-          groupId={group.id}
-          topParticipant={stats.topParticipant}
-          previousTopParticipant={previousStats?.topParticipant}
-          topParticipants={topParticipants}
-          memberEngagement={memberEngagement}
-          previousMemberEngagement={previousMemberEngagement}
-          isLoading={isLoading}
-          periodLabel={getPeriodLabel()}
-        />
-
-        {/* 4.0 Purpose Alignment Section */}
-        <PurposeAlignmentSection
-          alignedPercent={alignedMessagesPercent}
-          activePercent={activePercent}
-          recurringPercent={recurringPercent}
-          activeDaysPercent={activeDaysPercent}
-          lowEffortPercent={lowEffortPercent}
-          isLoading={isLoading}
-          hasIkigai={hasIkigai}
-          periodLabel={getPeriodLabel()}
-          onOpenIkigai={() => setIkigaiOpen(true)}
-        />
-
-        {/* 4.1 Participation Quality Section */}
-        <ParticipationQualitySection
-          membersOverview={membersOverview}
-          previousMembersOverview={previousMembersOverview}
-          stats={stats}
-          previousStats={previousStats || undefined}
-          currentMembers={currentMembers}
-          isLoading={isLoading}
-          periodLabel={getPeriodLabel()}
-        />
-
-        {/* 4.2 Group Growth Section */}
-        <GroupGrowthSection
-          entriesPerDay={memberEntriesPerDay}
-          exitsPerDay={memberExitsPerDay}
-          currentMembers={currentMembers}
-          membersAtPeriodStart={membersAtPeriodStart}
-          daysWithActivity={daysWithActivity}
-          periodDays={periodDays}
-          isLoading={isLoading}
-          periodLabel={getPeriodLabel()}
-        />
-
-        {/* 4.3 Effort and Noise Section */}
-        <EffortNoiseSection
-          stats={stats}
-          messagesPerDay={messagesPerDay}
-          membersOverview={membersOverview}
-          periodDays={periodDays}
-          isLoading={isLoading}
-          periodLabel={getPeriodLabel()}
-          currentMembers={currentMembers}
-        />
-
-        
-
-        {/* 6. Admins Section */}
-        <AdminsSection
-          adminStats={adminStats || undefined}
-          previousAdminStats={previousAdminStats}
-          isLoading={isLoading}
-          periodLabel={getPeriodLabel()}
-        />
       </div>
       <EditIkigaiModal
         groupId={group.id}
