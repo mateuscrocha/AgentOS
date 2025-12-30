@@ -1,9 +1,11 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 interface ProvisionPayload {
@@ -50,21 +52,35 @@ serve(async (req) => {
     // Validate required fields
     if (!payload.lead?.user_id || !payload.lead?.email || !payload.lead?.name) {
       return new Response(
-        JSON.stringify({ success: false, message: 'Lead data is incomplete' }),
+        JSON.stringify({ success: false, code: 'LEAD_DATA_INCOMPLETE', message: 'Lead data is incomplete' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!payload.organization?.name) {
       return new Response(
-        JSON.stringify({ success: false, message: 'Organization name is required' }),
+        JSON.stringify({ success: false, code: 'ORG_NAME_REQUIRED', message: 'Organization name is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!payload.group?.name || !payload.group?.whatsapp_provider_id) {
       return new Response(
-        JSON.stringify({ success: false, message: 'Group data is incomplete' }),
+        JSON.stringify({ success: false, code: 'GROUP_DATA_INCOMPLETE', message: 'Group data is incomplete' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (payload.group?.provider && payload.group.provider !== 'whatsapp') {
+      return new Response(
+        JSON.stringify({ success: false, code: 'UNSUPPORTED_PROVIDER', message: 'Only WhatsApp provider is supported' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (payload.participants && !Array.isArray(payload.participants)) {
+      return new Response(
+        JSON.stringify({ success: false, code: 'INVALID_PARTICIPANTS', message: 'Participants must be an array' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -93,7 +109,7 @@ serve(async (req) => {
     if (orgError) {
       console.error('Error creating organization:', orgError);
       return new Response(
-        JSON.stringify({ success: false, message: 'Failed to create organization: ' + orgError.message }),
+        JSON.stringify({ success: false, code: 'ORG_CREATE_FAILED', message: 'Failed to create organization: ' + orgError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -193,7 +209,7 @@ serve(async (req) => {
       // Rollback: delete organization
       await supabase.from('organizations').delete().eq('id', org.id);
       return new Response(
-        JSON.stringify({ success: false, message: 'Failed to create group: ' + groupError.message }),
+        JSON.stringify({ success: false, code: 'GROUP_CREATE_FAILED', message: 'Failed to create group: ' + groupError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -325,7 +341,7 @@ serve(async (req) => {
     console.error('Error in provision-onboarding:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ success: false, message }),
+      JSON.stringify({ success: false, code: 'UNEXPECTED_ERROR', message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

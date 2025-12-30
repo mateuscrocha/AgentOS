@@ -151,7 +151,8 @@ export function AddGroupModal({
       handleOpenChange(false);
       onSuccess(data.group_id);
     } catch (error: any) {
-      notify.error('Não foi possível incluir', 'Algo deu errado. Tente novamente.');
+      const errMsg = error?.message || 'Algo deu errado. Tente novamente.';
+      notify.error('Não foi possível incluir', errMsg);
     } finally {
       setIsSubmitting(false);
     }

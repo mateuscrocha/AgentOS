@@ -1,9 +1,11 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 interface ProvisionGroupPayload {
@@ -34,7 +36,7 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ success: false, message: 'Authorization required' }),
+        JSON.stringify({ success: false, code: 'AUTH_REQUIRED', message: 'Authorization required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -47,17 +49,30 @@ serve(async (req) => {
       participants_count: payload.participants.length,
     }));
 
-    // Validate required fields
     if (!payload.organization_id) {
       return new Response(
-        JSON.stringify({ success: false, message: 'Organization ID is required' }),
+        JSON.stringify({ success: false, code: 'ORG_ID_REQUIRED', message: 'Organization ID is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!payload.group?.name || !payload.group?.whatsapp_provider_id) {
       return new Response(
-        JSON.stringify({ success: false, message: 'Group data is incomplete' }),
+        JSON.stringify({ success: false, code: 'GROUP_DATA_INCOMPLETE', message: 'Group data is incomplete' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (payload.group?.provider && payload.group.provider !== 'whatsapp') {
+      return new Response(
+        JSON.stringify({ success: false, code: 'UNSUPPORTED_PROVIDER', message: 'Only WhatsApp provider is supported' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (payload.participants && !Array.isArray(payload.participants)) {
+      return new Response(
+        JSON.stringify({ success: false, code: 'INVALID_PARTICIPANTS', message: 'Participants must be an array' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -81,7 +96,7 @@ serve(async (req) => {
     if (userError || !user) {
       console.error('Error getting user:', userError);
       return new Response(
-        JSON.stringify({ success: false, message: 'Invalid authentication' }),
+        JSON.stringify({ success: false, code: 'AUTH_INVALID', message: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -99,7 +114,7 @@ serve(async (req) => {
     if (orgError || !org) {
       console.error('Organization access error:', orgError);
       return new Response(
-        JSON.stringify({ success: false, message: 'Organization not found or access denied' }),
+        JSON.stringify({ success: false, code: 'ORG_ACCESS_DENIED', message: 'Organization not found or access denied' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -114,8 +129,9 @@ serve(async (req) => {
     if (existingGroup) {
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          message: `Este grupo já está incluído como "${existingGroup.name}"` 
+          success: false,
+          code: 'GROUP_ALREADY_EXISTS',
+          message: `Este grupo já está incluído como "${existingGroup.name}"`
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -138,12 +154,12 @@ serve(async (req) => {
       console.error('Error adding group:', groupError);
       if (groupError.message?.includes('row-level security')) {
         return new Response(
-          JSON.stringify({ success: false, message: 'Você não tem permissão para incluir grupos nesta organização' }),
+          JSON.stringify({ success: false, code: 'RLS_DENIED', message: 'Você não tem permissão para incluir grupos nesta organização' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       return new Response(
-        JSON.stringify({ success: false, message: 'Falha ao incluir grupo: ' + groupError.message }),
+        JSON.stringify({ success: false, code: 'GROUP_INSERT_FAILED', message: 'Falha ao incluir grupo: ' + groupError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -218,7 +234,7 @@ serve(async (req) => {
     console.error('Error in provision-group:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ success: false, message }),
+      JSON.stringify({ success: false, code: 'UNEXPECTED_ERROR', message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
