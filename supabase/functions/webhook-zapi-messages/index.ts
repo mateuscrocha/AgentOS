@@ -168,6 +168,13 @@ serve(async (req: Request) => {
       );
     }
 
+    const touchGroupSync = async () => {
+      await supabase
+        .from('groups')
+        .update({ last_sync_at: new Date().toISOString(), sync_status: 'active', sync_error: null })
+        .eq('id', groupId);
+    };
+
     const messageId: string | null = firstString(
       payload.messageId,
       payload.id,
@@ -238,6 +245,8 @@ serve(async (req: Request) => {
           });
         }
       }
+
+      await touchGroupSync();
 
       return new Response(
         JSON.stringify({ success: true, type: 'poll', poll_id: pollId }),
@@ -347,6 +356,8 @@ serve(async (req: Request) => {
       }
 
       // Não criar mensagens para votos
+
+      await touchGroupSync();
 
       return new Response(
         JSON.stringify({ success: true, type: 'poll_vote' }),
@@ -538,12 +549,9 @@ serve(async (req: Request) => {
           }
 
           await supabase.from('messages').insert(insertPayload);
-
-          await supabase
-            .from('groups')
-            .update({ last_sync_at: new Date().toISOString(), sync_status: 'active', sync_error: null })
-            .eq('id', groupId);
         }
+
+        await touchGroupSync();
 
         return new Response(
           JSON.stringify({ success: true, type: 'message' }),
