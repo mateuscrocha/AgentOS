@@ -98,10 +98,6 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     };
   }, [groupId, isAuthenticated, queryClient]);
 
-  // Chart should respect selected period strictly
-  const chartDays = periodDays;
-  const chartStartISO = currentPeriodStartISO;
-
   // Fetch group details
   const { data: group, isLoading: groupLoading, error: groupError } = useQuery({
     queryKey: ['group-dashboard', groupId],
@@ -601,26 +597,26 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
   // Fetch member entries per day
   const { data: memberEntriesPerDay } = useQuery({
-    queryKey: ['group-dashboard-entries-day', groupId, chartStartISO, currentPeriodEndISO],
+    queryKey: ['group-dashboard-entries-day', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
         .from('member_events')
-        .select('occurred_at, event_type')
+        .select('created_at, event_type')
         .eq('group_id', groupId!)
         .in('event_type', ['GROUP_PARTICIPANT_ADD', 'GROUP_PARTICIPANT_INVITE'])
-        .gte('occurred_at', chartStartISO)
-        .lte('occurred_at', currentPeriodEndISO)
-        .order('occurred_at', { ascending: true });
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO)
+        .order('created_at', { ascending: true });
 
       const countsByDay: Record<string, number> = {};
-      for (let i = chartDays - 1; i >= 0; i--) {
+      for (let i = periodDays - 1; i >= 0; i--) {
         const date = subDays(currentPeriodEnd, i);
         const dateKey = formatDateKeySP(date);
         countsByDay[dateKey] = 0;
       }
 
       data?.forEach(m => {
-        const dateKey = formatDateKeySP(new Date((m as any).occurred_at));
+        const dateKey = formatDateKeySP(new Date((m as any).created_at));
         if (countsByDay[dateKey] !== undefined) {
           countsByDay[dateKey]++;
         }
@@ -633,26 +629,26 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
   // Fetch member exits per day
   const { data: memberExitsPerDay } = useQuery({
-    queryKey: ['group-dashboard-exits-day', groupId, chartStartISO, currentPeriodEndISO],
+    queryKey: ['group-dashboard-exits-day', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
         .from('member_events')
-        .select('occurred_at, event_type')
+        .select('created_at, event_type')
         .eq('group_id', groupId!)
         .in('event_type', ['GROUP_PARTICIPANT_LEAVE', 'GROUP_PARTICIPANT_REMOVE'])
-        .gte('occurred_at', chartStartISO)
-        .lte('occurred_at', currentPeriodEndISO)
-        .order('occurred_at', { ascending: true });
+        .gte('created_at', currentPeriodStartISO)
+        .lte('created_at', currentPeriodEndISO)
+        .order('created_at', { ascending: true });
 
       const countsByDay: Record<string, number> = {};
-      for (let i = chartDays - 1; i >= 0; i--) {
+      for (let i = periodDays - 1; i >= 0; i--) {
         const date = subDays(currentPeriodEnd, i);
         const dateKey = formatDateKeySP(date);
         countsByDay[dateKey] = 0;
       }
 
       data?.forEach(m => {
-        const dateKey = formatDateKeySP(new Date((m as any).occurred_at));
+        const dateKey = formatDateKeySP(new Date((m as any).created_at));
         if (countsByDay[dateKey] !== undefined) {
           countsByDay[dateKey]++;
         }
@@ -664,11 +660,11 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   });
 
   const { data: memberEvents, isLoading: memberEventsLoading } = useQuery({
-    queryKey: ["group-dashboard-member-events", groupId],
+    queryKey: ["group-dashboard-member-events", groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("member_events")
-        .select("id, occurred_at, event_type, member_id, external_member_id, source, members(name, display_name, profile_pic_url)")
+        .select("id, created_at, occurred_at, event_type, member_id, external_member_id, source, members(name, display_name, profile_pic_url)")
         .eq("group_id", groupId!)
         .in("event_type", [
           "GROUP_PARTICIPANT_ADD",
@@ -676,7 +672,9 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
           "GROUP_PARTICIPANT_LEAVE",
           "GROUP_PARTICIPANT_REMOVE",
         ])
-        .order("occurred_at", { ascending: false })
+        .gte("created_at", currentPeriodStartISO)
+        .lte("created_at", currentPeriodEndISO)
+        .order("created_at", { ascending: false })
         .range(0, 999);
 
       if (error) throw error;
@@ -688,7 +686,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         const memberAvatarUrl = (e.members?.profile_pic_url as string | null) ?? null;
         return {
           id: e.id as string,
-          occurredAt: e.occurred_at as string,
+          occurredAt: e.created_at as string,
           eventType: type,
           kind,
           memberId: (e.member_id as string | null) ?? null,

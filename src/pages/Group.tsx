@@ -440,6 +440,7 @@ const Group = () => {
 
             <div className="space-y-8">
               <GroupGrowthSection
+                groupId={group.id}
                 entriesPerDay={memberEntriesPerDay}
                 exitsPerDay={memberExitsPerDay}
                 memberEvents={memberEvents}
