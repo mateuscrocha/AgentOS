@@ -9,6 +9,7 @@ interface KpiCardProps {
   subtitle?: string;
   icon?: LucideIcon;
   helpText?: string;
+  valueClassName?: string;
   trend?: {
     value: number;
     label?: string;
@@ -24,6 +25,7 @@ export function KpiCard({
   subtitle,
   icon: Icon, 
   helpText,
+  valueClassName,
   trend, 
   isLoading,
   className 
@@ -79,7 +81,7 @@ export function KpiCard({
         <Skeleton className="h-8 w-20" />
       ) : (
         <div className="space-y-1">
-          <p className="text-2xl font-bold text-card-foreground">{value}</p>
+          <p className={cn("text-2xl font-bold", valueClassName || "text-card-foreground")}>{value}</p>
           {subtitle && (
             <p className="text-xs text-muted-foreground">{subtitle}</p>
           )}
