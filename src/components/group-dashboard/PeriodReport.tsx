@@ -330,7 +330,7 @@ export function PeriodReport({
         </div>
 
         <div>
-          <Link to={`/groups/${groupId}#group-themes`} className="text-xs text-primary hover:underline transition-colors">Ver análise detalhada →</Link>
+          <Link to={`/groups/${groupId}#conversas`} className="text-xs text-primary hover:underline transition-colors">Ver análise detalhada →</Link>
         </div>
       </div>
     </section>

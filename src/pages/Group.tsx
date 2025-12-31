@@ -10,7 +10,6 @@ import { useGroupDashboard } from "@/hooks/use-group-dashboard";
 import AccessDenied from "./AccessDenied";
 import {
   SummarySection,
-  RecentActivitySection,
   ConversationRhythmSection,
   PeakMomentSection,
   PeopleSection,
@@ -421,27 +420,12 @@ const Group = () => {
                       atRiskMembersCount={atRiskMembers.length}
                       groupId={group.id}
                     />
-
-                    <RecentActivitySection
-                      messagesPerDay={messagesPerDay}
-                      activityByHour={activityByHour}
-                      ikigaiSuggestions={ikigaiSuggestions as any}
-                      busyDayAvatars={busyDayAvatars as any}
-                      peakWindowAvatars={peakWindowAvatars as any}
-                      themeAvatars={themeAvatars as any}
-                      isLoading={isLoading}
-                      periodLabel={getPeriodLabel()}
-                    />
                   </section>
 
                   <section id="conversas" className="scroll-mt-24 space-y-8">
                     <ConversationRhythmSection
                       messagesPerDay={messagesPerDay}
                       activeMembersPerDay={activeMembersPerDay}
-                      peakHour={peakHour ?? undefined}
-                      peakHourMessages={peakHourMessages}
-                      previousPeakHour={previousPeakHour}
-                      previousPeakHourMessages={previousPeakHourMessages}
                       isLoading={isLoading}
                       periodLabel={getPeriodLabel()}
                     />
@@ -450,6 +434,8 @@ const Group = () => {
                       groupId={group.id}
                       startDate={currentRange.from}
                       endDate={currentRange.to}
+                      messagesPerDay={messagesPerDay}
+                      isDashboardLoading={isLoading}
                     />
 
                     <EffortNoiseSection

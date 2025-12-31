@@ -182,7 +182,7 @@ export function AlertsSection({
                 <p key={t.phrase} className="text-sm text-card-foreground">Tema em alta: “{t.phrase}”</p>
               ))}
             </div>
-            <Link to={groupId ? `/groups/${groupId}#group-themes` : '#'} className="mt-3 text-xs text-primary hover:underline">Ver detalhes</Link>
+            <Link to={groupId ? `/groups/${groupId}#proposito` : '#'} className="mt-3 text-xs text-primary hover:underline">Ver detalhes</Link>
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, MessageSquareText, Users } from "lucide-react";
+import { Activity, CalendarDays, Clock, MessageSquareText, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { SectionHeader } from "./SectionHeader";
@@ -44,10 +44,14 @@ export function PeakMomentSection({
   groupId,
   startDate,
   endDate,
+  messagesPerDay = [],
+  isDashboardLoading,
 }: {
   groupId: string;
   startDate: Date;
   endDate: Date;
+  messagesPerDay?: { date: string; count: number }[];
+  isDashboardLoading?: boolean;
 }) {
   const { isAuthenticated } = useAuth();
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
@@ -55,7 +59,7 @@ export function PeakMomentSection({
   const startISO = startDate.toISOString();
   const endISO = endDate.toISOString();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading: isPeakLoading, isError } = useQuery({
     queryKey: ["group-peak-moment", groupId, startISO, endISO],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_group_peak_moment", {
@@ -70,6 +74,22 @@ export function PeakMomentSection({
     enabled: !!groupId && isAuthenticated,
     staleTime: 60_000,
   });
+
+  const isLoading = isPeakLoading || !!isDashboardLoading;
+
+  const mostActiveDay = useMemo(() => {
+    if (!messagesPerDay || messagesPerDay.length === 0) return null;
+    const counts: Record<string, number> = {};
+    messagesPerDay.forEach((d) => {
+      const day = new Date(d.date).toLocaleDateString("pt-BR", { weekday: "long", timeZone: SAO_PAULO_TZ });
+      counts[day] = (counts[day] || 0) + d.count;
+    });
+    const entries = Object.entries(counts);
+    if (entries.length === 0) return null;
+    const [day, count] = entries.reduce((max, curr) => (curr[1] > max[1] ? curr : max));
+    const dayLabel = day.charAt(0).toUpperCase() + day.slice(1);
+    return { day: dayLabel, count };
+  }, [messagesPerDay]);
 
   const noRelevantPeak = useMemo(() => {
     if (!data) return true;
@@ -94,6 +114,25 @@ export function PeakMomentSection({
     return `${dateLabel}, ${startTime} às ${endTime}`;
   }, [data]);
 
+  const peakHourRangeLabel = useMemo(() => {
+    if (!data?.interval?.start_pico || !data?.interval?.end_pico) return "";
+    const start = new Date(data.interval.start_pico);
+    const end = new Date(data.interval.end_pico);
+    const fmt = (d: Date) =>
+      new Intl.DateTimeFormat("pt-BR", {
+        timeZone: SAO_PAULO_TZ,
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(d);
+    const compact = (time: string) => {
+      const [h, m] = time.split(":");
+      if (!h || !m) return time;
+      if (m === "00") return `${parseInt(h, 10)}h`;
+      return `${h}:${m}`;
+    };
+    return `${compact(fmt(start))}–${compact(fmt(end))}`;
+  }, [data]);
+
   return (
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader
@@ -105,6 +144,10 @@ export function PeakMomentSection({
       {isLoading ? (
         <div className="space-y-5">
           <Skeleton className="h-4 w-64" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Skeleton className="h-[92px] w-full rounded-xl" />
+            <Skeleton className="h-[92px] w-full rounded-xl" />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Skeleton className="h-[92px] w-full rounded-xl" />
             <Skeleton className="h-[92px] w-full rounded-xl" />
@@ -129,6 +172,21 @@ export function PeakMomentSection({
       ) : (
         <div className="space-y-6">
           <div className="text-xs text-muted-foreground">{intervalLabel}</div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <KpiCard
+              title="Horário de maior atividade"
+              value={peakHourRangeLabel || "—"}
+              subtitle={`${(data?.kpis?.total_messages ?? 0).toLocaleString("pt-BR")} msgs`}
+              icon={Clock}
+            />
+            <KpiCard
+              title="Dia mais movimentado"
+              value={mostActiveDay?.day || "—"}
+              subtitle={mostActiveDay ? `${mostActiveDay.count.toLocaleString("pt-BR")} msgs` : "Sem dados"}
+              icon={CalendarDays}
+            />
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <KpiCard
