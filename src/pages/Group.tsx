@@ -17,7 +17,6 @@ import {
   GroupGrowthSection,
   EffortNoiseSection,
   PurposeAlignmentSection,
-  TopicsKeywordsSection,
 } from "@/components/group-dashboard";
 import { PeriodReport } from "@/components/group-dashboard";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
@@ -138,9 +137,6 @@ const Group = () => {
     recurringPercent,
     ikigaiKeywordsList,
     ikigaiSuggestions,
-    previousIkigaiSuggestions,
-    topicBlocks,
-    previousTopicBlocks,
   } = useGroupDashboard({ groupId, dateRange: currentRange });
 
   
@@ -457,7 +453,7 @@ const Group = () => {
           <section className="space-y-6">
             <header className="space-y-1">
               <h2 className="text-lg font-semibold text-foreground">Temas & Propósito</h2>
-              <p className="text-sm text-muted-foreground">Principais termos, leitura qualitativa e insights interpretativos</p>
+              <p className="text-sm text-muted-foreground">Leitura qualitativa e insights interpretativos</p>
             </header>
 
             <div className="space-y-8">
@@ -471,13 +467,6 @@ const Group = () => {
                 hasIkigai={hasIkigai}
                 periodLabel={getPeriodLabel()}
                 onOpenIkigai={() => setIkigaiOpen(true)}
-              />
-
-              <TopicsKeywordsSection
-                blocks={topicBlocks as any}
-                previousBlocks={previousTopicBlocks as any}
-                isLoading={isLoading}
-                periodLabel={getPeriodLabel()}
               />
             </div>
           </section>

@@ -5,12 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
 import { MessageDetailsDrawer } from "@/components/messages/MessageDetailsDrawer";
-import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 
 type DeltaTone = "up" | "down" | "flat";
 
@@ -82,6 +79,14 @@ type PeakMomentResponse = {
   summary?: string | null;
 };
 
+type PeakFeedMessage = {
+  message_id: string;
+  member_name: string | null;
+  content_preview: string | null;
+  message_type: string | null;
+  created_at: string;
+};
+
 export function PeakMomentSection({
   groupId,
   startDate,
@@ -100,7 +105,6 @@ export function PeakMomentSection({
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
 
   const windowMinutes = 60;
-  const [distributionView, setDistributionView] = useState<"chart" | "list">("chart");
 
   const startISO = startDate.toISOString();
   const endISO = endDate.toISOString();
@@ -219,78 +223,30 @@ export function PeakMomentSection({
     return `${peakDateLabel} • ${peakHourRangeLabel}`;
   }, [peakDateLabel, peakHourRangeLabel, peakInterval]);
 
-  const { data: peakMessagesByMinute, isLoading: isPeakDistributionLoading } = useQuery({
+  const { data: peakMessages, isLoading: isPeakMessagesLoading } = useQuery({
     queryKey: [
-      "group-peak-moment-distribution",
+      "group-peak-moment-messages",
       groupId,
       peakInterval?.start.toISOString(),
       peakInterval?.end.toISOString(),
       windowMinutes,
     ],
     queryFn: async () => {
-      if (!peakInterval) return [] as { created_at: string }[];
+      if (!peakInterval) return [] as PeakFeedMessage[];
       const { data, error } = await supabase
-        .from("messages")
-        .select("created_at")
+        .from("v_messages_feed")
+        .select("message_id, member_name, content_preview, message_type, created_at")
         .eq("group_id", groupId)
-        .is("deleted_at", null)
         .gte("created_at", peakInterval.start.toISOString())
         .lte("created_at", peakInterval.end.toISOString())
-        .limit(10000);
+        .order("created_at", { ascending: true })
+        .limit(40);
       if (error) throw error;
-      return ((data as unknown as { created_at: string }[]) || []).filter((r) => !!r.created_at);
+      return (data ?? []) as PeakFeedMessage[];
     },
     enabled: !!groupId && isAuthenticated && !!peakInterval,
     staleTime: 60_000,
   });
-
-  const distributionBuckets = useMemo(() => {
-    if (!peakInterval) return [] as { label: string; count: number; start: Date; end: Date }[];
-    const bucketMinutes = 5;
-    const bucketCount = Math.max(1, Math.ceil(windowMinutes / bucketMinutes));
-    const bucketMs = bucketMinutes * 60_000;
-    const counts = Array.from({ length: bucketCount }, () => 0);
-
-    for (const row of peakMessagesByMinute || []) {
-      const ts = new Date(row.created_at).getTime();
-      const idx = Math.floor((ts - peakInterval.start.getTime()) / bucketMs);
-      if (idx >= 0 && idx < bucketCount) counts[idx] += 1;
-    }
-
-    const fmt = (d: Date) =>
-      new Intl.DateTimeFormat("pt-BR", {
-        timeZone: SAO_PAULO_TZ,
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(d);
-
-    return counts.map((count, idx) => {
-      const start = new Date(peakInterval.start.getTime() + idx * bucketMs);
-      const end = new Date(start.getTime() + bucketMs);
-      const label = `${fmt(start)}–${fmt(end)}`;
-      return { label, count, start, end };
-    });
-  }, [peakInterval, peakMessagesByMinute, windowMinutes]);
-
-  const distributionMaxIndex = useMemo(() => {
-    if (distributionBuckets.length === 0) return -1;
-    let maxIdx = 0;
-    for (let i = 1; i < distributionBuckets.length; i++) {
-      if ((distributionBuckets[i]?.count || 0) > (distributionBuckets[maxIdx]?.count || 0)) maxIdx = i;
-    }
-    return maxIdx;
-  }, [distributionBuckets]);
-
-  const distributionTotal = useMemo(() => {
-    return distributionBuckets.reduce((sum, b) => sum + (b.count || 0), 0);
-  }, [distributionBuckets]);
-
-  const topBuckets = useMemo(() => {
-    return distributionBuckets
-      .map((b, idx) => ({ ...b, idx }))
-      .sort((a, b) => b.count - a.count || a.idx - b.idx)
-      .slice(0, 5);
-  }, [distributionBuckets]);
 
   const highlightTerms = useMemo(() => {
     return (data?.top_terms || [])
@@ -327,6 +283,18 @@ export function PeakMomentSection({
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(dateStr));
+
+  const messageTypeLabel = (t?: string | null) => {
+    const key = (t || "text").toLowerCase();
+    if (key === "text") return "Texto";
+    if (key === "image") return "Imagem";
+    if (key === "video") return "Vídeo";
+    if (key === "audio") return "Áudio";
+    if (key === "document") return "Documento";
+    if (key === "sticker") return "Sticker";
+    if (key === "reaction") return "Reação";
+    return "Mensagem";
+  };
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
@@ -455,91 +423,46 @@ export function PeakMomentSection({
             </div>
 
             <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                <div>
-                  <p className="text-sm font-semibold text-card-foreground">Dentro do pico</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Mensagens a cada 5 minutos</p>
-                </div>
-                <ToggleGroup
-                  type="single"
-                  value={distributionView}
-                  onValueChange={(v) => {
-                    if (!v) return;
-                    setDistributionView(v as "chart" | "list");
-                  }}
-                  variant="outline"
-                  size="sm"
-                  aria-label="Alternar visualização de distribuição"
-                  className="justify-start"
-                >
-                  <ToggleGroupItem value="chart" aria-label="Visualização em gráfico">
-                    Gráfico
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="list" aria-label="Visualização em lista">
-                    Lista
-                  </ToggleGroupItem>
-                </ToggleGroup>
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-card-foreground">Dentro do pico</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Mensagens a cada 5 minutos</p>
               </div>
 
-              {isPeakDistributionLoading ? (
+              {isPeakMessagesLoading ? (
                 <Skeleton className="h-[220px] w-full" />
-              ) : distributionBuckets.length === 0 ? (
-                <div className="h-[220px] flex items-center justify-center rounded-lg border border-border bg-secondary/30">
-                  <p className="text-sm text-muted-foreground">Sem dados suficientes para detalhar o pico</p>
+              ) : (peakMessages || []).length === 0 ? (
+                <div className="flex items-center justify-center rounded-lg border border-border bg-secondary/30 p-6">
+                  <p className="text-sm text-muted-foreground">Sem mensagens suficientes para detalhar o pico</p>
                 </div>
-              ) : distributionView === "chart" ? (
-                <ChartContainer config={{ count: { label: "Mensagens" } }} className="h-[220px] w-full">
-                  <BarChart data={distributionBuckets.map((b) => ({ label: b.label, count: b.count }))}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: 10 }}
-                      className="text-muted-foreground"
-                      axisLine={false}
-                      tickLine={false}
-                      interval={1}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10 }}
-                      className="text-muted-foreground"
-                      axisLine={false}
-                      tickLine={false}
-                      width={36}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
-                      {distributionBuckets.map((_, idx) => (
-                        <Cell
-                          key={idx}
-                          fill="hsl(var(--primary))"
-                          fillOpacity={idx === distributionMaxIndex ? 1 : 0.25}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
               ) : (
-                <ol className="divide-y divide-border">
-                  {topBuckets.map((b, index) => {
-                    const pct = distributionTotal > 0 ? (b.count / distributionTotal) * 100 : 0;
-                    const highlight = b.idx === distributionMaxIndex;
+                <ul className="divide-y divide-border">
+                  {(peakMessages || []).map((m) => {
+                    const timeLabel = formatTimeSP(m.created_at);
+                    const sender = m.member_name || "Desconhecido";
+                    const preview = (m.content_preview || "").trim();
+                    const body = preview ? preview : `[${messageTypeLabel(m.message_type)}]`;
+
                     return (
-                      <li
-                        key={b.label}
-                        className={`py-2 flex items-center gap-3 ${highlight ? "bg-amber-50/40 rounded-md px-2" : ""}`}
-                      >
-                        <span className="w-6 shrink-0 text-xs text-muted-foreground tabular-nums">{index + 1}.</span>
-                        <span className="flex-1 min-w-0 text-sm text-card-foreground truncate">{b.label}</span>
-                        <span className="shrink-0 text-sm text-card-foreground tabular-nums">
-                          {b.count.toLocaleString("pt-BR")}
-                        </span>
-                        <span className="w-14 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
-                          {pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
-                        </span>
+                      <li key={m.message_id} className="py-1">
+                        <button
+                          type="button"
+                          className="w-full rounded-md px-2 py-1 -mx-2 text-left hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() => setSelectedMessageId(m.message_id)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="w-12 shrink-0 pt-0.5 text-xs text-muted-foreground tabular-nums">{timeLabel}</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-medium text-card-foreground truncate">{sender}</div>
+                              <div className="mt-0.5 text-sm text-muted-foreground line-clamp-2 whitespace-pre-wrap break-words">
+                                {body}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
                       </li>
                     );
                   })}
-                </ol>
+                </ul>
               )}
             </div>
 
