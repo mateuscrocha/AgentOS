@@ -5,7 +5,6 @@ export { GroupHeader } from './GroupHeader';
 export { SummarySection } from './SummarySection';
 export { ConversationRhythmSection } from './ConversationRhythmSection';
 export { PeopleSection } from './PeopleSection';
-export { ParticipationQualitySection } from './ParticipationQualitySection';
 export { GroupGrowthSection } from './GroupGrowthSection';
 export { EffortNoiseSection } from './EffortNoiseSection';
 export { AlertsSection } from './AlertsSection';
