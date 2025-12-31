@@ -9,10 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
  
 import AccessDenied from "./AccessDenied";
 import { MemberDetailsDrawer } from "@/components/members/MemberDetailsDrawer";
-import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 
 const PAGE_SIZE = 10;
 
@@ -39,10 +40,53 @@ interface Member {
   raw_provider: Record<string, any> | null;
 }
 
+type MemberRoleKey = "OWNER" | "SUPERADMIN" | "ADMIN" | "MEMBRO";
+
+const getMemberRoleKey = (m: Pick<Member, "is_owner" | "is_super_admin" | "is_admin">): MemberRoleKey => {
+  if (m.is_owner) return "OWNER";
+  if (m.is_super_admin) return "SUPERADMIN";
+  if (m.is_admin) return "ADMIN";
+  return "MEMBRO";
+};
+
+const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = {
+  OWNER: {
+    label: "OWNER",
+    className: "border-zinc-300/60 bg-zinc-200/40 text-zinc-800",
+  },
+  SUPERADMIN: {
+    label: "SUPERADMIN",
+    className: "border-amber-200/70 bg-amber-100/55 text-amber-950",
+  },
+  ADMIN: {
+    label: "ADMIN",
+    className: "border-sky-200/70 bg-sky-100/55 text-sky-950",
+  },
+  MEMBRO: {
+    label: "MEMBRO",
+    className: "border-border bg-muted/50 text-muted-foreground",
+  },
+};
+
+const MemberRoleBadge = ({ role }: { role: MemberRoleKey }) => {
+  const cfg = ROLE_BADGE[role];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center h-5 px-2 rounded-md border text-[10px] font-semibold tracking-wide leading-none",
+        cfg.className
+      )}
+    >
+      {cfg.label}
+    </span>
+  );
+};
+
 const GroupMembers = () => {
   const { groupId } = useParams();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | "superadmin" | "admin" | "member">("all");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
   
@@ -73,7 +117,7 @@ const GroupMembers = () => {
 
   // Fetch members
   const { data: membersData, isLoading, error, refetch } = useQuery({
-    queryKey: ['group-members', groupId, page, search],
+    queryKey: ['group-members', groupId, page, search, roleFilter],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -84,6 +128,18 @@ const GroupMembers = () => {
         .eq('group_id', groupId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
+
+      if (roleFilter === 'superadmin') {
+        query = query.or('is_owner.eq.true,is_super_admin.eq.true');
+      }
+
+      if (roleFilter === 'admin') {
+        query = query.eq('is_admin', true).eq('is_super_admin', false).eq('is_owner', false);
+      }
+
+      if (roleFilter === 'member') {
+        query = query.eq('is_admin', false).eq('is_super_admin', false).eq('is_owner', false);
+      }
       
       if (search) {
         query = query.or(`name.ilike.%${search}%,phone_e164.ilike.%${search}%,display_name.ilike.%${search}%`);
@@ -148,38 +204,40 @@ const GroupMembers = () => {
   }
 
   const columns = [
-    { key: 'name', header: 'Nome', render: (m: Member) => (
-      <MemberInlineTrigger memberId={m.id} groupId={groupId} name={m.name} avatarUrl={m.profile_pic_url} />
-    ) },
-    { key: 'phone_e164', header: 'Telefone', render: (m: Member) => m.phone_e164 || '-', hideOn: 'sm' },
     {
-      key: 'role',
-      header: 'Papel',
-      hideOn: 'md',
-      render: (m: Member) => (
-        <div className="flex gap-1 flex-wrap">
-          {m.is_owner && (
-            <span className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">
-              Owner
-            </span>
-          )}
-          {m.is_super_admin && (
-            <span className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">
-              Super Admin
-            </span>
-          )}
-          {m.is_admin && !m.is_super_admin && (
-            <span className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">
-              Admin
-            </span>
-          )}
-          {!m.is_admin && !m.is_super_admin && !m.is_owner && (
-            <span className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">
-              Membro
-            </span>
-          )}
-        </div>
-      ),
+      key: 'name',
+      header: 'Nome',
+      render: (m: Member) => {
+        const role = getMemberRoleKey(m);
+        const displayName = m.display_name || m.name;
+        return (
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                className="flex items-center gap-2 min-w-0 text-left"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedMemberId(m.id);
+                }}
+              >
+                <Avatar className="h-6 w-6">
+                  {m.profile_pic_url ? (
+                    <AvatarImage src={m.profile_pic_url} alt="" referrerPolicy="no-referrer" />
+                  ) : (
+                    <AvatarFallback>{displayName?.[0]?.toUpperCase() || ""}</AvatarFallback>
+                  )}
+                </Avatar>
+                <span className="min-w-0 truncate text-sm font-medium text-card-foreground">{displayName}</span>
+              </button>
+              <MemberRoleBadge role={role} />
+            </div>
+            {m.phone_e164 ? (
+              <div className="mt-0.5 text-xs text-muted-foreground tabular-nums truncate">{m.phone_e164}</div>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       key: 'status',
@@ -234,33 +292,55 @@ const GroupMembers = () => {
           }}
           activeTab="membros"
           filters={(
-            <div className="relative w-full max-w-lg">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Buscar por nome ou telefone..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              {search && (
-                <button
-                  onClick={() => {
-                    setSearch("");
+            <div className="flex flex-col sm:flex-row gap-2 w-full max-w-2xl">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nome ou telefone..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
                     setPage(1);
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-secondary"
-                >
-                  <X className="h-4 w-4 text-muted-foreground" />
-                </button>
-              )}
+                  className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                {search && (
+                  <button
+                    onClick={() => {
+                      setSearch("");
+                      setPage(1);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-secondary"
+                  >
+                    <X className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                )}
+              </div>
+
+              <Select
+                value={roleFilter}
+                onValueChange={(v) => {
+                  if (v === 'all' || v === 'superadmin' || v === 'admin' || v === 'member') {
+                    setRoleFilter(v);
+                    setPage(1);
+                  }
+                }}
+              >
+                <SelectTrigger className="h-10 sm:w-[200px]">
+                  <SelectValue placeholder="Função" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="superadmin">Superadmins</SelectItem>
+                  <SelectItem value="admin">Admins</SelectItem>
+                  <SelectItem value="member">Membros</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
-          showClearFilters={!!search}
-          onClearFilters={() => { setSearch(""); setPage(1); }}
+          showClearFilters={!!search || roleFilter !== 'all'}
+          onClearFilters={() => { setSearch(""); setRoleFilter('all'); setPage(1); }}
         />
 
         {/* KPIs removidos: mantemos apenas descrição textual no header */}

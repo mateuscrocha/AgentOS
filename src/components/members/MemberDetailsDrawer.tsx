@@ -6,13 +6,13 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { SAO_PAULO_TZ, formatDateSimpleBR, formatDateTimeBR } from "@/lib/date";
 import { Users, Shield, Phone, Mail, MessageSquare, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type MemberDetailsDrawerProps = {
   open: boolean;
@@ -21,6 +21,41 @@ type MemberDetailsDrawerProps = {
   groupId?: string;
   organizationId?: string;
   variant?: "sheet" | "dialog";
+};
+
+type MemberRoleKey = "OWNER" | "SUPERADMIN" | "ADMIN" | "MEMBRO";
+
+const getMemberRoleKey = (m: { is_owner?: boolean | null; is_super_admin?: boolean | null; is_admin?: boolean | null }): MemberRoleKey => {
+  if (m.is_owner) return "OWNER";
+  if (m.is_super_admin) return "SUPERADMIN";
+  if (m.is_admin) return "ADMIN";
+  return "MEMBRO";
+};
+
+const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = {
+  OWNER: {
+    label: "OWNER",
+    className: "border-zinc-300/60 bg-zinc-200/40 text-zinc-800",
+  },
+  SUPERADMIN: {
+    label: "SUPERADMIN",
+    className: "border-amber-200/70 bg-amber-100/55 text-amber-950",
+  },
+  ADMIN: {
+    label: "ADMIN",
+    className: "border-sky-200/70 bg-sky-100/55 text-sky-950",
+  },
+  MEMBRO: {
+    label: "MEMBRO",
+    className: "border-border bg-muted/50 text-muted-foreground",
+  },
+};
+
+const getMemberRoleLabel = (role: MemberRoleKey) => {
+  if (role === "OWNER") return "Owner";
+  if (role === "SUPERADMIN") return "Superadmin";
+  if (role === "ADMIN") return "Admin do grupo";
+  return "Membro";
 };
 
 function formatRelativeBR(dateStr?: string | null) {
@@ -213,11 +248,15 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
     enabled: open && !!member,
   });
 
+  const memberRole = useMemo(() => {
+    if (!ctxGroupId) return null;
+    return getMemberRoleKey(member || {});
+  }, [ctxGroupId, member]);
+
   const roleLabel = useMemo(() => {
-    const isAdmin = (member?.is_admin || member?.is_owner || member?.is_super_admin) ? true : false;
-    if (!ctxGroupId) return "";
-    return isAdmin ? "Administrador do grupo" : "Membro";
-  }, [member, ctxGroupId]);
+    if (!memberRole) return "";
+    return getMemberRoleLabel(memberRole);
+  }, [memberRole]);
 
   const idLabel = useMemo(() => {
     if (member?.phone_e164) return member.phone_e164;
@@ -238,9 +277,16 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold text-card-foreground truncate">{member?.display_name || member?.name || "Membro"}</h3>
-          {roleLabel && (
-            <Badge variant="secondary" className="text-[11px]">{roleLabel}</Badge>
-          )}
+          {memberRole ? (
+            <span
+              className={cn(
+                "inline-flex items-center h-5 px-2 rounded-md border text-[10px] font-semibold tracking-wide leading-none",
+                ROLE_BADGE[memberRole].className
+              )}
+            >
+              {ROLE_BADGE[memberRole].label}
+            </span>
+          ) : null}
         </div>
         <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
           {member?.phone_e164 ? (
