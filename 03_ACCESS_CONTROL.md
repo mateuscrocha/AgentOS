@@ -92,6 +92,27 @@
   - Registra evento de auditoria `ORG_ADMIN_ASSIGNED` em `events`.
   - Tratamento de erros com códigos: `EMAIL_EXISTS`, `INSERT_SCOPE_FAILED`, `ASSIGN_ORG_ADMIN_FAILED`, `VERIFY_ORG_ADMIN_FAILED`.
 
+## Exclusão de usuário por Admin (novo)
+- Fluxo de exclusão em `src/pages/Users.tsx`:
+  - Admin aciona exclusão de um usuário alvo.
+  - Invoca a função `admin-delete-user` com payload `{ user_id }`.
+- Lado servidor (Edge Function): `supabase/functions/admin-delete-user/index.ts`
+  - Permissão: apenas `SYSTEM_ADMIN`.
+  - Bloqueios:
+    - Impede auto-exclusão (`CANNOT_DELETE_SELF`).
+    - Impede excluir o último `SYSTEM_ADMIN` (`LAST_SYSTEM_ADMIN`).
+  - Limpeza de dependências antes de excluir:
+    - `organizations.owner_user_id` (FK restritiva `organizations_owner_user_id_fkey`):
+      - Transfere o owner para um `ORG_ADMIN` da organização (mais antigo) quando existir.
+      - Caso não exista substituto, define `owner_user_id = NULL`.
+    - `group_members.granted_by_user_id` (FK restritiva `group_members_granted_by_user_id_fkey`):
+      - Define `granted_by_user_id = NULL`.
+  - Execução:
+    - Exclui o usuário via `auth.admin.deleteUser`.
+    - Registra auditoria em `events` com `event_type=USER_DELETED`.
+  - Tratamento de erro:
+    - Violação de FK (SQLSTATE `23503`) retorna `409` com `code=DEPENDENCIES_EXIST`.
+
 ## Correção em lote (existentes)
 - Objetivo: normalizar usuários com escopo inicial de organização sem papéis ou com owner sem `ORG_ADMIN`.
 - Estratégia:
