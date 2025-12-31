@@ -30,7 +30,7 @@ import {
   buildStoredPeriod,
 } from "@/components/group-dashboard/period-utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { BarChart3, HelpCircle, MessageSquare, Target, TrendingUp, Users } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
 import { Button } from "@/components/ui/button";
  
@@ -324,201 +324,176 @@ const Group = () => {
 
         
 
-        {(() => {
-          const navItems = [
-            { id: "visao-geral", label: "Visão geral", Icon: BarChart3 },
-            { id: "conversas", label: "Conversas", Icon: MessageSquare },
-            { id: "participacao", label: "Participação", Icon: Users },
-            { id: "crescimento", label: "Crescimento", Icon: TrendingUp },
-            { id: "proposito", label: "Propósito", Icon: Target },
-          ];
+        <div className="space-y-12">
+          <section className="space-y-6">
+            <header className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">Panorama</h2>
+              <p className="text-sm text-muted-foreground">KPIs principais, base ativa x observadores e resumo do período</p>
+            </header>
 
-          const nav = navItems.map(({ id, label, Icon }) => (
-            <Button
-              key={id}
-              asChild
-              variant="ghost"
-              size="sm"
-              className="shrink-0 justify-start gap-2 text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60"
-            >
-              <a href={`#${id}`}>
-                <Icon className="h-4 w-4" />
-                {label}
-              </a>
-            </Button>
-          ));
+            <div className="space-y-8">
+              {(() => {
+                const summaryStats = {
+                  totalMessages: Number((stats as any)?.totalMessages ?? (stats as any)?.totalMessages7d ?? 0),
+                  activeMembers: Number((stats as any)?.activeMembers ?? (stats as any)?.activeMembers7d ?? 0),
+                  engagementRate: Number((stats as any)?.engagementRate ?? 0),
+                  totalMembers: Number((stats as any)?.totalMembers ?? currentMembers ?? 0),
+                };
+                const prevSummaryStats = previousStats ? {
+                  totalMessages: Number((previousStats as any)?.totalMessages ?? (previousStats as any)?.totalMessages7d ?? 0),
+                  activeMembers: Number((previousStats as any)?.activeMembers ?? (previousStats as any)?.activeMembers7d ?? 0),
+                  totalMembers: Number((previousStats as any)?.totalMembers ?? (previousStats as any)?.totalMembersSnapshot ?? 0),
+                  engagementRate: Number((previousStats as any)?.engagementRate ?? 0),
+                } : undefined;
+                return (
+                  <SummarySection
+                    stats={summaryStats}
+                    previousStats={prevSummaryStats}
+                    currentMembers={currentMembers}
+                    selectedPeriod={selectedPeriod}
+                    newMembersCount={newMembersCount}
+                    previousNewMembersCount={previousNewMembersCount}
+                    exitedMembersCount={exitedMembersCount}
+                    previousExitedMembersCount={previousExitedMembersCount}
+                    isLoading={isLoading}
+                  />
+                );
+              })()}
 
-          return (
-            <div className="space-y-4">
-              <div className="lg:hidden">
-                <div className="text-xs font-medium text-muted-foreground mb-2">Seções do painel</div>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {nav}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
-                <aside className="hidden lg:block sticky top-20 self-start">
-                  <div className="rounded-xl border border-border bg-muted/20 p-3">
-                    <div className="text-xs font-medium text-muted-foreground mb-2">Seções do painel</div>
-                    <div className="flex flex-col gap-2">
-                      {navItems.map(({ id, label, Icon }) => (
-                        <Button
-                          key={id}
-                          asChild
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                        >
-                          <a href={`#${id}`}>
-                            <Icon className="h-4 w-4" />
-                            {label}
-                          </a>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </aside>
-
-                <div className="space-y-10">
-                  <section id="visao-geral" className="scroll-mt-24 space-y-8">
-                    {(() => {
-                      const summaryStats = {
-                        totalMessages: Number((stats as any)?.totalMessages ?? (stats as any)?.totalMessages7d ?? 0),
-                        activeMembers: Number((stats as any)?.activeMembers ?? (stats as any)?.activeMembers7d ?? 0),
-                        engagementRate: Number((stats as any)?.engagementRate ?? 0),
-                        totalMembers: Number((stats as any)?.totalMembers ?? currentMembers ?? 0),
-                      };
-                      const prevSummaryStats = previousStats ? {
-                        totalMessages: Number((previousStats as any)?.totalMessages ?? (previousStats as any)?.totalMessages7d ?? 0),
-                        activeMembers: Number((previousStats as any)?.activeMembers ?? (previousStats as any)?.activeMembers7d ?? 0),
-                        totalMembers: Number((previousStats as any)?.totalMembers ?? (previousStats as any)?.totalMembersSnapshot ?? 0),
-                        engagementRate: Number((previousStats as any)?.engagementRate ?? 0),
-                      } : undefined;
-                      return (
-                        <SummarySection
-                          stats={summaryStats}
-                          previousStats={prevSummaryStats}
-                          currentMembers={currentMembers}
-                          selectedPeriod={selectedPeriod}
-                          newMembersCount={newMembersCount}
-                          previousNewMembersCount={previousNewMembersCount}
-                          exitedMembersCount={exitedMembersCount}
-                          previousExitedMembersCount={previousExitedMembersCount}
-                          isLoading={isLoading}
-                        />
-                      );
-                    })()}
-
-                    <PeriodReport
-                      stats={stats}
-                      previousStats={previousStats || undefined}
-                      currentMembers={currentMembers}
-                      periodDays={periodDays}
-                      memberEngagement={memberEngagement}
-                      previousMemberEngagement={previousMemberEngagement}
-                      atRiskMembersCount={atRiskMembers.length}
-                      groupId={group.id}
-                    />
-                  </section>
-
-                  <section id="conversas" className="scroll-mt-24 space-y-8">
-                    <ConversationRhythmSection
-                      messagesPerDay={messagesPerDay}
-                      activeMembersPerDay={activeMembersPerDay}
-                      isLoading={isLoading}
-                      periodLabel={getPeriodLabel()}
-                    />
-
-                    <PeakMomentSection
-                      groupId={group.id}
-                      startDate={currentRange.from}
-                      endDate={currentRange.to}
-                      messagesPerDay={messagesPerDay}
-                      isDashboardLoading={isLoading}
-                    />
-
-                    <EffortNoiseSection
-                      stats={stats}
-                      messagesPerDay={messagesPerDay}
-                      membersOverview={membersOverview}
-                      periodDays={periodDays}
-                      isLoading={isLoading}
-                      periodLabel={getPeriodLabel()}
-                      currentMembers={currentMembers}
-                    />
-                  </section>
-
-                  <section id="participacao" className="scroll-mt-24 space-y-8">
-                    <PeopleSection
-                      groupId={group.id}
-                      topParticipant={stats.topParticipant}
-                      previousTopParticipant={previousStats?.topParticipant}
-                      topParticipants={topParticipants}
-                      totalMessagesInPeriod={stats.totalMessages7d}
-                      memberEngagement={memberEngagement}
-                      previousMemberEngagement={previousMemberEngagement}
-                      isLoading={isLoading}
-                      periodLabel={getPeriodLabel()}
-                    />
-
-                    <ParticipationQualitySection
-                      membersOverview={membersOverview}
-                      previousMembersOverview={previousMembersOverview}
-                      stats={stats}
-                      previousStats={previousStats || undefined}
-                      currentMembers={currentMembers}
-                      isLoading={isLoading}
-                      periodLabel={getPeriodLabel()}
-                    />
-
-                    <AdminsSection
-                      adminStats={adminStats || undefined}
-                      previousAdminStats={previousAdminStats}
-                      isLoading={isLoading}
-                      periodLabel={getPeriodLabel()}
-                    />
-                  </section>
-
-                  <section id="crescimento" className="scroll-mt-24 space-y-8">
-                    <GroupGrowthSection
-                      entriesPerDay={memberEntriesPerDay}
-                      exitsPerDay={memberExitsPerDay}
-                      memberEvents={memberEvents}
-                      currentMembers={currentMembers}
-                      membersAtPeriodStart={membersAtPeriodStart}
-                      daysWithActivity={daysWithActivity}
-                      periodDays={periodDays}
-                      isLoading={isLoading}
-                      periodLabel={getPeriodLabel()}
-                    />
-                  </section>
-
-                  <section id="proposito" className="scroll-mt-24 space-y-8">
-                    <PurposeAlignmentSection
-                      alignedPercent={alignedMessagesPercent}
-                      activePercent={activePercent}
-                      recurringPercent={recurringPercent}
-                      activeDaysPercent={activeDaysPercent}
-                      lowEffortPercent={lowEffortPercent}
-                      isLoading={isLoading}
-                      hasIkigai={hasIkigai}
-                      periodLabel={getPeriodLabel()}
-                      onOpenIkigai={() => setIkigaiOpen(true)}
-                    />
-
-                    <TopicsKeywordsSection
-                      blocks={topicBlocks as any}
-                      previousBlocks={previousTopicBlocks as any}
-                      isLoading={isLoading}
-                      periodLabel={getPeriodLabel()}
-                    />
-                  </section>
-                </div>
-              </div>
+              <PeriodReport
+                stats={stats}
+                previousStats={previousStats || undefined}
+                currentMembers={currentMembers}
+                periodDays={periodDays}
+                memberEngagement={memberEngagement}
+                previousMemberEngagement={previousMemberEngagement}
+                atRiskMembersCount={atRiskMembers.length}
+                groupId={group.id}
+              />
             </div>
-          );
-        })()}
+          </section>
+
+          <section className="space-y-6">
+            <header className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">Ritmo da conversa</h2>
+              <p className="text-sm text-muted-foreground">Evolução do volume, picos e horários</p>
+            </header>
+
+            <div className="space-y-8">
+              <ConversationRhythmSection
+                messagesPerDay={messagesPerDay}
+                activeMembersPerDay={activeMembersPerDay}
+                isLoading={isLoading}
+                periodLabel={getPeriodLabel()}
+              />
+
+              <PeakMomentSection
+                groupId={group.id}
+                startDate={currentRange.from}
+                endDate={currentRange.to}
+                messagesPerDay={messagesPerDay}
+                isDashboardLoading={isLoading}
+              />
+
+              <EffortNoiseSection
+                stats={stats}
+                messagesPerDay={messagesPerDay}
+                membersOverview={membersOverview}
+                periodDays={periodDays}
+                isLoading={isLoading}
+                periodLabel={getPeriodLabel()}
+                currentMembers={currentMembers}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-6">
+            <header className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">Pessoas & Engajamento</h2>
+              <p className="text-sm text-muted-foreground">Membros ativos, distribuição da conversa e recorrência</p>
+            </header>
+
+            <div className="space-y-8">
+              <PeopleSection
+                groupId={group.id}
+                topParticipant={stats.topParticipant}
+                previousTopParticipant={previousStats?.topParticipant}
+                topParticipants={topParticipants}
+                totalMessagesInPeriod={stats.totalMessages7d}
+                memberEngagement={memberEngagement}
+                previousMemberEngagement={previousMemberEngagement}
+                isLoading={isLoading}
+                periodLabel={getPeriodLabel()}
+              />
+
+              <ParticipationQualitySection
+                membersOverview={membersOverview}
+                previousMembersOverview={previousMembersOverview}
+                stats={stats}
+                previousStats={previousStats || undefined}
+                currentMembers={currentMembers}
+                isLoading={isLoading}
+                periodLabel={getPeriodLabel()}
+              />
+
+              <AdminsSection
+                adminStats={adminStats || undefined}
+                previousAdminStats={previousAdminStats}
+                isLoading={isLoading}
+                periodLabel={getPeriodLabel()}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-6">
+            <header className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">Crescimento do grupo</h2>
+              <p className="text-sm text-muted-foreground">Entradas e saídas, crescimento líquido e evolução</p>
+            </header>
+
+            <div className="space-y-8">
+              <GroupGrowthSection
+                entriesPerDay={memberEntriesPerDay}
+                exitsPerDay={memberExitsPerDay}
+                memberEvents={memberEvents}
+                currentMembers={currentMembers}
+                membersAtPeriodStart={membersAtPeriodStart}
+                daysWithActivity={daysWithActivity}
+                periodDays={periodDays}
+                isLoading={isLoading}
+                periodLabel={getPeriodLabel()}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-6">
+            <header className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">Temas & Propósito</h2>
+              <p className="text-sm text-muted-foreground">Principais termos, leitura qualitativa e insights interpretativos</p>
+            </header>
+
+            <div className="space-y-8">
+              <PurposeAlignmentSection
+                alignedPercent={alignedMessagesPercent}
+                activePercent={activePercent}
+                recurringPercent={recurringPercent}
+                activeDaysPercent={activeDaysPercent}
+                lowEffortPercent={lowEffortPercent}
+                isLoading={isLoading}
+                hasIkigai={hasIkigai}
+                periodLabel={getPeriodLabel()}
+                onOpenIkigai={() => setIkigaiOpen(true)}
+              />
+
+              <TopicsKeywordsSection
+                blocks={topicBlocks as any}
+                previousBlocks={previousTopicBlocks as any}
+                isLoading={isLoading}
+                periodLabel={getPeriodLabel()}
+              />
+            </div>
+          </section>
+        </div>
       </div>
       <EditIkigaiModal
         groupId={group.id}
