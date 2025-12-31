@@ -413,7 +413,7 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                     {message.message_type === "image" && (
                       <div className="space-y-3">
                         {message.media_url && (
-                          <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="block">
+                          <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg">
                             <img src={message.media_url} alt="Imagem" className="max-w-full max-h-[420px] rounded-lg object-contain bg-muted mx-auto cursor-zoom-in" />
                           </a>
                         )}
@@ -470,7 +470,7 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                             </div>
                           </div>
                           {message.media_url && (
-                            <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-primary text-primary-foreground">
+                            <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                               <LinkIcon className="h-4 w-4" />
                             </a>
                           )}

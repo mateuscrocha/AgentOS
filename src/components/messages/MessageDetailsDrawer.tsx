@@ -5,12 +5,13 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { formatDateTimeBR } from "@/lib/date";
-import { X, Link as LinkIcon, Image, Mic, Video, FileText, MessageSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Link as LinkIcon, Image, Mic, Video, FileText, MessageSquare, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
 type Variant = "sheet" | "dialog";
 
@@ -48,6 +49,21 @@ const getTypeIcon = (type: string) => {
   }
 };
 
+const formatFileSize = (bytes: number) => {
+  if (!Number.isFinite(bytes)) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const formatDuration = (seconds: number) => {
+  if (!Number.isFinite(seconds)) return "—";
+  const total = Math.max(0, Math.floor(seconds));
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
 const linkOrMentionRegex = /(https?:\/\/[^\s]+)|@([0-9]{5,})/g;
 const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string, string>) => {
   const result: (string | JSX.Element)[] = [];
@@ -59,7 +75,15 @@ const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string,
     const mentionId = match[2];
     if (url) {
       result.push(
-        <a key={`u-${idx}`} href={url} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all">{url}</a>
+        <a
+          key={`u-${idx}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline break-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+        >
+          {url}
+        </a>
       );
     } else if (mentionId) {
       const name = mentionMap[mentionId];
@@ -77,6 +101,8 @@ const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string,
 
 export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, variant = "sheet" }: MessageDetailsDrawerProps) {
   const { isSystemAdmin } = useUserRoles();
+
+  const sectionClassName = "rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3";
 
   const formatDateFriendly = (input?: string | Date): string => {
     if (!input) return "—";
@@ -228,13 +254,25 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
     return isAdmin ? "Administrador do grupo" : "Membro";
   }, [message, author]);
 
-  const TypeIcon = getTypeIcon(message?.message_type || "text");
-
   const originLabel = useMemo(() => {
     const p = (message as any)?.provider;
     const src = (message as any)?.metadata?.source;
     if (p === "manual_import" || src === "manual_import") return "Importação manual";
     return "Conversa em tempo real";
+  }, [message]);
+
+  const directionLabel = useMemo(() => {
+    const dir = (message?.direction || "").toString();
+    if (!dir) return message?.from_me ? "Saída" : "Entrada";
+    if (dir === "outbound") return "Saída";
+    if (dir === "inbound") return "Entrada";
+    return dir;
+  }, [message]);
+
+  const DirectionIcon = useMemo(() => {
+    const dir = (message?.direction || "").toString();
+    if (dir === "outbound" || message?.from_me) return ArrowUpRight;
+    return ArrowDownLeft;
   }, [message]);
 
   const classificationLabel = useMemo(() => {
@@ -245,90 +283,178 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
     return "Texto";
   }, [message]);
 
-  const closeButton = (
-    <button
-      className="absolute right-3 top-3 p-2 rounded-md hover:bg-secondary"
-      onClick={() => onOpenChange(false)}
-      aria-label="Fechar"
-    >
-      <X className="h-4 w-4 text-muted-foreground" />
-    </button>
-  );
+  const messageTypeLabel = useMemo(() => {
+    const mt = (message?.message_type || "text").toString();
+    return mt === "text" ? classificationLabel : translateType(mt);
+  }, [message, classificationLabel]);
+
+  const TypeIcon = useMemo(() => getTypeIcon((message?.message_type || "text").toString()), [message]);
+
+  const contextRows = useMemo(() => {
+    const before = [...(contextBefore || [])].reverse();
+    const after = [...(contextAfter || [])];
+    return { before, after };
+  }, [contextBefore, contextAfter]);
 
   const headerSection = (
-    <div className="relative">
-      {closeButton}
-      <div className="space-y-2">
-        <h3 className="text-base font-semibold text-card-foreground">Detalhes da mensagem</h3>
-        {messageLoading ? (
-          <div className="grid grid-cols-2 gap-3">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-4 w-28" />
+    <div className="space-y-2">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <TypeIcon className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-base font-semibold text-card-foreground pr-10">Detalhes da mensagem</h3>
+            {!messageLoading && !messageError && message ? (
+              <>
+                <span className={cn(badgeVariants({ variant: "outline" }), "text-[10px] bg-secondary/20")}>{messageTypeLabel}</span>
+                <span className={cn(badgeVariants({ variant: "outline" }), "text-[10px] bg-secondary/20 inline-flex items-center gap-1")}>{<DirectionIcon className="h-3 w-3" />}{directionLabel}</span>
+                <span className={cn(badgeVariants({ variant: "outline" }), "text-[10px] bg-secondary/20")}>{originLabel}</span>
+              </>
+            ) : null}
           </div>
-        ) : messageError ? (
-          <div className="p-3 rounded-md bg-destructive/10 text-sm text-destructive">
-            Não foi possível carregar os detalhes desta mensagem. Tente novamente.
+          <div className="mt-1 text-xs text-muted-foreground">
+            {messageLoading ? (
+              <Skeleton className="h-4 w-56" />
+            ) : messageError ? (
+              <span className="text-destructive">Não foi possível carregar os detalhes desta mensagem.</span>
+            ) : (
+              <>
+                <span>{formatDateFriendly(message?.created_at)}</span>
+                <span className="mx-1 text-muted-foreground/60">•</span>
+                <a href={`/groups/${groupId}`} className="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm">{group?.name || "Grupo"}</a>
+              </>
+            )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div>
-              <div className="text-muted-foreground">Remetente</div>
-              <div className="mt-1 flex items-center gap-2">
-                {message?.member_id ? (
-                  <MemberInlineTrigger memberId={message.member_id} groupId={groupId} name={author?.display_name || author?.name || message.sender_name || "Membro"} avatarUrl={(author as any)?.profile_pic_url || null} />
-                ) : (
-                  <span className="text-muted-foreground">Sistema</span>
-                )}
-                {roleLabel && (
-                  <Badge variant="secondary" className="text-[11px]">{roleLabel}</Badge>
-                )}
-              </div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Data e hora</div>
-              <div className="mt-1 text-card-foreground">{formatDateFriendly(message?.created_at)}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Grupo</div>
-              <div className="mt-1"><a href={`/groups/${groupId}`} className="text-primary hover:underline">{group?.name || "Grupo"}</a></div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Origem</div>
-              <div className="mt-1 text-card-foreground">{originLabel}</div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
+      {!messageLoading && !messageError && message ? (
+        <div className="flex items-center gap-2 flex-wrap text-sm">
+          <div className="flex items-center gap-2">
+            {message?.member_id ? (
+              <MemberInlineTrigger memberId={message.member_id} groupId={groupId} name={author?.display_name || author?.name || message.sender_name || "Membro"} avatarUrl={(author as any)?.profile_pic_url || null} variant={variant} />
+            ) : (
+              <span className="text-muted-foreground">Sistema</span>
+            )}
+            {roleLabel ? (
+              <Badge variant="secondary" className="text-[10px] px-2 py-0.5">{roleLabel}</Badge>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 
   const contentSection = (
-    <div className="space-y-2">
-      <div className="text-sm text-muted-foreground">Conteúdo da mensagem</div>
+    <section className={sectionClassName}>
+      <h4 className="text-sm font-semibold text-card-foreground">Conteúdo</h4>
       {messageLoading ? (
         <Skeleton className="h-24 w-full" />
       ) : !message ? (
-        <div className="text-xs text-muted-foreground">Sem conteúdo</div>
+        <div className="text-sm text-muted-foreground">Sem conteúdo</div>
       ) : (
-        <div className="rounded-lg border border-border bg-secondary/40 p-3 max-h-[320px] overflow-auto text-sm text-card-foreground whitespace-pre-wrap break-words">
-          {message.message_type === "text" ? (
-            message.text ? renderTextWithMentionsAndLinks(message.text, mentionMap || {}) : renderTextWithMentionsAndLinks(message.content || "[Texto]", mentionMap || {})
-          ) : (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <LinkIcon className="h-4 w-4" />
-              Mensagem com mídia
+        <div className="space-y-3">
+          {(message.message_type === "text" || message.message_type === "system") && (
+            <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-card-foreground whitespace-pre-wrap break-words">
+              {message.text
+                ? renderTextWithMentionsAndLinks(message.text, mentionMap || {})
+                : renderTextWithMentionsAndLinks(message.content || "[Texto]", mentionMap || {})}
             </div>
           )}
+
+          {message.message_type === "image" && (
+            <div className="space-y-3">
+              {message.media_url ? (
+                <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl">
+                  <img src={message.media_url} alt="Imagem" className="max-w-full max-h-[420px] rounded-xl object-contain bg-muted mx-auto cursor-zoom-in" />
+                </a>
+              ) : (
+                <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">Mídia indisponível</div>
+              )}
+              {message.media_caption ? (
+                <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-card-foreground whitespace-pre-wrap break-words">{message.media_caption}</div>
+              ) : null}
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                {message.media_mime_type ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>{message.media_mime_type}</span> : null}
+                {message.media_size_bytes ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>{formatFileSize(message.media_size_bytes)}</span> : null}
+              </div>
+            </div>
+          )}
+
+          {message.message_type === "audio" && (
+            <div className="space-y-2">
+              {message.media_url ? (
+                <audio controls className="w-full" src={message.media_url} />
+              ) : (
+                <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">Mídia indisponível</div>
+              )}
+              <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                {message.media_duration_sec ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>Duração: {formatDuration(message.media_duration_sec)}</span> : null}
+                {message.media_size_bytes ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>{formatFileSize(message.media_size_bytes)}</span> : null}
+                {(message.text || message.content) ? <span className={cn(badgeVariants({ variant: "outline" }), "rounded-lg px-2.5 py-1 text-[11px] bg-secondary/10")}>Transcrição disponível</span> : null}
+              </div>
+              {(message.text || message.content) ? (
+                <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-card-foreground whitespace-pre-wrap break-words">
+                  {message.text
+                    ? renderTextWithMentionsAndLinks(message.text, mentionMap || {})
+                    : renderTextWithMentionsAndLinks(message.content || "[Texto]", mentionMap || {})}
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {message.message_type === "video" && (
+            <div className="space-y-3">
+              {message.media_url ? (
+                <video controls className="w-full max-h-[420px] rounded-xl bg-black" poster={message.thumbnail_url || undefined} src={message.media_url} />
+              ) : (
+                <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">Mídia indisponível</div>
+              )}
+              {message.media_caption ? (
+                <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-card-foreground whitespace-pre-wrap break-words">{message.media_caption}</div>
+              ) : null}
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                {message.media_mime_type ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>{message.media_mime_type}</span> : null}
+                {message.media_size_bytes ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>{formatFileSize(message.media_size_bytes)}</span> : null}
+                {message.media_duration_sec ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>Duração: {formatDuration(message.media_duration_sec)}</span> : null}
+              </div>
+            </div>
+          )}
+
+          {message.message_type === "document" && (
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-4 rounded-xl border border-border bg-secondary/30">
+                <div className="mt-0.5 text-primary"><FileText className="h-6 w-6" /></div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-card-foreground truncate">{message.media_caption || "Documento"}</div>
+                  <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    {message.media_mime_type ? <span>{message.media_mime_type}</span> : null}
+                    {message.media_size_bytes ? <span>{formatFileSize(message.media_size_bytes)}</span> : null}
+                  </div>
+                </div>
+                {message.media_url ? (
+                  <Button asChild variant="outline" size="sm">
+                    <a href={message.media_url} target="_blank" rel="noopener noreferrer">Abrir</a>
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          {message.message_type && !["text", "system", "image", "audio", "video", "document"].includes(message.message_type) ? (
+            <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground inline-flex items-center gap-2">
+              <LinkIcon className="h-4 w-4" />
+              Conteúdo do tipo {translateType(message.message_type)}
+            </div>
+          ) : null}
         </div>
       )}
-    </div>
+    </section>
   );
 
   const contextSection = (
-    <div className="space-y-2">
-      <div className="text-sm font-medium text-card-foreground">Contexto na conversa</div>
+    <section className={sectionClassName}>
+      <h4 className="text-sm font-semibold text-card-foreground">Contexto na conversa</h4>
       {messageLoading ? (
         <div className="space-y-2">
           <Skeleton className="h-4 w-full" />
@@ -338,86 +464,86 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
       ) : (
         <div className="space-y-2">
           {[...(contextBefore || []), ...(contextAfter || [])].length === 0 ? (
-            <p className="text-xs text-muted-foreground">Sem mensagens próximas.</p>
+            <p className="text-sm text-muted-foreground">Sem mensagens próximas.</p>
           ) : (
             <div className="space-y-2">
-              {contextBefore?.map((c) => (
-                <div key={`before-${c.message_id}`} className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground mt-1" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span>{formatDateFriendly(c.created_at)}</span>
-                      <span>•</span>
-                      <span>{c.member_name || "Desconhecido"}</span>
-                    </div>
-                    <div className="text-sm text-card-foreground line-clamp-2">{c.content_preview || `[${translateType(c.message_type)}]`}</div>
+              {contextRows.before.map((c) => (
+                <div key={`before-${c.message_id}`} className="rounded-lg px-3 py-2 hover:bg-secondary/20 transition-colors">
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span>{formatDateFriendly(c.created_at)}</span>
+                    <span className="text-muted-foreground/60">•</span>
+                    <span className="truncate">{c.member_name || "Desconhecido"}</span>
                   </div>
+                  <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">{c.content_preview || `[${translateType(c.message_type)}]`}</div>
                 </div>
               ))}
-              <div className="p-2 rounded-md bg-primary/10 border border-primary/20">
-                <div className="text-xs text-muted-foreground">Mensagem selecionada</div>
-                <div className="text-sm text-card-foreground line-clamp-3">{(message?.text || message?.content || "[Mensagem]") as string}</div>
+
+              <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+                <div className="text-[11px] font-medium text-muted-foreground">Mensagem selecionada</div>
+                <div className="mt-1 text-sm text-card-foreground whitespace-pre-wrap break-words">{(message?.text || message?.content || message?.media_caption || "").toString().trim() || `[${translateType(message?.message_type || "text")}]`}</div>
               </div>
-              {contextAfter?.map((c) => (
-                <div key={`after-${c.message_id}`} className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground mt-1" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span>{formatDateFriendly(c.created_at)}</span>
-                      <span>•</span>
-                      <span>{c.member_name || "Desconhecido"}</span>
-                    </div>
-                    <div className="text-sm text-card-foreground line-clamp-2">{c.content_preview || `[${translateType(c.message_type)}]`}</div>
+
+              {contextRows.after.map((c) => (
+                <div key={`after-${c.message_id}`} className="rounded-lg px-3 py-2 hover:bg-secondary/20 transition-colors">
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span>{formatDateFriendly(c.created_at)}</span>
+                    <span className="text-muted-foreground/60">•</span>
+                    <span className="truncate">{c.member_name || "Desconhecido"}</span>
                   </div>
+                  <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">{c.content_preview || `[${translateType(c.message_type)}]`}</div>
                 </div>
               ))}
+
               <div className="flex justify-end">
-                <a href={`/groups/${groupId}/messages`} className="text-xs text-primary hover:underline">Ver na conversa completa</a>
+                <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs">
+                  <a href={`/groups/${groupId}/messages`}>Ver na conversa completa</a>
+                </Button>
               </div>
             </div>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 
   const quickInfoSection = (
-    <div className="space-y-2">
-      <div className="text-sm font-medium text-card-foreground">Informações rápidas</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-        <div>
-          <div className="text-muted-foreground">Remetente</div>
-          <div className="mt-1">
-            {message?.member_id ? (
-              <MemberInlineTrigger memberId={message.member_id} groupId={groupId} name={author?.display_name || author?.name || message.sender_name || "Membro"} avatarUrl={(author as any)?.profile_pic_url || null} variant="sheet" />
-            ) : (
-              <span className="text-muted-foreground">Sistema</span>
-            )}
+    <section className={sectionClassName}>
+      <h4 className="text-sm font-semibold text-card-foreground">Visão geral</h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="p-4 rounded-xl border border-border bg-secondary/20">
+          <div className="text-[11px] font-medium text-muted-foreground">Data e hora</div>
+          <div className="mt-1 text-base font-semibold text-card-foreground">{formatDateFriendly(message?.created_at)}</div>
+        </div>
+        <div className="p-4 rounded-xl border border-border bg-secondary/20">
+          <div className="text-[11px] font-medium text-muted-foreground">Tipo</div>
+          <div className="mt-1 text-base font-semibold text-card-foreground">{messageTypeLabel}</div>
+        </div>
+        <div className="p-4 rounded-xl border border-border bg-secondary/20">
+          <div className="text-[11px] font-medium text-muted-foreground">Direção</div>
+          <div className="mt-1 text-base font-semibold text-card-foreground inline-flex items-center gap-2">
+            <DirectionIcon className="h-4 w-4 text-muted-foreground" />
+            {directionLabel}
           </div>
         </div>
-        <div>
-          <div className="text-muted-foreground">Grupo</div>
-          <div className="mt-1"><a href={`/groups/${groupId}`} className="text-primary hover:underline">{group?.name || "Grupo"}</a></div>
+        <div className="p-4 rounded-xl border border-border bg-secondary/20">
+          <div className="text-[11px] font-medium text-muted-foreground">Origem</div>
+          <div className="mt-1 text-base font-semibold text-card-foreground">{originLabel}</div>
         </div>
-        <div>
-          <div className="text-muted-foreground">Tipo de mensagem</div>
-          <div className="mt-1">{message?.message_type === "text" ? classificationLabel : translateType(message?.message_type || "text")}</div>
+        <div className="p-4 rounded-xl border border-border bg-secondary/20">
+          <div className="text-[11px] font-medium text-muted-foreground">Mensagens deste membro no grupo</div>
+          <div className="mt-1 text-base font-semibold text-card-foreground tabular-nums">{memberMessageCount ?? 0}</div>
         </div>
-        <div>
-          <div className="text-muted-foreground">Mensagens deste membro neste grupo</div>
-          <div className="mt-1">{memberMessageCount ?? 0}</div>
-        </div>
-        <div>
-          <div className="text-muted-foreground">Última atividade deste membro</div>
-          <div className="mt-1">{formatDateFriendly(author?.last_seen_message_at || undefined)}</div>
+        <div className="p-4 rounded-xl border border-border bg-secondary/20">
+          <div className="text-[11px] font-medium text-muted-foreground">Última atividade do remetente</div>
+          <div className="mt-1 text-base font-semibold text-card-foreground">{formatDateFriendly(author?.last_seen_message_at || undefined)}</div>
         </div>
       </div>
-    </div>
+    </section>
   );
 
   const keywordsSection = (
-    <div className="space-y-2">
-      <div className="text-sm font-medium text-card-foreground">Assuntos desta mensagem</div>
+    <section className={sectionClassName}>
+      <h4 className="text-sm font-semibold text-card-foreground">Assuntos</h4>
       {(() => {
         const text = ((message?.text || message?.content || "") as string);
         const tokens = text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
@@ -428,120 +554,146 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
           if (stop.has(t)) continue;
           counts[t] = (counts[t] || 0) + 1;
         }
-        const items = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6);
-        if (items.length === 0) return <div className="text-xs text-muted-foreground">Sem assuntos detectados.</div>;
+        const items = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        if (items.length === 0) return <div className="text-sm text-muted-foreground">Sem assuntos detectados.</div>;
         return (
           <div className="flex flex-wrap gap-2">
             {items.map(([term, count]) => (
-              <a key={term} href={`/groups/${groupId}/messages`} className="px-2 py-1 rounded-md bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80">
-                {term}
+              <a
+                key={term}
+                href={`/groups/${groupId}/messages?q=${encodeURIComponent(term)}`}
+                className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-xs")}
+              >
+                <span className="font-medium">{term}</span>
+                <span className="ml-1 text-muted-foreground tabular-nums">{count}</span>
               </a>
             ))}
           </div>
         );
       })()}
-    </div>
+    </section>
   );
 
   const actionsSection = (
-    <div className="space-y-2">
-      <div className="text-sm font-medium text-card-foreground">Ações</div>
+    <section className={sectionClassName}>
+      <h4 className="text-sm font-semibold text-card-foreground">Ações</h4>
       <div className="flex flex-wrap gap-2">
         {message?.member_id ? (
-          <a href={`/groups/${groupId}/messages`} className="px-2 py-1 rounded-md bg-card border border-border text-xs hover:bg-secondary">
-            Ver todas as mensagens deste membro neste grupo
-          </a>
+          <Button asChild variant="outline" size="sm">
+            <a href={`/groups/${groupId}/messages`}>Ver mensagens deste membro</a>
+          </Button>
         ) : null}
-        <a href={`/groups/${groupId}/messages`} className="px-2 py-1 rounded-md bg-card border border-border text-xs hover:bg-secondary">
-          Ver esta mensagem na linha do tempo
-        </a>
+        <Button asChild variant="outline" size="sm">
+          <a href={`/groups/${groupId}/messages`}>Ver na linha do tempo</a>
+        </Button>
       </div>
-    </div>
+    </section>
   );
 
   const advancedSection = isSystemAdmin ? (
-    <Tabs defaultValue="details" className="mt-2">
-      <TabsList>
-        <TabsTrigger value="details">Detalhes</TabsTrigger>
-        <TabsTrigger value="advanced">Avançado</TabsTrigger>
-      </TabsList>
-      <TabsContent value="details" className="mt-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          <div>
-            <div className="text-muted-foreground">ID da mensagem</div>
-            <div className="font-mono text-xs break-all">{message?.id || ""}</div>
+    <section className={sectionClassName}>
+      <h4 className="text-sm font-semibold text-card-foreground">Técnico</h4>
+      <Tabs defaultValue="details">
+        <TabsList>
+          <TabsTrigger value="details">Detalhes</TabsTrigger>
+          <TabsTrigger value="advanced">Avançado</TabsTrigger>
+        </TabsList>
+        <TabsContent value="details" className="mt-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div>
+              <div className="text-muted-foreground">ID da mensagem</div>
+              <div className="font-mono text-xs break-all">{message?.id || ""}</div>
+            </div>
+            {message?.member_id ? (
+              <div>
+                <div className="text-muted-foreground">ID do remetente</div>
+                <div className="font-mono text-xs break-all">{message?.member_id}</div>
+              </div>
+            ) : null}
+            <div>
+              <div className="text-muted-foreground">ID do grupo</div>
+              <div className="font-mono text-xs break-all">{groupId}</div>
+            </div>
+            {message?.whatsapp_provider_id ? (
+              <div>
+                <div className="text-muted-foreground">ID no WhatsApp</div>
+                <div className="font-mono text-xs break-all">{message.whatsapp_provider_id}</div>
+              </div>
+            ) : null}
+            {message?.message_ts ? (
+              <div>
+                <div className="text-muted-foreground">Horário bruto</div>
+                <div className="font-mono text-xs break-all">{message.message_ts}</div>
+              </div>
+            ) : null}
+            {message?.delivery_status ? (
+              <div>
+                <div className="text-muted-foreground">Status de entrega</div>
+                <div className="font-mono text-xs break-all">{message.delivery_status}</div>
+              </div>
+            ) : null}
+            {message?.status ? (
+              <div>
+                <div className="text-muted-foreground">Status interno</div>
+                <div className="font-mono text-xs break-all">{message.status}</div>
+              </div>
+            ) : null}
+            {message?.provider ? (
+              <div>
+                <div className="text-muted-foreground">Origem exata</div>
+                <div className="font-mono text-xs break-all">{message.provider}</div>
+              </div>
+            ) : null}
           </div>
-          {message?.member_id ? (
-            <div>
-              <div className="text-muted-foreground">ID do remetente</div>
-              <div className="font-mono text-xs break-all">{message?.member_id}</div>
+          {(message as any)?.raw_provider ? (
+            <div className="mt-3">
+              <div className="text-muted-foreground text-sm">Dados brutos do provedor</div>
+              <pre className="p-3 rounded-lg bg-secondary/30 text-xs overflow-auto max-h-60 text-card-foreground">{JSON.stringify((message as any).raw_provider, null, 2)}</pre>
             </div>
           ) : null}
-          <div>
-            <div className="text-muted-foreground">ID do grupo</div>
-            <div className="font-mono text-xs break-all">{groupId}</div>
+        </TabsContent>
+        <TabsContent value="advanced" className="mt-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            {(message as any)?.provider_message_id ? (
+              <div>
+                <div className="text-muted-foreground">ID da mensagem no provedor</div>
+                <div className="font-mono text-xs break-all">{(message as any).provider_message_id}</div>
+              </div>
+            ) : null}
+            {(message as any)?.provider_chat_id ? (
+              <div>
+                <div className="text-muted-foreground">ID do grupo no provedor</div>
+                <div className="font-mono text-xs break-all">{(message as any).provider_chat_id}</div>
+              </div>
+            ) : null}
           </div>
-          {message?.message_ts ? (
-            <div>
-              <div className="text-muted-foreground">Horário bruto</div>
-              <div className="font-mono text-xs break-all">{message.message_ts}</div>
-            </div>
-          ) : null}
-          {message?.status ? (
-            <div>
-              <div className="text-muted-foreground">Status interno</div>
-              <div className="font-mono text-xs break-all">{message.status}</div>
-            </div>
-          ) : null}
-          {message?.provider ? (
-            <div>
-              <div className="text-muted-foreground">Origem exata</div>
-              <div className="font-mono text-xs break-all">{message.provider}</div>
-            </div>
-          ) : null}
-        </div>
-        {(message as any)?.raw_provider ? (
-          <div className="mt-3">
-            <div className="text-muted-foreground text-sm">Dados brutos do provedor</div>
-            <pre className="p-3 rounded-lg bg-secondary/30 text-xs overflow-auto max-h-60 text-card-foreground">{JSON.stringify((message as any).raw_provider, null, 2)}</pre>
-          </div>
-        ) : null}
-      </TabsContent>
-      <TabsContent value="advanced" className="mt-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          {(message as any)?.provider_message_id ? (
-            <div>
-              <div className="text-muted-foreground">ID da mensagem no provedor</div>
-              <div className="font-mono text-xs break-all">{(message as any).provider_message_id}</div>
-            </div>
-          ) : null}
-          {(message as any)?.provider_chat_id ? (
-            <div>
-              <div className="text-muted-foreground">ID do grupo no provedor</div>
-              <div className="font-mono text-xs break-all">{(message as any).provider_chat_id}</div>
-            </div>
-          ) : null}
-        </div>
-      </TabsContent>
-    </Tabs>
+        </TabsContent>
+      </Tabs>
+    </section>
   ) : null;
 
   const body = (
-    <div className="space-y-6">
-      {headerSection}
-      {contentSection}
-      {contextSection}
-      {quickInfoSection}
-      {keywordsSection}
-      {actionsSection}
-      {advancedSection}
+    <div className={cn("flex flex-col", variant === "dialog" ? "h-[85vh]" : "h-full")}>
+      <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur px-5 sm:px-6 py-4">
+        {headerSection}
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth px-5 sm:px-6 py-5">
+        <div className="space-y-6">
+          {contentSection}
+          {contextSection}
+          {quickInfoSection}
+          {keywordsSection}
+          {actionsSection}
+          {advancedSection}
+        </div>
+      </div>
     </div>
   );
 
   if (variant === "dialog") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="bg-card border-border max-w-3xl w-[90vw]">
+        <DialogContent className="bg-card border-border max-w-3xl w-[90vw] p-0 overflow-hidden">
           {body}
         </DialogContent>
       </Dialog>
@@ -550,7 +702,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-xl">
+      <SheetContent side="right" className="w-full sm:max-w-xl p-0 overflow-hidden">
         {body}
       </SheetContent>
     </Sheet>

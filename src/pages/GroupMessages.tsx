@@ -4,14 +4,14 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { 
   MessageSquare, Filter, Eye, Activity,
-  Image, Mic, Video, FileText, MapPin, Smile 
+  Image, Mic, Video, FileText, MapPin, Smile, Search, X 
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
@@ -300,6 +300,16 @@ const GroupMessages = () => {
   const { canEditGroup, isLoading: rolesLoading } = useUserRoles();
   const [importOpen, setImportOpen] = useState(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const querySearch = searchParams.get("q") || "";
+  const [search, setSearch] = useState(querySearch);
+
+  useEffect(() => {
+    setSearch(querySearch);
+    setPage(1);
+  }, [querySearch]);
+
+  const safeSearch = useMemo(() => search.trim().replace(/,/g, " "), [search]);
 
 
   // Fetch group info for breadcrumbs
@@ -355,7 +365,7 @@ const GroupMessages = () => {
 
   // Fetch messages from view
   const { data: messagesData, isLoading, error, refetch } = useQuery({
-    queryKey: ['group-messages-feed', groupId, page, typeFilter],
+    queryKey: ['group-messages-feed', groupId, page, typeFilter, safeSearch],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -369,6 +379,10 @@ const GroupMessages = () => {
       
       if (typeFilter) {
         query = query.eq('message_type', typeFilter);
+      }
+
+      if (safeSearch) {
+        query = query.ilike('content_preview', `%${safeSearch}%`);
       }
       
       const { data, error, count } = await query.range(from, to);
@@ -384,6 +398,10 @@ const GroupMessages = () => {
         
         if (typeFilter) {
           fallbackQuery = fallbackQuery.eq('message_type', typeFilter);
+        }
+
+        if (safeSearch) {
+          fallbackQuery = fallbackQuery.or(`content.ilike.%${safeSearch}%,text.ilike.%${safeSearch}%,sender_name.ilike.%${safeSearch}%`);
         }
         
       const { data: msgData, error: msgError, count: msgCount } = await fallbackQuery.range(from, to);
@@ -577,7 +595,7 @@ const GroupMessages = () => {
             e.stopPropagation();
             handleViewDetail(m);
           }}
-          className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+          className="p-1.5 rounded-lg hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Eye className="h-4 w-4 text-muted-foreground" />
         </button>
@@ -608,7 +626,43 @@ const GroupMessages = () => {
           }}
           activeTab="mensagens"
           filters={(
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
+              <div className="relative w-full sm:max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Buscar por conteúdo..."
+                  value={search}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setSearch(next);
+                    setPage(1);
+                    const sp = new URLSearchParams(searchParams);
+                    const trimmed = next.trim();
+                    if (trimmed) sp.set('q', trimmed);
+                    else sp.delete('q');
+                    setSearchParams(sp, { replace: true });
+                  }}
+                  className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+                {search ? (
+                  <button
+                    onClick={() => {
+                      setSearch('');
+                      setPage(1);
+                      const sp = new URLSearchParams(searchParams);
+                      sp.delete('q');
+                      setSearchParams(sp, { replace: true });
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label="Limpar busca"
+                    type="button"
+                  >
+                    <X className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                ) : null}
+              </div>
+
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Tipo:</span>
@@ -620,7 +674,7 @@ const GroupMessages = () => {
                     setPage(1);
                   }}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                     !typeFilter 
                       ? "bg-primary text-primary-foreground" 
                       : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -636,7 +690,7 @@ const GroupMessages = () => {
                       setPage(1);
                     }}
                     className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                      "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       typeFilter === type 
                         ? "bg-primary text-primary-foreground" 
                         : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -648,10 +702,14 @@ const GroupMessages = () => {
               </div>
             </div>
           )}
-          showClearFilters={!!typeFilter}
+          showClearFilters={!!typeFilter || !!search.trim()}
           onClearFilters={() => {
             setTypeFilter("");
             setPage(1);
+            setSearch('');
+            const sp = new URLSearchParams(searchParams);
+            sp.delete('q');
+            setSearchParams(sp, { replace: true });
           }}
           rightActions={canEditGroup(groupId as string, groupInfo?.orgId) ? (
             <Button onClick={() => setImportOpen(true)} variant="secondary">
@@ -672,8 +730,12 @@ const GroupMessages = () => {
         ) : messagesData?.items.length === 0 ? (
           <EmptyState
             icon={MessageSquare}
-            title={typeFilter ? "Nenhum resultado" : "Nenhuma mensagem"}
-            message={typeFilter ? `Nenhuma mensagem do tipo "${typeFilter}" encontrada.` : "Este grupo ainda não possui mensagens."}
+            title={typeFilter || search.trim() ? "Nenhum resultado" : "Nenhuma mensagem"}
+            message={
+              typeFilter || search.trim()
+                ? `Nenhuma mensagem${typeFilter ? ` do tipo "${typeFilter}"` : ""}${search.trim() ? ` contendo "${search.trim()}"` : ""} encontrada.`
+                : "Este grupo ainda não possui mensagens."
+            }
           />
         ) : (
           <BorisTable

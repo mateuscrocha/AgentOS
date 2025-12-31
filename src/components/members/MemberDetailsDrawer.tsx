@@ -7,6 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { badgeVariants } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
@@ -50,6 +51,23 @@ const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = 
   MEMBRO: {
     label: "Membro",
     className: "border-border bg-muted/50 text-muted-foreground",
+  },
+};
+
+type MemberStatusKey = "ATIVO" | "SAIU" | "INATIVO";
+
+const STATUS_BADGE: Record<MemberStatusKey, { label: string; className: string }> = {
+  ATIVO: {
+    label: "Ativo",
+    className: "border-emerald-200/70 bg-emerald-100/55 text-emerald-950",
+  },
+  SAIU: {
+    label: "Saiu",
+    className: "border-amber-200/70 bg-amber-100/55 text-amber-950",
+  },
+  INATIVO: {
+    label: "Inativo",
+    className: "border-rose-200/70 bg-rose-100/55 text-rose-950",
   },
 };
 
@@ -336,6 +354,15 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
     return "";
   }, [member]);
 
+  const statusKey = useMemo((): MemberStatusKey => {
+    if (member?.left_at) return "SAIU";
+    const raw = (member as any)?.status;
+    if (raw && raw !== "active") return "INATIVO";
+    return "ATIVO";
+  }, [member]);
+
+  const statusLabel = useMemo(() => STATUS_BADGE[statusKey].label, [statusKey]);
+
   const header = (
     <div className="flex items-start gap-3 cursor-default" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
       <Avatar className="h-12 w-12">
@@ -349,7 +376,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold text-card-foreground truncate">{member?.display_name || member?.name || "Membro"}</h3>
+          <h3 className="text-xl font-semibold text-card-foreground truncate">{member?.display_name || member?.name || "Membro"}</h3>
           {effectiveMemberRole ? (
             <span
               className={cn(
@@ -360,6 +387,14 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
               {ROLE_BADGE[effectiveMemberRole].label}
             </span>
           ) : null}
+          <span
+            className={cn(
+              "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
+              STATUS_BADGE[statusKey].className
+            )}
+          >
+            {statusLabel}
+          </span>
         </div>
         <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
           {member?.phone_e164 ? (
@@ -369,26 +404,36 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
             <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{(member as any).email}</span>
           ) : null}
         </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            Última atividade: <span className="text-card-foreground">{formatRelativeBR(lastMessage?.created_at)}</span>
+          </span>
+          {member?.joined_at ? (
+            <span className="inline-flex items-center gap-1">
+              Entrou: <span className="text-card-foreground">{formatDateSimpleBR(member.joined_at)}</span>
+            </span>
+          ) : null}
+        </div>
       </div>
     </div>
   );
 
   const overviewCards = ctxGroupId ? (
-    <div className="grid grid-cols-2 gap-3">
-      <div className="p-3 rounded-lg border border-border bg-secondary/30">
-        <div className="text-xs text-muted-foreground">Entrou no grupo em</div>
-        <div className="text-sm font-medium text-card-foreground">{member?.joined_at ? formatDateSimpleBR(member.joined_at) : "—"}</div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="p-4 rounded-xl border border-border bg-secondary/20">
+        <div className="text-[11px] font-medium text-muted-foreground">Entrou no grupo em</div>
+        <div className="mt-1 text-base font-semibold text-card-foreground">{member?.joined_at ? formatDateSimpleBR(member.joined_at) : "—"}</div>
       </div>
-      <div className="p-3 rounded-lg border border-border bg-secondary/30">
-        <div className="text-xs text-muted-foreground">Última atividade</div>
-        <div className="text-sm font-medium text-card-foreground">{formatRelativeBR(lastMessage?.created_at)}</div>
+      <div className="p-4 rounded-xl border border-border bg-secondary/20">
+        <div className="text-[11px] font-medium text-muted-foreground">Última atividade</div>
+        <div className="mt-1 text-base font-semibold text-card-foreground">{formatRelativeBR(lastMessage?.created_at)}</div>
       </div>
-      <div className="p-3 rounded-lg border border-border bg-secondary/30">
-        <div className="text-xs text-muted-foreground">Total de mensagens neste grupo</div>
-        <div className="text-sm font-medium text-card-foreground">{totalMessages ?? 0}</div>
+      <div className="p-4 rounded-xl border border-border bg-secondary/20">
+        <div className="text-[11px] font-medium text-muted-foreground">Total de mensagens no grupo</div>
+        <div className="mt-1 text-base font-semibold text-card-foreground tabular-nums">{totalMessages ?? 0}</div>
       </div>
-      <div className="p-3 rounded-lg border border-border bg-secondary/30">
-        <div className="text-xs text-muted-foreground">Função no grupo</div>
+      <div className="p-4 rounded-xl border border-border bg-secondary/20">
+        <div className="text-[11px] font-medium text-muted-foreground">Função no grupo</div>
         <div className="mt-1">
           {canEditMemberRole && effectiveMemberRole && effectiveMemberRole !== "OWNER" ? (
             <Select
@@ -410,7 +455,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
               </SelectContent>
             </Select>
           ) : (
-            <div className="text-sm font-medium text-card-foreground">{roleLabel || "—"}</div>
+            <div className="text-base font-semibold text-card-foreground">{roleLabel || "—"}</div>
           )}
           {roleLabel ? (
             <div className="mt-1 text-xs text-muted-foreground">{roleDescription}</div>
@@ -421,8 +466,8 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
   ) : null;
 
   const recentChart = (
-    <div className="rounded-lg border border-border bg-secondary/30 p-3">
-      <div className="text-sm font-medium text-muted-foreground mb-2">Mensagens nos últimos 7 dias</div>
+    <div className="rounded-xl border border-border bg-secondary/20 p-4">
+      <div className="text-[11px] font-medium text-muted-foreground mb-2">Mensagens nos últimos 7 dias</div>
       {!recentCounts ? (
         <Skeleton className="h-[120px] w-full" />
       ) : (
@@ -442,11 +487,11 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
   const recentList = (
     <div className="space-y-2">
       {(recentMessages || []).map((m) => (
-        <div key={m.id} className="p-2 rounded-lg bg-card/50">
-          <div className="text-xs text-muted-foreground">{formatDateTimeBR(m.created_at)}</div>
-          <div className="text-sm text-card-foreground line-clamp-2 break-words">{m.preview || `[${m.type}]`}</div>
+        <div key={m.id} className="p-3 rounded-xl border border-border bg-card/50 hover:bg-secondary/20 transition-colors">
+          <div className="text-[11px] font-medium text-muted-foreground">{formatDateTimeBR(m.created_at)}</div>
+          <div className="mt-1 text-sm text-card-foreground line-clamp-2 break-words">{m.preview || `[${m.type}]`}</div>
           {ctxGroupId ? (
-            <a href={`/groups/${ctxGroupId}/messages`} className="inline-flex items-center gap-1 text-xs text-primary mt-1">
+            <a href={`/groups/${ctxGroupId}/messages`} className="inline-flex items-center gap-1 text-xs text-primary mt-1 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm">
               <ArrowRight className="h-3 w-3" />
               Ver na conversa
             </a>
@@ -459,17 +504,27 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
   const membershipsList = (
     <div className="space-y-2">
       {(memberships || []).map((m: any) => (
-        <div key={m.group_id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30">
+        <div key={m.group_id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-secondary/10">
           <div className="min-w-0">
             <div className="text-sm text-card-foreground truncate">{(m as any).groups?.name || "Grupo"}</div>
-            <div className="text-xs text-muted-foreground">{m.left_at ? "saiu" : (m.status === "active" ? "ativo" : m.status || "—")}</div>
+            <div className="mt-1 flex items-center gap-2">
+              <span
+                className={cn(
+                  badgeVariants({ variant: m.left_at ? "secondary" : (m.status === "active" ? "default" : "destructive") }),
+                  "text-[10px] px-2 py-0.5",
+                  m.status === "active" && !m.left_at ? "bg-emerald-600 text-white hover:bg-emerald-600/90" : ""
+                )}
+              >
+                {m.left_at ? "Saiu" : (m.status === "active" ? "Ativo" : (m.status || "Inativo"))}
+              </span>
+            </div>
           </div>
-          <a href={`/groups/${m.group_id}`} className="text-xs text-primary">Abrir</a>
+          <a href={`/groups/${m.group_id}`} className="text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm">Abrir</a>
         </div>
       ))}
       {(memberships || []).length > 5 ? (
         <div className="flex justify-end">
-          <a href={`/groups/${group?.id || ctxGroupId || ""}/members`} className="text-xs text-muted-foreground">Ver todos</a>
+          <a href={`/groups/${group?.id || ctxGroupId || ""}/members`} className="text-xs text-muted-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm">Ver todos</a>
         </div>
       ) : null}
     </div>
@@ -477,18 +532,26 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
 
   const keywordsList = (
     <div className="space-y-2">
-      {(keywords || []).map((k) => (
-        <div key={k.term} className="flex items-center gap-2">
-          <span className="text-sm text-card-foreground">{k.term}</span>
-          <div className="flex-1 h-2 rounded bg-muted">
-            <div className="h-2 rounded bg-primary" style={{ width: `${Math.min(100, k.count * 10)}%` }} />
-          </div>
-          <span className="text-xs text-muted-foreground tabular-nums">{k.count}</span>
+      {(keywords || []).length ? (
+        <div className="flex flex-wrap gap-2">
+          {(keywords || []).map((k) => (
+            <a
+              key={k.term}
+              href={ctxGroupId ? `/groups/${ctxGroupId}/messages` : "#"}
+              className={cn(
+                badgeVariants({ variant: "secondary" }),
+                "rounded-lg px-2.5 py-1 text-xs",
+                ctxGroupId ? "cursor-pointer" : "pointer-events-none opacity-60"
+              )}
+            >
+              <span className="font-medium">{k.term}</span>
+              <span className="ml-1 text-muted-foreground tabular-nums">{k.count}</span>
+            </a>
+          ))}
         </div>
-      ))}
-      {(keywords || []).length === 0 ? (
+      ) : (
         <div className="text-sm text-muted-foreground">Sem dados</div>
-      ) : null}
+      )}
     </div>
   );
 
@@ -543,103 +606,116 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
   );
 
   const contentBody = (
-    <div className="space-y-6 p-4">
-      {memberLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-32 w-full" />
+    <div className={cn("flex flex-col", variant === "dialog" ? "h-[85vh]" : "h-full")}>
+      <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur px-5 sm:px-6 py-4">
+        <div className="space-y-3">
+          <div className="text-base font-semibold text-card-foreground pr-10">Detalhes do membro</div>
+          {!memberLoading && !memberError ? header : null}
         </div>
-      ) : memberError ? (
-        <div className="text-sm text-destructive">Não foi possível carregar os detalhes deste membro. Tente novamente.</div>
-      ) : (
-        <>
-          {header}
+      </div>
 
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-card-foreground">Visão geral neste grupo</h4>
-            {overviewCards}
+      <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth px-5 sm:px-6 py-5">
+        {memberLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-32 w-full" />
           </div>
+        ) : memberError ? (
+          <div className="p-3 rounded-md bg-destructive/10 text-sm text-destructive">Não foi possível carregar os detalhes deste membro. Tente novamente.</div>
+        ) : (
+          <div className="space-y-6">
+            <section className="rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3">
+              <h4 className="text-sm font-semibold text-card-foreground">Visão geral</h4>
+              {overviewCards}
+            </section>
 
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-card-foreground">Atividade recente</h4>
-            {recentChart}
-            {recentList}
-            <div className="flex items-center justify-between mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={recentPage <= 1}
-                onClick={() => setRecentPage(p => Math.max(1, p - 1))}
-              >
-                Anterior
-              </Button>
-              <span className="text-xs text-muted-foreground">
-                Página {recentPage} de {Math.max(1, Math.ceil((totalMessages || 0) / RECENT_PAGE_SIZE))}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={recentPage >= Math.max(1, Math.ceil((totalMessages || 0) / RECENT_PAGE_SIZE))}
-                onClick={() => setRecentPage(p => p + 1)}
-              >
-                Próxima
-              </Button>
-            </div>
+            <section className="rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold text-card-foreground">Atividade recente</h4>
+                <div className="text-xs text-muted-foreground">Últimos 7 dias</div>
+              </div>
+              {recentChart}
+              {recentList}
+              <div className="flex items-center justify-between pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={recentPage <= 1}
+                  onClick={() => setRecentPage(p => Math.max(1, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Página {recentPage} de {Math.max(1, Math.ceil((totalMessages || 0) / RECENT_PAGE_SIZE))}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={recentPage >= Math.max(1, Math.ceil((totalMessages || 0) / RECENT_PAGE_SIZE))}
+                  onClick={() => setRecentPage(p => p + 1)}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3">
+              <h4 className="text-sm font-semibold text-card-foreground">Participação em grupos</h4>
+              {membershipsList}
+            </section>
+
+            <section className="rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3">
+              <h4 className="text-sm font-semibold text-card-foreground">Tags e assuntos</h4>
+              {keywordsList}
+            </section>
+
+            <section className="rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3">
+              <h4 className="text-sm font-semibold text-card-foreground">Ações</h4>
+              {actions}
+            </section>
+
+            {isSystemAdmin ? (
+              <section className="rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3">
+                <h4 className="text-sm font-semibold text-card-foreground">Avançado</h4>
+                <Tabs defaultValue="overview">
+                  <TabsList>
+                    <TabsTrigger value="overview">Visão geral</TabsTrigger>
+                    <TabsTrigger value="advanced">Dados</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="advanced" className="mt-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <div className="text-muted-foreground">member_id</div>
+                        <div className="font-mono text-xs break-all">{member?.id || ""}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">group_id</div>
+                        <div className="font-mono text-xs break-all">{ctxGroupId || ""}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">origem</div>
+                        <div className="text-card-foreground">{member?.provider || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">whatsapp_provider_id</div>
+                        <div className="font-mono text-xs break-all">{(member as any)?.whatsapp_provider_id || ""}</div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </section>
+            ) : null}
           </div>
-
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-card-foreground">Grupos deste membro</h4>
-            {membershipsList}
-          </div>
-
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-card-foreground">Assuntos mais frequentes</h4>
-            {keywordsList}
-          </div>
-
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-card-foreground">Ações</h4>
-            {actions}
-          </div>
-
-          {isSystemAdmin ? (
-            <Tabs defaultValue="overview">
-              <TabsList>
-                <TabsTrigger value="overview">Visão geral</TabsTrigger>
-                <TabsTrigger value="advanced">Avançado</TabsTrigger>
-              </TabsList>
-              <TabsContent value="advanced" className="mt-3">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <div className="text-muted-foreground">member_id</div>
-                    <div className="font-mono text-xs break-all">{member?.id || ""}</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">group_id</div>
-                    <div className="font-mono text-xs break-all">{ctxGroupId || ""}</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">origem</div>
-                    <div className="text-card-foreground">{member?.provider || "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">whatsapp_provider_id</div>
-                    <div className="font-mono text-xs break-all">{(member as any)?.whatsapp_provider_id || ""}</div>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          ) : null}
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 
   if (variant === "dialog") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="bg-card border-border max-w-3xl w-[90vw]">
+        <DialogContent className="bg-card border-border max-w-3xl w-[90vw] p-0 overflow-hidden">
           {contentBody}
         </DialogContent>
       </Dialog>
@@ -648,7 +724,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-xl">
+      <SheetContent side="right" className="w-full sm:max-w-xl p-0 overflow-hidden">
         {contentBody}
       </SheetContent>
     </Sheet>
