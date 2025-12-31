@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { SectionHeader } from "@/components/group-dashboard/SectionHeader";
 
 interface BigramItem { phrase: string; delta: number }
 
@@ -64,19 +65,17 @@ export function PeriodReportSystem({
   })();
 
   return (
-    <div className="mt-8 rounded-xl border border-border bg-card p-6">
-      <div className="mb-2">
-        <h3 className="text-sm font-semibold text-card-foreground">Visão geral do período</h3>
-        <p className="text-xs text-muted-foreground">Resumo inteligente do que aconteceu neste período.</p>
-      </div>
+    <section className="rounded-xl border border-border bg-card p-5">
+      <SectionHeader
+        title="Visão geral do período"
+        subtitle="Resumo inteligente do que aconteceu neste período."
+      />
 
       <div className="space-y-6">
-        {/* Bloco 0 — Resumo geral */}
         <div className="rounded-lg border border-border bg-secondary/30 p-3">
           <p className="text-sm font-medium text-card-foreground">{summaryLine}</p>
         </div>
 
-        {/* Bloco 1 — Atividade */}
         {hasMessages && (
           <div className="space-y-2">
             <p className="text-sm font-semibold text-card-foreground">Atividade no período</p>
@@ -87,7 +86,6 @@ export function PeriodReportSystem({
           </div>
         )}
 
-        {/* Bloco 2 — Temas em destaque */}
         {showThemes && (
           <div className="space-y-2">
             <p className="text-sm font-semibold text-card-foreground">Temas em destaque</p>
@@ -100,7 +98,6 @@ export function PeriodReportSystem({
           </div>
         )}
 
-        {/* Bloco 3 — Pontos de atenção */}
         {showAttention && (
           <div className="space-y-2">
             <p className="text-sm font-semibold text-card-foreground">⚠️ Pontos de atenção</p>
@@ -112,7 +109,6 @@ export function PeriodReportSystem({
           </div>
         )}
 
-        {/* Bloco 4 — Boas notícias */}
         {showGoodNews && (
           <div className="space-y-2">
             <p className="text-sm font-semibold text-card-foreground">Boas notícias</p>
@@ -124,11 +120,10 @@ export function PeriodReportSystem({
           </div>
         )}
 
-        {/* CTA final */}
         <div>
           <Link to="/system/groups" className="text-xs text-primary hover:underline">Ver análise detalhada →</Link>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

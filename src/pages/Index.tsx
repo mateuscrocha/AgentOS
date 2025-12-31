@@ -8,7 +8,6 @@ import { ConnectionStatus } from "@/components/dashboard/ConnectionStatus";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
  
@@ -20,6 +19,7 @@ import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight, Arr
 import { PeriodReportSystem } from "@/components/dashboard/PeriodReport";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
+import { SectionHeader } from "@/components/group-dashboard/SectionHeader";
 import {
   PeriodType,
   DateRange,
@@ -782,44 +782,46 @@ const Index = () => {
       title="Central do Bóris" 
       subtitle="Panorama geral do Bóris"
     >
-      <AdminPageHeader
-        breadcrumbItems={[{ label: "Central do Bóris" }]}
-        title="Central do Bóris"
-        description="Panorama geral do Bóris"
-        filters={(
-          <div className="flex items-center gap-3">
-            <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
-            <span className="text-xs text-muted-foreground">Período: {periodLabel}</span>
-          </div>
-        )}
-        showClearFilters={hasActiveFilters}
-        onClearFilters={handleClearFilters}
-        filteredKpis={(
-          <>
-            <StatsCard title="Organizações ativas" value={kpiOrgsPeriodLoading ? "—" : (kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0))} change={kpiOrgsPeriodLoading ? undefined : orgsChange.label} changeType={orgsChange.type} icon={Building2} variant="kpi" />
-            <StatsCard title="Grupos monitorados" value={kpiGroupsPeriodLoading ? "—" : (kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0))} change={kpiGroupsPeriodLoading ? undefined : groupsChange.label} changeType={groupsChange.type} icon={Layers} variant="kpi" />
-            <StatsCard title="Membros ativos" value={kpiActiveMembersLoading ? "—" : (kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0))} change={kpiActiveMembersLoading ? undefined : activeMembersChange.label} changeType={activeMembersChange.type} icon={UsersIcon} variant="kpi" />
-            <StatsCard title="Mensagens no período" value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0))} change={kpiMessagesLoading ? undefined : messagesChangeLabel} changeType={messagesChangeType} icon={MessageSquare} variant="kpi" />
-            <StatsCard title="Participação dos membros" value={participationValue} change={participationChange.label} changeType={participationChange.type} icon={UsersIcon} variant="kpi" />
-          </>
-        )}
-      />
-      <PeriodReportSystem
-        messagesCurrent={kpiMessagesPeriod || 0}
-        messagesPrev={kpiMessagesPrevPeriod || 0}
-        activeMembersCurrent={kpiActiveMembersPeriod || 0}
-        totalMembers={kpiMembers || 0}
-        activeOrgsCurrent={kpiOrgsPeriod || 0}
-        totalOrgs={kpiOrgs || 0}
-        trendingBigrams={(signalKeywords?.bigrams || []) as any}
-      />
+      <div className="space-y-8 animate-fade-in">
+        <AdminPageHeader
+          breadcrumbItems={[{ label: "Central do Bóris" }]}
+          title="Central do Bóris"
+          description="Panorama geral do Bóris"
+          filters={(
+            <div className="flex items-center gap-3">
+              <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
+              <span className="text-xs text-muted-foreground">Período: {periodLabel}</span>
+            </div>
+          )}
+          showClearFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          filteredKpis={(
+            <>
+              <StatsCard title="Organizações ativas" value={kpiOrgsPeriodLoading ? "—" : (kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0))} change={kpiOrgsPeriodLoading ? undefined : orgsChange.label} changeType={orgsChange.type} icon={Building2} variant="kpi" />
+              <StatsCard title="Grupos monitorados" value={kpiGroupsPeriodLoading ? "—" : (kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0))} change={kpiGroupsPeriodLoading ? undefined : groupsChange.label} changeType={groupsChange.type} icon={Layers} variant="kpi" />
+              <StatsCard title="Membros ativos" value={kpiActiveMembersLoading ? "—" : (kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0))} change={kpiActiveMembersLoading ? undefined : activeMembersChange.label} changeType={activeMembersChange.type} icon={UsersIcon} variant="kpi" />
+              <StatsCard title="Mensagens no período" value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0))} change={kpiMessagesLoading ? undefined : messagesChangeLabel} changeType={messagesChangeType} icon={MessageSquare} variant="kpi" />
+              <StatsCard title="Participação dos membros" value={participationValue} change={participationChange.label} changeType={participationChange.type} icon={UsersIcon} variant="kpi" />
+            </>
+          )}
+        />
 
-      <Card className="mt-8" id="conversation-rhythm">
-        <CardHeader>
-          <CardTitle>Ritmo da Conversa</CardTitle>
-          <CardDescription>Evolução diária de mensagens no período selecionado</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <PeriodReportSystem
+          messagesCurrent={kpiMessagesPeriod || 0}
+          messagesPrev={kpiMessagesPrevPeriod || 0}
+          activeMembersCurrent={kpiActiveMembersPeriod || 0}
+          totalMembers={kpiMembers || 0}
+          activeOrgsCurrent={kpiOrgsPeriod || 0}
+          totalOrgs={kpiOrgs || 0}
+          trendingBigrams={(signalKeywords?.bigrams || []) as any}
+        />
+
+        <section className="rounded-xl border border-border bg-card p-5" id="conversation-rhythm">
+          <SectionHeader
+            title="Ritmo da Conversa"
+            subtitle="Evolução diária de mensagens no período selecionado"
+          />
+
           {messagesPerDayLoading ? (
             <div className="h-[220px] w-full rounded-lg border border-border bg-secondary/30" />
           ) : !messagesPerDay || messagesPerDay.length === 0 ? (
@@ -875,15 +877,15 @@ const Index = () => {
               </LineChart>
             </ChartContainer>
           )}
-        </CardContent>
-      </Card>
 
-      <Card className="mt-8" id="keywords">
-        <CardHeader>
-          <CardTitle>Grupos mais ativos</CardTitle>
-          <CardDescription>Mensagens por grupo no período selecionado</CardDescription>
-        </CardHeader>
-        <CardContent>
+        </section>
+
+        <section className="rounded-xl border border-border bg-card p-5" id="keywords">
+          <SectionHeader
+            title="Grupos mais ativos"
+            subtitle="Mensagens por grupo no período selecionado"
+          />
+
           {signalConcentrationLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
           {!signalConcentrationLoading && signalConcentrationError && (<ErrorState title="Falha ao carregar" message="Não foi possível carregar" retry={refetchConcentration} />)}
           {!signalConcentrationLoading && !signalConcentrationError && signalConcentration && (
@@ -898,17 +900,16 @@ const Index = () => {
                   <button
                     key={g.id}
                     onClick={() => navigate(`/groups/${g.id}`)}
-                    className="w-full text-left rounded-md border border-border bg-card p-3 hover:bg-card/70 transition-colors"
+                    className="w-full text-left rounded-lg border border-border bg-card/50 p-3 hover:bg-secondary/40 transition-colors"
                   >
                     <div className="text-sm font-medium text-card-foreground">{`${i + 1}. ${g.name}`}</div>
                     <div className="mt-1 text-sm text-card-foreground">
-                      <span>📩 </span>
                       <span className="font-semibold">{Number(g.count || 0)}</span>
                       <span className="ml-1">msgs</span>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-3">
-                      <span className="whitespace-nowrap">👥 {Number(g.activeMembers || 0)} ativos</span>
-                      <span className="whitespace-nowrap">📆 {avgPerDay}/dia</span>
+                      <span className="whitespace-nowrap">{Number(g.activeMembers || 0)} ativos</span>
+                      <span className="whitespace-nowrap">{avgPerDay}/dia</span>
                       <span className="whitespace-nowrap">{participation}% do total</span>
                     </div>
                   </button>
@@ -918,20 +919,17 @@ const Index = () => {
           );
         })()
       )}
-      </CardContent>
-      </Card>
 
-      
+        </section>
 
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>Saúde da plataforma</CardTitle>
-          <CardDescription>Status operacional atual</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <section className="rounded-xl border border-border bg-card p-5">
+          <SectionHeader
+            title="Saúde da plataforma"
+            subtitle="Status operacional atual"
+          />
           <ConnectionStatus />
-        </CardContent>
-      </Card>
+        </section>
+      </div>
     </AdminLayout>
   );
 };

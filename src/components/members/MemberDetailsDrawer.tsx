@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -7,12 +7,14 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { SAO_PAULO_TZ, formatDateSimpleBR, formatDateTimeBR } from "@/lib/date";
 import { Users, Shield, Phone, Mail, MessageSquare, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { notify } from "@/components/ui/sonner";
 
 type MemberDetailsDrawerProps = {
   open: boolean;
@@ -34,28 +36,35 @@ const getMemberRoleKey = (m: { is_owner?: boolean | null; is_super_admin?: boole
 
 const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = {
   OWNER: {
-    label: "OWNER",
-    className: "border-zinc-300/60 bg-zinc-200/40 text-zinc-800",
+    label: "Dono",
+    className: "border-orange-200/70 bg-orange-100/55 text-orange-950",
   },
   SUPERADMIN: {
-    label: "SUPERADMIN",
-    className: "border-amber-200/70 bg-amber-100/55 text-amber-950",
+    label: "Super Admin",
+    className: "border-violet-200/70 bg-violet-100/55 text-violet-950",
   },
   ADMIN: {
-    label: "ADMIN",
+    label: "Admin",
     className: "border-sky-200/70 bg-sky-100/55 text-sky-950",
   },
   MEMBRO: {
-    label: "MEMBRO",
+    label: "Membro",
     className: "border-border bg-muted/50 text-muted-foreground",
   },
 };
 
 const getMemberRoleLabel = (role: MemberRoleKey) => {
-  if (role === "OWNER") return "Owner";
-  if (role === "SUPERADMIN") return "Superadmin";
-  if (role === "ADMIN") return "Admin do grupo";
+  if (role === "OWNER") return "Dono do grupo";
+  if (role === "SUPERADMIN") return "Super Admin";
+  if (role === "ADMIN") return "Admin";
   return "Membro";
+};
+
+const getMemberRoleDescription = (role: MemberRoleKey) => {
+  if (role === "OWNER") return "Criou o grupo ou possui controle total.";
+  if (role === "SUPERADMIN") return "Admin com permissões ampliadas.";
+  if (role === "ADMIN") return "Pode gerenciar membros e configurar o grupo.";
+  return "Participante comum do grupo.";
 };
 
 function formatRelativeBR(dateStr?: string | null) {
@@ -88,6 +97,9 @@ function tokenizePt(text: string) {
 
 export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, organizationId, variant = "sheet" }: MemberDetailsDrawerProps) {
   const { isSystemAdmin, isOrgAdmin, isGroupManager } = useUserRoles();
+  const queryClient = useQueryClient();
+  const [updatingRole, setUpdatingRole] = useState(false);
+  const [roleOverride, setRoleOverride] = useState<MemberRoleKey | null>(null);
 
   const { data: member, isLoading: memberLoading, error: memberError } = useQuery({
     queryKey: ["member-details", memberId],
@@ -103,6 +115,11 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
   });
 
   const ctxGroupId = groupId || member?.group_id || undefined;
+
+  useEffect(() => {
+    setRoleOverride(null);
+    setUpdatingRole(false);
+  }, [memberId, open]);
 
   const { data: group } = useQuery({
     queryKey: ["member-group", ctxGroupId],
@@ -253,10 +270,66 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
     return getMemberRoleKey(member || {});
   }, [ctxGroupId, member]);
 
+  const effectiveMemberRole = (roleOverride || memberRole) as MemberRoleKey | null;
+
   const roleLabel = useMemo(() => {
-    if (!memberRole) return "";
-    return getMemberRoleLabel(memberRole);
-  }, [memberRole]);
+    if (!effectiveMemberRole) return "";
+    return getMemberRoleLabel(effectiveMemberRole);
+  }, [effectiveMemberRole]);
+
+  const roleDescription = useMemo(() => {
+    if (!effectiveMemberRole) return "";
+    return getMemberRoleDescription(effectiveMemberRole);
+  }, [effectiveMemberRole]);
+
+  const canEditMemberRole = !!ctxGroupId && (isSystemAdmin || isOrgAdmin || isGroupManager);
+
+  const roleValue = useMemo(() => {
+    if (!effectiveMemberRole) return "member" as const;
+    if (effectiveMemberRole === "SUPERADMIN") return "superadmin" as const;
+    if (effectiveMemberRole === "ADMIN") return "admin" as const;
+    if (effectiveMemberRole === "OWNER") return "owner" as const;
+    return "member" as const;
+  }, [effectiveMemberRole]);
+
+  const updateMemberRole = async (next: "member" | "admin" | "superadmin") => {
+    if (!ctxGroupId || !memberId) return;
+    if (effectiveMemberRole === "OWNER") {
+      notify.warning("Ação não permitida", "Não é possível alterar o dono do grupo.");
+      return;
+    }
+
+    const patch =
+      next === "member"
+        ? { is_admin: false, is_super_admin: false }
+        : next === "admin"
+        ? { is_admin: true, is_super_admin: false }
+        : { is_admin: true, is_super_admin: true };
+
+    setUpdatingRole(true);
+    try {
+      const { error } = await supabase
+        .from("members")
+        .update(patch)
+        .eq("id", memberId)
+        .eq("group_id", ctxGroupId);
+
+      if (error) throw error;
+
+      const nextRoleKey: MemberRoleKey = next === "superadmin" ? "SUPERADMIN" : next === "admin" ? "ADMIN" : "MEMBRO";
+      setRoleOverride(nextRoleKey);
+
+      await queryClient.invalidateQueries({ queryKey: ["member-details", memberId] });
+      await queryClient.invalidateQueries({ queryKey: ["group-members", ctxGroupId] });
+      await queryClient.invalidateQueries({ queryKey: ["group-special-members", ctxGroupId] });
+
+      notify.success("Função atualizada", "A função do membro foi atualizada neste grupo.");
+    } catch (e: any) {
+      notify.error("Não foi possível atualizar", e?.message || "Falha ao atualizar a função do membro.");
+    } finally {
+      setUpdatingRole(false);
+    }
+  };
 
   const idLabel = useMemo(() => {
     if (member?.phone_e164) return member.phone_e164;
@@ -277,14 +350,14 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold text-card-foreground truncate">{member?.display_name || member?.name || "Membro"}</h3>
-          {memberRole ? (
+          {effectiveMemberRole ? (
             <span
               className={cn(
-                "inline-flex items-center h-5 px-2 rounded-md border text-[10px] font-semibold tracking-wide leading-none",
-                ROLE_BADGE[memberRole].className
+                "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
+                ROLE_BADGE[effectiveMemberRole].className
               )}
             >
-              {ROLE_BADGE[memberRole].label}
+              {ROLE_BADGE[effectiveMemberRole].label}
             </span>
           ) : null}
         </div>
@@ -315,8 +388,34 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
         <div className="text-sm font-medium text-card-foreground">{totalMessages ?? 0}</div>
       </div>
       <div className="p-3 rounded-lg border border-border bg-secondary/30">
-        <div className="text-xs text-muted-foreground">Papel no grupo</div>
-        <div className="text-sm font-medium text-card-foreground">{roleLabel || "—"}</div>
+        <div className="text-xs text-muted-foreground">Função no grupo</div>
+        <div className="mt-1">
+          {canEditMemberRole && effectiveMemberRole && effectiveMemberRole !== "OWNER" ? (
+            <Select
+              value={roleValue}
+              onValueChange={(v) => {
+                if (v === "member" || v === "admin" || v === "superadmin") {
+                  void updateMemberRole(v);
+                }
+              }}
+              disabled={updatingRole}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="member">Membro</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="superadmin">Super Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-sm font-medium text-card-foreground">{roleLabel || "—"}</div>
+          )}
+          {roleLabel ? (
+            <div className="mt-1 text-xs text-muted-foreground">{roleDescription}</div>
+          ) : null}
+        </div>
       </div>
     </div>
   ) : null;

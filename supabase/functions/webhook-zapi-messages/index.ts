@@ -417,6 +417,33 @@ serve(async (req: Request) => {
             null
         );
 
+      const replyToWhatsappProviderId = firstString(
+        payload.reply_to_whatsapp_provider_id,
+        payload.replyToWhatsappProviderId,
+        payload.replyToMessageId,
+        payload.reply_to_message_id,
+        payload.quotedMessageId,
+        payload.quoted_message_id,
+        payload?.message?.replyToMessageId,
+        payload?.message?.reply_to_message_id,
+        payload?.message?.quotedMessageId,
+        payload?.message?.quoted_message_id,
+        payload?.context?.replyToMessageId,
+        payload?.context?.quotedMessageId,
+        payload?.contextInfo?.stanzaId,
+        payload?.contextInfo?.quotedMessageId,
+        payload?.message?.contextInfo?.stanzaId,
+        payload?.message?.contextInfo?.quotedMessageId
+      );
+
+      const referenceMessageId = firstString(
+        payload.reference_message_id,
+        payload.referenceMessageId,
+        payload.reference_message,
+        payload?.message?.reference_message_id,
+        payload?.message?.referenceMessageId
+      );
+
       const textCandidate =
         payload.text?.message ||
         payload.text?.text ||
@@ -542,6 +569,13 @@ serve(async (req: Request) => {
             raw_provider: payload,
             metadata: { source: 'zapi_webhook', raw_type: rawType || null },
           };
+
+          if (replyToWhatsappProviderId) {
+            insertPayload.reply_to_whatsapp_provider_id = replyToWhatsappProviderId;
+          }
+          if (referenceMessageId) {
+            insertPayload.reference_message_id = referenceMessageId;
+          }
 
           if (createdAtISO) {
             insertPayload.created_at = createdAtISO;

@@ -9,6 +9,8 @@ import { notify } from "@/components/ui/sonner";
 
  
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 interface DateRange {
   from: Date;
   to: Date;
@@ -34,6 +36,7 @@ type MemberChangeEvent = {
 export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptions) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const isGroupIdValid = typeof groupId === "string" && UUID_RE.test(groupId);
 
   // Use provided date range or default to 7 days
   const nowRef = useRef<Date>(new Date());
@@ -75,7 +78,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const previousPeriodEndISO = previousPeriodEnd.toISOString();
 
   useEffect(() => {
-    if (!groupId || !isAuthenticated) return;
+    if (!groupId || !isGroupIdValid || !isAuthenticated) return;
 
     const channel = supabase
       .channel(`realtime:group:${groupId}:member_events`)
@@ -96,7 +99,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [groupId, isAuthenticated, queryClient]);
+  }, [groupId, isGroupIdValid, isAuthenticated, queryClient]);
 
   // Fetch group details
   const { data: group, isLoading: groupLoading, error: groupError } = useQuery({
@@ -111,7 +114,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       if (error) throw error;
       return data;
     },
-    enabled: !!groupId && isAuthenticated,
+    enabled: !!groupId && isGroupIdValid && isAuthenticated,
     staleTime: 60000,
   });
 
@@ -140,7 +143,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .maybeSingle();
       return data;
     },
-    enabled: !!groupId && isAuthenticated,
+    enabled: !!groupId && isGroupIdValid && isAuthenticated,
     staleTime: 60000,
   });
 

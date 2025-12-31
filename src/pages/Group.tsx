@@ -34,6 +34,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 type GroupMembersSyncResult = {
   success: boolean;
   code?: string;
@@ -45,6 +47,11 @@ type GroupMembersSyncResult = {
   members_to_add_count?: number;
   members_to_mark_as_left_count?: number;
   members_reactivated_count?: number;
+  members_kept_count?: number;
+  members_added_count?: number;
+  members_restored_count?: number;
+  members_removed_archived_count?: number;
+  operation_id?: string;
   members_ok_count?: number;
   skipped_count?: number;
   duplicates?: { phones: string[]; provider_ids: string[] };
@@ -80,15 +87,16 @@ const Group = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { loading: authLoading } = useAuth();
-  const { isLoading: rolesLoading } = useUserRoles();
+  const { isLoading: rolesLoading, isSystemAdmin } = useUserRoles();
   const queryClient = useQueryClient();
+  const isGroupIdValid = typeof groupId === "string" && UUID_RE.test(groupId);
   
   // Period filter state
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>(() => loadSavedGroupPeriod(groupId).period);
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() => loadSavedGroupPeriod(groupId).range);
   const [helpOpen, setHelpOpen] = useState(false);
   const [ikigaiOpen, setIkigaiOpen] = useState(false);
-  const [syncingMembers, setSyncingMembers] = useState(false);
+  const [syncingMembersOperation, setSyncingMembersOperation] = useState<"full_sync" | "clean_sync" | null>(null);
   const [membersSyncResult, setMembersSyncResult] = useState<GroupMembersSyncResult | null>(null);
   
   
@@ -122,10 +130,6 @@ const Group = () => {
     previousStats,
     messagesPerDay,
     activeMembersPerDay,
-    activityByHour,
-    busyDayAvatars,
-    peakWindowAvatars,
-    themeAvatars,
     membersOverview,
     memberEntriesPerDay,
     memberExitsPerDay,
@@ -134,10 +138,6 @@ const Group = () => {
     membersAtPeriodStart,
     daysWithActivity,
     topParticipants,
-    peakHour,
-    peakHourMessages,
-    previousPeakHour,
-    previousPeakHourMessages,
     memberEngagement,
     previousMemberEngagement,
     atRiskMembers,
@@ -171,6 +171,18 @@ const Group = () => {
     return (
       <AdminLayout title="Grupo" subtitle="Verificando acesso...">
         <LoadingState message="Verificando permissões..." />
+      </AdminLayout>
+    );
+  }
+
+  if (!groupId || !isGroupIdValid) {
+    return (
+      <AdminLayout title="Grupo" subtitle="Erro">
+        <ErrorState
+          title="ID do grupo inválido"
+          message="O link deste grupo parece incorreto. Verifique o endereço e tente novamente."
+          retry={() => navigate("/")}
+        />
       </AdminLayout>
     );
   }
@@ -332,12 +344,13 @@ const Group = () => {
 
         <div className="space-y-12">
           {(() => {
-            const isEnabled = import.meta.env.MODE !== "production" && group.id === "bd0f288d-310b-47d4-bca5-e10da4beb2ab";
+            const isEnabled = isSystemAdmin;
             if (!isEnabled) return null;
 
-            const summary = membersSyncResult?.success
-              ? `+${membersSyncResult.members_to_add_count ?? 0} novos membros • ${membersSyncResult.members_to_mark_as_left_count ?? 0} marcados como fora do grupo`
-              : null;
+            const addedCount = (membersSyncResult as any)?.members_to_add_count ?? (membersSyncResult as any)?.members_added_count ?? 0;
+            const removedCount = (membersSyncResult as any)?.members_to_mark_as_left_count ?? (membersSyncResult as any)?.members_removed_archived_count ?? 0;
+            const restoredCount = (membersSyncResult as any)?.members_reactivated_count ?? (membersSyncResult as any)?.members_restored_count ?? 0;
+            const summary = membersSyncResult?.success ? `+${addedCount} novos membros • ${removedCount} removidos • ${restoredCount} restaurados` : null;
 
             return (
               <section className="rounded-xl border border-border bg-card p-5">
@@ -346,49 +359,94 @@ const Group = () => {
                     <h2 className="text-lg font-semibold text-foreground">Revisar base de membros</h2>
                     <p className="text-sm text-muted-foreground">Use essa opção para alinhar a base de membros do Bóris com os participantes reais do grupo no WhatsApp.</p>
                   </div>
-                  <Button
-                    onClick={async () => {
-                      setSyncingMembers(true);
-                      try {
-                        const response = await supabase.functions.invoke("sync-whatsapp-group-members", {
-                          body: { group_id: group.id, operation: "full_sync" },
-                        });
+                  <div className="flex flex-col sm:flex-row gap-2 md:self-start">
+                    <Button
+                      onClick={async () => {
+                        setSyncingMembersOperation("full_sync");
+                        try {
+                          const response = await supabase.functions.invoke("sync-whatsapp-group-members", {
+                            body: { group_id: group.id, operation: "full_sync" },
+                          });
 
-                        if (response.error) {
-                          throw new Error(response.error.message || "Erro ao sincronizar");
+                          if (response.error) {
+                            throw new Error(response.error.message || "Erro ao sincronizar");
+                          }
+
+                          const data = response.data as GroupMembersSyncResult;
+                          setMembersSyncResult(data);
+
+                          if (!data?.success) {
+                            notify.error("Não foi possível sincronizar", data?.message || "Algo deu errado. Tente novamente.");
+                            return;
+                          }
+
+                          notify.success(
+                            "Base atualizada a partir do WhatsApp.",
+                            `+${data.members_to_add_count ?? 0} novos membros • ${data.members_to_mark_as_left_count ?? 0} marcados como fora do grupo`,
+                          );
+
+                          queryClient.invalidateQueries({ queryKey: ["group-members", group.id] });
+                          queryClient.invalidateQueries({ queryKey: ["group-members-total", group.id] });
+                          queryClient.invalidateQueries({ queryKey: ["group-dashboard"] });
+                        } catch (e: any) {
+                          notify.error(
+                            "Não foi possível buscar os participantes do grupo no WhatsApp agora.",
+                            "Tente novamente mais tarde.",
+                          );
+                        } finally {
+                          setSyncingMembersOperation(null);
                         }
+                      }}
+                      disabled={!!syncingMembersOperation}
+                    >
+                      {syncingMembersOperation === "full_sync" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Verificar e atualizar
+                    </Button>
 
-                        const data = response.data as GroupMembersSyncResult;
-                        setMembersSyncResult(data);
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        setSyncingMembersOperation("clean_sync");
+                        try {
+                          const response = await supabase.functions.invoke("sync-whatsapp-group-members", {
+                            body: { group_id: group.id, operation: "clean_sync" },
+                          });
 
-                        if (!data?.success) {
-                          notify.error("Não foi possível sincronizar", data?.message || "Algo deu errado. Tente novamente.");
-                          return;
+                          if (response.error) {
+                            throw new Error(response.error.message || "Erro ao sincronizar");
+                          }
+
+                          const data = response.data as GroupMembersSyncResult;
+                          setMembersSyncResult(data);
+
+                          if (!data?.success) {
+                            notify.error("Não foi possível limpar e alinhar", data?.message || "Algo deu errado. Tente novamente.");
+                            return;
+                          }
+
+                          notify.success(
+                            "Base limpa e alinhada com o WhatsApp.",
+                            `+${(data as any).members_added_count ?? 0} novos • ${(data as any).members_removed_archived_count ?? 0} removidos • ${(data as any).members_restored_count ?? 0} restaurados`,
+                          );
+
+                          queryClient.invalidateQueries({ queryKey: ["group-members", group.id] });
+                          queryClient.invalidateQueries({ queryKey: ["group-members-total", group.id] });
+                          queryClient.invalidateQueries({ queryKey: ["group-dashboard"] });
+                        } catch (e: any) {
+                          notify.error(
+                            "Não foi possível buscar os participantes do grupo no WhatsApp agora.",
+                            "Tente novamente mais tarde.",
+                          );
+                        } finally {
+                          setSyncingMembersOperation(null);
                         }
-
-                        notify.success(
-                          "Base atualizada a partir do WhatsApp.",
-                          `+${data.members_to_add_count ?? 0} novos membros • ${data.members_to_mark_as_left_count ?? 0} marcados como fora do grupo`,
-                        );
-
-                        queryClient.invalidateQueries({ queryKey: ["group-members", group.id] });
-                        queryClient.invalidateQueries({ queryKey: ["group-members-total", group.id] });
-                        queryClient.invalidateQueries({ queryKey: ["group-dashboard"] });
-                      } catch (e: any) {
-                        notify.error(
-                          "Não foi possível buscar os participantes do grupo no WhatsApp agora.",
-                          "Tente novamente mais tarde.",
-                        );
-                      } finally {
-                        setSyncingMembers(false);
-                      }
-                    }}
-                    disabled={syncingMembers}
-                    className="md:self-start"
-                  >
-                    {syncingMembers ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                    Verificar e atualizar
-                  </Button>
+                      }}
+                      disabled={!!syncingMembersOperation}
+                    >
+                      {syncingMembersOperation === "clean_sync" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Limpar e alinhar
+                    </Button>
+                  </div>
                 </div>
 
                 {summary ? (

@@ -51,19 +51,19 @@ const getMemberRoleKey = (m: Pick<Member, "is_owner" | "is_super_admin" | "is_ad
 
 const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = {
   OWNER: {
-    label: "OWNER",
-    className: "border-zinc-300/60 bg-zinc-200/40 text-zinc-800",
+    label: "Dono",
+    className: "border-orange-200/70 bg-orange-100/55 text-orange-950",
   },
   SUPERADMIN: {
-    label: "SUPERADMIN",
-    className: "border-amber-200/70 bg-amber-100/55 text-amber-950",
+    label: "Super Admin",
+    className: "border-violet-200/70 bg-violet-100/55 text-violet-950",
   },
   ADMIN: {
-    label: "ADMIN",
+    label: "Admin",
     className: "border-sky-200/70 bg-sky-100/55 text-sky-950",
   },
   MEMBRO: {
-    label: "MEMBRO",
+    label: "Membro",
     className: "border-border bg-muted/50 text-muted-foreground",
   },
 };
@@ -73,7 +73,7 @@ const MemberRoleBadge = ({ role }: { role: MemberRoleKey }) => {
   return (
     <span
       className={cn(
-        "inline-flex items-center h-5 px-2 rounded-md border text-[10px] font-semibold tracking-wide leading-none",
+        "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
         cfg.className
       )}
     >
