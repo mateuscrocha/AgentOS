@@ -12,7 +12,9 @@ import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { BorisTable, RowActions } from "@/components/ui/boris-table";
+import { RowActions } from "@/components/ui/boris-table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Dialog, 
   DialogContent, 
@@ -47,7 +49,14 @@ import {
   Plus,
   Trash2,
   Crown,
-  UserCheck
+  UserCheck,
+  Search,
+  List,
+  LayoutGrid,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Info
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -55,6 +64,7 @@ import AccessDenied from "./AccessDenied";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
+import { cn } from "@/lib/utils";
 
 interface Profile {
   id: string;
@@ -84,14 +94,6 @@ interface Group {
   id: string;
   name: string;
   organization_id: string;
-}
-
-interface UserAccessScope {
-  id: string;
-  user_id: string;
-  scope_type: 'organization' | 'group';
-  scope_id: string;
-  created_at: string;
 }
 
 type CreateUserPayload = {
@@ -125,6 +127,24 @@ const ROLE_COLORS: Record<AppRole, string> = {
   'USER': 'bg-secondary text-secondary-foreground',
 };
 
+const ROLE_PRIORITY: Record<AppRole, number> = {
+  'SYSTEM_ADMIN': 4,
+  'ORG_ADMIN': 3,
+  'GROUP_MANAGER': 2,
+  'USER': 1,
+};
+
+type ViewMode = 'list' | 'grid';
+
+type SortKey = 'name' | 'status' | 'created_at';
+type SortDir = 'asc' | 'desc';
+
+type UserRow = {
+  profile: Profile;
+  roles: UserRole[];
+  primaryRole: AppRole | null;
+};
+
 export default function Users() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
@@ -145,6 +165,14 @@ export default function Users() {
   const [selectedScopeOrgId, setSelectedScopeOrgId] = useState<string>('');
   const [selectedScopeGroupId, setSelectedScopeGroupId] = useState<string>('');
   const [assignOrgAdmin, setAssignOrgAdmin] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>("all");
+  const [roleFilter, setRoleFilter] = useState<'all' | AppRole | 'none'>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [sortKey, setSortKey] = useState<SortKey>('created_at');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [recentlyChanged, setRecentlyChanged] = useState<Record<string, number>>({});
   
   // Form state for adding role
   const [newRole, setNewRole] = useState<AppRole>('USER');
@@ -223,19 +251,6 @@ export default function Users() {
     enabled: isAuthenticated && isSystemAdmin,
   });
 
-  const { data: accessScopes, isLoading: scopesLoading } = useQuery({
-    queryKey: ['all-user-access-scopes'],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('user_access_scope')
-        .select('id, user_id, scope_type, scope_id, created_at')
-        .order('created_at', { ascending: true });
-      if (error) throw error;
-      return data as UserAccessScope[];
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-  });
-
   // Add role mutation
   const addRoleMutation = useMutation({
     mutationFn: async ({ userId, role, organizationId, groupId }: {
@@ -255,11 +270,12 @@ export default function Users() {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
       notify.success('Papel atribuído', 'O papel foi adicionado.');
       setIsAddRoleOpen(false);
       resetForm();
+      markRecentlyChanged(variables.userId);
     },
     onError: () => {
       notify.error('Não foi possível concluir', 'Algo deu errado. Tente novamente.');
@@ -312,7 +328,6 @@ export default function Users() {
       const assigned = !!result?.assigned_org_admin;
       queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
       queryClient.invalidateQueries({ queryKey: ["all-user-roles"] });
-      queryClient.invalidateQueries({ queryKey: ["all-user-access-scopes"] });
       if (assigned) {
         notify.success('Usuário criado como Gestor de Organização', 'Privilégios aplicados com sucesso.');
       } else {
@@ -328,6 +343,9 @@ export default function Users() {
       setSelectedScopeOrgId('');
       setSelectedScopeGroupId('');
       setAssignOrgAdmin(false);
+      if (typeof result?.user_id === 'string' && result.user_id) {
+        markRecentlyChanged(result.user_id);
+      }
     },
     onError: (err: any) => {
       const raw = (err?.message || '').toLowerCase();
@@ -357,18 +375,19 @@ export default function Users() {
 
   // Delete role mutation
   const deleteRoleMutation = useMutation({
-    mutationFn: async (roleId: string) => {
+    mutationFn: async (role: UserRole) => {
       const { error } = await supabase
         .from('user_roles')
         .delete()
-        .eq('id', roleId);
+        .eq('id', role.id);
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, role) => {
       queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
       notify.success('Papel removido', 'Tudo certo.');
       setRoleToDelete(null);
+      markRecentlyChanged(role.user_id);
     },
     onError: () => {
       notify.error('Não foi possível concluir', 'Algo deu errado. Tente novamente.');
@@ -432,6 +451,42 @@ export default function Users() {
     return group?.name || 'Grupo';
   };
 
+  const markRecentlyChanged = (userId: string) => {
+    const ts = Date.now();
+    setRecentlyChanged((prev) => ({ ...prev, [userId]: ts }));
+    window.setTimeout(() => {
+      setRecentlyChanged((prev) => {
+        if (prev[userId] !== ts) return prev;
+        const { [userId]: _removed, ...rest } = prev;
+        return rest;
+      });
+    }, 15000);
+  };
+
+  const toggleSort = (key: SortKey) => {
+    setSortKey((prevKey) => {
+      if (prevKey !== key) {
+        setSortDir('asc');
+        return key;
+      }
+      setSortDir((prevDir) => (prevDir === 'asc' ? 'desc' : 'asc'));
+      return prevKey;
+    });
+  };
+
+  const sortIcon = (key: SortKey) => {
+    if (sortKey !== key) return <ArrowUpDown className="h-3.5 w-3.5" />;
+    return sortDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />;
+  };
+
+  const getPrimaryRole = (roles: UserRole[]): AppRole | null => {
+    if (!roles || roles.length === 0) return null;
+    return roles.reduce((best, current) => {
+      if (!best) return current;
+      return ROLE_PRIORITY[current.role] > ROLE_PRIORITY[best.role] ? current : best;
+    }, null as UserRole | null)?.role ?? null;
+  };
+
   // Loading states
   if (authLoading || rolesLoading) {
     return (
@@ -446,105 +501,306 @@ export default function Users() {
     return <AccessDenied />;
   }
 
-  const columns = [
-    {
-      key: 'name',
-      header: 'Nome',
-      render: (profile: Profile) => (
-        <div className="font-medium text-card-foreground">{profile.name || 'Sem nome'}</div>
-      ),
-    },
-    {
-      key: 'phone_e164',
-      header: 'Telefone',
-      hideOn: 'sm' as const,
-      render: (profile: Profile) => (
-        <span className="text-muted-foreground">{profile.phone_e164 || '-'}</span>
-      ),
-    },
-    {
-      key: 'access_scope',
-      header: 'Acesso',
-      render: (profile: Profile) => {
-        const scopes = (accessScopes || []).filter(s => s.user_id === profile.id);
-        if (scopes.length === 0) return <span className="text-muted-foreground text-sm">Sem escopo</span>;
-        const s = scopes[0];
-        if (s.scope_type === 'organization') {
-          return <span className="text-sm">Organização: {getOrgName(s.scope_id)}</span>;
-        }
-        if (s.scope_type === 'group') {
-          return <span className="text-sm">Grupo: {getGroupName(s.scope_id)}</span>;
-        }
-        return <span className="text-muted-foreground text-sm">-</span>;
-      },
-    },
-    {
-      key: 'roles',
-      header: 'Papéis',
-      render: (profile: Profile) => {
-        const userRoles = getUserRoles(profile.id);
-        if (userRoles.length === 0) {
-          return <span className="text-muted-foreground text-sm">Sem papéis</span>;
-        }
-        return (
-          <div className="flex flex-wrap gap-1">
-            {userRoles.map((role) => {
-              const Icon = ROLE_ICONS[role.role];
-              return (
-                <Badge key={role.id} className={`${ROLE_COLORS[role.role]} flex items-center gap-1`}>
+  const isDataLoading = profilesLoading || rolesDataLoading;
+  const hasDataError = !!profilesError;
+
+  const allRows: UserRow[] = (profiles ?? []).map((profile) => {
+    const roles = getUserRoles(profile.id);
+    const primaryRole = getPrimaryRole(roles);
+    return { profile, roles, primaryRole };
+  });
+
+  const q = (searchQuery || '').trim().toLowerCase();
+  const filteredRows = allRows.filter((row) => {
+    if (statusFilter !== 'all') {
+      const isActive = row.profile.status === 'active';
+      if (statusFilter === 'active' && !isActive) return false;
+      if (statusFilter === 'inactive' && isActive) return false;
+    }
+    if (roleFilter !== 'all') {
+      if (roleFilter === 'none') {
+        if (row.roles.length > 0) return false;
+      } else {
+        if (!row.roles.some((r) => r.role === roleFilter)) return false;
+      }
+    }
+    if (!q) return true;
+    const hay = `${row.profile.name ?? ''} ${row.profile.phone_e164 ?? ''}`.toLowerCase();
+    return hay.includes(q);
+  });
+
+  const groupedRows: Record<string, UserRow[]> = {
+    SYSTEM_ADMIN: [],
+    ORG_ADMIN: [],
+    GROUP_MANAGER: [],
+    USER: [],
+    none: [],
+  };
+  for (const row of filteredRows) {
+    const key = (row.primaryRole ?? 'none') as string;
+    (groupedRows[key] ?? (groupedRows[key] = [])).push(row);
+  }
+
+  const sortRows = (rows: UserRow[]) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const sorted = [...rows].sort((a, b) => {
+      if (sortKey === 'name') {
+        const an = (a.profile.name || 'Sem nome').toLocaleLowerCase('pt-BR');
+        const bn = (b.profile.name || 'Sem nome').toLocaleLowerCase('pt-BR');
+        return an.localeCompare(bn, 'pt-BR') * dir;
+      }
+      if (sortKey === 'status') {
+        const ar = a.profile.status === 'active' ? 0 : 1;
+        const br = b.profile.status === 'active' ? 0 : 1;
+        if (ar !== br) return (ar - br) * dir;
+        const an = (a.profile.name || '').toLocaleLowerCase('pt-BR');
+        const bn = (b.profile.name || '').toLocaleLowerCase('pt-BR');
+        return an.localeCompare(bn, 'pt-BR') * dir;
+      }
+      const at = new Date(a.profile.created_at).getTime();
+      const bt = new Date(b.profile.created_at).getTime();
+      return (at - bt) * dir;
+    });
+    return sorted;
+  };
+
+  const headerCls = "px-4 py-3 text-left text-[13px] font-semibold text-muted-foreground";
+  const cellCls = "px-4 py-3 text-[14px] font-normal text-card-foreground align-middle";
+
+  const renderRolesBadges = (roles: UserRole[]) => {
+    if (roles.length === 0) {
+      return <span className="text-muted-foreground text-sm">Sem papéis</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {roles.map((role) => {
+          const Icon = ROLE_ICONS[role.role];
+          const label = (() => {
+            if (role.role === 'SYSTEM_ADMIN') return 'Admin do Sistema';
+            if (role.role === 'ORG_ADMIN') return `Gestor: ${getOrgName(role.organization_id)}`;
+            if (role.role === 'GROUP_MANAGER') return `Gestor: ${getGroupName(role.group_id)}`;
+            if (role.role === 'USER') return `Usuário: ${getOrgName(role.organization_id)}`;
+            return ROLE_LABELS[role.role];
+          })();
+          return (
+            <Tooltip key={role.id}>
+              <TooltipTrigger asChild>
+                <Badge className={cn(ROLE_COLORS[role.role], "flex items-center gap-1")}> 
                   <Icon className="h-3 w-3" />
-                  <span className="text-xs">
-                    {role.role === 'SYSTEM_ADMIN' && 'Admin'}
-                    {role.role === 'ORG_ADMIN' && getOrgName(role.organization_id)}
-                    {role.role === 'GROUP_MANAGER' && getGroupName(role.group_id)}
-                    {role.role === 'USER' && getOrgName(role.organization_id)}
-                  </span>
+                  <span className="text-xs">{label}</span>
                 </Badge>
-              );
-            })}
+              </TooltipTrigger>
+              <TooltipContent>
+                <span>{label}</span>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderStatus = (profile: Profile) => {
+    const isActive = profile.status === 'active';
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge className={cn(isActive ? "bg-emerald-600 text-white hover:bg-emerald-600" : "bg-secondary text-secondary-foreground")}> 
+            {isActive ? 'Ativo' : profile.status || 'Desconhecido'}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <span className="inline-flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            <span>Criado em {format(new Date(profile.created_at), 'dd/MM/yyyy', { locale: ptBR })}</span>
+          </span>
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
+  const renderActions = (profile: Profile) => (
+    <RowActions>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedUser(profile);
+          setIsAddRoleOpen(true);
+        }}
+        className="w-full text-left px-2 py-1.5 text-sm"
+      >
+        Gerenciar papéis
+      </button>
+    </RowActions>
+  );
+
+  const renderListTable = (rows: UserRow[]) => {
+    const sorted = sortRows(rows);
+    return (
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className={headerCls}>
+                  <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-2 hover:text-card-foreground transition-colors">
+                    <span>Nome</span>
+                    <span className="text-muted-foreground">{sortIcon('name')}</span>
+                  </button>
+                </th>
+                <th className={cn(headerCls, "hidden sm:table-cell")}>Telefone</th>
+                <th className={headerCls}>Papéis</th>
+                <th className={headerCls}>
+                  <button onClick={() => toggleSort('status')} className="inline-flex items-center gap-2 hover:text-card-foreground transition-colors">
+                    <span>Status</span>
+                    <span className="text-muted-foreground">{sortIcon('status')}</span>
+                  </button>
+                </th>
+                <th className={cn(headerCls, "hidden md:table-cell")}>
+                  <button onClick={() => toggleSort('created_at')} className="inline-flex items-center gap-2 hover:text-card-foreground transition-colors">
+                    <span>Criado em</span>
+                    <span className="text-muted-foreground">{sortIcon('created_at')}</span>
+                  </button>
+                </th>
+                <th className={cn(headerCls, "w-10")}></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {sorted.map((row) => {
+                const profile = row.profile;
+                const isRecent = !!recentlyChanged[profile.id];
+                const PrimaryIcon = row.primaryRole ? ROLE_ICONS[row.primaryRole] : UsersIcon;
+                return (
+                  <tr
+                    key={profile.id}
+                    className={cn("transition-colors", isRecent && "bg-primary/5", "hover:bg-secondary/40")}
+                  >
+                    <td className={cellCls}>
+                      <div className="flex items-start gap-3">
+                        <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center", row.primaryRole ? ROLE_COLORS[row.primaryRole] : "bg-secondary text-secondary-foreground")}>
+                          <PrimaryIcon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-card-foreground truncate">{profile.name || 'Sem nome'}</span>
+                            {isRecent && (
+                              <Badge className="bg-primary/15 text-primary hover:bg-primary/15">Atualizado</Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">{profile.id}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className={cn(cellCls, "hidden sm:table-cell text-muted-foreground")}>{profile.phone_e164 || '-'}</td>
+                    <td className={cellCls}>{renderRolesBadges(row.roles)}</td>
+                    <td className={cellCls}>{renderStatus(profile)}</td>
+                    <td className={cn(cellCls, "hidden md:table-cell text-muted-foreground")}>{format(new Date(profile.created_at), 'dd/MM/yyyy', { locale: ptBR })}</td>
+                    <td className={cn(cellCls, "w-10")}>{renderActions(profile)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGrid = (rows: UserRow[]) => {
+    const sorted = sortRows(rows);
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {sorted.map((row) => {
+          const profile = row.profile;
+          const isRecent = !!recentlyChanged[profile.id];
+          const PrimaryIcon = row.primaryRole ? ROLE_ICONS[row.primaryRole] : UsersIcon;
+          return (
+            <div
+              key={profile.id}
+              className={cn(
+                "rounded-xl border border-border bg-card p-4 flex flex-col gap-3",
+                isRecent && "ring-2 ring-primary/25 bg-primary/5",
+              )}
+            >
+              <div className="flex items-start gap-3">
+                <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", row.primaryRole ? ROLE_COLORS[row.primaryRole] : "bg-secondary text-secondary-foreground")}>
+                  <PrimaryIcon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-card-foreground truncate">{profile.name || 'Sem nome'}</span>
+                        {isRecent && <Badge className="bg-primary/15 text-primary hover:bg-primary/15">Atualizado</Badge>}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">{profile.id}</div>
+                    </div>
+                    {renderActions(profile)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm text-muted-foreground truncate">{profile.phone_e164 || 'Sem telefone'}</div>
+                {renderStatus(profile)}
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-muted-foreground">Papéis</div>
+                <div>{renderRolesBadges(row.roles)}</div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Criado em {format(new Date(profile.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderLoading = () => {
+    if (viewMode === 'grid') {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-10 w-10 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-56" />
+                </div>
+              </div>
+              <div className="mt-4 space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="border-b border-border p-4 flex gap-4">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Skeleton key={i} className="h-4 w-24" />
+          ))}
+        </div>
+        {Array.from({ length: 6 }).map((_, rowIdx) => (
+          <div key={rowIdx} className="border-b border-border p-4 flex gap-4 last:border-0">
+            {Array.from({ length: 6 }).map((_, colIdx) => (
+              <Skeleton key={colIdx} className="h-4 w-24" />
+            ))}
           </div>
-        );
-      },
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      render: (profile: Profile) => (
-        <Badge variant={profile.status === 'active' ? 'default' : 'secondary'}>
-          {profile.status === 'active' ? 'Ativo' : profile.status || 'Desconhecido'}
-        </Badge>
-      ),
-    },
-    {
-      key: 'created_at',
-      header: 'Criado em',
-      hideOn: 'md' as const,
-      render: (profile: Profile) => (
-        <span className="text-muted-foreground text-sm">
-          {format(new Date(profile.created_at), 'dd/MM/yyyy', { locale: ptBR })}
-        </span>
-      ),
-    },
-    {
-      key: 'actions',
-      header: '',
-      className: 'w-10',
-      render: (profile: Profile) => (
-        <RowActions>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedUser(profile);
-              setIsAddRoleOpen(true);
-            }}
-            className="w-full text-left px-2 py-1.5 text-sm"
-          >
-            Gerenciar papéis
-          </button>
-        </RowActions>
-      ),
-    },
-  ];
+        ))}
+      </div>
+    );
+  };
 
   return (
     <AdminLayout 
@@ -569,10 +825,68 @@ export default function Users() {
                 customRange={customRange}
                 onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); }}
               />
+
+              <div className="relative">
+                <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por nome ou telefone"
+                  className="pl-9 w-[280px]"
+                />
+              </div>
+
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="inactive">Inativo</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as any)}>
+                <SelectTrigger className="w-[190px]">
+                  <SelectValue placeholder="Papel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os papéis</SelectItem>
+                  <SelectItem value="SYSTEM_ADMIN">Administrador do Sistema</SelectItem>
+                  <SelectItem value="ORG_ADMIN">Gestor de Organização</SelectItem>
+                  <SelectItem value="GROUP_MANAGER">Gestor de Grupo</SelectItem>
+                  <SelectItem value="USER">Usuário</SelectItem>
+                  <SelectItem value="none">Sem papéis</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="flex items-center rounded-lg border border-border bg-card overflow-hidden">
+                <Button
+                  type="button"
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="rounded-none"
+                >
+                  <List className="h-4 w-4 mr-1" />
+                  Lista
+                </Button>
+                <Button
+                  type="button"
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  className="rounded-none"
+                >
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  Grade
+                </Button>
+              </div>
             </div>
           )}
-          showClearFilters={selectedPeriod !== '7d' || !!customRange}
-          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); }}
+          showClearFilters={selectedPeriod !== '7d' || !!customRange || !!searchQuery || statusFilter !== 'all' || roleFilter !== 'all'}
+          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setSearchQuery(''); setStatusFilter('all'); setRoleFilter('all'); }}
           filteredKpis={(
             <StatsCard
               title="Usuários no período"
@@ -605,18 +919,85 @@ export default function Users() {
           )}
         />
 
-        {/* Users Table */}
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <BorisTable
-            columns={columns as any}
-            data={profiles ?? []}
-            keyExtractor={(profile) => profile.id}
-            loading={profilesLoading || rolesDataLoading}
-            error={!!profilesError}
-            emptyIcon={UsersIcon}
-            emptyMessage="Não há usuários cadastrados no sistema."
-          />
-        </div>
+        <TooltipProvider>
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-muted-foreground">
+                Exibindo <span className="font-semibold text-card-foreground">{filteredRows.length}</span> de {profiles?.length ?? 0} usuários
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Ordenar por</span>
+                <Select value={`${sortKey}:${sortDir}`} onValueChange={(v) => {
+                  const [k, d] = (v || '').split(':');
+                  if (k === 'name' || k === 'status' || k === 'created_at') setSortKey(k);
+                  if (d === 'asc' || d === 'desc') setSortDir(d);
+                }}>
+                  <SelectTrigger className="w-[220px] h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="created_at:desc">Criação (mais recente)</SelectItem>
+                    <SelectItem value="created_at:asc">Criação (mais antigo)</SelectItem>
+                    <SelectItem value="name:asc">Nome (A–Z)</SelectItem>
+                    <SelectItem value="name:desc">Nome (Z–A)</SelectItem>
+                    <SelectItem value="status:asc">Status (ativo primeiro)</SelectItem>
+                    <SelectItem value="status:desc">Status (inativo primeiro)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {hasDataError ? (
+              <ErrorState
+                title="Não foi possível carregar os usuários"
+                message="Tente novamente."
+                retry={() => queryClient.invalidateQueries({ queryKey: ['all-profiles'] })}
+              />
+            ) : isDataLoading ? (
+              renderLoading()
+            ) : filteredRows.length === 0 ? (
+              <EmptyState
+                icon={UsersIcon}
+                title="Nenhum usuário encontrado"
+                message={searchQuery || statusFilter !== 'all' || roleFilter !== 'all' ? 'Ajuste a busca ou os filtros para ver resultados.' : 'Não há usuários cadastrados no sistema.'}
+              />
+            ) : (
+              <div className="space-y-6">
+                {([
+                  { key: 'SYSTEM_ADMIN' as const, title: 'Administradores do Sistema', icon: Crown, hint: 'Acesso total ao sistema' },
+                  { key: 'ORG_ADMIN' as const, title: 'Gestores de Organização', icon: Building2, hint: 'Administração dentro da organização' },
+                  { key: 'GROUP_MANAGER' as const, title: 'Gestores de Grupo', icon: UserCog, hint: 'Gestão de grupos específicos' },
+                  { key: 'USER' as const, title: 'Usuários', icon: UserCheck, hint: 'Visualização dentro do escopo atribuído' },
+                  { key: 'none' as const, title: 'Sem papéis', icon: UsersIcon, hint: 'Usuários sem vínculo de papel' },
+                ] as const).map((section) => {
+                  const rows = groupedRows[section.key] ?? [];
+                  if (rows.length === 0) return null;
+                  const SectionIcon = section.icon;
+                  return (
+                    <div key={section.key} className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-lg bg-secondary/60 flex items-center justify-center">
+                            <SectionIcon className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-base font-semibold text-card-foreground">{section.title}</h3>
+                              <Badge variant="secondary" className="tabular-nums">{rows.length}</Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground">{section.hint}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {viewMode === 'grid' ? renderGrid(rows) : renderListTable(rows)}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </TooltipProvider>
       </div>
 
       <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
@@ -897,7 +1278,7 @@ export default function Users() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => roleToDelete && deleteRoleMutation.mutate(roleToDelete.id)}
+              onClick={() => roleToDelete && deleteRoleMutation.mutate(roleToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Remover
