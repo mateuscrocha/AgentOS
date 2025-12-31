@@ -151,32 +151,9 @@ const Index = () => {
   const prevEndISO = prevTo.toISOString();
 
   const getComparisonSuffix = () => {
-    const formatBR = (d: Date) => format(d, 'dd/MM');
     switch (selectedPeriod) {
-      case 'today':
-        return 'vs ontem (mesmo horário)';
-      case 'yesterday':
-        return 'vs anteontem';
-      case 'this_week':
-        return 'vs semana anterior';
-      case 'this_month':
-        return 'vs mês anterior';
-      case 'last_week':
-        return 'vs semana anterior';
-      case '7d':
-        return 'vs 7 dias anteriores';
-      case '14d':
-        return 'vs 14 dias anteriores';
-      case '30d':
-        return 'vs 30 dias anteriores';
-      case '90d':
-        return 'vs 90 dias anteriores';
-      case 'custom':
-        return prevFrom && prevTo
-          ? `vs ${formatBR(prevFrom)} – ${formatBR(prevTo)}`
-          : 'vs período anterior equivalente';
       default:
-        return 'vs período anterior equivalente';
+        return 'vs período anterior';
     }
   };
   const comparisonSuffix = getComparisonSuffix();
@@ -722,13 +699,14 @@ const Index = () => {
     const curr = kpiMessagesPeriod || 0;
     const prev = kpiMessagesPrevPeriod ?? null;
     if (prev === null) return null;
-    if (prev === 0) return null;
-    return Math.round(((curr - prev) / prev) * 100);
+    const base = Math.max(prev, 1);
+    return Math.round(((curr - prev) / base) * 100);
   })();
   const messagesChangeLabel = (() => {
     const prev = kpiMessagesPrevPeriod ?? null;
     if (prev === null) return "—";
-    if (prev === 0) return "novo";
+    const curr = kpiMessagesPeriod || 0;
+    if (curr === prev) return "sem variação";
     const d = messagesDelta as number;
     if (Math.abs(d) <= 2) return `estável ${comparisonSuffix}`;
     const sign = d >= 0 ? "+" : "";
@@ -736,7 +714,9 @@ const Index = () => {
   })();
   const messagesChangeType = (() => {
     const prev = kpiMessagesPrevPeriod ?? null;
-    if (prev === null || prev === 0) return "neutral" as const;
+    if (prev === null) return "neutral" as const;
+    const curr = kpiMessagesPeriod || 0;
+    if (curr === prev) return "neutral" as const;
     const d = messagesDelta as number;
     if (Math.abs(d) <= 2) return "neutral" as const;
     return d > 0 ? "positive" as const : "negative" as const;
@@ -770,8 +750,9 @@ const Index = () => {
     const curr = kpiActiveMembersPeriod || 0;
     const prev = kpiActiveMembersPrevPeriod ?? null;
     if (prev === null) return { label: "—", type: "neutral" as const };
-    if (prev === 0) return { label: curr ? "novo" : "—", type: "neutral" as const };
-    const delta = Math.round(((curr - prev) / prev) * 100);
+    if (curr === prev) return { label: "sem variação", type: "neutral" as const };
+    const base = Math.max(prev, 1);
+    const delta = Math.round(((curr - prev) / base) * 100);
     if (Math.abs(delta) <= 2) return { label: `estável ${comparisonSuffix}`, type: "neutral" as const };
     const sign = delta >= 0 ? "+" : "";
     const type = delta > 0 ? "positive" as const : "negative" as const;
@@ -786,8 +767,9 @@ const Index = () => {
     const currPct = total ? (currActive / total) * 100 : 0;
     const prevPct = total ? (prevActive / total) * 100 : 0;
     const delta = currPct - prevPct;
-    if (Math.abs(delta) <= 2) return { label: `estável ${comparisonSuffix}`, type: "neutral" as const };
     const rounded = Math.round(delta * 10) / 10;
+    if (rounded === 0) return { label: "sem variação", type: "neutral" as const };
+    if (Math.abs(rounded) <= 2) return { label: `estável ${comparisonSuffix}`, type: "neutral" as const };
     const formatted = `${rounded >= 0 ? "+" : ""}${String(rounded).replace(".", ",")}`;
     const type = rounded > 0 ? "positive" as const : "negative" as const;
     return { label: `${formatted} p.p. ${comparisonSuffix}`, type };
