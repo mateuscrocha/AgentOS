@@ -39,6 +39,12 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
   try {
     const payload: ProvisionPayload = await req.json();
     
@@ -46,7 +52,7 @@ serve(async (req) => {
       lead_email: payload.lead.email,
       org_name: payload.organization.name,
       group_name: payload.group.name,
-      participants_count: payload.participants.length,
+      participants_count: Array.isArray(payload.participants) ? payload.participants.length : 0,
     }));
 
     // Validate required fields
@@ -96,37 +102,6 @@ serve(async (req) => {
       },
     });
 
-    // 1. Create Organization
-    const { data: org, error: orgError } = await supabase
-      .from('organizations')
-      .insert({
-        name: payload.organization.name,
-        status: 'active',
-      })
-      .select('id')
-      .single();
-
-    if (orgError) {
-      console.error('Error creating organization:', orgError);
-      return new Response(
-        JSON.stringify({ success: false, code: 'ORG_CREATE_FAILED', message: 'Failed to create organization: ' + orgError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Created organization:', org.id);
-
-    const { error: orgOwnerError } = await supabase
-      .from('organizations')
-      .update({
-        owner_user_id: payload.lead.user_id,
-      })
-      .eq('id', org.id);
-
-    if (orgOwnerError) {
-      console.error('Error setting organization owner:', orgOwnerError);
-    }
-
     const normalizePhone = (phone: string | null | undefined): string | null => {
       const raw = (phone || '').trim();
       if (!raw) return null;
@@ -139,190 +114,52 @@ serve(async (req) => {
 
     const primaryPhone = normalizePhone(payload.lead.whatsapp_phone);
 
-    const { data: existingPrimary } = await supabase
-      .from('organization_contacts')
-      .select('*')
-      .eq('organization_id', org.id)
-      .eq('is_primary', true)
-      .maybeSingle();
+    const { data: txData, error: txError } = await supabase.rpc('public_onboarding_provision_tx_v2', {
+      p_user_id: payload.lead.user_id,
+      p_lead_name: payload.lead.name,
+      p_lead_email: payload.lead.email,
+      p_lead_phone: primaryPhone,
+      p_organization_name: payload.organization.name,
+      p_group_name: payload.group.name,
+      p_group_invite_link: payload.group.invite_link,
+      p_group_whatsapp_provider_id: payload.group.whatsapp_provider_id,
+      p_participants: payload.participants ?? [],
+    });
 
-    if (existingPrimary) {
-      const { error: contactUpdateError } = await supabase
-        .from('organization_contacts')
-        .update({
-          name: payload.lead.name,
-          email: payload.lead.email,
-          phone: primaryPhone,
-          role_title: existingPrimary.role_title ?? 'fundador',
-          is_primary: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingPrimary.id);
-      if (contactUpdateError) {
-        console.error('Error updating primary organization contact:', contactUpdateError);
+    if (txError) {
+      console.error('Error provisioning onboarding (tx):', txError);
+      if ((txError as any)?.code === '23505') {
+        return json(
+          {
+            success: false,
+            code: 'GROUP_ALREADY_PROVISIONED',
+            message: 'Esse grupo já foi cadastrado. Faça login para continuar.',
+          },
+          409
+        );
       }
-    } else {
-      const { error: contactInsertError } = await supabase
-        .from('organization_contacts')
-        .insert({
-          organization_id: org.id,
-          name: payload.lead.name,
-          email: payload.lead.email,
-          phone: primaryPhone,
-          role_title: 'fundador',
-          is_primary: true,
-          updated_at: new Date().toISOString(),
-        });
-      if (contactInsertError) {
-        console.error('Error creating primary organization contact:', contactInsertError);
-      }
-    }
-
-    const { error: orgContactUpdateError } = await supabase
-      .from('organizations')
-      .update({
-        contact_name: payload.lead.name,
-        contact_email: payload.lead.email,
-        contact_phone: primaryPhone,
-      })
-      .eq('id', org.id);
-
-    if (orgContactUpdateError) {
-      console.error('Error updating organization contact fields:', orgContactUpdateError);
-    }
-
-    // 2. Create Group (provider is always 'whatsapp' per DB constraint)
-    const { data: group, error: groupError } = await supabase
-      .from('groups')
-      .insert({
-        name: payload.group.name,
-        organization_id: org.id,
-        provider: 'whatsapp',
-        whatsapp_provider_id: payload.group.whatsapp_provider_id,
-        invite_link: payload.group.invite_link,
-      })
-      .select('id')
-      .single();
-
-    if (groupError) {
-      console.error('Error creating group:', groupError);
-      // Rollback: delete organization
-      await supabase.from('organizations').delete().eq('id', org.id);
-      return new Response(
-        JSON.stringify({ success: false, code: 'GROUP_CREATE_FAILED', message: 'Failed to create group: ' + groupError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return json(
+        {
+          success: false,
+          code: 'ONBOARDING_TX_FAILED',
+          message: `Falha no provisionamento: ${txError.message}`,
+        },
+        500
       );
     }
 
-    console.log('Created group:', group.id);
-
-    // 3. Create Members from participants
-    if (payload.participants && payload.participants.length > 0) {
-      const membersToInsert = payload.participants.map(p => ({
-        group_id: group.id,
-        name: p.name || p.phone,
-        phone_e164: p.phone ? `+${p.phone.replace(/\D/g, '')}` : null,
-        is_admin: p.is_admin || false,
-        is_super_admin: p.is_super_admin || false,
-        whatsapp_provider_id: p.whatsapp_provider_id,
-        provider: 'whatsapp',
-      }));
-
-      const { error: membersError } = await supabase
-        .from('members')
-        .insert(membersToInsert);
-
-      if (membersError) {
-        console.error('Error creating members:', membersError);
-        // Continue anyway, members are not critical
-      } else {
-        console.log('Created members:', membersToInsert.length);
-      }
-    }
-
-    if (payload.lead.whatsapp_phone) {
-      const { data: existingLead } = await supabase
-        .from('members')
-        .select('id')
-        .eq('group_id', group.id)
-        .eq('phone_e164', payload.lead.whatsapp_phone)
-        .maybeSingle();
-
-      if (existingLead) {
-        const { error: leadUpdateError } = await supabase
-          .from('members')
-          .update({ is_owner: true, is_super_admin: true, is_admin: true, name: payload.lead.name })
-          .eq('id', existingLead.id);
-
-        if (leadUpdateError) {
-          console.error('Error setting lead as group owner:', leadUpdateError);
-        }
-      } else {
-        const { error: leadInsertError } = await supabase
-          .from('members')
-          .insert({
-            group_id: group.id,
-            name: payload.lead.name || payload.lead.whatsapp_phone,
-            phone_e164: payload.lead.whatsapp_phone,
-            is_admin: true,
-            is_super_admin: true,
-            is_owner: true,
-            provider: 'whatsapp',
-          });
-
-        if (leadInsertError) {
-          console.error('Error adding lead as group owner:', leadInsertError);
-        }
-      }
-    }
-
-    // 4. Update user profile with name
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: payload.lead.user_id,
-        name: payload.lead.name,
-      });
-
-    if (profileError) {
-      console.error('Error updating profile:', profileError);
-      // Continue anyway
-    }
-
-    // 5. Assign user role as ORG_ADMIN for this organization
-    const { error: roleError } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: payload.lead.user_id,
-        role: 'ORG_ADMIN',
-        organization_id: org.id,
-      });
-
-    if (roleError) {
-      console.error('Error assigning role:', roleError);
-      // This is important, but let's continue and return success anyway
-    } else {
-      console.log('Assigned ORG_ADMIN role to user');
-    }
-
-    // 6. Log the onboarding event
-    const { error: eventError } = await supabase
-      .from('events')
-      .insert({
-        event_type: 'ONBOARDING_COMPLETED',
-        entity_type: 'organization',
-        entity_id: org.id,
-        user_id: payload.lead.user_id,
-        metadata: {
-          organization_name: payload.organization.name,
-          group_name: payload.group.name,
-          participants_count: payload.participants?.length || 0,
+    const row = Array.isArray(txData) ? txData[0] : null;
+    const organizationId = row?.organization_id as string | undefined;
+    const groupId = row?.group_id as string | undefined;
+    if (!organizationId || !groupId) {
+      return json(
+        {
+          success: false,
+          code: 'ONBOARDING_TX_EMPTY',
+          message: 'Provisionamento retornou vazio',
         },
-      });
-
-    if (eventError) {
-      console.error('Error logging event:', eventError);
-      // Continue anyway
+        500
+      );
     }
 
     console.log('Onboarding provisioning completed successfully');
@@ -330,8 +167,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        organization_id: org.id,
-        group_id: group.id,
+        organization_id: organizationId,
+        group_id: groupId,
         message: 'Onboarding completed successfully',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
