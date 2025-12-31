@@ -12,6 +12,7 @@ import {
   SummarySection,
   RecentActivitySection,
   ConversationRhythmSection,
+  PeakMomentSection,
   PeopleSection,
   ParticipationQualitySection,
   GroupGrowthSection,
@@ -446,6 +447,12 @@ const Group = () => {
                       previousPeakHourMessages={previousPeakHourMessages}
                       isLoading={isLoading}
                       periodLabel={getPeriodLabel()}
+                    />
+
+                    <PeakMomentSection
+                      groupId={group.id}
+                      startDate={currentRange.from}
+                      endDate={currentRange.to}
                     />
 
                     <EffortNoiseSection

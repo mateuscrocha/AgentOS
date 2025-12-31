@@ -935,6 +935,15 @@ export type Database = {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      get_group_peak_moment: {
+        Args: {
+          p_group_id: string
+          p_start: string
+          p_end: string
+          p_window_minutes?: number
+        }
+        Returns: Json
+      }
       has_group_access: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
