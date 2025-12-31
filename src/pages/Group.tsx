@@ -16,7 +16,6 @@ import {
   ParticipationQualitySection,
   GroupGrowthSection,
   EffortNoiseSection,
-  AdminsSection,
   PurposeAlignmentSection,
   TopicsKeywordsSection,
 } from "@/components/group-dashboard";
@@ -122,9 +121,6 @@ const Group = () => {
     previousPeakHourMessages,
     memberEngagement,
     previousMemberEngagement,
-    
-    adminStats,
-    previousAdminStats,
     atRiskMembers,
     newMembersCount,
     previousNewMembersCount,
@@ -314,8 +310,6 @@ const Group = () => {
                   <p><strong className="text-card-foreground">Membros sem participação recente:</strong> membros sem mensagens no período. Não define desinteresse e pode ser circunstancial.</p>
                   <p><strong className="text-card-foreground">O que engajou no grupo:</strong> mensagens que receberam reações. Mostra estímulos de engajamento, não validações de conteúdo.</p>
                   <p><strong className="text-card-foreground">Distribuição de engajamento (gráfico):</strong> percentuais de recorrentes, esporádicos e inativos. Descreve perfis de participação, sem julgamento.</p>
-                  <p><strong className="text-card-foreground">Participação dos admins:</strong> percentual das mensagens enviadas por admins. Indica presença de liderança na conversa, não qualidade.</p>
-                  <p><strong className="text-card-foreground">Admins: total, ativos e inativos:</strong> contagem e status de administradores. Mostra estrutura de liderança, sem implicar responsabilidade pelo volume.</p>
                 </div>
               </div>
             </div>
@@ -432,13 +426,6 @@ const Group = () => {
                 stats={stats}
                 previousStats={previousStats || undefined}
                 currentMembers={currentMembers}
-                isLoading={isLoading}
-                periodLabel={getPeriodLabel()}
-              />
-
-              <AdminsSection
-                adminStats={adminStats || undefined}
-                previousAdminStats={previousAdminStats}
                 isLoading={isLoading}
                 periodLabel={getPeriodLabel()}
               />
