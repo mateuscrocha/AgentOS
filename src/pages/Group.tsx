@@ -472,6 +472,7 @@ const Group = () => {
                       topParticipant={stats.topParticipant}
                       previousTopParticipant={previousStats?.topParticipant}
                       topParticipants={topParticipants}
+                      totalMessagesInPeriod={stats.totalMessages7d}
                       memberEngagement={memberEngagement}
                       previousMemberEngagement={previousMemberEngagement}
                       isLoading={isLoading}
