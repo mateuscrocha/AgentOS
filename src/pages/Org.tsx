@@ -21,7 +21,13 @@ import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/group-dashboard/KpiCard";
 import { notify } from "@/components/ui/sonner";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
-import { getDateRange, type PeriodType, type DateRange } from "@/components/group-dashboard/period-utils";
+import {
+  getDateRange,
+  type PeriodType,
+  type DateRange,
+  parseStoredPeriod,
+  buildStoredPeriod,
+} from "@/components/group-dashboard/period-utils";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import {
   Collapsible,
@@ -95,23 +101,20 @@ const Org = () => {
       const raw = localStorage.getItem(`org-period:${orgId}`);
       if (raw) {
         const saved = JSON.parse(raw);
-        const p = saved?.period as PeriodType | undefined;
-        if (p) {
-          setSelectedPeriod(p);
-          if (p === 'custom' && saved?.from && saved?.to) {
-            setCustomRange({ from: new Date(saved.from), to: new Date(saved.to) });
-          }
+        const { period, range, isValid } = parseStoredPeriod(saved, "7d");
+        if (!isValid) {
+          localStorage.removeItem(`org-period:${orgId}`);
         }
+        setSelectedPeriod(period);
+        setCustomRange(range);
       }
     } catch { void 0; }
   }, [orgId]);
 
   useEffect(() => {
-    const payload: any = { period: selectedPeriod };
-    if (selectedPeriod === 'custom' && customRange?.from && customRange?.to) {
-      payload.from = customRange.from.toISOString();
-      payload.to = customRange.to.toISOString();
-    }
+    if (!orgId) return;
+
+    const payload = buildStoredPeriod(selectedPeriod, customRange);
     try {
       localStorage.setItem(`org-period:${orgId}`, JSON.stringify(payload));
     } catch { void 0; }

@@ -20,7 +20,13 @@ import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight, Arr
 import { PeriodReportSystem } from "@/components/dashboard/PeriodReport";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
-import { PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/period-utils";
+import {
+  PeriodType,
+  DateRange,
+  getDateRange,
+  parseStoredPeriod,
+  buildStoredPeriod,
+} from "@/components/group-dashboard/period-utils";
  
 import { format, addDays, subDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
@@ -76,23 +82,18 @@ const Index = () => {
       const raw = localStorage.getItem('system-admin-period');
       if (raw) {
         const saved = JSON.parse(raw);
-        const p = saved?.period as PeriodType | undefined;
-        if (p) {
-          setSelectedPeriod(p);
-          if (p === 'custom' && saved?.from && saved?.to) {
-            setCustomRange({ from: new Date(saved.from), to: new Date(saved.to) });
-          }
+        const { period, range, isValid } = parseStoredPeriod(saved, "30d");
+        if (!isValid) {
+          localStorage.removeItem('system-admin-period');
         }
+        setSelectedPeriod(period);
+        setCustomRange(range);
       }
     } catch { void 0; }
   }, []);
 
   useEffect(() => {
-    const payload: any = { period: selectedPeriod };
-    if (selectedPeriod === 'custom' && customRange?.from && customRange?.to) {
-      payload.from = customRange.from.toISOString();
-      payload.to = customRange.to.toISOString();
-    }
+    const payload = buildStoredPeriod(selectedPeriod, customRange);
     try {
       localStorage.setItem('system-admin-period', JSON.stringify(payload));
     } catch { void 0; }

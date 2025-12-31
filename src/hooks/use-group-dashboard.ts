@@ -23,10 +23,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { isAuthenticated } = useAuth();
 
   // Use provided date range or default to 7 days
-  const now = new Date();
-  const nowRef = useRef<Date>(now);
-  const currentPeriodEnd = dateRange?.to || now;
-  const currentPeriodStart = dateRange?.from || subDays(now, 6);
+  const nowRef = useRef<Date>(new Date());
+  const now = nowRef.current;
+  const currentPeriodEnd = dateRange?.to ?? now;
+  const currentPeriodStart = dateRange?.from ?? subDays(now, 6);
 
   const startToday = startOfDaySP(now);
   const endToday = endOfDaySP(now);
@@ -57,8 +57,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const periodDays = Math.ceil((currentPeriodEnd.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
 
   const currentPeriodStartISO = currentPeriodStart.toISOString();
-  const queryEnd = isTodayRange ? nowRef.current : effectiveCurrEnd;
-  const currentPeriodEndISO = queryEnd.toISOString();
+  const currentPeriodEndISO = effectiveCurrEnd.toISOString();
   const previousPeriodStartISO = previousPeriodStart.toISOString();
   const previousPeriodEndISO = previousPeriodEnd.toISOString();
 

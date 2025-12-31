@@ -1,6 +1,6 @@
 import { addDays, addMonths } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { SAO_PAULO_TZ } from "@/lib/date";
+import { SAO_PAULO_TZ, isValidDate } from "@/lib/date";
 
 export type PeriodType =
   | 'today'
@@ -17,6 +17,60 @@ export type PeriodType =
 export interface DateRange {
   from: Date;
   to: Date;
+}
+
+const PERIOD_VALUES: PeriodType[] = [
+  "today",
+  "yesterday",
+  "this_week",
+  "last_week",
+  "this_month",
+  "7d",
+  "14d",
+  "30d",
+  "90d",
+  "custom",
+];
+
+const PERIOD_SET = new Set<PeriodType>(PERIOD_VALUES);
+
+export function isPeriodType(value: unknown): value is PeriodType {
+  return typeof value === "string" && PERIOD_SET.has(value as PeriodType);
+}
+
+export function parseStoredPeriod(value: unknown, fallback: PeriodType): {
+  period: PeriodType;
+  range?: DateRange;
+  isValid: boolean;
+} {
+  if (!value || typeof value !== "object") {
+    return { period: fallback, isValid: false };
+  }
+
+  const v = value as Record<string, unknown>;
+  const rawPeriod = v.period;
+  const period = isPeriodType(rawPeriod) ? rawPeriod : fallback;
+
+  if (period !== "custom") {
+    return { period, isValid: period === rawPeriod };
+  }
+
+  const from = typeof v.from === "string" ? new Date(v.from) : null;
+  const to = typeof v.to === "string" ? new Date(v.to) : null;
+  if (from && to && isValidDate(from) && isValidDate(to)) {
+    return { period, range: { from, to }, isValid: true };
+  }
+
+  return { period: fallback, isValid: false };
+}
+
+export function buildStoredPeriod(period: PeriodType, range?: DateRange): Record<string, unknown> {
+  const payload: Record<string, unknown> = { period };
+  if (period === "custom" && range?.from && range?.to && isValidDate(range.from) && isValidDate(range.to)) {
+    payload.from = range.from.toISOString();
+    payload.to = range.to.toISOString();
+  }
+  return payload;
 }
 
 export function startOfDaySP(date: Date): Date {
@@ -94,7 +148,9 @@ export function getDateRange(period: PeriodType, customRange?: DateRange): DateR
       return { from, to };
     }
     case 'custom': {
-      if (customRange?.from && customRange?.to) return customRange;
+      if (customRange?.from && customRange?.to && isValidDate(customRange.from) && isValidDate(customRange.to)) {
+        return customRange;
+      }
       const startStr = formatInTimeZone(addDays(todayStartUTC, -6), SAO_PAULO_TZ, "yyyy-MM-dd");
       const from = fromZonedTime(`${startStr}T00:00:00`, SAO_PAULO_TZ);
       const to = todayEndUTC;

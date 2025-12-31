@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { getDateRange, type PeriodType, type DateRange } from "./period-utils";
-import { SAO_PAULO_TZ } from "@/lib/date";
+import { SAO_PAULO_TZ, isValidDate } from "@/lib/date";
 
 interface PeriodFilterProps {
   value: PeriodType;
@@ -75,7 +75,12 @@ export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps
   };
 
   const formatRangeLabel = () => {
-    if (value === 'custom' && customRange) {
+    if (
+      value === "custom" &&
+      customRange &&
+      isValidDate(customRange.from) &&
+      isValidDate(customRange.to)
+    ) {
       return `${format(customRange.from, 'dd/MM', { locale: ptBR })} - ${format(customRange.to, 'dd/MM', { locale: ptBR })}`;
     }
     return periodOptions.find(o => o.value === value)?.label || 'Período';

@@ -31,6 +31,9 @@ import Users from "./pages/Users";
 
 const originalConsoleError = console.error;
 console.error = (...args: any[]) => {
+  if (args.length === 0) {
+    return;
+  }
   const joined = args.map((a) => String(a)).join(" ");
   if (
     joined.includes("net::ERR_ABORTED") ||

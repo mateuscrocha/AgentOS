@@ -9,26 +9,57 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import { useGroupDashboard } from "@/hooks/use-group-dashboard";
 import AccessDenied from "./AccessDenied";
-  import {
-    SummarySection,
-    RecentActivitySection,
-    ConversationRhythmSection,
-    PeopleSection,
-    ParticipationQualitySection,
-    GroupGrowthSection,
-    EffortNoiseSection,
-    AdminsSection,
-    PurposeAlignmentSection,
-    TopicsKeywordsSection,
-  } from "@/components/group-dashboard";
+import {
+  SummarySection,
+  RecentActivitySection,
+  ConversationRhythmSection,
+  PeopleSection,
+  ParticipationQualitySection,
+  GroupGrowthSection,
+  EffortNoiseSection,
+  AdminsSection,
+  PurposeAlignmentSection,
+  TopicsKeywordsSection,
+} from "@/components/group-dashboard";
 import { PeriodReport } from "@/components/group-dashboard";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
-import { PeriodType, DateRange, getDateRange } from "@/components/group-dashboard/period-utils";
+import {
+  PeriodType,
+  DateRange,
+  getDateRange,
+  parseStoredPeriod,
+  buildStoredPeriod,
+} from "@/components/group-dashboard/period-utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { BarChart3, HelpCircle, MessageSquare, Target, TrendingUp, Users } from "lucide-react";
 import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
 import { Button } from "@/components/ui/button";
  
+
+function loadSavedGroupPeriod(groupId?: string): { period: PeriodType; range?: DateRange } {
+  if (!groupId) return { period: "7d" };
+
+  try {
+    const raw = localStorage.getItem(`group-period:${groupId}`);
+    const parsed = raw ? JSON.parse(raw) : null;
+    const { period, range, isValid } = parseStoredPeriod(parsed, "7d");
+    if (!isValid) {
+      try {
+        localStorage.removeItem(`group-period:${groupId}`);
+      } catch {
+        return { period: "7d" };
+      }
+    }
+    return { period, range };
+  } catch {
+    try {
+      localStorage.removeItem(`group-period:${groupId}`);
+    } catch {
+      return { period: "7d" };
+    }
+    return { period: "7d" };
+  }
+}
 
 const Group = () => {
   const { groupId } = useParams();
@@ -37,29 +68,8 @@ const Group = () => {
   const { isLoading: rolesLoading } = useUserRoles();
   
   // Period filter state
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>(() => {
-    try {
-      const raw = localStorage.getItem(`group-period:${groupId}`);
-      const saved = raw ? JSON.parse(raw) : null;
-      const p = saved?.period as PeriodType | undefined;
-      return p || '7d';
-    } catch {
-      return '7d';
-    }
-  });
-  const [customRange, setCustomRange] = useState<DateRange | undefined>(() => {
-    try {
-      const raw = localStorage.getItem(`group-period:${groupId}`);
-      const saved = raw ? JSON.parse(raw) : null;
-      const p = saved?.period as PeriodType | undefined;
-      if (p === 'custom' && saved?.from && saved?.to) {
-        return { from: new Date(saved.from), to: new Date(saved.to) };
-      }
-      return undefined;
-    } catch {
-      return undefined;
-    }
-  });
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>(() => loadSavedGroupPeriod(groupId).period);
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(() => loadSavedGroupPeriod(groupId).range);
   const [helpOpen, setHelpOpen] = useState(false);
   const [ikigaiOpen, setIkigaiOpen] = useState(false);
   
@@ -71,14 +81,16 @@ const Group = () => {
     setCustomRange(undefined);
   };
 
-  useEffect(() => { void 0; }, [groupId]);
+  useEffect(() => {
+    const { period, range } = loadSavedGroupPeriod(groupId);
+    setSelectedPeriod(period);
+    setCustomRange(range);
+  }, [groupId]);
 
   useEffect(() => {
-    const payload: any = { period: selectedPeriod };
-    if (selectedPeriod === 'custom' && customRange?.from && customRange?.to) {
-      payload.from = customRange.from.toISOString();
-      payload.to = customRange.to.toISOString();
-    }
+    if (!groupId) return;
+
+    const payload = buildStoredPeriod(selectedPeriod, customRange);
     try {
       localStorage.setItem(`group-period:${groupId}`, JSON.stringify(payload));
     } catch { void 0; }

@@ -1,5 +1,9 @@
 export const SAO_PAULO_TZ = "America/Sao_Paulo";
 
+export function isValidDate(value: unknown): value is Date {
+  return value instanceof Date && !Number.isNaN(value.getTime());
+}
+
 export function formatDateKeySP(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: SAO_PAULO_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
