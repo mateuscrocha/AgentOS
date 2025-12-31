@@ -1,14 +1,11 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, CalendarDays, Clock, MessageSquareText, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { SectionHeader } from "./SectionHeader";
-import { KpiCard } from "./KpiCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDateTickBR, formatDateTimeBR, SAO_PAULO_TZ } from "@/lib/date";
+import { formatDateSimpleBR, formatDateTimeBR, SAO_PAULO_TZ } from "@/lib/date";
 import { MessageDetailsDrawer } from "@/components/messages/MessageDetailsDrawer";
 
 type PeakMomentResponse = {
@@ -44,7 +41,7 @@ export function PeakMomentSection({
   groupId,
   startDate,
   endDate,
-  messagesPerDay = [],
+  messagesPerDay: _messagesPerDay = [],
   isDashboardLoading,
 }: {
   groupId: string;
@@ -77,47 +74,23 @@ export function PeakMomentSection({
 
   const isLoading = isPeakLoading || !!isDashboardLoading;
 
-  const mostActiveDay = useMemo(() => {
-    if (!messagesPerDay || messagesPerDay.length === 0) return null;
-    const counts: Record<string, number> = {};
-    messagesPerDay.forEach((d) => {
-      const day = new Date(d.date).toLocaleDateString("pt-BR", { weekday: "long", timeZone: SAO_PAULO_TZ });
-      counts[day] = (counts[day] || 0) + d.count;
-    });
-    const entries = Object.entries(counts);
-    if (entries.length === 0) return null;
-    const [day, count] = entries.reduce((max, curr) => (curr[1] > max[1] ? curr : max));
-    const dayLabel = day.charAt(0).toUpperCase() + day.slice(1);
-    return { day: dayLabel, count };
-  }, [messagesPerDay]);
-
   const noRelevantPeak = useMemo(() => {
     if (!data) return true;
     return (data.kpis?.total_messages ?? 0) === 0;
   }, [data]);
 
-  const intervalLabel = useMemo(() => {
-    if (!data?.interval?.start_pico || !data?.interval?.end_pico) return "";
-    const start = new Date(data.interval.start_pico);
-    const end = new Date(data.interval.end_pico);
-    const dateLabel = formatDateTickBR(start);
-    const startTime = new Intl.DateTimeFormat("pt-BR", {
-      timeZone: SAO_PAULO_TZ,
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(start);
-    const endTime = new Intl.DateTimeFormat("pt-BR", {
-      timeZone: SAO_PAULO_TZ,
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(end);
-    return `${dateLabel}, ${startTime} às ${endTime}`;
+  const peakInterval = useMemo(() => {
+    if (!data?.interval?.start_pico || !data?.interval?.end_pico) return null;
+    return {
+      start: new Date(data.interval.start_pico),
+      end: new Date(data.interval.end_pico),
+    };
   }, [data]);
 
   const peakHourRangeLabel = useMemo(() => {
-    if (!data?.interval?.start_pico || !data?.interval?.end_pico) return "";
-    const start = new Date(data.interval.start_pico);
-    const end = new Date(data.interval.end_pico);
+    if (!peakInterval) return "";
+    const start = peakInterval.start;
+    const end = peakInterval.end;
     const fmt = (d: Date) =>
       new Intl.DateTimeFormat("pt-BR", {
         timeZone: SAO_PAULO_TZ,
@@ -131,33 +104,34 @@ export function PeakMomentSection({
       return `${h}:${m}`;
     };
     return `${compact(fmt(start))}–${compact(fmt(end))}`;
-  }, [data]);
+  }, [peakInterval]);
+
+  const peakDateLabel = useMemo(() => {
+    if (!peakInterval) return "";
+    return formatDateSimpleBR(peakInterval.start);
+  }, [peakInterval]);
+
+  const peakDateTimeLabel = useMemo(() => {
+    if (!peakInterval) return "";
+    if (!peakHourRangeLabel) return peakDateLabel;
+    return `${peakDateLabel} • ${peakHourRangeLabel}`;
+  }, [peakDateLabel, peakHourRangeLabel, peakInterval]);
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
-      <SectionHeader
-        title="Momento de pico"
-        subtitle="Maior concentração de mensagens no período selecionado"
-        helpText="Encontra a janela de 1h com mais mensagens no período e resume participantes, termos e mensagens representativas."
-      />
-
       {isLoading ? (
         <div className="space-y-5">
-          <Skeleton className="h-4 w-64" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Skeleton className="h-[92px] w-full rounded-xl" />
-            <Skeleton className="h-[92px] w-full rounded-xl" />
-          </div>
+          <Skeleton className="h-[120px] w-full rounded-xl" />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Skeleton className="h-[92px] w-full rounded-xl" />
-            <Skeleton className="h-[92px] w-full rounded-xl" />
-            <Skeleton className="h-[92px] w-full rounded-xl" />
+            <Skeleton className="h-[76px] w-full rounded-xl" />
+            <Skeleton className="h-[76px] w-full rounded-xl" />
+            <Skeleton className="h-[76px] w-full rounded-xl" />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Skeleton className="h-44 w-full rounded-xl" />
             <Skeleton className="h-44 w-full rounded-xl" />
           </div>
-          <Skeleton className="h-36 w-full rounded-xl" />
+          <Skeleton className="h-56 w-full rounded-xl" />
         </div>
       ) : isError ? (
         <div className="rounded-lg border border-border bg-secondary/30 p-4">
@@ -170,58 +144,57 @@ export function PeakMomentSection({
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="text-xs text-muted-foreground">{intervalLabel}</div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <KpiCard
-              title="Horário de maior atividade"
-              value={peakHourRangeLabel || "—"}
-              subtitle={`${(data?.kpis?.total_messages ?? 0).toLocaleString("pt-BR")} msgs`}
-              icon={Clock}
-            />
-            <KpiCard
-              title="Dia mais movimentado"
-              value={mostActiveDay?.day || "—"}
-              subtitle={mostActiveDay ? `${mostActiveDay.count.toLocaleString("pt-BR")} msgs` : "Sem dados"}
-              icon={CalendarDays}
-            />
+        <div className="space-y-5">
+          <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-4 sm:p-5">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-card-foreground">Momento de pico</p>
+              <p className="text-sm text-muted-foreground">{peakDateTimeLabel}</p>
+            </div>
+            <p className="mt-3 text-2xl sm:text-3xl font-semibold text-card-foreground">
+              Pico: {(data?.kpis?.total_messages ?? 0).toLocaleString("pt-BR")} mensagens em 1 hora
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">Maior concentração do período analisado</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <KpiCard
-              title="Mensagens no pico"
-              value={(data?.kpis?.total_messages ?? 0).toLocaleString("pt-BR")}
-              icon={MessageSquareText}
-            />
-            <KpiCard
-              title="Participantes"
-              value={(data?.kpis?.unique_participants ?? 0).toLocaleString("pt-BR")}
-              icon={Users}
-            />
-            <KpiCard
-              title="Intensidade"
-              value={`${(data?.kpis?.intensity ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}`}
-              subtitle="msgs/h"
-              icon={Activity}
-            />
+            <div className="rounded-xl border border-border bg-card p-3 h-[76px] flex flex-col justify-between">
+              <p className="text-xs font-medium text-muted-foreground">🕒 Horário mais ativo</p>
+              <p className="text-lg font-semibold text-card-foreground tabular-nums">{peakHourRangeLabel || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3 h-[76px] flex flex-col justify-between">
+              <p className="text-xs font-medium text-muted-foreground">👥 Participantes</p>
+              <p className="text-lg font-semibold text-card-foreground tabular-nums">
+                {(data?.kpis?.unique_participants ?? 0).toLocaleString("pt-BR")} membros
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3 h-[76px] flex flex-col justify-between">
+              <p className="text-xs font-medium text-muted-foreground">📈 Intensidade</p>
+              <p className="text-lg font-semibold text-card-foreground tabular-nums">
+                {(data?.kpis?.intensity ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} msgs/h
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="rounded-lg border border-border bg-secondary/30 p-4">
               <p className="text-sm font-semibold text-card-foreground">Principais participantes</p>
-              <div className="mt-3 space-y-2">
-                {(data?.top_participants || []).map((p) => (
-                  <div key={`${p.sender_id || p.sender_name}`} className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm text-card-foreground truncate">{p.sender_name || "Desconhecido"}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {p.messages_count.toLocaleString("pt-BR")} msgs • {p.percent_of_total.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+              {(data?.top_participants || []).length === 0 ? (
+                <p className="mt-3 text-sm text-muted-foreground">Sem participantes suficientes para destacar.</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {(data?.top_participants || []).slice(0, 6).map((p) => (
+                    <div key={`${p.sender_id || p.sender_name}`} className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-card-foreground truncate">{p.sender_name || "Desconhecido"}</p>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-3 text-xs text-muted-foreground tabular-nums">
+                        <span>{p.messages_count.toLocaleString("pt-BR")} msgs</span>
+                        <span>{p.percent_of_total.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</span>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="rounded-lg border border-border bg-secondary/30 p-4">
@@ -230,10 +203,9 @@ export function PeakMomentSection({
                 <p className="mt-3 text-sm text-muted-foreground">Sem termos suficientes para destacar.</p>
               ) : (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {data?.top_terms?.map((t) => (
+                  {data?.top_terms?.slice(0, 14).map((t) => (
                     <Badge key={t.term} variant="secondary" className="text-xs">
                       {t.term}
-                      <span className="ml-1 text-muted-foreground">{t.frequency}</span>
                     </Badge>
                   ))}
                 </div>
@@ -243,38 +215,40 @@ export function PeakMomentSection({
 
           <div className="rounded-lg border border-border bg-secondary/30 p-4">
             <p className="text-sm font-semibold text-card-foreground">Mensagens representativas</p>
-            <div className="mt-3 space-y-3">
-              {(data?.representative_messages || []).map((m) => (
-                <div key={m.message_id} className="rounded-lg border border-border bg-card p-3">
-                  <div className="flex items-start justify-between gap-3">
+            {(data?.representative_messages || []).length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">Sem mensagens suficientes para destacar.</p>
+            ) : (
+              <div className="mt-3 rounded-lg border border-border bg-card divide-y divide-border">
+                {(data?.representative_messages || []).map((m) => (
+                  <div key={m.message_id} className="flex items-start justify-between gap-3 p-3">
                     <div className="min-w-0">
-                      <div className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         <span className="text-card-foreground">{m.sender_name || "Desconhecido"}</span>
                         <span className="mx-2">•</span>
                         <span>{formatDateTimeBR(m.created_at)}</span>
-                      </div>
-                      <div className="mt-1 text-sm text-card-foreground whitespace-pre-wrap break-words">{m.preview_text || "[Mensagem]"}</div>
+                      </p>
+                      <p className="mt-1 text-sm text-card-foreground whitespace-pre-wrap break-words">{m.preview_text || "[Mensagem]"}</p>
                     </div>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       className="shrink-0"
                       onClick={() => setSelectedMessageId(m.message_id)}
                     >
-                      Ver no contexto
+                      Ver no contexto →
                     </Button>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                ))}
+              </div>
+            )}
 
-          {!!data?.summary && (
-            <div className="rounded-lg border border-border bg-secondary/30 p-4">
-              <p className="text-sm font-semibold text-card-foreground">Resumo do pico</p>
-              <p className="mt-2 text-sm text-card-foreground whitespace-pre-wrap">{data.summary}</p>
-            </div>
-          )}
+            {!!data?.summary && (
+              <div className="mt-4 rounded-lg border border-border bg-background/50 p-3">
+                <p className="text-xs font-medium text-muted-foreground">Resumo</p>
+                <p className="mt-1 text-sm text-card-foreground whitespace-pre-wrap">{data.summary}</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
