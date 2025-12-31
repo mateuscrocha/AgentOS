@@ -1,3 +1,4 @@
+import type { ElementType } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -6,6 +7,8 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 interface SectionHeaderProps {
   title: string;
   subtitle?: string;
+  subtitleIcon?: ElementType;
+  subtitleClassName?: string;
   linkHref?: string;
   linkLabel?: string;
   className?: string;
@@ -15,6 +18,8 @@ interface SectionHeaderProps {
 export function SectionHeader({ 
   title, 
   subtitle,
+  subtitleIcon: SubtitleIcon,
+  subtitleClassName,
   linkHref, 
   linkLabel = "Ver mais",
   className,
@@ -39,7 +44,10 @@ export function SectionHeader({
           )}
         </h3>
         {subtitle && (
-          <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+          <p className={cn("text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5", subtitleClassName)}>
+            {SubtitleIcon && <SubtitleIcon className="h-3.5 w-3.5" />}
+            <span>{subtitle}</span>
+          </p>
         )}
       </div>
       {linkHref && (

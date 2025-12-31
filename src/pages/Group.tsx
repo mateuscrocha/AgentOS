@@ -415,13 +415,10 @@ const Group = () => {
                       stats={stats}
                       previousStats={previousStats || undefined}
                       currentMembers={currentMembers}
-                      themes={(ikigaiSuggestions as any)?.themes || []}
+                      periodDays={periodDays}
+                      memberEngagement={memberEngagement}
+                      previousMemberEngagement={previousMemberEngagement}
                       atRiskMembersCount={atRiskMembers.length}
-                      newMembersCount={newMembersCount}
-                      previousNewMembersCount={previousNewMembersCount}
-                      exitedMembersCount={exitedMembersCount}
-                      previousExitedMembersCount={previousExitedMembersCount}
-                      periodLabel={getPeriodLabel()}
                       groupId={group.id}
                     />
 
