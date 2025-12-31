@@ -1,5 +1,7 @@
-import { KpiCard } from "./KpiCard";
 import { SectionHeader } from "./SectionHeader";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StatusTag } from "@/components/ui/status-tag";
+import { cn } from "@/lib/utils";
 
 interface EffortNoiseSectionProps {
   stats: {
@@ -24,15 +26,24 @@ export function EffortNoiseSection({
   periodLabel = "período",
   currentMembers = 0,
 }: EffortNoiseSectionProps) {
+  const hasMessages = (stats.totalMessages7d || 0) > 0;
+
   const msgsPerActive = stats.activeMembers7d > 0
     ? Math.round(stats.totalMessages7d / stats.activeMembers7d)
     : 0;
 
   const periodSlice = messagesPerDay.slice(Math.max(0, messagesPerDay.length - periodDays));
-  const avgDaily = periodSlice.length > 0
-    ? Math.round(periodSlice.reduce((sum, d) => sum + d.count, 0) / periodSlice.length)
+  const meanDaily = periodSlice.length > 0
+    ? periodSlice.reduce((sum, d) => sum + d.count, 0) / periodSlice.length
     : 0;
-  const excessDays = periodSlice.filter(d => d.count > avgDaily).length;
+  const varianceDaily = periodSlice.length > 0
+    ? periodSlice.reduce((sum, d) => sum + Math.pow(d.count - meanDaily, 2), 0) / periodSlice.length
+    : 0;
+  const stdDaily = Math.sqrt(varianceDaily);
+  const noisyThreshold = meanDaily > 0 ? meanDaily + stdDaily : 0;
+  const daysAbovePattern = meanDaily > 0
+    ? periodSlice.filter((d) => d.count > noisyThreshold).length
+    : 0;
 
   const totalMembers = currentMembers || stats.totalMembers || 0;
   const topCount = totalMembers > 0 ? Math.max(1, Math.ceil(totalMembers * 0.1)) : 0;
@@ -43,35 +54,125 @@ export function EffortNoiseSection({
     .slice(0, topCount)
     .reduce((acc, m) => acc + m.messagesCount, 0);
   const share = totalMessages > 0 ? Math.round((topSum / totalMessages) * 100) : 0;
-  const distributionLabel = share >= 60 ? "concentrada" : share <= 40 ? "distribuída" : "mista";
+
+  const effortQual = msgsPerActive <= 6 ? "baixo" : msgsPerActive <= 14 ? "normal" : "alto";
+  const effortTone = effortQual === "baixo" ? "success" : effortQual === "normal" ? "neutral" : "warning";
+
+  const maxIrregular = Math.max(1, Math.round(periodSlice.length * 0.15));
+  const noiseQual = daysAbovePattern === 0
+    ? "estável"
+    : daysAbovePattern <= maxIrregular
+      ? "irregular"
+      : "alta variação";
+  const noiseTone = noiseQual === "estável" ? "success" : noiseQual === "irregular" ? "warning" : "error";
+
+  const distributionValue = !hasMessages
+    ? "—"
+    : share <= 40
+      ? "bem distribuída"
+      : share <= 60
+        ? "moderada"
+        : "concentrada";
+  const distributionTone = distributionValue === "bem distribuída"
+    ? "success"
+    : distributionValue === "moderada"
+      ? "neutral"
+      : distributionValue === "concentrada"
+        ? "error"
+        : "neutral";
+
+  const interpretativeLine = !hasMessages
+    ? `Sem mensagens suficientes para interpretar o ${periodLabel}.`
+    : `${
+      distributionValue === "concentrada"
+        ? "A conversa está concentrada em poucos membros"
+        : distributionValue === "moderada"
+          ? "A conversa está moderadamente distribuída"
+          : "A conversa está bem distribuída entre os membros"
+    }, ${
+      noiseQual === "estável"
+        ? "com ritmo estável"
+        : noiseQual === "irregular"
+          ? "com alguns picos fora do padrão"
+          : "com picos frequentes fora do padrão"
+    } e com esforço ${effortQual} para participar.`;
+
+  const IndicatorCard = ({
+    title,
+    value,
+    subtext,
+    tag,
+    variant,
+    valueClassName,
+  }: {
+    title: string;
+    value: string;
+    subtext: string;
+    tag: string;
+    variant: "success" | "warning" | "error" | "neutral";
+    valueClassName?: string;
+  }) => {
+    return (
+      <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-xs font-medium text-muted-foreground leading-tight">{title}</p>
+          <StatusTag variant={variant}>{tag}</StatusTag>
+        </div>
+
+        {isLoading ? (
+          <div className="mt-3 space-y-2">
+            <Skeleton className="h-6 w-28" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+        ) : (
+          <div className="mt-2.5 space-y-1">
+            <p className={cn("text-lg sm:text-xl font-semibold text-card-foreground tabular-nums", valueClassName)}>
+              {value}
+            </p>
+            <p className="text-xs text-muted-foreground">{subtext}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader
         title="Esforço e Ruído"
-        subtitle={`Leitura de esforço (${periodLabel})`}
+        subtitle={`Leitura qualitativa (${periodLabel})`}
       />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <KpiCard
-          title="Mensagens por membro ativo"
-          value={msgsPerActive}
-          subtitle="volume médio gerado por quem participa"
-          helpText="Média de mensagens por quem participou no período. Não reflete distribuição entre todos os membros."
-          isLoading={isLoading}
+
+      <div className="rounded-lg border border-border bg-muted/20 px-4 py-3">
+        {isLoading ? (
+          <Skeleton className="h-4 w-4/5" />
+        ) : (
+          <p className="text-sm text-card-foreground">{interpretativeLine}</p>
+        )}
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <IndicatorCard
+          title="Esforço médio por participante"
+          value={`${msgsPerActive.toLocaleString("pt-BR")} msgs`}
+          subtext="por membro ativo"
+          tag={effortQual}
+          variant={effortTone}
         />
-        <KpiCard
-          title="Dias com excesso de mensagens"
-          value={excessDays}
-          subtitle="dias mais intensos de conversa"
-          helpText="Dias em que o volume superou a média diária do grupo. Indica intensidade, não problema."
-          isLoading={isLoading}
+        <IndicatorCard
+          title="Dias acima do padrão"
+          value={`${daysAbovePattern.toLocaleString("pt-BR")} dias`}
+          subtext="no período analisado"
+          tag={noiseQual}
+          variant={noiseTone}
         />
-        <KpiCard
-          title="Distribuição da atividade"
-          value={distributionLabel}
-          subtitle="distribuição da conversa entre participantes"
-          helpText="Se a conversa está concentrada em poucos ou distribuída. Não usa pontuação ou julgamento."
-          isLoading={isLoading}
+        <IndicatorCard
+          title="Distribuição da conversa"
+          value={distributionValue}
+          subtext="entre participantes"
+          tag={distributionValue}
+          variant={distributionTone}
+          valueClassName="tabular-nums normal-case"
         />
       </div>
     </section>
