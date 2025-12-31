@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -96,11 +95,6 @@ const Group = () => {
     } catch { void 0; }
   }, [groupId, selectedPeriod, customRange]);
 
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    void 0;
-  }, [groupId, selectedPeriod, customRange, queryClient]);
-
 
   const {
     group,
@@ -117,6 +111,7 @@ const Group = () => {
     previousMembersOverview,
     memberEntriesPerDay,
     memberExitsPerDay,
+    memberEvents,
     currentMembers,
     membersAtPeriodStart,
     daysWithActivity,
@@ -498,6 +493,7 @@ const Group = () => {
                     <GroupGrowthSection
                       entriesPerDay={memberEntriesPerDay}
                       exitsPerDay={memberExitsPerDay}
+                      memberEvents={memberEvents}
                       currentMembers={currentMembers}
                       membersAtPeriodStart={membersAtPeriodStart}
                       daysWithActivity={daysWithActivity}

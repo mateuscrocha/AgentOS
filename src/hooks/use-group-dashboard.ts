@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,8 +19,21 @@ interface UseGroupDashboardOptions {
   dateRange?: DateRange;
 }
 
+type MemberChangeEvent = {
+  id: string;
+  occurredAt: string;
+  eventType: string;
+  kind: "entrada" | "saida";
+  memberId: string | null;
+  memberName: string;
+  memberAvatarUrl: string | null;
+  externalMemberId: string;
+  source: string;
+};
+
 export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptions) {
   const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
 
   // Use provided date range or default to 7 days
   const nowRef = useRef<Date>(new Date());
@@ -61,7 +74,29 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const previousPeriodStartISO = previousPeriodStart.toISOString();
   const previousPeriodEndISO = previousPeriodEnd.toISOString();
 
-  void 0;
+  useEffect(() => {
+    if (!groupId || !isAuthenticated) return;
+
+    const channel = supabase
+      .channel(`realtime:group:${groupId}:member_events`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "member_events", filter: `group_id=eq.${groupId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-member-events", groupId] });
+          queryClient.invalidateQueries({ queryKey: ["group-overview", groupId] });
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-stats", groupId] });
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-members-snapshot", groupId] });
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-entries-day", groupId] });
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-exits-day", groupId] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [groupId, isAuthenticated, queryClient]);
 
   // Chart should respect selected period strictly
   const chartDays = periodDays;
@@ -569,13 +604,13 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryKey: ['group-dashboard-entries-day', groupId, chartStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
-        .from('members')
-        .select('joined_at')
+        .from('member_events')
+        .select('occurred_at, event_type')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('joined_at', chartStartISO)
-        .lte('joined_at', currentPeriodEndISO)
-        .order('joined_at', { ascending: true });
+        .in('event_type', ['GROUP_PARTICIPANT_ADD', 'GROUP_PARTICIPANT_INVITE'])
+        .gte('occurred_at', chartStartISO)
+        .lte('occurred_at', currentPeriodEndISO)
+        .order('occurred_at', { ascending: true });
 
       const countsByDay: Record<string, number> = {};
       for (let i = chartDays - 1; i >= 0; i--) {
@@ -585,7 +620,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       }
 
       data?.forEach(m => {
-        const dateKey = formatDateKeySP(new Date(m.joined_at));
+        const dateKey = formatDateKeySP(new Date((m as any).occurred_at));
         if (countsByDay[dateKey] !== undefined) {
           countsByDay[dateKey]++;
         }
@@ -601,13 +636,13 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryKey: ['group-dashboard-exits-day', groupId, chartStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
-        .from('members')
-        .select('left_at')
+        .from('member_events')
+        .select('occurred_at, event_type')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('left_at', chartStartISO)
-        .lte('left_at', currentPeriodEndISO)
-        .order('left_at', { ascending: true });
+        .in('event_type', ['GROUP_PARTICIPANT_LEAVE', 'GROUP_PARTICIPANT_REMOVE'])
+        .gte('occurred_at', chartStartISO)
+        .lte('occurred_at', currentPeriodEndISO)
+        .order('occurred_at', { ascending: true });
 
       const countsByDay: Record<string, number> = {};
       for (let i = chartDays - 1; i >= 0; i--) {
@@ -617,13 +652,52 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       }
 
       data?.forEach(m => {
-        const dateKey = formatDateKeySP(new Date(m.left_at));
+        const dateKey = formatDateKeySP(new Date((m as any).occurred_at));
         if (countsByDay[dateKey] !== undefined) {
           countsByDay[dateKey]++;
         }
       });
 
       return Object.entries(countsByDay).map(([date, count]) => ({ date, count }));
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+  });
+
+  const { data: memberEvents, isLoading: memberEventsLoading } = useQuery({
+    queryKey: ["group-dashboard-member-events", groupId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("member_events")
+        .select("id, occurred_at, event_type, member_id, external_member_id, source, members(name, display_name, profile_pic_url)")
+        .eq("group_id", groupId!)
+        .in("event_type", [
+          "GROUP_PARTICIPANT_ADD",
+          "GROUP_PARTICIPANT_INVITE",
+          "GROUP_PARTICIPANT_LEAVE",
+          "GROUP_PARTICIPANT_REMOVE",
+        ])
+        .order("occurred_at", { ascending: false })
+        .range(0, 999);
+
+      if (error) throw error;
+
+      return ((data ?? []) as any[]).map((e): MemberChangeEvent => {
+        const type = (e.event_type as string) || "";
+        const kind: MemberChangeEvent["kind"] = type === "GROUP_PARTICIPANT_LEAVE" || type === "GROUP_PARTICIPANT_REMOVE" ? "saida" : "entrada";
+        const memberName = e.members?.display_name || e.members?.name || e.external_member_id || "Membro";
+        const memberAvatarUrl = (e.members?.profile_pic_url as string | null) ?? null;
+        return {
+          id: e.id as string,
+          occurredAt: e.occurred_at as string,
+          eventType: type,
+          kind,
+          memberId: (e.member_id as string | null) ?? null,
+          memberName,
+          memberAvatarUrl,
+          externalMemberId: e.external_member_id as string,
+          source: (e.source as string) || "",
+        };
+      });
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -1131,7 +1205,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  const isLoading = groupLoading || statsLoading || chartLoading || topParticipantsLoading || recentLoading || membersLoading;
+  const isLoading = groupLoading || statsLoading || chartLoading || topParticipantsLoading || recentLoading || membersLoading || memberEventsLoading;
 
   // Derived: days with activity in the selected period
   const daysWithActivity = (messagesPerDay || [])
@@ -1709,6 +1783,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     previousExitedMembersCount: previousExitedMembersCount || 0,
     memberEntriesPerDay: memberEntriesPerDay || [],
     memberExitsPerDay: memberExitsPerDay || [],
+    memberEvents: memberEvents || [],
     currentMembers: membersSnapshot?.currentMembers || stats?.totalMembers || 0,
     membersAtPeriodStart: membersSnapshot?.membersAtPeriodStart || undefined,
     daysWithActivity,

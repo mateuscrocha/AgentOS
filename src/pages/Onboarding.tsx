@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { notify } from "@/components/ui/sonner";
+import { getProvisioningErrorMessage, isGroupValidationSuccessful } from '@/utils/onboarding';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, Mail, Link2, 
@@ -167,7 +168,7 @@ export default function Onboarding() {
     }
   };
 
-  const validateGroup = async () => {
+  const validateGroup = async (): Promise<GroupValidation | null> => {
     if (!formData.invite_link.trim()) {
       setValidationError('Cole o link de convite do grupo.');
       return;
@@ -194,9 +195,12 @@ export default function Onboarding() {
       } else if (!data.is_boris_in_group) {
         setValidationError(null);
       }
+
+      return data;
     } catch (error: any) {
       console.error('Error validating group:', error);
       setValidationError('Erro ao validar grupo. Tente novamente.');
+      return null;
     } finally {
       setIsValidating(false);
     }
@@ -227,8 +231,8 @@ export default function Onboarding() {
       setValidationError('Cole o link de convite do grupo.');
       return;
     }
-    await validateGroup();
-    if (!groupValidation || !groupValidation.is_valid || !groupValidation.is_boris_in_group || groupValidation.data_incomplete) {
+    const validated = await validateGroup();
+    if (!isGroupValidationSuccessful(validated)) {
       notify.warning("Validação necessária", "Valide o grupo e tente novamente.");
       return;
     }
@@ -270,12 +274,12 @@ export default function Onboarding() {
           name: orgName,
         },
         group: {
-          provider: groupValidation.provider,
-          whatsapp_provider_id: groupValidation.whatsapp_provider_id,
-          name: groupValidation.group_name,
+          provider: validated.provider,
+          whatsapp_provider_id: validated.whatsapp_provider_id,
+          name: validated.group_name,
           invite_link: formData.invite_link,
         },
-        participants: groupValidation.participants,
+        participants: validated.participants,
       };
 
       const { data: provisionData, error: provisionError } = await supabase.functions.invoke('provision-onboarding', {
@@ -283,7 +287,9 @@ export default function Onboarding() {
       });
 
       if (provisionError || !provisionData?.success) {
-        throw new Error(provisionData?.message || provisionError?.message || 'Erro no provisionamento');
+        const code = (provisionData as any)?.code as string | undefined;
+        const friendly = getProvisioningErrorMessage(code);
+        throw new Error(friendly || (provisionData as any)?.message || provisionError?.message || 'Erro no provisionamento');
       }
 
       setProvisionedGroupId(provisionData.group_id);
