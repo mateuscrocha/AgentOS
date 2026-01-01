@@ -25,6 +25,15 @@ interface ProvisionGroupPayload {
   }>;
 }
 
+function toE164(phone: string | null | undefined): string | null {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (digits.length < 8) return null;
+  if (digits.length > 18) return null;
+  if (digits.startsWith("55") && digits.length >= 10) return `+${digits}`;
+  if (digits.length === 10 || digits.length === 11) return `+55${digits}`;
+  return `+${digits}`;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -168,14 +177,44 @@ serve(async (req) => {
 
     // Create Members from participants - RLS will enforce permission
     if (payload.participants && payload.participants.length > 0) {
-      const membersToInsert = payload.participants.map(p => ({
+      const nowIso = new Date().toISOString();
+
+      const normalizedParticipants = payload.participants
+        .map((p) => {
+          const phoneE164 = toE164(p.phone);
+          const whatsappProviderId = (p.whatsapp_provider_id || p.phone || "").toString().trim();
+          return {
+            phone_raw: (p.phone || "").toString(),
+            phone_e164: phoneE164,
+            whatsapp_provider_id: whatsappProviderId || null,
+            is_admin: !!p.is_admin,
+            is_super_admin: !!p.is_super_admin,
+            name: (p.name || "").toString().trim() || null,
+          };
+        })
+        .filter((p) => !!p.phone_e164 && !!p.whatsapp_provider_id);
+
+      const participantsUnique: typeof normalizedParticipants = [];
+      const seenParticipantKeys = new Set<string>();
+      for (const p of normalizedParticipants) {
+        const key = (p.whatsapp_provider_id || p.phone_e164 || "").trim();
+        if (!key) continue;
+        if (seenParticipantKeys.has(key)) continue;
+        seenParticipantKeys.add(key);
+        participantsUnique.push(p);
+      }
+
+      const membersToInsert = participantsUnique.map((p) => ({
         group_id: group.id,
-        name: p.name || p.phone,
-        phone_e164: p.phone ? `+${p.phone.replace(/\D/g, '')}` : null,
+        name: p.name || p.phone_raw,
+        phone_e164: p.phone_e164,
         is_admin: p.is_admin || false,
         is_super_admin: p.is_super_admin || false,
         whatsapp_provider_id: p.whatsapp_provider_id,
         provider: 'whatsapp',
+        first_seen_at: nowIso,
+        joined_at: nowIso,
+        status: 'active',
       }));
 
       const { error: membersError } = await supabaseUser

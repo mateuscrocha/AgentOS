@@ -471,15 +471,21 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: previousNewMembersCount } = useQuery({
     queryKey: ['group-dashboard-previous-new-members', groupId, previousPeriodStartISO, previousPeriodEndISO],
     queryFn: async () => {
-      const { count } = await supabase
-        .from('members')
-        .select('*', { count: 'exact', head: true })
+      const entryTypes = ['GROUP_PARTICIPANT_ADD', 'GROUP_PARTICIPANT_INVITE'] as const;
+      const { data } = await supabase
+        .from('member_events')
+        .select('external_member_id, event_type, occurred_at')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('joined_at', previousPeriodStartISO)
-        .lte('joined_at', previousPeriodEndISO);
+        .in('event_type', entryTypes)
+        .gte('occurred_at', previousPeriodStartISO)
+        .lte('occurred_at', previousPeriodEndISO);
 
-      return count || 0;
+      const unique = new Set<string>();
+      (data || []).forEach((e: any) => {
+        const id = (e.external_member_id || '').toString().trim();
+        if (id) unique.add(id);
+      });
+      return unique.size;
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -488,15 +494,21 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: previousExitedMembersCount } = useQuery({
     queryKey: ['group-dashboard-previous-exited-members', groupId, previousPeriodStartISO, previousPeriodEndISO],
     queryFn: async () => {
-      const { count } = await supabase
-        .from('members')
-        .select('*', { count: 'exact', head: true })
+      const exitTypes = ['GROUP_PARTICIPANT_LEAVE', 'GROUP_PARTICIPANT_REMOVE'] as const;
+      const { data } = await supabase
+        .from('member_events')
+        .select('external_member_id, event_type, occurred_at')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('left_at', previousPeriodStartISO)
-        .lte('left_at', previousPeriodEndISO);
+        .in('event_type', exitTypes)
+        .gte('occurred_at', previousPeriodStartISO)
+        .lte('occurred_at', previousPeriodEndISO);
 
-      return count || 0;
+      const unique = new Set<string>();
+      (data || []).forEach((e: any) => {
+        const id = (e.external_member_id || '').toString().trim();
+        if (id) unique.add(id);
+      });
+      return unique.size;
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -602,14 +614,15 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: memberEntriesPerDay } = useQuery({
     queryKey: ['group-dashboard-entries-day', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
+      const entryTypes = ['GROUP_PARTICIPANT_ADD', 'GROUP_PARTICIPANT_INVITE'] as const;
       const { data } = await supabase
         .from('member_events')
-        .select('created_at, event_type')
+        .select('occurred_at, event_type')
         .eq('group_id', groupId!)
-        .in('event_type', ['GROUP_PARTICIPANT_ADD', 'GROUP_PARTICIPANT_INVITE'])
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO)
-        .order('created_at', { ascending: true });
+        .in('event_type', entryTypes)
+        .gte('occurred_at', currentPeriodStartISO)
+        .lte('occurred_at', currentPeriodEndISO)
+        .order('occurred_at', { ascending: true });
 
       const countsByDay: Record<string, number> = {};
       for (let i = periodDays - 1; i >= 0; i--) {
@@ -619,7 +632,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       }
 
       data?.forEach(m => {
-        const dateKey = formatDateKeySP(new Date((m as any).created_at));
+        const dateKey = formatDateKeySP(new Date((m as any).occurred_at));
         if (countsByDay[dateKey] !== undefined) {
           countsByDay[dateKey]++;
         }
@@ -634,14 +647,15 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: memberExitsPerDay } = useQuery({
     queryKey: ['group-dashboard-exits-day', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
+      const exitTypes = ['GROUP_PARTICIPANT_LEAVE', 'GROUP_PARTICIPANT_REMOVE'] as const;
       const { data } = await supabase
         .from('member_events')
-        .select('created_at, event_type')
+        .select('occurred_at, event_type')
         .eq('group_id', groupId!)
-        .in('event_type', ['GROUP_PARTICIPANT_LEAVE', 'GROUP_PARTICIPANT_REMOVE'])
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO)
-        .order('created_at', { ascending: true });
+        .in('event_type', exitTypes)
+        .gte('occurred_at', currentPeriodStartISO)
+        .lte('occurred_at', currentPeriodEndISO)
+        .order('occurred_at', { ascending: true });
 
       const countsByDay: Record<string, number> = {};
       for (let i = periodDays - 1; i >= 0; i--) {
@@ -651,7 +665,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       }
 
       data?.forEach(m => {
-        const dateKey = formatDateKeySP(new Date((m as any).created_at));
+        const dateKey = formatDateKeySP(new Date((m as any).occurred_at));
         if (countsByDay[dateKey] !== undefined) {
           countsByDay[dateKey]++;
         }
@@ -665,19 +679,20 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: memberEvents, isLoading: memberEventsLoading } = useQuery({
     queryKey: ["group-dashboard-member-events", groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
+      const eventTypes = [
+        "GROUP_PARTICIPANT_ADD",
+        "GROUP_PARTICIPANT_INVITE",
+        "GROUP_PARTICIPANT_LEAVE",
+        "GROUP_PARTICIPANT_REMOVE",
+      ] as const;
       const { data, error } = await supabase
         .from("member_events")
         .select("id, created_at, occurred_at, event_type, member_id, external_member_id, source, members(name, display_name, profile_pic_url)")
         .eq("group_id", groupId!)
-        .in("event_type", [
-          "GROUP_PARTICIPANT_ADD",
-          "GROUP_PARTICIPANT_INVITE",
-          "GROUP_PARTICIPANT_LEAVE",
-          "GROUP_PARTICIPANT_REMOVE",
-        ])
-        .gte("created_at", currentPeriodStartISO)
-        .lte("created_at", currentPeriodEndISO)
-        .order("created_at", { ascending: false })
+        .in("event_type", eventTypes)
+        .gte("occurred_at", currentPeriodStartISO)
+        .lte("occurred_at", currentPeriodEndISO)
+        .order("occurred_at", { ascending: false })
         .range(0, 999);
 
       if (error) throw error;
@@ -689,7 +704,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         const memberAvatarUrl = (e.members?.profile_pic_url as string | null) ?? null;
         return {
           id: e.id as string,
-          occurredAt: e.created_at as string,
+          occurredAt: (e.occurred_at as string) || (e.created_at as string),
           eventType: type,
           kind,
           memberId: (e.member_id as string | null) ?? null,
@@ -977,7 +992,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data: admins } = await supabase
         .from('members')
-        .select('id, name, is_admin, is_owner, is_super_admin, phone_e164')
+        .select('id, name, display_name, profile_pic_url, is_admin, is_owner, is_super_admin, phone_e164')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
         .or('is_admin.eq.true,is_owner.eq.true,is_super_admin.eq.true');
@@ -1017,13 +1032,22 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       const activeAdminIds = new Set(Object.keys(adminCounts));
       const activeCount = activeAdminIds.size;
 
-      let topAdmin: { name: string; messages: number } | null = null;
+      let topAdmin: { id: string; name: string; messages: number; avatarUrl: string | null } | null = null;
       let maxMessages = 0;
       admins.forEach(admin => {
         const count = adminCounts[admin.id] || 0;
         if (count > maxMessages) {
           maxMessages = count;
-          topAdmin = { name: admin.name, messages: count };
+          const rawLabel = ((admin as any).display_name || (admin as any).name || '').toString().trim();
+          const digits = rawLabel.replace(/\D/g, "");
+          const isPhoneLike = digits.length >= 6 && /^[+()\d\s.-]{7,}$/.test(rawLabel);
+          const label = rawLabel && !isPhoneLike ? rawLabel : "Administrador";
+          topAdmin = {
+            id: admin.id as string,
+            name: label,
+            messages: count,
+            avatarUrl: ((admin as any).profile_pic_url as string | null) ?? null,
+          };
         }
       });
 
@@ -1069,15 +1093,21 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: newMembersCount } = useQuery({
     queryKey: ['group-dashboard-new-members', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      const { count } = await supabase
-        .from('members')
-        .select('*', { count: 'exact', head: true })
+      const entryTypes = ['GROUP_PARTICIPANT_ADD', 'GROUP_PARTICIPANT_INVITE'] as const;
+      const { data } = await supabase
+        .from('member_events')
+        .select('external_member_id, event_type, occurred_at')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('joined_at', currentPeriodStartISO)
-        .lte('joined_at', currentPeriodEndISO);
+        .in('event_type', entryTypes)
+        .gte('occurred_at', currentPeriodStartISO)
+        .lte('occurred_at', currentPeriodEndISO);
 
-      return count || 0;
+      const unique = new Set<string>();
+      (data || []).forEach((e: any) => {
+        const id = (e.external_member_id || '').toString().trim();
+        if (id) unique.add(id);
+      });
+      return unique.size;
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -1086,15 +1116,21 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: exitedMembersCount } = useQuery({
     queryKey: ['group-dashboard-exited-members', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      const { count } = await supabase
-        .from('members')
-        .select('*', { count: 'exact', head: true })
+      const exitTypes = ['GROUP_PARTICIPANT_LEAVE', 'GROUP_PARTICIPANT_REMOVE'] as const;
+      const { data } = await supabase
+        .from('member_events')
+        .select('external_member_id, event_type, occurred_at')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('left_at', currentPeriodStartISO)
-        .lte('left_at', currentPeriodEndISO);
+        .in('event_type', exitTypes)
+        .gte('occurred_at', currentPeriodStartISO)
+        .lte('occurred_at', currentPeriodEndISO);
 
-      return count || 0;
+      const unique = new Set<string>();
+      (data || []).forEach((e: any) => {
+        const id = (e.external_member_id || '').toString().trim();
+        if (id) unique.add(id);
+      });
+      return unique.size;
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });

@@ -17,6 +17,7 @@ import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboar
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { computePollPercent } from "@/lib/polls";
 
 interface PollItem {
   id: string;
@@ -236,6 +237,7 @@ export default function GroupPolls() {
               const totalVotes = options.reduce((sum, o) => sum + o.votesCount, 0);
               const maxVotes = options.reduce((m, o) => Math.max(m, o.votesCount), 0);
               const votersCount = summaryMap?.[p.id] ?? 0;
+              const percentBase = votersCount > 0 ? votersCount : totalVotes;
               const createdAtLabel = new Date(p.created_at).toLocaleString("pt-BR");
 
               return (
@@ -260,7 +262,7 @@ export default function GroupPolls() {
                       <p className="text-sm text-muted-foreground">Ainda não há resultados para esta enquete.</p>
                     ) : (
                       options.map((opt) => {
-                        const pct = totalVotes > 0 ? Math.round((opt.votesCount / totalVotes) * 100) : 0;
+                        const pct = computePollPercent(opt.votesCount, percentBase, 0);
                         const isWinner = maxVotes > 0 && opt.votesCount === maxVotes;
                         return (
                           <div key={`${p.id}-${opt.optionIndex}`} className={cn("space-y-1", isWinner && "rounded-lg bg-primary/5 p-2")}> 

@@ -16,6 +16,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { KpiCard } from "@/components/group-dashboard";
 import { formatDateDescriptiveBR, SAO_PAULO_TZ } from "@/lib/date";
+import { computePollPercent, normalizeVotedOptions } from "@/lib/polls";
 
 export default function GroupPoll() {
   const { groupId, pollId } = useParams();
@@ -95,11 +96,7 @@ export default function GroupPoll() {
       return (data ?? []).map((r: any) => ({
         personId: r.person_id as string | null,
         personName: r.person_name as string | null,
-        votedOptions: Array.isArray(r.voted_options)
-          ? (r.voted_options as string[])
-          : r.voted_options
-          ? Object.values(r.voted_options)
-          : [],
+        votedOptions: normalizeVotedOptions(r.voted_options),
         createdAt: r.created_at as string,
       }));
     },
@@ -119,6 +116,8 @@ export default function GroupPoll() {
   }
 
   const totalVotes = (pollOptions ?? []).reduce((sum: number, o: any) => sum + o.votesCount, 0);
+  const votersCount = Number((pollSummary as any)?.voters_count ?? 0);
+  const percentBase = votersCount > 0 ? votersCount : totalVotes;
   const sortedOptions = [...(pollOptions ?? [])].sort((a: any, b: any) => b.votesCount - a.votesCount);
   const chartData = sortedOptions.map((o: any) => ({ name: o.optionText, value: o.votesCount }));
   const createdAtLabel = poll ? formatDateDescriptiveBR((poll as any).created_at) : "";
@@ -186,13 +185,13 @@ export default function GroupPoll() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-5">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <KpiCard title="Total de votos" value={totalVotes} />
-                  <KpiCard title="Votantes únicos" value={pollSummary?.voters_count ?? 0} />
-                  <KpiCard title="Opções" value={(pollOptions ?? []).length} />
-                  <KpiCard title="Máx. opções" value={(poll as any).max_options ?? 1} />
-                </div>
+                <div className="space-y-5">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <KpiCard title="Total de votos" value={totalVotes} />
+                    <KpiCard title="Votantes únicos" value={votersCount} />
+                    <KpiCard title="Opções" value={(pollOptions ?? []).length} />
+                    <KpiCard title="Máx. opções" value={(poll as any).max_options ?? 1} />
+                  </div>
 
                 {chartData.length === 0 ? (
                   <div className="h-[260px] flex items-center justify-center bg-secondary/30 rounded-lg">
@@ -215,7 +214,7 @@ export default function GroupPoll() {
                     <p className="text-xs text-muted-foreground">Nenhuma opção cadastrada.</p>
                   ) : (
                     sortedOptions.map((opt: any) => {
-                      const pct = totalVotes > 0 ? Math.round((opt.votesCount / totalVotes) * 100) : 0;
+                      const pct = computePollPercent(opt.votesCount, percentBase, 1);
                       return (
                         <div key={opt.optionIndex} className="space-y-1">
                           <div className="flex items-center justify-between">

@@ -29,6 +29,8 @@ function toE164(phone: string | null | undefined): string | null {
   const digits = (phone || "").replace(/\D/g, "");
   if (digits.length < 8) return null;
   if (digits.length > 18) return null;
+  if (digits.startsWith("55") && digits.length >= 10) return `+${digits}`;
+  if (digits.length === 10 || digits.length === 11) return `+55${digits}`;
   return `+${digits}`;
 }
 
@@ -229,7 +231,7 @@ serve(async (req: Request) => {
     const { data: members, error: membersError } = await supabaseUser
       .from("members")
       .select(
-        "id, name, display_name, profile_pic_url, phone_e164, provider_member_id, whatsapp_provider_id, lid, status, left_at, deleted_at, last_seen_message_at, is_admin, is_super_admin, is_owner, updated_at, name_detected",
+        "id, name, display_name, profile_pic_url, phone_e164, provider_member_id, whatsapp_provider_id, lid, status, joined_at, first_seen_at, left_at, deleted_at, last_seen_message_at, is_admin, is_super_admin, is_owner, updated_at, name_detected",
       )
       .eq("group_id", groupId)
       .is("deleted_at", null);
@@ -251,6 +253,8 @@ serve(async (req: Request) => {
       whatsapp_provider_id: string | null;
       lid: string | null;
       status: string | null;
+      joined_at: string | null;
+      first_seen_at: string | null;
       left_at: string | null;
       last_seen_message_at: string | null;
       is_admin: boolean | null;
@@ -598,12 +602,26 @@ serve(async (req: Request) => {
     const duplicatePhones = new Set(Array.from(byPhone.entries()).filter(([, list]) => list.length > 1).map(([k]) => k));
     const duplicateProviders = new Set(Array.from(byProvider.entries()).filter(([, list]) => list.length > 1).map(([k]) => k));
 
+    const participantByPhone = new Map<string, (typeof participantsUnique)[number]>();
+    const participantByProvider = new Map<string, (typeof participantsUnique)[number]>();
+    for (const p of participantsUnique) {
+      const phone = (p.phone_e164 || "").trim();
+      if (phone) participantByPhone.set(phone, p);
+      const pid = (p.whatsapp_provider_id || "").trim();
+      if (pid) participantByProvider.set(pid, p);
+    }
+
+    const nowIso = new Date().toISOString();
+
     const membersToMarkLeft: string[] = [];
     const membersNeedLeftAt: string[] = [];
     const membersAlreadyHaveLeftAt: string[] = [];
     const membersToReactivate: string[] = [];
     const membersOk: string[] = [];
     const skippedWeird: string[] = [];
+
+    const membersToSetJoinedAt: string[] = [];
+    const membersToSetWhatsappProviderId: Array<{ id: string; whatsappProviderId: string }> = [];
 
     for (const m of existing) {
       const phone = m.phone_e164 ? m.phone_e164.trim() : "";
@@ -613,6 +631,16 @@ serve(async (req: Request) => {
       const inWa = (hasPhone && waPhones.has(phone)) || (hasPid && waProviderIds.has(pid));
       if (inWa) {
         membersOk.push(m.id);
+        if (!m.joined_at) {
+          membersToSetJoinedAt.push(m.id);
+        }
+        if (!m.whatsapp_provider_id) {
+          const match = (hasPhone ? participantByPhone.get(phone) : null) || (hasPid ? participantByProvider.get(pid) : null);
+          const nextPid = (match?.whatsapp_provider_id || phone.replace(/\D/g, "")).trim();
+          if (nextPid) {
+            membersToSetWhatsappProviderId.push({ id: m.id, whatsappProviderId: nextPid });
+          }
+        }
         if (m.left_at || (m.status || "").toLowerCase() === "inactive") {
           if (!hasPhone || duplicatePhones.has(phone) || (hasPid && duplicateProviders.has(pid))) {
             skippedWeird.push(m.id);
@@ -655,7 +683,50 @@ serve(async (req: Request) => {
       return true;
     });
 
-    const nowIso = new Date().toISOString();
+    if (membersToSetJoinedAt.length > 0) {
+      const { error: fixJoinedError } = await supabaseUser
+        .from("members")
+        .update({ joined_at: nowIso, status: "active", left_at: null })
+        .in("id", uniqStrings(membersToSetJoinedAt))
+        .is("joined_at", null)
+        .is("deleted_at", null);
+
+      if (fixJoinedError) {
+        return new Response(
+          JSON.stringify({ success: false, code: "FIX_JOINED_AT_FAILED", message: "Falha ao corrigir joined_at: " + fixJoinedError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    if (membersToSetWhatsappProviderId.length > 0) {
+      const patches = membersToSetWhatsappProviderId.filter((p) => !!p.whatsappProviderId);
+      for (let i = 0; i < patches.length; i += 25) {
+        const chunk = patches.slice(i, i + 25);
+        const results: Array<{ error: { message?: string } | null }> = await Promise.all(
+          chunk.map(async (p) => {
+            const { error } = await supabaseUser
+              .from("members")
+              .update({ whatsapp_provider_id: p.whatsappProviderId })
+              .eq("id", p.id)
+              .is("whatsapp_provider_id", null)
+              .is("deleted_at", null);
+            return { error: (error as any) };
+          }),
+        );
+        const firstErr = results.find((r) => !!r.error)?.error || undefined;
+        if (firstErr) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              code: "FIX_PROVIDER_ID_FAILED",
+              message: "Falha ao corrigir whatsapp_provider_id: " + (firstErr.message || "Erro desconhecido"),
+            }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    }
 
     if (membersToReactivate.length > 0) {
       const { error: reactivateError } = await supabaseUser

@@ -16,7 +16,10 @@ function normalizePhoneE164(input: string | null): string | null {
     return digits || null;
   }
   const digits = cleaned.replace(/\D/g, "");
-  return digits ? `+55${digits}` : null;
+  if (!digits) return null;
+  if (digits.startsWith("55") && digits.length >= 10) return `+${digits}`;
+  if (digits.length === 10 || digits.length === 11) return `+55${digits}`;
+  return `+${digits}`;
 }
 
 serve(async (req) => {
@@ -72,7 +75,11 @@ serve(async (req) => {
               name: phone,
               display_name: phone,
               phone_e164: phone,
+              whatsapp_provider_id: phone.replace(/\D/g, "") || null,
               provider: "whatsapp",
+              first_seen_at: it.createdAtISO,
+              joined_at: it.createdAtISO,
+              status: "active",
               metadata: { origin: "manual_import" },
             })
             .select("id")
@@ -102,6 +109,9 @@ serve(async (req) => {
               display_name: name,
               phone_e164: null,
               provider: "whatsapp",
+              first_seen_at: it.createdAtISO,
+              joined_at: it.createdAtISO,
+              status: "active",
               metadata: { origin: "manual_import" },
             })
             .select("id")

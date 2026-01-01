@@ -44,7 +44,18 @@ function normalizePhoneE164(phone?: string | null): string | null {
     return plusDigits || null;
   }
   const digits = cleaned.replace(/\D/g, '');
-  return digits ? `+${digits}` : null;
+  if (!digits) return null;
+  if (digits.startsWith('55') && digits.length >= 10) return `+${digits}`;
+  if (digits.length === 10 || digits.length === 11) return `+55${digits}`;
+  return `+${digits}`;
+}
+
+function normalizeMemberProviderId(input?: string | null): string | null {
+  const raw = (input || '').trim();
+  if (!raw) return null;
+  const withoutSuffix = raw.replace(/@(c|g)\.us$/i, '');
+  const digits = withoutSuffix.replace(/\D/g, '');
+  return digits || null;
 }
 
 function normalizeGroupProviderId(input: string): string {
@@ -260,6 +271,9 @@ serve(async (req: Request) => {
       const voteOpts = Array.isArray(votePayload.pollVote.options) ? votePayload.pollVote.options : [];
       const votedTexts = voteOpts.map(o => o.name).filter(Boolean);
 
+      const tsRaw = (votePayload.timestamp && Number(votePayload.timestamp)) || (payload.momment && Number(payload.momment));
+      const createdAt = Number.isFinite(tsRaw) ? new Date(tsRaw).toISOString() : undefined;
+
       // Find poll by pollMessageId
       const { data: poll } = await supabase
         .from('polls')
@@ -296,6 +310,7 @@ serve(async (req: Request) => {
 
       // Ensure person exists (group_member)
       const phone = normalizePhoneE164(votePayload.participantPhone || null);
+      const participantProviderId = normalizeMemberProviderId(votePayload.participantPhone || null);
       let personId: string | null = null;
       if (phone) {
         const { data: existingMember } = await supabase
@@ -307,9 +322,24 @@ serve(async (req: Request) => {
         if (existingMember) {
           personId = existingMember.id;
         } else {
+          const nowIso = new Date().toISOString();
+          const joinedAt = createdAt || nowIso;
+          const phoneDigits = phone.replace(/\D/g, '') || null;
+          const whatsappProviderId = participantProviderId || phoneDigits;
           const { data: newMember } = await supabase
             .from('members')
-            .insert({ group_id: groupId, phone_e164: phone, name: phone, display_name: phone, provider: provider, metadata: { source: 'zapi' } })
+            .insert({
+              group_id: groupId,
+              phone_e164: phone,
+              name: phone,
+              display_name: phone,
+              provider: 'whatsapp',
+              whatsapp_provider_id: whatsappProviderId,
+              first_seen_at: joinedAt,
+              joined_at: joinedAt,
+              status: 'active',
+              metadata: { source: 'zapi' },
+            })
             .select('id')
             .single();
           personId = newMember?.id || null;
@@ -329,8 +359,6 @@ serve(async (req: Request) => {
       }
       // Provider vote message id not tracked; rely on person_id for dedup
 
-      const tsRaw = (votePayload.timestamp && Number(votePayload.timestamp)) || (payload.momment && Number(payload.momment));
-      const createdAt = Number.isFinite(tsRaw) ? new Date(tsRaw).toISOString() : undefined;
       if (!existingVoteId) {
         await supabase
           .from('poll_votes')
@@ -371,6 +399,19 @@ serve(async (req: Request) => {
       const messageType = mapMessageType(rawType);
 
       const providerGroupId = getGroupProviderId();
+
+      const senderProviderIdRaw = firstString(
+        payload.participantPhone ||
+          payload.participant_phone ||
+          payload.senderPhone ||
+          payload.sender_phone ||
+          payload.from ||
+          payload.author ||
+          payload?.message?.from ||
+          payload?.message?.author ||
+          null
+      );
+      const senderProviderId = normalizeMemberProviderId(senderProviderIdRaw);
 
       const senderPhone = normalizePhoneE164(
         payload.participantPhone ||
@@ -532,6 +573,10 @@ serve(async (req: Request) => {
             if (existingMember?.id) {
               memberId = existingMember.id;
             } else if (!fromMe) {
+              const nowIso = new Date().toISOString();
+              const joinedAt = createdAtISO || nowIso;
+              const phoneDigits = senderPhone.replace(/\D/g, '') || null;
+              const whatsappProviderId = senderProviderId || phoneDigits;
               const memberName = senderName || senderPhone;
               const { data: createdMember } = await supabase
                 .from('members')
@@ -541,6 +586,10 @@ serve(async (req: Request) => {
                   name: memberName,
                   display_name: memberName,
                   provider: 'whatsapp',
+                  whatsapp_provider_id: whatsappProviderId,
+                  first_seen_at: joinedAt,
+                  joined_at: joinedAt,
+                  status: 'active',
                   metadata: { source: 'zapi_webhook' },
                 })
                 .select('id')

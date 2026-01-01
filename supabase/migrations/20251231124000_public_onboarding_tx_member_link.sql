@@ -109,15 +109,21 @@ BEGIN
         is_admin,
         is_super_admin,
         whatsapp_provider_id,
-        provider
+        provider,
+        first_seen_at,
+        joined_at,
+        status
       ) VALUES (
         v_group_id,
         COALESCE(NULLIF(v_participant->>'name', ''), v_participant_phone_e164),
         v_participant_phone_e164,
         COALESCE((v_participant->>'is_admin')::boolean, false),
         COALESCE((v_participant->>'is_super_admin')::boolean, false),
-        NULLIF(v_participant->>'whatsapp_provider_id', ''),
-        'whatsapp'
+        COALESCE(NULLIF(v_participant->>'whatsapp_provider_id', ''), v_participant_digits),
+        'whatsapp',
+        now(),
+        now(),
+        'active'
       )
       ON CONFLICT DO NOTHING;
     END LOOP;

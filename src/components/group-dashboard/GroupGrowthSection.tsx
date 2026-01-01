@@ -40,8 +40,18 @@ export function GroupGrowthSection({
   periodLabel = "período",
   groupId,
 }: GroupGrowthSectionProps) {
-  const entriesTotal = (memberEvents ?? []).filter((e) => e.kind === "entrada").length;
-  const exitsTotal = (memberEvents ?? []).filter((e) => e.kind === "saida").length;
+  const entryIds = new Set<string>();
+  const exitIds = new Set<string>();
+
+  (memberEvents ?? []).forEach((e) => {
+    const key = (e.memberId || e.externalMemberId || e.id || "").toString();
+    if (!key) return;
+    if (e.kind === "entrada") entryIds.add(key);
+    if (e.kind === "saida") exitIds.add(key);
+  });
+
+  const entriesTotal = entryIds.size;
+  const exitsTotal = exitIds.size;
   const netGrowth = entriesTotal - exitsTotal;
 
   const netGrowthClassName =

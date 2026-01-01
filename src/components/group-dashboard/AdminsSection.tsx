@@ -3,6 +3,8 @@ import { SectionHeader } from "./SectionHeader";
 import { InsightCard } from "./InsightCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "./KpiCard";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 interface AdminStats {
   total: number;
@@ -10,7 +12,7 @@ interface AdminStats {
   inactive: number;
   messagesFromAdmins: number;
   totalMessages: number;
-  topAdmin: { name: string; messages: number } | null;
+  topAdmin: { id: string; name: string; messages: number; avatarUrl: string | null } | null;
 }
 
 interface PreviousAdminStats {
@@ -123,7 +125,20 @@ export function AdminsSection({ adminStats, previousAdminStats, isLoading, perio
             >
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>
-                  <strong className="text-card-foreground">{adminStats.topAdmin.name}</strong> é o admin mais ativo com {adminStats.topAdmin.messages} mensagens.
+                  <span className="inline-flex items-center gap-2">
+                    {adminStats.topAdmin.avatarUrl ? (
+                      <Avatar className="h-7 w-7">
+                        <AvatarImage src={adminStats.topAdmin.avatarUrl} alt="" referrerPolicy="no-referrer" />
+                        <AvatarFallback>{(adminStats.topAdmin.name || "A")[0]?.toUpperCase?.() || "A"}</AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <Badge variant="secondary" className="h-7 w-7 justify-center px-0">
+                        ADM
+                      </Badge>
+                    )}
+                    <strong className="text-card-foreground">{adminStats.topAdmin.name}</strong>
+                  </span>
+                  <span> é o admin mais ativo com {adminStats.topAdmin.messages} mensagens.</span>
                 </p>
                 {adminParticipationRate > 50 ? (
                   <p>Os admins dominam a conversa ({adminParticipationRate}% das mensagens). Considere incentivar mais participação dos membros.</p>
