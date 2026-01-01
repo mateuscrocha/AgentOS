@@ -8,6 +8,7 @@ import { Building2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
@@ -36,6 +37,35 @@ interface Organization {
 }
 
 const PAGE_SIZE = 10;
+
+function formatCounts(counts?: Record<string, number>): string {
+  if (!counts) return "";
+  const entries = Object.entries(counts)
+    .filter(([, v]) => typeof v === "number" && v > 0)
+    .sort((a, b) => (b[1] as number) - (a[1] as number))
+    .slice(0, 6)
+    .map(([k, v]) => `${k}: ${v}`);
+  return entries.length ? entries.join(" • ") : "";
+}
+
+async function parseInvokeError(err: any): Promise<{ message: string; code?: string; counts?: Record<string, number> }> {
+  let message = err?.message || "Algo deu errado. Tente novamente.";
+  let code: string | undefined;
+  let counts: Record<string, number> | undefined;
+
+  if (err instanceof FunctionsHttpError && (err as any).context) {
+    try {
+      const body = await (err as any).context.json();
+      if (body?.message) message = body.message;
+      if (typeof body?.code === "string") code = body.code;
+      if (body?.details?.counts && typeof body.details.counts === "object") counts = body.details.counts;
+    } catch (_e) {
+      void 0;
+    }
+  }
+
+  return { message, code, counts };
+}
 
 export default function SystemOrganizations() {
   const navigate = useNavigate();
@@ -364,7 +394,25 @@ export default function SystemOrganizations() {
                     setCascadeOrg(null);
                     refetchOrgs();
                   } catch (err: any) {
-                    notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
+                    const parsed = await parseInvokeError(err);
+                    const countsLabel = formatCounts(parsed.counts);
+                    if (parsed.code === "DEPENDENCIES_EXIST") {
+                      notify.warning("Dependências existentes", countsLabel || "Ainda há registros vinculados a esta organização.");
+                      return;
+                    }
+                    if (parsed.code === "DEPENDENCY_CLEANUP_FAILED") {
+                      notify.error("Falha na limpeza", countsLabel ? `${parsed.message} (${countsLabel})` : parsed.message);
+                      return;
+                    }
+                    if (parsed.code === "FORBIDDEN" || /forbidden/i.test(parsed.message)) {
+                      notify.error("Acesso negado", "Apenas admins do sistema podem excluir organizações em cascata.");
+                      return;
+                    }
+                    if (parsed.code === "UNAUTHORIZED" || /unauthorized/i.test(parsed.message)) {
+                      notify.error("Sessão expirada", "Faça login novamente.");
+                      return;
+                    }
+                    notify.error("Não foi possível concluir", countsLabel ? `${parsed.message} (${countsLabel})` : parsed.message);
                   } finally {
                     setDeletingCascade(false);
                   }

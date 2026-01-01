@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:edge": "deno test -A supabase/functions/admin-delete-user/index.test.ts",
+    "test:edge": "deno test -A --node-modules-dir=auto supabase/functions/**/index.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
