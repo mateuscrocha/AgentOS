@@ -197,16 +197,19 @@ export type Database = {
       }
       groups: {
         Row: {
+          assistant_id: string | null
           counts_cache: Json | null
           created_at: string
           created_at_provider: string | null
           deleted_at: string | null
           description: string | null
+          has_assistant: boolean
           id: string
           invite_link: string | null
           invite_link_status: string | null
           is_active: boolean | null
           is_archived: boolean | null
+          last_summary_at: string | null
           last_sync_at: string | null
           metadata: Json | null
           name: string
@@ -221,16 +224,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assistant_id?: string | null
           counts_cache?: Json | null
           created_at?: string
           created_at_provider?: string | null
           deleted_at?: string | null
           description?: string | null
+          has_assistant?: boolean
           id?: string
           invite_link?: string | null
           invite_link_status?: string | null
           is_active?: boolean | null
           is_archived?: boolean | null
+          last_summary_at?: string | null
           last_sync_at?: string | null
           metadata?: Json | null
           name: string
@@ -245,16 +251,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assistant_id?: string | null
           counts_cache?: Json | null
           created_at?: string
           created_at_provider?: string | null
           deleted_at?: string | null
           description?: string | null
+          has_assistant?: boolean
           id?: string
           invite_link?: string | null
           invite_link_status?: string | null
           is_active?: boolean | null
           is_archived?: boolean | null
+          last_summary_at?: string | null
           last_sync_at?: string | null
           metadata?: Json | null
           name?: string
@@ -275,6 +284,54 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_summaries: {
+        Row: {
+          assistant_id: string | null
+          created_at: string
+          group_id: string
+          id: string
+          metadata: Json | null
+          period_end: string
+          period_start: string
+          summary_text: string
+        }
+        Insert: {
+          assistant_id?: string | null
+          created_at?: string
+          group_id: string
+          id?: string
+          metadata?: Json | null
+          period_end: string
+          period_start: string
+          summary_text: string
+        }
+        Update: {
+          assistant_id?: string | null
+          created_at?: string
+          group_id?: string
+          id?: string
+          metadata?: Json | null
+          period_end?: string
+          period_start?: string
+          summary_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_summaries_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_summaries_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
           },
         ]
       }
