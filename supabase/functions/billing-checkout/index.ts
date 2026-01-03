@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { stripe, STRIPE_PRICE_ID_DEFAULT, STRIPE_CHECKOUT_SUCCESS_URL, STRIPE_CHECKOUT_CANCEL_URL } from "../_shared/stripeClient.ts";
+import { getStripe, STRIPE_PRICE_ID_DEFAULT, STRIPE_CHECKOUT_SUCCESS_URL, STRIPE_CHECKOUT_CANCEL_URL } from "../_shared/stripeClient.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,6 +59,7 @@ serve(async (req) => {
     }
 
     let customerId = org.stripe_customer_id as string | null;
+    const stripe = await getStripe();
     if (!customerId) {
       const customer = await stripe.customers.create({
         name: org.name,
@@ -88,4 +89,3 @@ serve(async (req) => {
     return new Response(JSON.stringify({ message: msg }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
-

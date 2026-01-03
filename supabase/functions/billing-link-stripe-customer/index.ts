@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { stripe, mapStripeStatusToBilling } from "../_shared/stripeClient.ts";
+import { getStripe, mapStripeStatusToBilling } from "../_shared/stripeClient.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,6 +59,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: "Organização já vinculada a outro stripe_customer_id" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    const stripe = await getStripe();
     const customer = await stripe.customers.retrieve(payload.stripeCustomerId);
     if ((customer as any).deleted) {
       return new Response(JSON.stringify({ message: "Cliente Stripe está deletado" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -94,4 +95,3 @@ serve(async (req) => {
     return new Response(JSON.stringify({ message: msg }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
-

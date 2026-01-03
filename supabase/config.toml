@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.import-manual-messages]
 verify_jwt = false
+
+[functions.stripe-key-management]
+verify_jwt = true

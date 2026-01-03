@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { stripe, STRIPE_WEBHOOK_SECRET, mapStripeStatusToBilling } from "../_shared/stripeClient.ts";
+import { getStripe, STRIPE_WEBHOOK_SECRET, mapStripeStatusToBilling } from "../_shared/stripeClient.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +19,7 @@ serve(async (req) => {
 
   try {
     const rawBody = await req.text();
+    const stripe = await getStripe();
     const event = stripe.webhooks.constructEvent(rawBody, sig, STRIPE_WEBHOOK_SECRET);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -89,4 +90,3 @@ serve(async (req) => {
     return new Response(JSON.stringify({ message: msg }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
-
