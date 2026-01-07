@@ -24,8 +24,15 @@ interface PollItem {
   question: string;
   created_at: string;
   max_options: number | null;
+  max_votes_per_member: number | null;
   whatsapp_provider_id: string | null;
 }
+
+type PollSummaryItem = {
+  votersCount: number;
+  voteEventsCount: number;
+  selectionsCount: number;
+};
 
 type PollOptionResult = {
   pollId: string;
@@ -105,7 +112,7 @@ export default function GroupPolls() {
       const to = from + PAGE_SIZE - 1;
       const { data, error, count } = await (supabase as any)
         .from("polls")
-        .select("id, question, created_at, max_options, whatsapp_provider_id", { count: "exact" })
+        .select("id, question, created_at, max_options, max_votes_per_member, whatsapp_provider_id", { count: "exact" })
         .eq("group_id", groupId)
         .gte("created_at", currentRange.from.toISOString())
         .lte("created_at", currentRange.to.toISOString())
@@ -121,14 +128,18 @@ export default function GroupPolls() {
     queryKey: ["group-polls-summary", pollsData?.items?.map(p => p.id)],
     queryFn: async () => {
       const ids = (pollsData?.items || []).map(p => p.id);
-      if (!ids.length) return {} as Record<string, number>;
+      if (!ids.length) return {} as Record<string, PollSummaryItem>;
       const { data } = await (supabase as any)
         .from("v_poll_summary")
-        .select("poll_id, voters_count")
+        .select("poll_id, voters_count, vote_events_count, selections_count")
         .in("poll_id", ids);
-      const map: Record<string, number> = {};
+      const map: Record<string, PollSummaryItem> = {};
       for (const r of data || []) {
-        map[r.poll_id as string] = Number(r.voters_count || 0);
+        map[r.poll_id as string] = {
+          votersCount: Number(r.voters_count || 0),
+          voteEventsCount: Number(r.vote_events_count || 0),
+          selectionsCount: Number(r.selections_count || 0),
+        };
       }
       return map;
     },
@@ -236,8 +247,11 @@ export default function GroupPolls() {
 
               const totalVotes = options.reduce((sum, o) => sum + o.votesCount, 0);
               const maxVotes = options.reduce((m, o) => Math.max(m, o.votesCount), 0);
-              const votersCount = summaryMap?.[p.id] ?? 0;
-              const percentBase = votersCount > 0 ? votersCount : totalVotes;
+              const summary = summaryMap?.[p.id];
+              const votersCount = summary?.votersCount ?? 0;
+              const voteEventsCount = summary?.voteEventsCount ?? 0;
+              const selectionsCount = summary?.selectionsCount ?? 0;
+              const percentBase = selectionsCount > 0 ? selectionsCount : totalVotes;
               const createdAtLabel = new Date(p.created_at).toLocaleString("pt-BR");
 
               return (
@@ -245,7 +259,7 @@ export default function GroupPolls() {
                   <div className="p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-border">
                     <div className="min-w-0">
                       <h3 className="text-base font-semibold text-card-foreground leading-snug">{p.question || "Enquete"}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">Criada em {createdAtLabel} • {votersCount} votante(s)</p>
+                      <p className="text-xs text-muted-foreground mt-1">Criada em {createdAtLabel} • {votersCount} votante(s) • {voteEventsCount} voto(s)</p>
                     </div>
                     <Button
                       variant="outline"

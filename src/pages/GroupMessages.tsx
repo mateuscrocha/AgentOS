@@ -112,7 +112,7 @@ const PollInlineSummary = ({ groupId, providerMessageId }: { groupId: string; pr
       if (!poll?.id) return null;
       const { data } = await (supabase as any)
         .from('v_poll_summary')
-        .select('voters_count')
+        .select('voters_count, vote_events_count')
         .eq('poll_id', poll.id)
         .maybeSingle();
       return data;
@@ -140,7 +140,7 @@ const PollInlineSummary = ({ groupId, providerMessageId }: { groupId: string; pr
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11px] text-muted-foreground">{summary?.voters_count ? `${summary.voters_count} voto(s)` : 'Sem votos'}</span>
+      <span className="text-[11px] text-muted-foreground">{summary?.vote_events_count ? `${summary.vote_events_count} voto(s)` : 'Sem votos'}</span>
       {(results ?? []).map((r: { optionText: string; optionIndex: number; votesCount: number }) => (
         <span key={r.optionIndex} className="text-[11px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
           {r.optionText} {r.votesCount}

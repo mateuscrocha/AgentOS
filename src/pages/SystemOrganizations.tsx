@@ -34,6 +34,7 @@ interface Organization {
   name: string;
   status: string;
   created_at: string;
+  stripe_customer_id?: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -98,7 +99,7 @@ export default function SystemOrganizations() {
 
       let query = supabase
         .from("organizations")
-        .select("id, name, status, created_at", { count: "exact" });
+        .select("id, name, status, created_at, stripe_customer_id", { count: "exact" });
 
       if (debouncedSearch) {
         query = query.ilike("name", `%${debouncedSearch}%`);
@@ -189,6 +190,18 @@ export default function SystemOrganizations() {
           {getStatusLabel(org.status)}
         </span>
       ),
+    },
+    {
+      key: "stripe",
+      header: "Stripe",
+      render: (org: Organization) =>
+        org.stripe_customer_id ? (
+          <Badge variant="outline" className="text-[10px] px-2 py-0.5" title={org.stripe_customer_id}>
+            Stripe
+          </Badge>
+        ) : (
+          <span className="text-sm text-muted-foreground">—</span>
+        ),
     },
     {
       key: "groups_count",

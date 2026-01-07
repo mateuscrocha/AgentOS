@@ -225,8 +225,23 @@ serve(async (req: Request) => {
           })
           .select('id')
           .single();
-        if (pollError) throw pollError;
-        pollId = poll.id;
+        if (pollError) {
+          if ((pollError as any)?.code === '23505') {
+            const { data: existingPollAfterRace } = await supabase
+              .from('polls')
+              .select('id')
+              .eq('provider', provider)
+              .eq('whatsapp_provider_id', pollPayload.messageId)
+              .maybeSingle();
+            pollId = existingPollAfterRace?.id || null;
+          } else {
+            throw pollError;
+          }
+        }
+        if (!pollId) {
+          pollId = poll?.id || null;
+        }
+        if (!pollId) throw new Error('poll insert failed');
 
         if (options.length > 0) {
           const records = options.map((opt, idx) => ({
@@ -274,10 +289,21 @@ serve(async (req: Request) => {
       const tsRaw = (votePayload.timestamp && Number(votePayload.timestamp)) || (payload.momment && Number(payload.momment));
       const createdAt = Number.isFinite(tsRaw) ? new Date(tsRaw).toISOString() : undefined;
 
+      const voteMessageId = firstString(
+        votePayload.messageId,
+        payload.messageId,
+        payload.id,
+        payload.message_id,
+        payload?.message?.messageId,
+        payload?.message?.id,
+        payload?.data?.messageId,
+        payload?.data?.id
+      );
+
       // Find poll by pollMessageId
       const { data: poll } = await supabase
         .from('polls')
-        .select('id')
+        .select('id, max_votes_per_member')
         .eq('provider', provider)
         .eq('whatsapp_provider_id', votePayload.pollVote.pollMessageId)
         .maybeSingle();
@@ -287,6 +313,30 @@ serve(async (req: Request) => {
           JSON.stringify({ success: false, message: 'poll not found for vote' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      if (!voteMessageId) {
+        await touchGroupSync();
+        return new Response(
+          JSON.stringify({ success: true, type: 'poll_vote', skipped: 'missing_vote_message_id' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      {
+        const { data: existingVoteByMessage } = await supabase
+          .from('poll_votes')
+          .select('id')
+          .eq('provider', provider)
+          .eq('provider_vote_message_id', voteMessageId)
+          .maybeSingle();
+        if (existingVoteByMessage?.id) {
+          await touchGroupSync();
+          return new Response(
+            JSON.stringify({ success: true, type: 'poll_vote', deduped: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
 
       // Ensure poll options exist for all voted texts
@@ -346,41 +396,64 @@ serve(async (req: Request) => {
         }
       }
 
-      // Upsert snapshot de voto por (poll_id, person_id). Fallback para provider_vote_message_id.
-      let existingVoteId: string | null = null;
+      let voteSequence: number | null = null;
       if (personId) {
-        const { data: existingByPerson } = await supabase
+        const { count } = await supabase
           .from('poll_votes')
-          .select('id')
+          .select('id', { count: 'exact', head: true })
           .eq('poll_id', poll.id)
-          .eq('person_id', personId)
-          .maybeSingle();
-        existingVoteId = existingByPerson?.id || null;
-      }
-      // Provider vote message id not tracked; rely on person_id for dedup
+          .eq('person_id', personId);
 
-      if (!existingVoteId) {
-        await supabase
-          .from('poll_votes')
-          .insert({
-            poll_id: poll.id,
-            person_id: personId,
-            voted_options: votedTexts,
-            provider,
-            raw_payload: payload,
-            ...(createdAt ? { created_at: createdAt } : {}),
-          });
-      } else {
-        await supabase
-          .from('poll_votes')
-          .update({
-            poll_id: poll.id,
-            person_id: personId,
-            voted_options: votedTexts,
-            raw_payload: payload,
-            ...(createdAt ? { created_at: createdAt } : {}),
-          })
-          .eq('id', existingVoteId);
+        const maxVotes = Number.isFinite(Number((poll as any).max_votes_per_member))
+          ? Number((poll as any).max_votes_per_member)
+          : 2;
+        const currentVotes = count ?? 0;
+
+        if (maxVotes > 0 && currentVotes >= maxVotes) {
+          await touchGroupSync();
+          return new Response(
+            JSON.stringify({ success: true, type: 'poll_vote', skipped: 'max_votes_per_member_reached' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        voteSequence = currentVotes + 1;
+      }
+
+      const { error: insertVoteError } = await supabase
+        .from('poll_votes')
+        .insert({
+          poll_id: poll.id,
+          person_id: personId,
+          voted_options: votedTexts,
+          provider,
+          provider_vote_message_id: voteMessageId,
+          vote_sequence: voteSequence,
+          raw_payload: payload,
+          ...(createdAt ? { created_at: createdAt } : {}),
+        });
+
+      if (insertVoteError) {
+        const code = (insertVoteError as any)?.code as string | undefined;
+        const msg = (insertVoteError as any)?.message as string | undefined;
+
+        if (code === '23505') {
+          await touchGroupSync();
+          return new Response(
+            JSON.stringify({ success: true, type: 'poll_vote', deduped: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (code === 'P0001' || (msg && msg.includes('max_votes_per_member_reached'))) {
+          await touchGroupSync();
+          return new Response(
+            JSON.stringify({ success: true, type: 'poll_vote', skipped: 'max_votes_per_member_reached' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        throw insertVoteError;
       }
 
       // Não criar mensagens para votos

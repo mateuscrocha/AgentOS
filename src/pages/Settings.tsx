@@ -4,54 +4,45 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
 import { LoadingState } from "@/components/ui/loading-state";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { notify } from "@/components/ui/sonner";
-import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useMemo, useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { formatDateTimeBR } from "@/lib/date";
 
 const Settings = () => {
   const { loading: authLoading } = useAuth();
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
-  const queryClient = useQueryClient();
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
   const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
   const maskedAnonKey = SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.slice(0, 8)}...${SUPABASE_ANON_KEY.slice(-4)}` : "Não configurado";
   const isCorrectProject = !!SUPABASE_URL && SUPABASE_URL.includes("ceugwdfpbvziiumnxknt");
 
   const [showStripeKey, setShowStripeKey] = useState(true);
-  const [newStripeKey, setNewStripeKey] = useState("");
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState("");
-
-  const stripeKeyFormatOk = useMemo(() => {
-    const k = (newStripeKey || "").trim();
-    if (!k) return false;
-    return /^sk_(live|test)_[0-9A-Za-z]+$/.test(k);
-  }, [newStripeKey]);
 
   const stripeInfoQuery = useQuery({
     queryKey: ["stripe-key-info"],
     queryFn: async () => {
+      if (import.meta.env.DEV) {
+        try {
+          const res = await fetch("/__stripe/status", { method: "GET" });
+          if (res.ok) {
+            const data = await res.json().catch(() => null) as any;
+            if (data?.success) {
+              return data as { has_key: boolean; masked_key: string; updated_at: string | null; managed_by?: "env" | "db" };
+            }
+          }
+        } catch {
+          void 0;
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke("stripe-key-management", {
         body: { action: "get" },
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.message || "Falha ao carregar configuração");
-      return data as { has_key: boolean; masked_key: string; updated_at: string | null };
+      return data as { has_key: boolean; masked_key: string; updated_at: string | null; managed_by?: "env" | "db" };
     },
     enabled: isSystemAdmin,
   });
@@ -59,6 +50,21 @@ const Settings = () => {
   const stripeAuditQuery = useQuery({
     queryKey: ["stripe-key-audit"],
     queryFn: async () => {
+      if (import.meta.env.DEV) {
+        return {
+          items: [],
+        } as {
+          items: Array<{
+            id: string;
+            created_at: string;
+            user_id: string | null;
+            user_name: string | null;
+            status: "success" | "failed" | null;
+            message: string | null;
+          }>;
+        };
+      }
+
       const { data, error } = await supabase.functions.invoke("stripe-key-management", {
         body: { action: "audit" },
       });
@@ -78,49 +84,15 @@ const Settings = () => {
     enabled: isSystemAdmin,
   });
 
-  const updateStripeKeyMutation = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("stripe-key-management", {
-        body: { action: "update", newKey: newStripeKey, password: confirmPassword },
-      });
-      if (!error && data?.success) return data;
+  const stripeStatusMessage = useMemo(() => {
+    const hasKey = !!stripeInfoQuery.data?.has_key;
+    return hasKey
+      ? "Gerenciada por variável de ambiente (STRIPE_SECRET_KEY)."
+      : import.meta.env.DEV
+        ? "Não configurada no ambiente local. Defina STRIPE_SECRET_KEY no .env para habilitar integração com Stripe."
+        : "Não configurada no ambiente do servidor. Defina STRIPE_SECRET_KEY no ambiente de execução para habilitar integração com Stripe.";
+  }, [stripeInfoQuery.data?.has_key]);
 
-      let message = error?.message || data?.message || "Falha ao atualizar chave";
-      if (error instanceof FunctionsHttpError && (error as any).context) {
-        try {
-          const body = await (error as any).context.json();
-          if (body?.message) message = body.message;
-        } catch (e) {
-          void 0;
-        }
-      }
-      throw new Error(message);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["stripe-key-info"] });
-      queryClient.invalidateQueries({ queryKey: ["stripe-key-audit"] });
-      notify.success("Chave da Stripe atualizada", "Conectividade verificada com sucesso.");
-      setConfirmOpen(false);
-      setConfirmPassword("");
-      setNewStripeKey("");
-    },
-    onError: (err: any) => {
-      const msg = (err?.message || "").toLowerCase();
-      if (msg.includes("senha") || msg.includes("reautent")) {
-        notify.error("Senha inválida", "Confirme sua senha para salvar alterações.");
-        return;
-      }
-      if (msg.includes("formato") || msg.includes("inválid")) {
-        notify.error("Chave inválida", "Verifique o formato (sk_live_ / sk_test_ + alfanumérico).");
-        return;
-      }
-      if (msg.includes("stripe")) {
-        notify.error("Falha ao validar na Stripe", err?.message || "Não foi possível verificar conectividade.");
-        return;
-      }
-      notify.error("Não foi possível concluir", err?.message || "Algo deu errado. Tente novamente.");
-    },
-  });
   if (authLoading || rolesLoading) {
     return (
       <AdminLayout title="Configurações" subtitle="Carregando...">
@@ -259,30 +231,8 @@ const Settings = () => {
             </div>
 
             <div className="rounded-lg border border-border bg-secondary/20 p-4">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Atualizar chave</p>
-              <div className="grid gap-2">
-                <Input
-                  value={newStripeKey}
-                  onChange={(e) => setNewStripeKey(e.target.value)}
-                  placeholder="sk_live_... ou sk_test_..."
-                  type="password"
-                />
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">
-                    {newStripeKey.trim()
-                      ? stripeKeyFormatOk
-                        ? "Formato válido"
-                        : "Formato inválido"
-                      : ""}
-                  </p>
-                  <Button
-                    onClick={() => setConfirmOpen(true)}
-                    disabled={!stripeKeyFormatOk || updateStripeKeyMutation.isPending}
-                  >
-                    Confirmar e salvar
-                  </Button>
-                </div>
-              </div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Configuração</p>
+              <p className="text-xs text-muted-foreground">{stripeStatusMessage}</p>
             </div>
           </div>
 
@@ -348,44 +298,6 @@ const Settings = () => {
         </div>
       </div>
 
-      <AlertDialog open={confirmOpen} onOpenChange={(open) => {
-        if (!open) setConfirmPassword("");
-        setConfirmOpen(open);
-      }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar atualização da chave</AlertDialogTitle>
-            <AlertDialogDescription>
-              Para salvar alterações, confirme sua senha. A conectividade com a Stripe será verificada antes de persistir.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="grid gap-2">
-            <Input
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Senha"
-              type="password"
-              autoComplete="current-password"
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={updateStripeKeyMutation.isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                if (!confirmPassword.trim()) {
-                  notify.error("Senha obrigatória", "Confirme sua senha para continuar.");
-                  return;
-                }
-                updateStripeKeyMutation.mutate();
-              }}
-              disabled={updateStripeKeyMutation.isPending}
-            >
-              {updateStripeKeyMutation.isPending ? "Salvando..." : "Confirmar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AdminLayout>
   );
 };

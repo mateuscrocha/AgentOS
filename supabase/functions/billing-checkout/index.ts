@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getStripe, STRIPE_PRICE_ID_DEFAULT, STRIPE_CHECKOUT_SUCCESS_URL, STRIPE_CHECKOUT_CANCEL_URL } from "../_shared/stripeClient.ts";
+import { getStripe, getStripeCheckoutCancelUrl, getStripeCheckoutSuccessUrl, getStripePriceIdDefault } from "../_shared/stripeClient.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,6 +60,9 @@ serve(async (req) => {
 
     let customerId = org.stripe_customer_id as string | null;
     const stripe = await getStripe();
+    const stripePriceId = getStripePriceIdDefault();
+    const stripeCheckoutSuccessUrl = getStripeCheckoutSuccessUrl();
+    const stripeCheckoutCancelUrl = getStripeCheckoutCancelUrl();
     if (!customerId) {
       const customer = await stripe.customers.create({
         name: org.name,
@@ -78,9 +81,9 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: [{ price: STRIPE_PRICE_ID_DEFAULT, quantity: 1 }],
-      success_url: STRIPE_CHECKOUT_SUCCESS_URL,
-      cancel_url: STRIPE_CHECKOUT_CANCEL_URL,
+      line_items: [{ price: stripePriceId, quantity: 1 }],
+      success_url: stripeCheckoutSuccessUrl,
+      cancel_url: stripeCheckoutCancelUrl,
     });
 
     return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });

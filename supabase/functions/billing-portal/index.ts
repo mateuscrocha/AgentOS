@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getStripe, STRIPE_CUSTOMER_PORTAL_RETURN_URL } from "../_shared/stripeClient.ts";
+import { getStripe, getStripeCustomerPortalReturnUrl } from "../_shared/stripeClient.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,9 +62,10 @@ serve(async (req) => {
     }
 
     const stripe = await getStripe();
+    const returnUrl = getStripeCustomerPortalReturnUrl();
     const session = await stripe.billingPortal.sessions.create({
       customer: org.stripe_customer_id,
-      return_url: STRIPE_CUSTOMER_PORTAL_RETURN_URL,
+      return_url: returnUrl,
     });
 
     return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });

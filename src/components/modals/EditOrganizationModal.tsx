@@ -33,6 +33,10 @@ const organizationSchema = z.object({
     errorMap: () => ({ message: "Status inválido" }) 
   }),
   description: z.string().trim().max(500, "Descrição deve ter no máximo 500 caracteres").optional(),
+  stripe_customer_id: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().trim().optional(),
+  ),
 });
 
 interface Organization {
@@ -40,6 +44,7 @@ interface Organization {
   name: string;
   status: string;
   settings?: Record<string, any> | null;
+  stripe_customer_id?: string | null;
 }
 
 interface EditOrganizationModalProps {
@@ -62,6 +67,7 @@ export function EditOrganizationModal({
       name: "",
       status: "active",
       description: "",
+      stripe_customer_id: "",
     },
     mode: "onChange",
   });
@@ -72,6 +78,7 @@ export function EditOrganizationModal({
         name: organization.name || "",
         status: organization.status || "active",
         description: ((organization.settings as any)?.description as string) || "",
+        stripe_customer_id: organization.stripe_customer_id || "",
       });
     }
   }, [organization, form]);
@@ -83,6 +90,7 @@ export function EditOrganizationModal({
           name: values.name.trim(),
           status: values.status,
           settings: { description: (values.description || "").trim() },
+          stripe_customer_id: (values.stripe_customer_id || "").trim() || null,
         };
         const { data, error } = await supabase
           .from("organizations")
@@ -122,6 +130,7 @@ export function EditOrganizationModal({
           name: values.name.trim(),
           status: values.status,
           settings: updatedSettings,
+          stripe_customer_id: (values.stripe_customer_id || "").trim() || null,
         })
         .eq("id", organization.id);
 
@@ -202,6 +211,25 @@ export function EditOrganizationModal({
                       <Textarea placeholder="Explique o foco da organização." {...field} />
                     </FormControl>
                     <FormDescription>Ajuda membros e gestores a entenderem o foco da organização.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="pt-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dados de cobrança</h4>
+              </div>
+
+              <FormField
+                control={form.control}
+                name="stripe_customer_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cliente Stripe (customer_id)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="cus_xxxxxxxxxxxxx" {...field} />
+                    </FormControl>
+                    <FormDescription>Opcional. Usado para futuras integrações de cobrança.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

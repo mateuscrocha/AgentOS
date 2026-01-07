@@ -1,26 +1,31 @@
+import { useEffect, useState } from "react";
 import { useParams, NavLink } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Activity } from "lucide-react";
+import { Activity, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { UserInline } from "@/components/ui/UserInline";
+import { Input } from "@/components/ui/input";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { KpiCard } from "@/components/group-dashboard";
 import { formatDateDescriptiveBR, SAO_PAULO_TZ } from "@/lib/date";
 import { computePollPercent, normalizeVotedOptions } from "@/lib/polls";
+import { notify } from "@/components/ui/sonner";
 
 export default function GroupPoll() {
   const { groupId, pollId } = useParams();
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
+  const [maxVotesDraft, setMaxVotesDraft] = useState<string>("2");
 
   const { data: groupInfo } = useQuery({
     queryKey: ["group-info", groupId],
@@ -46,13 +51,41 @@ export default function GroupPoll() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("polls")
-        .select("id, question, max_options, created_at")
+        .select("id, question, max_options, max_votes_per_member, created_at")
         .eq("id", pollId)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
     enabled: !!pollId && isAuthenticated,
+  });
+
+  const maxVotesPerMember = (poll as any)?.max_votes_per_member;
+
+  useEffect(() => {
+    const v = maxVotesPerMember;
+    if (typeof v === "number" && Number.isFinite(v)) {
+      setMaxVotesDraft(String(v));
+    }
+  }, [maxVotesPerMember]);
+
+  const updateMaxVotesMutation = useMutation({
+    mutationFn: async () => {
+      const next = Number(maxVotesDraft);
+      if (!Number.isFinite(next) || next < 1) throw new Error("invalid max votes");
+      const { error } = await (supabase as any)
+        .from("polls")
+        .update({ max_votes_per_member: next })
+        .eq("id", pollId);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      notify.success("Limite atualizado", "Tudo certo.");
+      await queryClient.invalidateQueries({ queryKey: ["poll", pollId] });
+    },
+    onError: () => {
+      notify.error("Não foi possível atualizar o limite", "Tente novamente.");
+    },
   });
 
   const { data: pollOptions } = useQuery({
@@ -77,7 +110,7 @@ export default function GroupPoll() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("v_poll_summary")
-        .select("voters_count")
+        .select("voters_count, vote_events_count, selections_count")
         .eq("poll_id", pollId)
         .maybeSingle();
       return data;
@@ -90,7 +123,7 @@ export default function GroupPoll() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("v_poll_votes_by_person")
-        .select("person_id, person_name, voted_options, created_at")
+        .select("person_id, person_name, voted_options, created_at, vote_sequence, votes_count")
         .eq("poll_id", pollId)
         .order("created_at", { ascending: false });
       return (data ?? []).map((r: any) => ({
@@ -98,6 +131,8 @@ export default function GroupPoll() {
         personName: r.person_name as string | null,
         votedOptions: normalizeVotedOptions(r.voted_options),
         createdAt: r.created_at as string,
+        voteSequence: Number(r.vote_sequence ?? 0) || null,
+        votesCount: Number(r.votes_count ?? 0) || null,
       }));
     },
     enabled: !!pollId && isAuthenticated,
@@ -117,7 +152,9 @@ export default function GroupPoll() {
 
   const totalVotes = (pollOptions ?? []).reduce((sum: number, o: any) => sum + o.votesCount, 0);
   const votersCount = Number((pollSummary as any)?.voters_count ?? 0);
-  const percentBase = votersCount > 0 ? votersCount : totalVotes;
+  const voteEventsCount = Number((pollSummary as any)?.vote_events_count ?? 0);
+  const selectionsCount = Number((pollSummary as any)?.selections_count ?? 0);
+  const percentBase = selectionsCount > 0 ? selectionsCount : totalVotes;
   const sortedOptions = [...(pollOptions ?? [])].sort((a: any, b: any) => b.votesCount - a.votesCount);
   const chartData = sortedOptions.map((o: any) => ({ name: o.optionText, value: o.votesCount }));
   const createdAtLabel = poll ? formatDateDescriptiveBR((poll as any).created_at) : "";
@@ -150,7 +187,32 @@ export default function GroupPoll() {
               <h1 className="text-xl md:text-2xl font-semibold text-card-foreground">{(poll as any)?.question || "Enquete"}</h1>
               <p className="text-xs md:text-sm text-muted-foreground">Criada em {createdAtLabel}</p>
             </div>
-            
+
+            {poll ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Máx. votos/pessoa</span>
+                <Input
+                  value={maxVotesDraft}
+                  onChange={(e) => setMaxVotesDraft(e.target.value)}
+                  type="number"
+                  min={1}
+                  className="w-20 h-8"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateMaxVotesMutation.mutate()}
+                  disabled={
+                    updateMaxVotesMutation.isPending ||
+                    Number(maxVotesDraft) === Number((poll as any)?.max_votes_per_member ?? 2) ||
+                    !Number.isFinite(Number(maxVotesDraft)) ||
+                    Number(maxVotesDraft) < 1
+                  }
+                >
+                  {updateMaxVotesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                </Button>
+              </div>
+            ) : null}
           </div>
 
           <div className="p-4 space-y-4">
@@ -186,10 +248,11 @@ export default function GroupPoll() {
               </div>
             ) : (
                 <div className="space-y-5">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <KpiCard title="Total de votos" value={totalVotes} />
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <KpiCard title="Votos (seleções)" value={totalVotes} />
+                    <KpiCard title="Votos registrados" value={voteEventsCount} />
                     <KpiCard title="Votantes únicos" value={votersCount} />
-                    <KpiCard title="Opções" value={(pollOptions ?? []).length} />
+                    <KpiCard title="Máx. votos/pessoa" value={(poll as any).max_votes_per_member ?? 2} />
                     <KpiCard title="Máx. opções" value={(poll as any).max_options ?? 1} />
                   </div>
 
@@ -241,7 +304,10 @@ export default function GroupPoll() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <UserInline name={v.personName || "Participante"} avatarUrl={null} />
-                                  <span className="text-[11px] text-muted-foreground">{new Date(v.createdAt).toLocaleString("pt-BR", { timeZone: SAO_PAULO_TZ })}</span>
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {v.voteSequence && v.votesCount ? `Voto ${v.voteSequence}/${v.votesCount} • ` : ""}
+                                    {new Date(v.createdAt).toLocaleString("pt-BR", { timeZone: SAO_PAULO_TZ })}
+                                  </span>
                                 </div>
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   {(v.votedOptions as string[]).map((o: string, i: number) => (

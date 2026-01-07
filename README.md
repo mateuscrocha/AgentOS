@@ -36,6 +36,18 @@ npm i
 npm run dev
 ```
 
+## Variáveis de ambiente
+
+Configure a chave secreta da Stripe exclusivamente via variável de ambiente (não deve ir para o frontend):
+
+```sh
+STRIPE_SECRET_KEY=sua_chave_aqui
+```
+
+Em desenvolvimento local, ela pode ficar no `.env`. Em produção, ela precisa existir no ambiente onde o código server-side roda (por exemplo, Edge Functions/Functions). O `.env` local é usado pelo Vite apenas para variáveis `VITE_*`.
+
+O arquivo `.env` já está no `.gitignore`.
+
 **Edit a file directly in GitHub**
 
 - Navigate to the desired file(s).
