@@ -6,6 +6,7 @@ import { subDays } from "date-fns";
 import { startOfDaySP, endOfDaySP } from "@/components/group-dashboard/period-utils";
 import { formatDateKeySP, getHourSP } from "@/lib/date";
 import { notify } from "@/components/ui/sonner";
+import { extractBigramsFromRows } from "@/utils/keywords";
 
  
 
@@ -1588,6 +1589,68 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
+  const { data: trendingKeywords } = useQuery({
+    queryKey: [
+      "group-dashboard-trending-keywords",
+      groupId,
+      currentPeriodStartISO,
+      currentPeriodEndISO,
+      previousPeriodStartISO,
+      previousPeriodEndISO,
+    ],
+    queryFn: async () => {
+      const currQuery = await supabase
+        .from("v_messages_feed")
+        .select("content_preview,message_type,created_at")
+        .eq("group_id", groupId!)
+        .eq("message_type", "text")
+        .gte("created_at", currentPeriodStartISO)
+        .lte("created_at", currentPeriodEndISO)
+        .limit(2000);
+
+      if (currQuery.error) throw currQuery.error;
+
+      const prevQuery = await supabase
+        .from("v_messages_feed")
+        .select("content_preview,message_type,created_at")
+        .eq("group_id", groupId!)
+        .eq("message_type", "text")
+        .gte("created_at", previousPeriodStartISO)
+        .lte("created_at", previousPeriodEndISO)
+        .limit(2000);
+
+      if (prevQuery.error) throw prevQuery.error;
+
+      const currRows = (currQuery.data || []).map((d: any) => (d.content_preview || "") as string);
+      const prevRows = (prevQuery.data || []).map((d: any) => (d.content_preview || "") as string);
+
+      const currBigrams = extractBigramsFromRows(currRows);
+      const prevBigrams = extractBigramsFromRows(prevRows);
+
+      const prevBigramMap: Record<string, number> = {};
+      (prevBigrams || []).forEach((b) => {
+        prevBigramMap[b.phrase] = Number(b.count || 0);
+      });
+
+      const bigrams = (currBigrams || [])
+        .map((b) => {
+          const prev = prevBigramMap[b.phrase] || 0;
+          const delta = prev
+            ? Math.round(((Number(b.count || 0) - prev) / prev) * 100)
+            : b.count
+              ? 100
+              : 0;
+          return { phrase: b.phrase, count: Number(b.count || 0), delta };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+
+      return { bigrams };
+    },
+    enabled: !!groupId && !!group && isAuthenticated,
+    retry: 1,
+  });
+
   return {
     group,
     orgName: orgData?.name || null,
@@ -1641,6 +1704,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     hasIkigai,
     ikigaiKeywordsList: ikigaiKeywords,
     ikigaiSuggestions: suggestionsData || { themes: [], keywords: [] },
+    trendingBigrams: ((trendingKeywords as any)?.bigrams || []) as Array<{ phrase: string; count: number; delta: number }>,
     busyDayAvatars,
     peakWindowAvatars,
     themeAvatars,

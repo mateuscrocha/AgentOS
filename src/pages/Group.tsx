@@ -130,6 +130,7 @@ const Group = () => {
     recurringPercent,
     ikigaiKeywordsList,
     ikigaiSuggestions,
+    trendingBigrams,
   } = useGroupDashboard({ groupId, dateRange: currentRange });
 
   
@@ -360,6 +361,7 @@ const Group = () => {
                 previousMemberEngagement={previousMemberEngagement}
                 atRiskMembersCount={atRiskMembers.length}
                 groupId={group.id}
+                trendingBigrams={trendingBigrams}
               />
             </div>
           </section>

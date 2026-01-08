@@ -7,6 +7,8 @@ type EngagementDistribution = { recorrentes: number; esporadicos: number; inativ
 
 type Tone = "info" | "positive" | "attention";
 
+type BigramItem = { phrase: string; delta: number };
+
 interface PeriodReportProps {
   stats: {
     totalMessages7d: number;
@@ -29,6 +31,7 @@ interface PeriodReportProps {
   exitedMembersCount?: number;
   previousExitedMembersCount?: number;
   groupId: string;
+  trendingBigrams?: BigramItem[];
 }
 
 export function PeriodReport({
@@ -39,6 +42,7 @@ export function PeriodReport({
   memberEngagement,
   previousMemberEngagement,
   groupId,
+  trendingBigrams,
 }: PeriodReportProps) {
   const dist = memberEngagement || { recorrentes: 0, esporadicos: 0, inativos: 0 };
   const members = Math.max(0, currentMembers || 0);
@@ -68,6 +72,12 @@ export function PeriodReport({
   const conclusion = activeMembers > 0
     ? "Existe uma comunidade ativa pequena, porém consistente."
     : "O grupo ficou mais em modo observação neste período.";
+
+  const topThemes = (trendingBigrams || [])
+    .filter((b) => (b.delta || 0) > 0)
+    .sort((a, b) => (b.delta || 0) - (a.delta || 0))
+    .slice(0, 3);
+  const showThemes = topThemes.length > 0;
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
@@ -109,6 +119,18 @@ export function PeriodReport({
             className="shadow-sm"
           />
         </div>
+
+        {showThemes && (
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-card-foreground">Temas em destaque</p>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-card-foreground">
+              {topThemes.map((t) => (
+                <li key={t.phrase}>“{t.phrase}” — +{t.delta}%</li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted-foreground">Estes temas apareceram com muito mais frequência neste período.</p>
+          </div>
+        )}
 
         <div className="space-y-2">
           <p className="text-sm font-semibold text-card-foreground">Destaques do período</p>
