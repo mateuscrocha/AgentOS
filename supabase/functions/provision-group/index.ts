@@ -258,6 +258,45 @@ serve(async (req) => {
       // Continue anyway
     }
 
+    const createAssistantWebhookUrl =
+      Deno.env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL') ||
+      Deno.env.get('N8N_WEBHOOK_CREATE_ASSISTANT_URL');
+    if (createAssistantWebhookUrl) {
+      try {
+        const webhookPayload = {
+          event_type: 'GROUP_CREATED',
+          group_id: group.id,
+          group: {
+            id: group.id,
+            organization_id: payload.organization_id,
+            provider: 'whatsapp',
+            name: payload.group.name,
+            whatsapp_provider_id: payload.group.whatsapp_provider_id,
+            invite_link: payload.group.invite_link,
+          },
+          organization: {
+            id: payload.organization_id,
+            name: org.name,
+          },
+          actor_user_id: user.id,
+          participants: payload.participants ?? [],
+          source: 'supabase.functions.provision-group',
+        };
+
+        const res = await fetch(createAssistantWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(webhookPayload),
+        });
+
+        if (!res.ok) {
+          console.error('Create assistant webhook failed:', res.status, res.statusText);
+        }
+      } catch (e: unknown) {
+        console.error('Create assistant webhook error:', e);
+      }
+    }
+
     console.log('Group added successfully');
 
     return new Response(

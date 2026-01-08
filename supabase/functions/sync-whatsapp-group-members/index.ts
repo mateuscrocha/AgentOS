@@ -148,9 +148,9 @@ serve(async (req: Request) => {
       );
     }
 
-    const n8nWebhookUrl = env("N8N_VALIDATE_GROUP_WEBHOOK_URL");
+    const n8nWebhookUrl = env("VITE_N8N_CHECK_GROUP_ENTRY_URL");
     if (!n8nWebhookUrl) {
-      return new Response(JSON.stringify({ success: false, code: "N8N_NOT_CONFIGURED", message: "Webhook URL not configured" }), {
+      return new Response(JSON.stringify({ success: false, code: "WEBHOOK_NOT_CONFIGURED", message: "Webhook URL not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

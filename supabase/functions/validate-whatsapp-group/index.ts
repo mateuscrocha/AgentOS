@@ -1,83 +1,142 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+function env(key: string): string | undefined {
+  return (globalThis as any)?.Deno?.env?.get?.(key);
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-correlation-id',
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const correlationId = req.headers.get('x-correlation-id') ?? crypto.randomUUID();
+  const json = (body: Record<string, unknown>, status = 200) =>
+    new Response(JSON.stringify({ correlation_id: correlationId, ...body }), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-correlation-id': correlationId },
+    });
+
+  if (req.method !== 'POST') {
+    return json({ success: false, code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' }, 405);
   }
 
   try {
     const { invite_link } = await req.json();
 
     if (!invite_link) {
-      return new Response(
-        JSON.stringify({ error: 'invite_link is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const n8nWebhookUrl = Deno.env.get('N8N_VALIDATE_GROUP_WEBHOOK_URL');
-    
-    if (!n8nWebhookUrl) {
-      console.error('N8N_VALIDATE_GROUP_WEBHOOK_URL not configured');
-      return new Response(
-        JSON.stringify({ error: 'Webhook URL not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Validating WhatsApp group:', invite_link);
-
-    // Call n8n webhook to validate the group
-    const response = await fetch(n8nWebhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ invite_link }),
-    });
-
-    if (!response.ok) {
-      console.error('n8n webhook error:', response.status, response.statusText);
-      return new Response(
-        JSON.stringify({ 
-          is_valid: false, 
-          is_boris_in_group: false,
-          error: 'Failed to validate group' 
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const data = await response.json();
-    console.log('n8n response:', JSON.stringify(data));
-
-    // Check if Bóris is NOT in the group (returns { checkBotEnabled: false })
-    if (data && typeof data === 'object' && !Array.isArray(data) && data.checkBotEnabled === false) {
-      console.log('Bóris is NOT in the group');
-      return new Response(
-        JSON.stringify({
-          is_valid: true,
+      return json(
+        {
+          success: false,
+          code: 'INVITE_LINK_REQUIRED',
+          message: 'invite_link is required',
+          is_valid: false,
           is_boris_in_group: false,
           provider: 'whatsapp',
           whatsapp_provider_id: '',
           group_name: '',
           participants_count: 0,
           participants: [],
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        },
+        400
       );
+    }
+
+    const n8nWebhookUrl = env('VITE_N8N_CHECK_GROUP_ENTRY_URL');
+    
+    if (!n8nWebhookUrl) {
+      console.error('VITE_N8N_CHECK_GROUP_ENTRY_URL not configured', JSON.stringify({ correlation_id: correlationId }));
+      return json(
+        {
+          success: false,
+          code: 'WEBHOOK_NOT_CONFIGURED',
+          message: 'Webhook URL not configured',
+          is_valid: false,
+          is_boris_in_group: false,
+          provider: 'whatsapp',
+          whatsapp_provider_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+        },
+        500
+      );
+    }
+
+    const inviteLinkHash = (() => {
+      const raw = String(invite_link);
+      return raw.length <= 12 ? raw : `${raw.slice(0, 6)}…${raw.slice(-4)}`;
+    })();
+
+    console.log('Validating WhatsApp group', JSON.stringify({ correlation_id: correlationId, invite_link: inviteLinkHash }));
+
+    // Call n8n webhook to validate the group
+    const response = await fetch(n8nWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-correlation-id': correlationId,
+      },
+      body: JSON.stringify({ invite_link }),
+    });
+
+    if (!response.ok) {
+      console.error('n8n webhook error', JSON.stringify({
+        correlation_id: correlationId,
+        status: response.status,
+        status_text: response.statusText,
+      }));
+      return json(
+        {
+          success: false,
+          code: 'VALIDATION_UPSTREAM_FAILED',
+          message: 'Failed to validate group',
+          is_valid: false,
+          is_boris_in_group: false,
+          provider: 'whatsapp',
+          whatsapp_provider_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+        },
+        502
+      );
+    }
+
+    const data = await response.json();
+    console.log('n8n response', JSON.stringify({
+      correlation_id: correlationId,
+      type: Array.isArray(data) ? 'array' : typeof data,
+    }));
+
+    // Check if Bóris is NOT in the group (returns { checkBotEnabled: false })
+    if (data && typeof data === 'object' && !Array.isArray(data) && data.checkBotEnabled === false) {
+      console.log('Bóris is NOT in the group');
+      return json({
+        success: true,
+        is_valid: true,
+        is_boris_in_group: false,
+        provider: 'whatsapp',
+        whatsapp_provider_id: '',
+        group_name: '',
+        participants_count: 0,
+        participants: [],
+      });
     }
 
     // Check if response is an array (Bóris IS in the group)
     if (Array.isArray(data) && data.length > 0) {
       const groupData = data[0];
-      console.log('Bóris IS in the group:', groupData.name || groupData.subject);
+      console.log('Bóris IS in the group', JSON.stringify({
+        correlation_id: correlationId,
+        group_name: groupData.name || groupData.subject,
+      }));
       
       // Map participants to our format
       const participants = (groupData.participants || []).map((p: { phone: string; isAdmin?: boolean; isSuperAdmin?: boolean; lid?: string }) => ({
@@ -103,48 +162,58 @@ serve(async (req) => {
         dataIncompleteReason = `Não foi possível obter: ${missingFields.join(', ')}. Isso pode acontecer quando o grupo está muito grande ou a conexão está instável.`;
       }
 
-      return new Response(
-        JSON.stringify({
-          is_valid: true,
-          is_boris_in_group: true,
-          provider: 'whatsapp',
-          whatsapp_provider_id: providerId,
-          group_name: groupName,
-          participants_count: participants.length,
-          participants,
-          data_incomplete: dataIncomplete,
-          data_incomplete_reason: dataIncompleteReason || undefined,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return json({
+        success: true,
+        is_valid: true,
+        is_boris_in_group: true,
+        provider: 'whatsapp',
+        whatsapp_provider_id: providerId,
+        group_name: groupName,
+        participants_count: participants.length,
+        participants,
+        data_incomplete: dataIncomplete,
+        data_incomplete_reason: dataIncompleteReason || undefined,
+      });
     }
 
     // Unknown response format
-    console.error('Unknown n8n response format:', data);
-    return new Response(
-      JSON.stringify({
+    console.error('Unknown n8n response format', JSON.stringify({ correlation_id: correlationId }));
+    return json(
+      {
+        success: false,
+        code: 'UNKNOWN_VALIDATION_RESPONSE',
+        message: 'Unknown response format from validation service',
         is_valid: false,
         is_boris_in_group: false,
-          provider: 'whatsapp',
-          whatsapp_provider_id: '',
-          group_name: '',
-          participants_count: 0,
-          participants: [],
-          error: 'Unknown response format from validation service',
-        }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        provider: 'whatsapp',
+        whatsapp_provider_id: '',
+        group_name: '',
+        participants_count: 0,
+        participants: [],
+      },
+      502
     );
 
   } catch (error: unknown) {
-    console.error('Error in validate-whatsapp-group:', error);
+    console.error('Error in validate-whatsapp-group', JSON.stringify({
+      correlation_id: correlationId,
+      message: error instanceof Error ? error.message : String(error),
+    }));
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ 
-        is_valid: false, 
+    return json(
+      {
+        success: false,
+        code: 'UNEXPECTED_ERROR',
+        message,
+        is_valid: false,
         is_boris_in_group: false,
-        error: message 
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        provider: 'whatsapp',
+        whatsapp_provider_id: '',
+        group_name: '',
+        participants_count: 0,
+        participants: [],
+      },
+      500
     );
   }
 });

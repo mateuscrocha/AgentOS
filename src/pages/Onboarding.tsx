@@ -40,6 +40,10 @@ interface GroupValidation {
   }>;
   data_incomplete?: boolean;
   data_incomplete_reason?: string;
+  success?: boolean;
+  code?: string;
+  message?: string;
+  correlation_id?: string;
 }
 
 const STEPS: Step[] = ['welcome', 'name', 'email', 'phone', 'password', 'how', 'prepare_group', 'group_link', 'final'];
@@ -141,6 +145,95 @@ export default function Onboarding() {
     return '+55' + digits;
   };
 
+  const getSupabaseKey = (): string | undefined => {
+    const publishable = (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+    const anon = (import.meta as any).env.VITE_SUPABASE_ANON_KEY as string | undefined;
+    return publishable || anon;
+  };
+
+  const getSupabaseAnonKey = (): string | undefined => {
+    return (import.meta as any).env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  };
+
+  const getFunctionUrl = (fnName: string): string => {
+    const base = ((import.meta as any).env.VITE_SUPABASE_URL as string | undefined) || '';
+    return `${base.replace(/\/+$/, '')}/functions/v1/${fnName}`;
+  };
+
+  const safeJsonParse = (raw: string): any => {
+    try {
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getSessionToken = async (): Promise<string | null> => {
+    for (let i = 0; i < 3; i++) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) return session.access_token;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    return null;
+  };
+
+  const invokeEdgeFunction = async <T,>(
+    fnName: string,
+    body: unknown
+  ): Promise<{ data: T | null; error: null | { message: string; status?: number; code?: string; correlationId: string; raw?: any } ; correlationId: string }> => {
+    const correlationId = (globalThis.crypto as any)?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const apikey = getSupabaseKey();
+    const anonKey = getSupabaseAnonKey();
+    const token = await getSessionToken();
+    const authBearer = token || anonKey;
+
+    const { data, error } = await supabase.functions.invoke(fnName, {
+      body,
+      headers: {
+        ...(apikey ? { apikey } : {}),
+        ...(authBearer ? { Authorization: `Bearer ${authBearer}` } : {}),
+      } as any,
+    });
+
+    if (!error) {
+      const responseCorrelationId = (data as any)?.correlation_id;
+      return { data: data as T, error: null, correlationId: responseCorrelationId || correlationId };
+    }
+
+    try {
+      const url = getFunctionUrl(fnName);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apikey ? { apikey } : {}),
+          ...(authBearer ? { Authorization: `Bearer ${authBearer}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      const rawText = await res.text().catch(() => '');
+      const parsed = safeJsonParse(rawText);
+      const responseCorrelationId = res.headers.get('x-correlation-id') || parsed?.correlation_id || correlationId;
+      const code: string | undefined =
+        parsed?.code || parsed?.error?.code || parsed?.data?.code || (error as any)?.code;
+      const message: string =
+        (parsed && (parsed.message || parsed.error?.message || parsed.error || parsed.detail)) ||
+        (error.message as string | undefined) ||
+        (res.ok ? 'Erro ao chamar função' : `HTTP ${res.status} ao chamar função`);
+      return {
+        data: null,
+        error: { message, status: res.status, code, correlationId: responseCorrelationId, raw: parsed ?? rawText },
+        correlationId: responseCorrelationId,
+      };
+    } catch (fallbackErr: any) {
+      return {
+        data: null,
+        error: { message: fallbackErr?.message || error.message || 'Erro ao chamar função', correlationId },
+        correlationId,
+      };
+    }
+  };
+
   const isCurrentStepValid = (): boolean => {
     switch (currentStep) {
       case 'welcome':
@@ -179,12 +272,31 @@ export default function Onboarding() {
     setGroupValidation(null);
 
     try {
-      const response = await supabase.functions.invoke('validate-whatsapp-group', {
-        body: { invite_link: formData.invite_link }
+      const attempt = async () => invokeEdgeFunction<GroupValidation>('validate-whatsapp-group', {
+        invite_link: formData.invite_link,
       });
 
+      let response = await attempt();
+      if (response.error?.status && response.error.status >= 500) {
+        await new Promise((r) => setTimeout(r, 500));
+        response = await attempt();
+      }
+
       if (response.error) {
-        throw new Error(response.error.message || 'Erro ao validar grupo');
+        const code = response.error.code;
+        const corr = response.error.correlationId;
+        const status = response.error.status;
+        const temporarilyUnavailableCodes = new Set([
+          'WEBHOOK_NOT_CONFIGURED',
+          'VALIDATION_UPSTREAM_FAILED',
+          'UNKNOWN_VALIDATION_RESPONSE',
+          'UNEXPECTED_ERROR',
+        ]);
+        const msg =
+          temporarilyUnavailableCodes.has(String(code || '')) || (typeof status === 'number' && status >= 500)
+            ? `Validação temporariamente indisponível (cód. ${corr}).`
+            : `Erro ao validar grupo (cód. ${corr}).`;
+        throw new Error(msg);
       }
 
       const data = response.data as GroupValidation;
@@ -199,7 +311,7 @@ export default function Onboarding() {
       return data;
     } catch (error: any) {
       console.error('Error validating group:', error);
-      setValidationError('Erro ao validar grupo. Tente novamente.');
+      setValidationError(error?.message || 'Erro ao validar grupo. Tente novamente.');
       return null;
     } finally {
       setIsValidating(false);
@@ -216,6 +328,7 @@ export default function Onboarding() {
   };
 
   const handleConnectGroup = async () => {
+    if (isSubmitting) return;
     setAccessError(null);
     if (formData.password.length < 10) {
       setAccessError('Senha deve ter pelo menos 10 caracteres');
@@ -282,14 +395,31 @@ export default function Onboarding() {
         participants: validated.participants,
       };
 
-      const { data: provisionData, error: provisionError } = await supabase.functions.invoke('provision-onboarding', {
-        body: provisionPayload,
-      });
+      const provisionResponse = await invokeEdgeFunction<any>('provision-onboarding', provisionPayload);
+      const provisionData = provisionResponse.data;
+      const provisionError = provisionResponse.error;
 
       if (provisionError || !provisionData?.success) {
-        const code = (provisionData as any)?.code as string | undefined;
+        const fallbackToLink = (message: string) => {
+          setValidationError(message);
+          setCurrentStep('group_link');
+        };
+
+        const code = (provisionData as any)?.code as string | undefined || provisionError?.code;
+        if (code === 'GROUP_ALREADY_PROVISIONED') {
+          const groupName = ((provisionData as any)?.group_name as string | null | undefined) || validated.group_name;
+          fallbackToLink(`Esse grupo já está cadastrado como "${groupName}". Cole o link de outro grupo.`);
+          return;
+        }
         const friendly = getProvisioningErrorMessage(code);
-        throw new Error(friendly || (provisionData as any)?.message || provisionError?.message || 'Erro no provisionamento');
+
+        const correlationId = provisionError?.correlationId || provisionData?.correlation_id;
+        const infraMsg =
+          code === 'SERVICE_ROLE_NOT_CONFIGURED'
+            ? 'Configuração do servidor incompleta. '
+            : '';
+        const message = friendly || (provisionData as any)?.message || provisionError?.message || 'Erro no provisionamento';
+        throw new Error(`${infraMsg}${message}${correlationId ? ` (cód. ${correlationId})` : ''}`);
       }
 
       setProvisionedGroupId(provisionData.group_id);
