@@ -225,7 +225,6 @@ DenoRef.test("delete-resource-cascade exclui grupo removendo reações antes", a
       polls: 4,
       member_events: 5,
       message_reactions: 6,
-      group_members_archive: 7,
       user_roles: 8,
     },
   };
@@ -269,7 +268,6 @@ DenoRef.test("delete-resource-cascade retorna DEPENDENCIES_EXIST quando FK bloqu
       polls: 0,
       member_events: 0,
       message_reactions: 0,
-      group_members_archive: 0,
       user_roles: 0,
     },
     groupDeleteError: true,
@@ -310,7 +308,6 @@ DenoRef.test("delete-resource-cascade retorna DEPENDENCY_CLEANUP_FAILED quando f
       polls: 0,
       member_events: 1,
       message_reactions: 0,
-      group_members_archive: 0,
       user_roles: 0,
     },
     failMessageReactionsDelete: true,

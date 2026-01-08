@@ -121,80 +121,6 @@ export type Database = {
           },
         ]
       }
-      group_members_archive: {
-        Row: {
-          cleaned_at: string
-          created_at: string
-          group_id: string
-          id: string
-          joined_at: string | null
-          last_message_at: string | null
-          last_seen_message_at: string | null
-          left_at: string | null
-          member_display_name: string | null
-          member_id: string
-          member_name: string | null
-          metadata: Json | null
-          operation_id: string
-          phone_e164: string | null
-          profile_pic_url: string | null
-          provider_member_id: string | null
-          source: string
-          status: string | null
-          total_messages: number | null
-        }
-        Insert: {
-          cleaned_at?: string
-          created_at?: string
-          group_id: string
-          id?: string
-          joined_at?: string | null
-          last_message_at?: string | null
-          last_seen_message_at?: string | null
-          left_at?: string | null
-          member_display_name?: string | null
-          member_id: string
-          member_name?: string | null
-          metadata?: Json | null
-          operation_id: string
-          phone_e164?: string | null
-          profile_pic_url?: string | null
-          provider_member_id?: string | null
-          source: string
-          status?: string | null
-          total_messages?: number | null
-        }
-        Update: {
-          cleaned_at?: string
-          created_at?: string
-          group_id?: string
-          id?: string
-          joined_at?: string | null
-          last_message_at?: string | null
-          last_seen_message_at?: string | null
-          left_at?: string | null
-          member_display_name?: string | null
-          member_id?: string
-          member_name?: string | null
-          metadata?: Json | null
-          operation_id?: string
-          phone_e164?: string | null
-          profile_pic_url?: string | null
-          provider_member_id?: string | null
-          source?: string
-          status?: string | null
-          total_messages?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "group_members_archive_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       groups: {
         Row: {
           assistant_id: string | null
@@ -413,7 +339,6 @@ export type Database = {
           lid: string | null
           metadata: Json | null
           name: string
-          name_detected: string | null
           phone_e164: string | null
           profile_pic_url: string | null
           provider: string | null
@@ -438,7 +363,6 @@ export type Database = {
           lid?: string | null
           metadata?: Json | null
           name: string
-          name_detected?: string | null
           phone_e164?: string | null
           profile_pic_url?: string | null
           provider?: string | null
@@ -463,7 +387,6 @@ export type Database = {
           lid?: string | null
           metadata?: Json | null
           name?: string
-          name_detected?: string | null
           phone_e164?: string | null
           profile_pic_url?: string | null
           provider?: string | null

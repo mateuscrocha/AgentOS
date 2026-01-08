@@ -189,7 +189,6 @@ export function createDeleteResourceCascadeHandler(
           polls: await countByGroupId(supabaseAdmin, "polls", payload.resourceId),
           member_events: await countByGroupId(supabaseAdmin, "member_events", payload.resourceId),
           message_reactions: await countByGroupId(supabaseAdmin, "message_reactions", payload.resourceId),
-          group_members_archive: await countByGroupId(supabaseAdmin, "group_members_archive", payload.resourceId),
           user_roles: (() => 0)(),
         };
 

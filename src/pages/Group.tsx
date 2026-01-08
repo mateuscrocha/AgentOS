@@ -27,35 +27,11 @@ import {
   buildStoredPeriod,
 } from "@/components/group-dashboard/period-utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { HelpCircle, Loader2 } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { notify } from "@/components/ui/sonner";
-import { useQueryClient } from "@tanstack/react-query";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-type GroupMembersSyncResult = {
-  success: boolean;
-  code?: string;
-  message?: string;
-  group_id?: string;
-  group_name?: string;
-  whatsapp_group_id?: string | null;
-  whatsapp_participants_count?: number;
-  members_to_add_count?: number;
-  members_to_mark_as_left_count?: number;
-  members_reactivated_count?: number;
-  members_kept_count?: number;
-  members_added_count?: number;
-  members_restored_count?: number;
-  members_removed_archived_count?: number;
-  operation_id?: string;
-  members_ok_count?: number;
-  skipped_count?: number;
-  duplicates?: { phones: string[]; provider_ids: string[] };
-};
  
 
 function loadSavedGroupPeriod(groupId?: string): { period: PeriodType; range?: DateRange } {
@@ -87,8 +63,7 @@ const Group = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { loading: authLoading } = useAuth();
-  const { isLoading: rolesLoading, isSystemAdmin } = useUserRoles();
-  const queryClient = useQueryClient();
+  const { isLoading: rolesLoading } = useUserRoles();
   const isGroupIdValid = typeof groupId === "string" && UUID_RE.test(groupId);
   
   // Period filter state
@@ -96,8 +71,6 @@ const Group = () => {
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() => loadSavedGroupPeriod(groupId).range);
   const [helpOpen, setHelpOpen] = useState(false);
   const [ikigaiOpen, setIkigaiOpen] = useState(false);
-  const [syncingMembersOperation, setSyncingMembersOperation] = useState<"full_sync" | "clean_sync" | null>(null);
-  const [membersSyncResult, setMembersSyncResult] = useState<GroupMembersSyncResult | null>(null);
   
   
   const currentRange = getDateRange(selectedPeriod, customRange);
@@ -343,124 +316,6 @@ const Group = () => {
         
 
         <div className="space-y-12">
-          {(() => {
-            const isEnabled = isSystemAdmin;
-            if (!isEnabled) return null;
-
-            const addedCount = (membersSyncResult as any)?.members_to_add_count ?? (membersSyncResult as any)?.members_added_count ?? 0;
-            const removedCount = (membersSyncResult as any)?.members_to_mark_as_left_count ?? (membersSyncResult as any)?.members_removed_archived_count ?? 0;
-            const restoredCount = (membersSyncResult as any)?.members_reactivated_count ?? (membersSyncResult as any)?.members_restored_count ?? 0;
-            const summary = membersSyncResult?.success ? `+${addedCount} novos membros • ${removedCount} removidos • ${restoredCount} restaurados` : null;
-
-            return (
-              <section className="rounded-xl border border-border bg-card p-5">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-foreground">Revisar base de membros</h2>
-                    <p className="text-sm text-muted-foreground">Use essa opção para alinhar a base de membros do Bóris com os participantes reais do grupo no WhatsApp.</p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2 md:self-start">
-                    <Button
-                      onClick={async () => {
-                        setSyncingMembersOperation("full_sync");
-                        try {
-                          const response = await supabase.functions.invoke("sync-whatsapp-group-members", {
-                            body: { group_id: group.id, operation: "full_sync" },
-                          });
-
-                          if (response.error) {
-                            throw new Error(response.error.message || "Erro ao sincronizar");
-                          }
-
-                          const data = response.data as GroupMembersSyncResult;
-                          setMembersSyncResult(data);
-
-                          if (!data?.success) {
-                            notify.error("Não foi possível sincronizar", data?.message || "Algo deu errado. Tente novamente.");
-                            return;
-                          }
-
-                          notify.success(
-                            "Base atualizada a partir do WhatsApp.",
-                            `+${data.members_to_add_count ?? 0} novos membros • ${data.members_to_mark_as_left_count ?? 0} marcados como fora do grupo`,
-                          );
-
-                          queryClient.invalidateQueries({ queryKey: ["group-members", group.id] });
-                          queryClient.invalidateQueries({ queryKey: ["group-members-total", group.id] });
-                          queryClient.invalidateQueries({ queryKey: ["group-dashboard"] });
-                        } catch (e: any) {
-                          notify.error(
-                            "Não foi possível buscar os participantes do grupo no WhatsApp agora.",
-                            "Tente novamente mais tarde.",
-                          );
-                        } finally {
-                          setSyncingMembersOperation(null);
-                        }
-                      }}
-                      disabled={!!syncingMembersOperation}
-                    >
-                      {syncingMembersOperation === "full_sync" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                      Verificar e atualizar
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      onClick={async () => {
-                        setSyncingMembersOperation("clean_sync");
-                        try {
-                          const response = await supabase.functions.invoke("sync-whatsapp-group-members", {
-                            body: { group_id: group.id, operation: "clean_sync" },
-                          });
-
-                          if (response.error) {
-                            throw new Error(response.error.message || "Erro ao sincronizar");
-                          }
-
-                          const data = response.data as GroupMembersSyncResult;
-                          setMembersSyncResult(data);
-
-                          if (!data?.success) {
-                            notify.error("Não foi possível limpar e alinhar", data?.message || "Algo deu errado. Tente novamente.");
-                            return;
-                          }
-
-                          notify.success(
-                            "Base limpa e alinhada com o WhatsApp.",
-                            `+${(data as any).members_added_count ?? 0} novos • ${(data as any).members_removed_archived_count ?? 0} removidos • ${(data as any).members_restored_count ?? 0} restaurados`,
-                          );
-
-                          queryClient.invalidateQueries({ queryKey: ["group-members", group.id] });
-                          queryClient.invalidateQueries({ queryKey: ["group-members-total", group.id] });
-                          queryClient.invalidateQueries({ queryKey: ["group-dashboard"] });
-                        } catch (e: any) {
-                          notify.error(
-                            "Não foi possível buscar os participantes do grupo no WhatsApp agora.",
-                            "Tente novamente mais tarde.",
-                          );
-                        } finally {
-                          setSyncingMembersOperation(null);
-                        }
-                      }}
-                      disabled={!!syncingMembersOperation}
-                    >
-                      {syncingMembersOperation === "clean_sync" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                      Limpar e alinhar
-                    </Button>
-                  </div>
-                </div>
-
-                {summary ? (
-                  <div className="mt-4 rounded-xl border border-success/30 bg-success/5 p-4">
-                    <p className="text-sm font-medium text-card-foreground">Base atualizada a partir do WhatsApp.</p>
-                    <p className="text-xs text-muted-foreground mt-1">{summary}</p>
-                    {(membersSyncResult?.skipped_count ?? 0) > 0 || (membersSyncResult?.duplicates?.phones?.length ?? 0) > 0 ? (
-                      <p className="text-xs text-muted-foreground mt-2">Alguns registros foram ignorados para evitar inconsistências.</p>
-                    ) : null}
-                  </div>
-                ) : null}
-              </section>
-            );
-          })()}
           <section className="space-y-6">
             <header className="space-y-1">
               <h2 className="text-lg font-semibold text-foreground">Panorama</h2>
