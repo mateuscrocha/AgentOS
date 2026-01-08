@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,20 @@ interface GroupValidation {
   correlation_id?: string;
 }
 
+type AssistantWebhookStatus = 'idle' | 'inflight' | 'success' | 'failed' | 'skipped';
+
+type CreateAssistantWebhookArgs = {
+  groupId: string;
+  groupName: string;
+  organizationId?: string | null;
+  organizationName?: string | null;
+  inviteLink?: string | null;
+  whatsappProviderId?: string | null;
+  createdAt?: string | null;
+  userId?: string | null;
+  rawGroup?: unknown;
+};
+
 const STEPS: Step[] = ['welcome', 'name', 'email', 'phone', 'password', 'how', 'prepare_group', 'group_link', 'final'];
 
 function Title({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
@@ -91,6 +105,12 @@ export default function Onboarding() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [provisionedGroupId, setProvisionedGroupId] = useState<string | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [assistantWebhookStatus, setAssistantWebhookStatus] = useState<AssistantWebhookStatus>('idle');
+  const [assistantWebhookError, setAssistantWebhookError] = useState<string | null>(null);
+
+  const createAssistantWebhookArgsRef = useRef<CreateAssistantWebhookArgs | null>(null);
+  const createAssistantWebhookInFlightRef = useRef<{ groupId: string; promise: Promise<void> } | null>(null);
+  const createAssistantWebhookSucceededRef = useRef<Set<string>>(new Set());
 
   // Check if user is already logged in
   useEffect(() => {
@@ -166,6 +186,104 @@ export default function Onboarding() {
     } catch {
       return null;
     }
+  };
+
+  const getCreateAssistantWebhookUrl = (): string | undefined => {
+    return (import.meta as any).env.VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL as string | undefined;
+  };
+
+  const callCreateAssistantWebhook = async (args: CreateAssistantWebhookArgs): Promise<void> => {
+    const url = getCreateAssistantWebhookUrl();
+    if (!url) {
+      console.warn('Webhook de criação de assistant não configurado: defina VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL');
+      setAssistantWebhookStatus('skipped');
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
+    try {
+      const payload = {
+        id: args.groupId,
+        group_id: args.groupId,
+        group_name: args.groupName,
+        organization_id: args.organizationId ?? null,
+        organization_name: args.organizationName ?? null,
+        invite_link: args.inviteLink ?? null,
+        whatsapp_provider_id: args.whatsappProviderId ?? null,
+        created_at: args.createdAt ?? null,
+        user_id: args.userId ?? null,
+        raw_group: args.rawGroup ?? null,
+        source: 'frontend.onboarding',
+      };
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const bodyText = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${res.statusText}${bodyText ? ` - ${bodyText}` : ''}`);
+      }
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
+
+  const triggerCreateAssistantWebhook = async (args: CreateAssistantWebhookArgs, opts?: { force?: boolean }) => {
+    createAssistantWebhookArgsRef.current = args;
+    setAssistantWebhookError(null);
+
+    const groupId = args.groupId;
+    if (!opts?.force) {
+      if (createAssistantWebhookSucceededRef.current.has(groupId)) return;
+      const inflight = createAssistantWebhookInFlightRef.current;
+      if (inflight?.groupId === groupId) return inflight.promise;
+    }
+
+    setAssistantWebhookStatus('inflight');
+
+    const promise = (async () => {
+      try {
+        await callCreateAssistantWebhook(args);
+        if (getCreateAssistantWebhookUrl()) {
+          createAssistantWebhookSucceededRef.current.add(groupId);
+          setAssistantWebhookStatus('success');
+        }
+      } catch (e: any) {
+        const message = e?.message || 'Falha ao chamar webhook de criação do assistente';
+        setAssistantWebhookStatus('failed');
+        setAssistantWebhookError(message);
+        console.error('Falha ao chamar webhook de criação do assistant', {
+          group_id: groupId,
+          message,
+        });
+        notify.warning(
+          'Assistente não foi provisionado',
+          'O grupo foi criado, mas a criação do assistente falhou. Você pode tentar novamente.',
+          {
+            actionLabel: 'Tentar novamente',
+            onAction: () => {
+              const last = createAssistantWebhookArgsRef.current;
+              if (last) void triggerCreateAssistantWebhook(last, { force: true });
+            },
+            duration: 8000,
+          },
+        );
+      }
+    })();
+
+    createAssistantWebhookInFlightRef.current = { groupId, promise };
+    await promise.finally(() => {
+      const inflight = createAssistantWebhookInFlightRef.current;
+      if (inflight?.groupId === groupId) {
+        createAssistantWebhookInFlightRef.current = null;
+      }
+    });
   };
 
   const getSessionToken = async (): Promise<string | null> => {
@@ -424,6 +542,46 @@ export default function Onboarding() {
 
       setProvisionedGroupId(provisionData.group_id);
       setCurrentStep('final');
+
+      const groupId = provisionData.group_id as string;
+      const organizationId = (provisionData.organization_id as string | undefined) || null;
+
+      let rawGroup: any = {
+        id: groupId,
+        name: validated.group_name,
+        organization_id: organizationId,
+        whatsapp_provider_id: validated.whatsapp_provider_id,
+        invite_link: formData.invite_link,
+        provider: validated.provider,
+      };
+      let createdAt: string | null = null;
+
+      try {
+        const { data: groupRow, error: groupRowError } = await supabase
+          .from('groups')
+          .select('*')
+          .eq('id', groupId)
+          .maybeSingle();
+
+        if (!groupRowError && groupRow) {
+          rawGroup = groupRow;
+          createdAt = (groupRow as any)?.created_at ?? null;
+        }
+      } catch (e) {
+        console.error('Erro ao buscar grupo após provisionamento', e);
+      }
+
+      void triggerCreateAssistantWebhook({
+        groupId,
+        groupName: validated.group_name,
+        organizationId,
+        organizationName: orgName,
+        inviteLink: formData.invite_link,
+        whatsappProviderId: validated.whatsapp_provider_id,
+        createdAt,
+        userId: authData.user.id,
+        rawGroup,
+      });
 
     } catch (error: any) {
       const msg = error?.message || '';
@@ -740,6 +898,49 @@ export default function Onboarding() {
             <div className="flex items-center justify-center gap-2">
               <MailCheck className="w-4 h-4 text-primary" />
             </div>
+
+            {provisionedGroupId ? (
+              <div className="rounded-xl border border-border bg-muted/30 p-4 text-left shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">Provisionamento do assistente</div>
+                    {assistantWebhookStatus === 'inflight' ? (
+                      <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Criando assistente…
+                      </div>
+                    ) : assistantWebhookStatus === 'success' ? (
+                      <div className="text-xs text-muted-foreground mt-1">Webhook chamado com sucesso.</div>
+                    ) : assistantWebhookStatus === 'failed' ? (
+                      <div className="text-xs text-muted-foreground mt-1">Falhou ao chamar o webhook.</div>
+                    ) : assistantWebhookStatus === 'skipped' ? (
+                      <div className="text-xs text-muted-foreground mt-1">Webhook não configurado.</div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground mt-1">Aguardando…</div>
+                    )}
+                  </div>
+
+                  {assistantWebhookStatus === 'failed' ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const last = createAssistantWebhookArgsRef.current;
+                        if (last) void triggerCreateAssistantWebhook(last, { force: true });
+                      }}
+                    >
+                      Tentar novamente
+                    </Button>
+                  ) : null}
+                </div>
+
+                {assistantWebhookStatus === 'failed' && assistantWebhookError ? (
+                  <div className="mt-3 text-xs text-muted-foreground break-words">
+                    {assistantWebhookError}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         );
 

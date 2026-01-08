@@ -25,6 +25,26 @@ interface ProvisionGroupPayload {
   }>;
 }
 
+type GroupRow = {
+  id: string;
+  name: string;
+  description?: string | null;
+  organization_id: string;
+  whatsapp_provider_id?: string | null;
+  provider_phone?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  provider?: string | null;
+  invite_link?: string | null;
+  status?: string | null;
+  has_assistant?: boolean | null;
+  assistant_id?: string | null;
+  metadata?: unknown;
+  raw_provider?: unknown;
+  sync_status?: string | null;
+  sync_error?: string | null;
+};
+
 function toE164(phone: string | null | undefined): string | null {
   const digits = (phone || "").replace(/\D/g, "");
   if (digits.length < 8) return null;
@@ -34,13 +54,15 @@ function toE164(phone: string | null | undefined): string | null {
   return `+${digits}`;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const correlationId = req.headers.get('x-correlation-id') ?? crypto.randomUUID();
+
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -263,37 +285,85 @@ serve(async (req) => {
       Deno.env.get('N8N_WEBHOOK_CREATE_ASSISTANT_URL');
     if (createAssistantWebhookUrl) {
       try {
+        const { data: groupRow, error: groupRowError } = await supabaseAdmin
+          .from('groups')
+          .select('*')
+          .eq('id', group.id)
+          .maybeSingle();
+
+        if (groupRowError) {
+          throw groupRowError;
+        }
+
+        const fallbackGroup: GroupRow = {
+          id: group.id,
+          name: payload.group.name,
+          description: null,
+          organization_id: payload.organization_id,
+          provider: 'whatsapp',
+          whatsapp_provider_id: payload.group.whatsapp_provider_id,
+          provider_phone: null,
+          invite_link: payload.group.invite_link,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          assistant_id: null,
+          has_assistant: false,
+          metadata: null,
+          raw_provider: null,
+          status: null,
+          sync_status: null,
+          sync_error: null,
+        };
+
+        const g = (groupRow as GroupRow) ?? fallbackGroup;
+
         const webhookPayload = {
-          event_type: 'GROUP_CREATED',
-          group_id: group.id,
-          group: {
-            id: group.id,
-            organization_id: payload.organization_id,
-            provider: 'whatsapp',
-            name: payload.group.name,
-            whatsapp_provider_id: payload.group.whatsapp_provider_id,
-            invite_link: payload.group.invite_link,
-          },
-          organization: {
-            id: payload.organization_id,
-            name: org.name,
-          },
-          actor_user_id: user.id,
-          participants: payload.participants ?? [],
+          id: g.id,
+          name: g.name,
+          description: g.description ?? null,
+          organization_id: g.organization_id,
+          whatsapp_group_id: g.whatsapp_provider_id ?? null,
+          provider_phone: g.provider_phone ?? null,
+          created_at: g.created_at ?? new Date().toISOString(),
+          provider: g.provider ?? 'whatsapp',
+          invite_link: g.invite_link ?? null,
+          status: g.status ?? null,
+          has_assistant: g.has_assistant ?? false,
+          assistant_id: g.assistant_id ?? null,
+          raw_group: g,
           source: 'supabase.functions.provision-group',
+          correlation_id: correlationId,
         };
 
         const res = await fetch(createAssistantWebhookUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-correlation-id': correlationId,
+          },
           body: JSON.stringify(webhookPayload),
         });
 
         if (!res.ok) {
-          console.error('Create assistant webhook failed:', res.status, res.statusText);
+          const bodyText = await res.text().catch(() => '');
+          console.error(
+            'Create assistant webhook failed:',
+            JSON.stringify({
+              correlation_id: correlationId,
+              status: res.status,
+              status_text: res.statusText,
+              body: bodyText,
+            })
+          );
         }
       } catch (e: unknown) {
-        console.error('Create assistant webhook error:', e);
+        console.error(
+          'Create assistant webhook error:',
+          JSON.stringify({
+            correlation_id: correlationId,
+            message: e instanceof Error ? e.message : String(e),
+          })
+        );
       }
     }
 
