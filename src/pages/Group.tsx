@@ -19,6 +19,7 @@ import {
 } from "@/components/group-dashboard";
 import { PeriodReport } from "@/components/group-dashboard";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
+import { FirstReadGuideCard } from "@/components/group-dashboard/FirstReadGuideCard";
 import {
   PeriodType,
   DateRange,
@@ -63,7 +64,7 @@ const Group = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { loading: authLoading } = useAuth();
-  const { isLoading: rolesLoading } = useUserRoles();
+  const { isLoading: rolesLoading, isSystemAdmin, isOrgAdmin, isGroupManager } = useUserRoles();
   const isGroupIdValid = typeof groupId === "string" && UUID_RE.test(groupId);
   
   // Period filter state
@@ -71,6 +72,7 @@ const Group = () => {
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() => loadSavedGroupPeriod(groupId).range);
   const [helpOpen, setHelpOpen] = useState(false);
   const [ikigaiOpen, setIkigaiOpen] = useState(false);
+  const [forceGuideVisible, setForceGuideVisible] = useState(false);
   
   
   const currentRange = getDateRange(selectedPeriod, customRange);
@@ -132,6 +134,19 @@ const Group = () => {
     ikigaiSuggestions,
     trendingBigrams,
   } = useGroupDashboard({ groupId, dateRange: currentRange });
+
+  const guideStorageKey = group?.id ? `group-dashboard:first-read-guide:dismissed:${group.id}` : null;
+  const canShowGuideControls = import.meta.env.DEV || isSystemAdmin || isOrgAdmin || isGroupManager;
+
+  const handleShowGuideAgain = () => {
+    if (!guideStorageKey) return;
+    try {
+      localStorage.removeItem(guideStorageKey);
+    } catch {
+      void 0;
+    }
+    setForceGuideVisible(true);
+  };
 
   
 
@@ -241,12 +256,27 @@ const Group = () => {
           showClearFilters={hasActiveFilters}
           onClearFilters={handleClearFilters}
           rightActions={(
-            <Button variant="link" size="sm" className="h-8 px-0 text-xs" onClick={() => setHelpOpen(true)}>
-              <HelpCircle className="h-4 w-4" />
-              Como ler este dashboard
-            </Button>
+            <div className="flex items-center gap-3">
+              {canShowGuideControls && guideStorageKey ? (
+                <Button variant="link" size="sm" className="h-8 px-0 text-xs" onClick={handleShowGuideAgain}>
+                  Mostrar guia novamente
+                </Button>
+              ) : null}
+              <Button variant="link" size="sm" className="h-8 px-0 text-xs" onClick={() => setHelpOpen(true)}>
+                <HelpCircle className="h-4 w-4" />
+                Como ler este dashboard
+              </Button>
+            </div>
           )}
         />
+
+        {group?.id ? (
+          <FirstReadGuideCard
+            storageKey={guideStorageKey || `group-dashboard:first-read-guide:dismissed:${group.id}`}
+            forceVisible={forceGuideVisible}
+            onDismiss={() => setForceGuideVisible(false)}
+          />
+        ) : null}
 
         
 
