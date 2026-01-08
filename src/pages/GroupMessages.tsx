@@ -302,6 +302,8 @@ const GroupMessages = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const querySearch = searchParams.get("q") || "";
+  const queryFrom = searchParams.get("from") || "";
+  const queryTo = searchParams.get("to") || "";
   const [search, setSearch] = useState(querySearch);
 
   useEffect(() => {
@@ -309,7 +311,25 @@ const GroupMessages = () => {
     setPage(1);
   }, [querySearch]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [queryFrom, queryTo]);
+
   const safeSearch = useMemo(() => search.trim().replace(/,/g, " "), [search]);
+
+  const safeFrom = useMemo(() => {
+    if (!queryFrom) return null;
+    const d = new Date(queryFrom);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString();
+  }, [queryFrom]);
+
+  const safeTo = useMemo(() => {
+    if (!queryTo) return null;
+    const d = new Date(queryTo);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString();
+  }, [queryTo]);
 
 
   // Fetch group info for breadcrumbs
@@ -365,7 +385,7 @@ const GroupMessages = () => {
 
   // Fetch messages from view
   const { data: messagesData, isLoading, error, refetch } = useQuery({
-    queryKey: ['group-messages-feed', groupId, page, typeFilter, safeSearch],
+    queryKey: ['group-messages-feed', groupId, page, typeFilter, safeSearch, safeFrom, safeTo],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -383,6 +403,14 @@ const GroupMessages = () => {
 
       if (safeSearch) {
         query = query.ilike('content_preview', `%${safeSearch}%`);
+      }
+
+      if (safeFrom) {
+        query = query.gte('created_at', safeFrom);
+      }
+
+      if (safeTo) {
+        query = query.lte('created_at', safeTo);
       }
       
       const { data, error, count } = await query.range(from, to);
@@ -402,6 +430,14 @@ const GroupMessages = () => {
 
         if (safeSearch) {
           fallbackQuery = fallbackQuery.or(`content.ilike.%${safeSearch}%,text.ilike.%${safeSearch}%,sender_name.ilike.%${safeSearch}%`);
+        }
+
+        if (safeFrom) {
+          fallbackQuery = fallbackQuery.gte('created_at', safeFrom);
+        }
+
+        if (safeTo) {
+          fallbackQuery = fallbackQuery.lte('created_at', safeTo);
         }
         
       const { data: msgData, error: msgError, count: msgCount } = await fallbackQuery.range(from, to);
