@@ -3,6 +3,14 @@ export function getProvisioningErrorMessage(code?: string | null): string | null
   switch (code) {
     case "GROUP_ALREADY_PROVISIONED":
       return "Esse grupo já foi cadastrado. Faça login para continuar.";
+    case "WEBHOOK_NOT_CONFIGURED":
+      return "Configuração do assistente incompleta. Tente novamente em instantes.";
+    case "WEBHOOK_AUTH_FAILED":
+      return "Não foi possível autenticar no serviço do assistente. Tente novamente em instantes.";
+    case "WEBHOOK_RESPONSE_INVALID":
+      return "O serviço do assistente respondeu de forma inesperada. Tente novamente.";
+    case "WEBHOOK_UPSTREAM_FAILED":
+      return "Não foi possível criar o assistente agora. Tente novamente.";
     default:
       return null;
   }

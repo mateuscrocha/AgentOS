@@ -4,8 +4,142 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-correlation-id',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+class WebhookError extends Error {
+  code: string;
+  status?: number;
+  body?: string;
+
+  constructor(args: { code: string; message: string; status?: number; body?: string }) {
+    super(args.message);
+    this.code = args.code;
+    this.status = args.status;
+    this.body = args.body;
+  }
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRetryableStatus = (status: number) => status === 408 || status === 429 || (status >= 500 && status <= 599);
+
+const truncateText = (text: string, limit = 2000) => (text.length > limit ? `${text.slice(0, limit)}…` : text);
+
+const sendCreateAssistantWebhook = async (args: {
+  url: string;
+  group: GroupRow;
+  correlationId: string;
+  fetchImpl: typeof fetch;
+  apiKey?: string;
+  timeoutMs?: number;
+  maxAttempts?: number;
+}) => {
+  const { url, group, correlationId, fetchImpl, apiKey } = args;
+  const timeoutMs = args.timeoutMs ?? 10_000;
+  const maxAttempts = args.maxAttempts ?? 3;
+
+  const payload = {
+    id: group.id,
+    name: group.name,
+    description: group.description ?? null,
+    organization_id: group.organization_id,
+    whatsapp_group_id: group.whatsapp_provider_id ?? null,
+    provider_phone: group.provider_phone ?? null,
+    created_at: group.created_at ?? new Date().toISOString(),
+    provider: group.provider ?? 'whatsapp',
+    invite_link: group.invite_link ?? null,
+    status: group.status ?? null,
+    has_assistant: group.has_assistant ?? false,
+    assistant_id: group.assistant_id ?? null,
+    raw_group: group,
+    source: 'supabase.functions.provision-group',
+    correlation_id: correlationId,
+  };
+
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetchImpl(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-correlation-id': correlationId,
+          ...(apiKey ? { 'x-api-key': apiKey } : {}),
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      const rawBody = await res.text().catch(() => '');
+      const bodyText = truncateText(rawBody || '');
+
+      if (res.status === 401 || res.status === 403) {
+        throw new WebhookError({
+          code: 'WEBHOOK_AUTH_FAILED',
+          message: `Falha de autenticação no webhook (HTTP ${res.status})`,
+          status: res.status,
+          body: bodyText,
+        });
+      }
+
+      if (!res.ok) {
+        throw new WebhookError({
+          code: 'WEBHOOK_UPSTREAM_FAILED',
+          message: `Webhook retornou erro (HTTP ${res.status} ${res.statusText})`,
+          status: res.status,
+          body: bodyText,
+        });
+      }
+
+      let parsed: any = null;
+      try {
+        parsed = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        parsed = null;
+      }
+
+      if (!parsed || typeof parsed !== 'object') {
+        throw new WebhookError({
+          code: 'WEBHOOK_RESPONSE_INVALID',
+          message: 'Webhook retornou um corpo inválido (JSON esperado)',
+          status: res.status,
+          body: bodyText,
+        });
+      }
+
+      const okFlag = (parsed as any).success ?? (parsed as any).ok;
+      if (okFlag !== true) {
+        throw new WebhookError({
+          code: 'WEBHOOK_RESPONSE_INVALID',
+          message: 'Webhook retornou payload inesperado (success/ok != true)',
+          status: res.status,
+          body: bodyText,
+        });
+      }
+
+      return;
+    } catch (e: unknown) {
+      lastError = e;
+      const status = e instanceof WebhookError ? e.status : undefined;
+      const retryable = typeof status === 'number' ? isRetryableStatus(status) : true;
+      const shouldRetry = attempt < maxAttempts && retryable;
+      if (!shouldRetry) throw e;
+
+      const baseDelay = 400 * Math.pow(2, attempt - 1);
+      const jitter = Math.floor(Math.random() * 150);
+      await sleep(baseDelay + jitter);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Falha desconhecida no webhook');
 };
 
 interface ProvisionGroupPayload {
@@ -168,6 +302,14 @@ serve(async (req: Request) => {
       );
     }
 
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
     // Create Group - RLS will enforce permission
     const { data: group, error: groupError } = await supabaseUser
       .from('groups')
@@ -196,6 +338,23 @@ serve(async (req: Request) => {
     }
 
     console.log('Group added:', group.id);
+
+    const cleanupGroup = async () => {
+      try {
+        await supabaseAdmin.from('members').delete().eq('group_id', group.id);
+      } catch {
+      }
+
+      try {
+        await supabaseAdmin.from('events').delete().eq('entity_type', 'group').eq('entity_id', group.id);
+      } catch {
+      }
+
+      try {
+        await supabaseAdmin.from('groups').delete().eq('id', group.id);
+      } catch {
+      }
+    };
 
     // Create Members from participants - RLS will enforce permission
     if (payload.participants && payload.participants.length > 0) {
@@ -251,14 +410,115 @@ serve(async (req: Request) => {
       }
     }
 
-    // Log the event using service role to bypass RLS
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    const createAssistantWebhookUrl =
+      Deno.env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL') ||
+      Deno.env.get('N8N_WEBHOOK_CREATE_ASSISTANT_URL');
+
+    const createAssistantWebhookApiKey =
+      Deno.env.get('N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
+      Deno.env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
+      Deno.env.get('N8N_WEBHOOK_API_KEY') ||
+      Deno.env.get('VITE_N8N_WEBHOOK_API_KEY');
+
+    if (!createAssistantWebhookUrl) {
+      try {
+        await supabaseAdmin
+          .from('events')
+          .insert({
+            event_type: 'GROUP_WEBHOOK_FAILED',
+            entity_type: 'group',
+            entity_id: group.id,
+            user_id: user.id,
+            metadata: {
+              organization_id: payload.organization_id,
+              code: 'WEBHOOK_NOT_CONFIGURED',
+              correlation_id: correlationId,
+            },
+          });
+      } catch {
+      }
+
+      await cleanupGroup();
+
+      return new Response(
+        JSON.stringify({ success: false, code: 'WEBHOOK_NOT_CONFIGURED', message: 'Webhook de criação do assistente não está configurado' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    try {
+      const { data: groupRow, error: groupRowError } = await supabaseAdmin
+        .from('groups')
+        .select('*')
+        .eq('id', group.id)
+        .maybeSingle();
+
+      if (groupRowError) {
+        throw groupRowError;
+      }
+
+      const fallbackGroup: GroupRow = {
+        id: group.id,
+        name: payload.group.name,
+        description: null,
+        organization_id: payload.organization_id,
+        provider: 'whatsapp',
+        whatsapp_provider_id: payload.group.whatsapp_provider_id,
+        provider_phone: null,
+        invite_link: payload.group.invite_link,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        assistant_id: null,
+        has_assistant: false,
+        metadata: null,
+        raw_provider: null,
+        status: null,
+        sync_status: null,
+        sync_error: null,
+      };
+
+      await sendCreateAssistantWebhook({
+        url: createAssistantWebhookUrl,
+        group: (groupRow as GroupRow) ?? fallbackGroup,
+        correlationId,
+        fetchImpl: fetch,
+        apiKey: createAssistantWebhookApiKey,
+        maxAttempts: 3,
+        timeoutMs: 10_000,
+      });
+    } catch (e: unknown) {
+      const code = e instanceof WebhookError ? e.code : 'WEBHOOK_UPSTREAM_FAILED';
+      const status = e instanceof WebhookError ? e.status : undefined;
+      const body = e instanceof WebhookError ? e.body : undefined;
+      const message = e instanceof Error ? e.message : String(e);
+
+      try {
+        await supabaseAdmin
+          .from('events')
+          .insert({
+            event_type: 'GROUP_WEBHOOK_FAILED',
+            entity_type: 'group',
+            entity_id: group.id,
+            user_id: user.id,
+            metadata: {
+              organization_id: payload.organization_id,
+              code,
+              status,
+              message,
+              body,
+              correlation_id: correlationId,
+            },
+          });
+      } catch {
+      }
+
+      await cleanupGroup();
+
+      return new Response(
+        JSON.stringify({ success: false, code, message: 'Falha ao validar o webhook. Operação cancelada.' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const { error: eventError } = await supabaseAdmin
       .from('events')
@@ -272,99 +532,12 @@ serve(async (req: Request) => {
           organization_name: org.name,
           group_name: payload.group.name,
           participants_count: payload.participants?.length || 0,
+          correlation_id: correlationId,
         },
       });
 
     if (eventError) {
       console.error('Error logging event:', eventError);
-      // Continue anyway
-    }
-
-    const createAssistantWebhookUrl =
-      Deno.env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL') ||
-      Deno.env.get('N8N_WEBHOOK_CREATE_ASSISTANT_URL');
-    if (createAssistantWebhookUrl) {
-      try {
-        const { data: groupRow, error: groupRowError } = await supabaseAdmin
-          .from('groups')
-          .select('*')
-          .eq('id', group.id)
-          .maybeSingle();
-
-        if (groupRowError) {
-          throw groupRowError;
-        }
-
-        const fallbackGroup: GroupRow = {
-          id: group.id,
-          name: payload.group.name,
-          description: null,
-          organization_id: payload.organization_id,
-          provider: 'whatsapp',
-          whatsapp_provider_id: payload.group.whatsapp_provider_id,
-          provider_phone: null,
-          invite_link: payload.group.invite_link,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          assistant_id: null,
-          has_assistant: false,
-          metadata: null,
-          raw_provider: null,
-          status: null,
-          sync_status: null,
-          sync_error: null,
-        };
-
-        const g = (groupRow as GroupRow) ?? fallbackGroup;
-
-        const webhookPayload = {
-          id: g.id,
-          name: g.name,
-          description: g.description ?? null,
-          organization_id: g.organization_id,
-          whatsapp_group_id: g.whatsapp_provider_id ?? null,
-          provider_phone: g.provider_phone ?? null,
-          created_at: g.created_at ?? new Date().toISOString(),
-          provider: g.provider ?? 'whatsapp',
-          invite_link: g.invite_link ?? null,
-          status: g.status ?? null,
-          has_assistant: g.has_assistant ?? false,
-          assistant_id: g.assistant_id ?? null,
-          raw_group: g,
-          source: 'supabase.functions.provision-group',
-          correlation_id: correlationId,
-        };
-
-        const res = await fetch(createAssistantWebhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-correlation-id': correlationId,
-          },
-          body: JSON.stringify(webhookPayload),
-        });
-
-        if (!res.ok) {
-          const bodyText = await res.text().catch(() => '');
-          console.error(
-            'Create assistant webhook failed:',
-            JSON.stringify({
-              correlation_id: correlationId,
-              status: res.status,
-              status_text: res.statusText,
-              body: bodyText,
-            })
-          );
-        }
-      } catch (e: unknown) {
-        console.error(
-          'Create assistant webhook error:',
-          JSON.stringify({
-            correlation_id: correlationId,
-            message: e instanceof Error ? e.message : String(e),
-          })
-        );
-      }
     }
 
     console.log('Group added successfully');

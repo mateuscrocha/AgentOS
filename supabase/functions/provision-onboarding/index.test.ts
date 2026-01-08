@@ -10,6 +10,33 @@ function assertEquals(actual: any, expected: any) {
 
 type RpcCall = { fn: string; args: any };
 
+const okFetch = async () => {
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+};
+
+function makeGroupsBuilder(group: any) {
+  const state: any = { filters: {} as Record<string, any> };
+  const builder: any = {
+    select(_cols: string) {
+      return builder;
+    },
+    eq(col: string, value: any) {
+      state.filters[`eq:${col}`] = value;
+      return builder;
+    },
+    maybeSingle() {
+      if (state.filters["eq:id"] === group.id) {
+        return Promise.resolve({ data: group, error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    },
+  };
+  return builder;
+}
+
 function makeReq(body: any) {
   return new Request("http://localhost/functions/v1/provision-onboarding", {
     method: "POST",
@@ -39,14 +66,35 @@ function makePayload() {
 
 DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não existe", async () => {
   const calls: RpcCall[] = [];
+  const groupRow = {
+    id: "group-1",
+    name: "Grupo",
+    description: null,
+    organization_id: "org-1",
+    provider: "whatsapp",
+    whatsapp_provider_id: "g-1",
+    provider_phone: null,
+    invite_link: "https://chat.whatsapp.com/abc",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    assistant_id: null,
+    has_assistant: false,
+    metadata: null,
+    raw_provider: null,
+    status: null,
+    sync_status: null,
+    sync_error: null,
+  };
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
         if (k === "SUPABASE_URL") return "http://localhost";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
         return undefined;
       },
     },
+    fetch: okFetch,
     createClient: (() => {
       return {
         rpc: async (fn: string, args: any) => {
@@ -65,6 +113,10 @@ DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não exist
             error: null,
           };
         },
+        from: (table: string) => {
+          if (table === "groups") return makeGroupsBuilder(groupRow);
+          throw new Error(`unexpected table: ${table}`);
+        },
       } as any;
     }) as any,
   });
@@ -81,14 +133,35 @@ DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não exist
 
 DenoRef.test("provision-onboarding usa RPC v2 quando disponível", async () => {
   const calls: RpcCall[] = [];
+  const groupRow = {
+    id: "group-1",
+    name: "Grupo",
+    description: null,
+    organization_id: "org-1",
+    provider: "whatsapp",
+    whatsapp_provider_id: "g-1",
+    provider_phone: null,
+    invite_link: "https://chat.whatsapp.com/abc",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    assistant_id: null,
+    has_assistant: false,
+    metadata: null,
+    raw_provider: null,
+    status: null,
+    sync_status: null,
+    sync_error: null,
+  };
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
         if (k === "SUPABASE_URL") return "http://localhost";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
         return undefined;
       },
     },
+    fetch: okFetch,
     createClient: (() => {
       return {
         rpc: async (fn: string, args: any) => {
@@ -97,6 +170,10 @@ DenoRef.test("provision-onboarding usa RPC v2 quando disponível", async () => {
             data: [{ organization_id: "org-1", group_id: "group-1" }],
             error: null,
           };
+        },
+        from: (table: string) => {
+          if (table === "groups") return makeGroupsBuilder(groupRow);
+          throw new Error(`unexpected table: ${table}`);
         },
       } as any;
     }) as any,
@@ -193,6 +270,30 @@ DenoRef.test("provision-onboarding usa fallback sem RPC quando v1 e v2 não exis
         if (table === 'groups' && state.insertPayload) {
           return Promise.resolve({ data: { id: 'group-1' }, error: null });
         }
+        if (table === 'groups' && state.filters['eq:id'] === 'group-1') {
+          return Promise.resolve({
+            data: {
+              id: 'group-1',
+              name: 'Grupo',
+              description: null,
+              organization_id: 'org-1',
+              provider: 'whatsapp',
+              whatsapp_provider_id: 'g-1',
+              provider_phone: null,
+              invite_link: 'https://chat.whatsapp.com/abc',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              assistant_id: null,
+              has_assistant: false,
+              metadata: null,
+              raw_provider: null,
+              status: null,
+              sync_status: null,
+              sync_error: null,
+            },
+            error: null,
+          });
+        }
         return Promise.resolve({ data: null, error: null });
       },
     };
@@ -205,9 +306,11 @@ DenoRef.test("provision-onboarding usa fallback sem RPC quando v1 e v2 não exis
       get: (k: string) => {
         if (k === 'SUPABASE_URL') return 'http://localhost';
         if (k === 'SUPABASE_SERVICE_ROLE_KEY') return 'service';
+        if (k === 'N8N_WEBHOOK_CREATE_ASSISTANT_URL') return 'http://webhook';
         return undefined;
       },
     },
+    fetch: okFetch,
     createClient: (() => {
       return {
         rpc: async (fn: string) => {
