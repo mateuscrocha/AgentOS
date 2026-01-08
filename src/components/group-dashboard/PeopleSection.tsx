@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Crown, HelpCircle } from "lucide-react";
+import { Crown } from "lucide-react";
 import { SectionHeader } from "./SectionHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 import { MemberDetailsDrawer } from "@/components/members/MemberDetailsDrawer";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { MetricHelp } from "@/components/ui/metric-help";
 
 interface MemberEngagement {
   recorrentes: number;
@@ -106,13 +106,6 @@ export function PeopleSection({
   const canOpenTopMember = !!topParticipant?.id;
   const periodSuffix = formatPeriodSuffix(periodLabel);
   const basedOnText = formatBasedOnPeriod(periodLabel);
-  const engagementHelpText = (
-    <div className="space-y-1">
-      <div><strong>Recorrentes</strong>: enviaram mensagens em vários dias.</div>
-      <div><strong>Esporádicos</strong>: enviaram poucas mensagens.</div>
-      <div><strong>Inativos</strong>: não enviaram mensagens.</div>
-    </div>
-  );
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
@@ -262,14 +255,12 @@ export function PeopleSection({
               <p className="text-sm font-medium text-muted-foreground">Distribuição de engajamento do grupo</p>
               <p className="text-xs text-muted-foreground mt-0.5">{basedOnText}</p>
             </div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
-                  <HelpCircle className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">{engagementHelpText}</TooltipContent>
-            </Tooltip>
+            <MetricHelp
+              metricTitle="Distribuição de engajamento do grupo"
+              whatIs="Como o grupo se divide entre pessoas recorrentes, esporádicas e inativas no período."
+              howToInterpret="Mostra se a conversa é sustentada por uma base que volta com frequência ou por participação mais pontual."
+              whatToObserve="Se a fatia de recorrentes diminui e a de inativos cresce, pode ser um sinal de conversa perdendo tração."
+            />
           </div>
           {isLoading ? (
             <Skeleton className="h-[150px] w-full" />

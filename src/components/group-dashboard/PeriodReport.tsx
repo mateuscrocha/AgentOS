@@ -101,6 +101,13 @@ export function PeriodReport({
             title="Participação entre os ativos"
             value={`${participationAmongActives}%`}
             subtitle="dos membros ativos participaram"
+            help={{
+              whatIs: "A parte da base ativa que aparece de forma recorrente ao longo do período.",
+              howToInterpret:
+                "Percentuais mais altos indicam que as mesmas pessoas voltam à conversa em vários dias. Percentuais mais baixos sugerem atividade mais pontual ou distribuída em poucos dias.",
+              whatToObserve:
+                "Se o volume de mensagens cresce, mas este número cai, a conversa pode estar acontecendo em poucos momentos concentrados.",
+            }}
             valueClassName="text-primary/80"
             className="shadow-sm"
           />
@@ -108,6 +115,13 @@ export function PeriodReport({
             title="Base ativa no período"
             value={`${format(activeMembers)} membro${activeMembers === 1 ? "" : "s"}`}
             subtitle="enviaram mensagens"
+            help={{
+              whatIs: "Quantas pessoas enviaram pelo menos uma mensagem no período.",
+              howToInterpret:
+                "Ajuda a entender o tamanho da conversa: se é puxada por uma base maior ou por um grupo menor de participantes.",
+              whatToObserve:
+                "Compare com ‘Observadores’. Quando a base ativa encolhe e os observadores crescem, o grupo tende a ficar mais em modo leitura.",
+            }}
             valueClassName="text-card-foreground"
             className="shadow-sm"
           />
@@ -115,6 +129,13 @@ export function PeriodReport({
             title="Observadores"
             value={`${format(observers)} pessoa${observers === 1 ? "" : "s"}`}
             subtitle="acompanharam sem enviar mensagens"
+            help={{
+              whatIs: "Pessoas que permaneceram no grupo, mas não enviaram mensagens no período.",
+              howToInterpret:
+                "Valores maiores indicam mais gente em modo acompanhamento. É comum em grupos: muita gente lê e pouca gente fala.",
+              whatToObserve:
+                "Se os observadores aumentam por vários períodos seguidos, pode valer testar perguntas simples ou convites à participação.",
+            }}
             valueClassName="text-muted-foreground"
             className="shadow-sm"
           />

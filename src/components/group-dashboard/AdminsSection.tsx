@@ -90,6 +90,13 @@ export function AdminsSection({ adminStats, previousAdminStats, isLoading, perio
             value={adminStats.total}
             subtitle="estrutura do grupo"
             icon={Shield}
+            help={{
+              whatIs: "Quantos administradores o grupo tem no total.",
+              howToInterpret:
+                "Ajuda a entender o tamanho da liderança. Mudanças costumam acontecer quando a gestão do grupo é ajustada.",
+              whatToObserve:
+                "Se há muitos admins, observe quantos aparecem como ‘ativos’ no período.",
+            }}
           />
 
           <KpiCard
@@ -98,6 +105,13 @@ export function AdminsSection({ adminStats, previousAdminStats, isLoading, perio
             subtitle="enviaram mensagens no período"
             icon={Users}
             trend={activeTrend !== undefined ? { value: activeTrend, label: "vs anterior", isAbsolute: true } : undefined}
+            help={{
+              whatIs: "Quantos admins participaram da conversa enviando mensagens no período.",
+              howToInterpret:
+                "Mostra se a liderança aparece no dia a dia da conversa ou fica mais nos bastidores.",
+              whatToObserve:
+                "Compare com ‘Participação dos admins’ para ver se a presença é distribuída ou concentrada.",
+            }}
           />
 
           <KpiCard
@@ -106,6 +120,13 @@ export function AdminsSection({ adminStats, previousAdminStats, isLoading, perio
             subtitle="sem mensagens no período"
             icon={Users}
             trend={activeTrend !== undefined ? { value: -activeTrend, label: "vs anterior", isAbsolute: true } : undefined}
+            help={{
+              whatIs: "Quantos admins não enviaram nenhuma mensagem no período.",
+              howToInterpret:
+                "Indica uma liderança mais silenciosa: podem estar acompanhando, moderando ou só presentes por estrutura.",
+              whatToObserve:
+                "Se o número sobe por vários períodos, vale olhar se faltam puxadas de tema, avisos ou acolhimento.",
+            }}
           />
 
           <KpiCard
@@ -113,6 +134,13 @@ export function AdminsSection({ adminStats, previousAdminStats, isLoading, perio
             value={`${adminParticipationRate}%`}
             subtitle="das mensagens"
             trend={participationTrend !== undefined ? { value: participationTrend, label: "pp vs anterior", isAbsolute: true } : undefined}
+            help={{
+              whatIs: "A parte das mensagens do período que foi enviada por administradores.",
+              howToInterpret:
+                "Percentuais mais altos indicam mais voz da liderança na conversa. Percentuais mais baixos mostram que os membros puxaram mais o ritmo.",
+              whatToObserve:
+                "Se a participação dos admins sobe enquanto a base ativa cai, a conversa pode estar sendo sustentada por poucos.",
+            }}
           />
         </div>
 

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MetricHelp } from "@/components/ui/metric-help";
 import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
 import { MessageDetailsDrawer } from "@/components/messages/MessageDetailsDrawer";
 import { useNavigate } from "react-router-dom";
@@ -310,7 +311,15 @@ export function PeakMomentSection({
         ) : (
           <div className="space-y-5">
             <div className="rounded-xl border border-border bg-secondary/20 p-4">
-              <p className="text-xs font-medium text-muted-foreground">Intensidade</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Intensidade</p>
+                <MetricHelp
+                  metricTitle="Intensidade"
+                  whatIs="Quantas mensagens aconteceram no momento mais movimentado do período (em 1 hora)."
+                  howToInterpret="Ajuda a entender quando a conversa acelera: picos concentrados costumam aparecer quando um tema engaja várias pessoas ao mesmo tempo."
+                  whatToObserve="Se o pico vem com poucos participantes, a conversa pode estar concentrada em poucas pessoas."
+                />
+              </div>
               <p className="mt-1 text-xl sm:text-2xl font-semibold text-card-foreground tabular-nums">
                 {intensityRead.peakTotal.toLocaleString("pt-BR")} mensagens em 1 hora
               </p>
