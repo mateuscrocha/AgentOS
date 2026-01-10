@@ -211,6 +211,7 @@ export default function GroupEvents() {
           ]}
           group={{
             groupId: groupId as string,
+            organizationId: group?.organization_id || undefined,
             name: group?.name || "",
             provider: group?.provider || "",
             totalMembers: (totalMembersCount ?? 0) as number,

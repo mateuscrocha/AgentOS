@@ -79,6 +79,20 @@
   - `src/hooks/use-auth.ts:39` (`isAuthenticated`).
   - `src/components/auth/AuthGuard.tsx:11` (rotas públicas) e `src/components/auth/AuthGuard.tsx:43` (proteção).
 
+## Aba "Configurações" do Grupo (visibilidade)
+- A aba "Configurações" na navegação do grupo aparece apenas quando `canEditGroup(groupId, organizationId) === true`.
+- Isso equivale a:
+  - `SYSTEM_ADMIN`, ou
+  - `ORG_ADMIN` da organização do grupo, ou
+  - `GROUP_MANAGER` vinculado diretamente ao `group_id`.
+- Usuários `READ_ONLY` (`USER`) não visualizam a aba.
+- Referência de UI: `src/components/group-navigation/GroupPageTop.tsx`.
+
+## Monitoramento pós-implantação (checklist)
+- Validar que `GROUP_MANAGER` e `ORG_ADMIN` veem a aba e acessam `/groups/:groupId/edit`.
+- Validar que `READ_ONLY` não vê a aba e recebe bloqueio ao acessar a rota direta.
+- Acompanhar erros de acesso (RLS `PGRST301` / mensagens de permission) em logs de frontend e Supabase.
+
 ## Criação de usuário por Admin (novo)
 - Fluxo de criação em `src/pages/Users.tsx`:
   - Seleção de "Permissão inicial" (organização ou grupo).

@@ -445,6 +445,7 @@ export default function GroupEdit() {
           breadcrumbItems={breadcrumbItems}
           group={{
             groupId: group.id,
+            organizationId: group.organization_id,
             name: group.name,
             provider: group.provider || "",
             totalMembers: membersCount || 0,

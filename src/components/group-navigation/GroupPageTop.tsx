@@ -4,11 +4,12 @@ import { GroupHeader } from "@/components/group-dashboard/GroupHeader";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Crown, LayoutDashboard, ListChecks, MessageSquare, Shield, Star, Users } from "lucide-react";
+import { Activity, Crown, LayoutDashboard, ListChecks, MessageSquare, Settings, Shield, Star, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useUserRoles } from "@/hooks/use-user-roles";
 
 type ActiveTab = "painel" | "membros" | "mensagens" | "enquetes" | "atividade" | "configuracoes";
 
@@ -81,6 +82,7 @@ const ROLE_META: Record<MemberRoleKey, { label: string; shortLabel: string; Icon
 
 interface GroupTopInfo {
   groupId: string;
+  organizationId?: string;
   name: string;
   provider: string;
   totalMembers: number;
@@ -110,6 +112,7 @@ export function GroupPageTop({
   className,
 }: GroupPageTopProps) {
   const [adminsModalOpen, setAdminsModalOpen] = useState(false);
+  const { canEditGroup, isLoading: rolesLoading } = useUserRoles();
 
   const { data: specialMembers } = useQuery({
     queryKey: ["group-special-members", group.groupId],
@@ -249,6 +252,8 @@ export function GroupPageTop({
     );
   }, [adminsModalOpen, orderedSpecialMembers]);
 
+  const canShowSettingsTab = !rolesLoading && canEditGroup(group.groupId, group.organizationId);
+
   const navItems: Array<{
     key: ActiveTab;
     label: string;
@@ -259,6 +264,10 @@ export function GroupPageTop({
     { key: "mensagens", label: "Mensagens", href: `/groups/${group.groupId}/messages`, Icon: MessageSquare },
     { key: "enquetes", label: "Enquetes", href: `/groups/${group.groupId}/polls`, Icon: ListChecks },
     { key: "membros", label: "Membros", href: `/groups/${group.groupId}/members`, Icon: Users },
+    { key: "atividade", label: "Atividade", href: `/groups/${group.groupId}/events`, Icon: Activity },
+    ...(canShowSettingsTab
+      ? [{ key: "configuracoes" as const, label: "Configurações", href: `/groups/${group.groupId}/edit`, Icon: Settings }]
+      : []),
   ];
 
   return (

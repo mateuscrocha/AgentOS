@@ -300,6 +300,7 @@ const Group = () => {
           ]}
           group={{
             groupId: group.id,
+            organizationId: group.organization_id,
             name: group?.name || "",
             provider: group?.provider || "",
             totalMembers: stats.totalMembers,

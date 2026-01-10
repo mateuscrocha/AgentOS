@@ -284,6 +284,7 @@ const GroupMembers = () => {
           ]}
           group={{
             groupId: groupId as string,
+            organizationId: groupInfo?.orgId || undefined,
             name: groupInfo?.groupName || "",
             provider: groupInfo?.provider || "",
             totalMembers: (totalMembersCount ?? 0) as number,
