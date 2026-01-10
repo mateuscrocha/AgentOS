@@ -5,7 +5,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2, Activity, Tag, Check, ChevronsUpDown } from "lucide-react";
+import { Users, Edit, ChevronDown, CreditCard, Mail, Plus, Trash2, Activity, Tag } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -22,8 +22,6 @@ import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/group-dashboard/KpiCard";
 import { notify } from "@/components/ui/sonner";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import {
   getDateRange,
@@ -48,7 +46,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FunctionsHttpError } from "@supabase/supabase-js";
 
 const PAGE_SIZE = 10;
 
@@ -62,7 +59,6 @@ interface OrganizationDetail {
   trial_started_at: string | null;
   trial_ends_at: string | null;
   billing_status: string | null;
-  stripe_customer_id: string | null;
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
@@ -84,14 +80,6 @@ interface GroupItem {
   sync_status: string | null;
 }
 
-type StripeCustomerLite = {
-  id: string;
-  name: string | null;
-  email: string | null;
-  phone: string | null;
-  created: number | null;
-};
-
 const Org = () => {
   const { orgId } = useParams();
   const location = useLocation();
@@ -105,12 +93,6 @@ const Org = () => {
   const [removeGroup, setRemoveGroup] = useState<GroupItem | null>(null);
   const [removing, setRemoving] = useState(false);
   const [editContactOpen, setEditContactOpen] = useState(false);
-  const [stripeCustomerPickerOpen, setStripeCustomerPickerOpen] = useState(false);
-  const [selectedStripeCustomerId, setSelectedStripeCustomerId] = useState("");
-  const [stripeCustomers, setStripeCustomers] = useState<StripeCustomerLite[]>([]);
-  const [stripeCustomersHasMore, setStripeCustomersHasMore] = useState(false);
-  const [stripeCustomersCursor, setStripeCustomersCursor] = useState<string | null>(null);
-  
 
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
@@ -158,201 +140,6 @@ const Org = () => {
       return data as OrganizationDetail;
     },
     enabled: !!orgId && isAuthenticated,
-  });
-
-  const maskStripeCustomerId = (id: string) => {
-    const s = (id || "").trim();
-    if (s.length <= 12) return s;
-    return `${s.slice(0, 7)}…${s.slice(-4)}`;
-  };
-
-  const formatStripeCustomerLabel = (c: StripeCustomerLite) => {
-    const parts: string[] = [];
-    if (c.name) parts.push(c.name);
-    if (c.email) parts.push(c.email);
-    if (c.phone) parts.push(c.phone);
-    if (parts.length === 0) return c.id;
-    return `${parts.join(" • ")} • ${c.id}`;
-  };
-
-  const selectedStripeCustomer = selectedStripeCustomerId
-    ? stripeCustomers.find((c) => c.id === selectedStripeCustomerId) || null
-    : null;
-
-  const stripeCustomersQuery = useQuery({
-    queryKey: ["stripe-customers"],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("billing-list-stripe-customers", {
-        body: { limit: 50 },
-      });
-      if (error) throw error;
-      const parsed = data as {
-        success: boolean;
-        message?: string;
-        customers: StripeCustomerLite[];
-        has_more: boolean;
-        next_starting_after: string | null;
-      };
-      if (!parsed?.success) {
-        throw new Error(parsed?.message || "Falha ao listar clientes da Stripe");
-      }
-      return parsed;
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
-  useEffect(() => {
-    if (!stripeCustomersQuery.isError) return;
-    const err = stripeCustomersQuery.error as any;
-
-    void (async () => {
-      let message = "Falha ao listar clientes da Stripe";
-      if (err instanceof FunctionsHttpError) {
-        try {
-          const body = await err.context.json();
-          message = body?.message || message;
-        } catch {
-          void 0;
-        }
-      } else if (err?.message) {
-        message = err.message;
-      }
-      notify.error("Stripe", message);
-    })();
-  }, [stripeCustomersQuery.isError, stripeCustomersQuery.error]);
-
-  useEffect(() => {
-    if (!stripeCustomersQuery.data) return;
-    setStripeCustomers(stripeCustomersQuery.data.customers || []);
-    setStripeCustomersHasMore(!!stripeCustomersQuery.data.has_more);
-    setStripeCustomersCursor(stripeCustomersQuery.data.next_starting_after || null);
-  }, [stripeCustomersQuery.data]);
-
-  const loadMoreStripeCustomersMutation = useMutation({
-    mutationFn: async () => {
-      if (!stripeCustomersHasMore || !stripeCustomersCursor) {
-        return {
-          customers: [] as StripeCustomerLite[],
-          has_more: false,
-          next_starting_after: null as string | null,
-        };
-      }
-
-      const { data, error } = await supabase.functions.invoke("billing-list-stripe-customers", {
-        body: { limit: 50, starting_after: stripeCustomersCursor },
-      });
-      if (error) throw error;
-      const parsed = data as {
-        success: boolean;
-        message?: string;
-        customers: StripeCustomerLite[];
-        has_more: boolean;
-        next_starting_after: string | null;
-      };
-      if (!parsed?.success) {
-        throw new Error(parsed?.message || "Falha ao listar clientes da Stripe");
-      }
-
-      return parsed;
-    },
-    onSuccess: (page) => {
-      if (!page?.customers?.length) {
-        setStripeCustomersHasMore(false);
-        setStripeCustomersCursor(null);
-        return;
-      }
-      setStripeCustomers((prev) => {
-        const seen = new Set(prev.map((c) => c.id));
-        const next = [...prev];
-        for (const c of page.customers) {
-          if (!seen.has(c.id)) next.push(c);
-        }
-        return next;
-      });
-      setStripeCustomersHasMore(!!page.has_more);
-      setStripeCustomersCursor(page.next_starting_after || null);
-    },
-    onError: (err: any) => {
-      void (async () => {
-        let message = "Falha ao carregar mais clientes";
-        if (err instanceof FunctionsHttpError) {
-          try {
-            const body = await err.context.json();
-            message = body?.message || message;
-          } catch {
-            void 0;
-          }
-        } else if (err?.message) {
-          message = err.message;
-        }
-        notify.error("Stripe", message);
-      })();
-    },
-  });
-
-  useEffect(() => {
-    setSelectedStripeCustomerId(org?.stripe_customer_id || "");
-  }, [org?.stripe_customer_id]);
-
-  const stripeCustomerDetailsQuery = useQuery({
-    queryKey: ["stripe-customer-details", org?.stripe_customer_id],
-    queryFn: async () => {
-      const stripe_customer_id = (org?.stripe_customer_id || "").trim();
-      const { data, error } = await supabase.functions.invoke("billing-get-stripe-customer", {
-        body: { stripe_customer_id },
-      });
-      if (error) throw error;
-      const parsed = data as {
-        success: boolean;
-        message?: string;
-        customer?: StripeCustomerLite & { delinquent: boolean | null; balance: number | null; currency: string | null };
-      };
-      if (!parsed?.success) {
-        throw new Error(parsed?.message || "Falha ao buscar detalhes do cliente");
-      }
-      return parsed.customer!;
-    },
-    enabled: isAuthenticated && isSystemAdmin && !!org?.stripe_customer_id,
-    retry: 1,
-  });
-
-  const linkStripeCustomerMutation = useMutation({
-    mutationFn: async () => {
-      const organization_id = (orgId || "").trim();
-      const stripe_customer_id = selectedStripeCustomerId.trim();
-      const { data, error } = await supabase.functions.invoke("billing-link-organization-stripe-customer", {
-        body: { organization_id, stripe_customer_id },
-      });
-      if (error) throw error;
-      return data as {
-        organization_id: string;
-        stripe_customer_id: string;
-        customer?: { name: string | null; email: string | null };
-      };
-    },
-    onSuccess: async (data) => {
-      setStripeCustomerPickerOpen(false);
-      const detail = data.customer?.name || data.customer?.email
-        ? `${data.customer?.name || ""}${data.customer?.name && data.customer?.email ? " • " : ""}${data.customer?.email || ""}`
-        : "Cliente validado na Stripe";
-      notify.success("Cliente Stripe vinculado", detail);
-      await refetchOrg();
-    },
-    onError: async (err: any) => {
-      let message = "Não foi possível vincular o cliente Stripe";
-      if (err instanceof FunctionsHttpError) {
-        try {
-          const body = await err.context.json();
-          message = body?.message || message;
-        } catch {
-          void 0;
-        }
-      } else if (err?.message) {
-        message = err.message;
-      }
-      notify.error("Falha ao vincular", message);
-    },
   });
 
   // Fetch owner profile if exists
@@ -937,154 +724,6 @@ const Org = () => {
                     : '-'}
                 </p>
               </div>
-
-              {isSystemAdmin && (
-                <div className="col-span-2">
-                  <span className="text-muted-foreground">Stripe</span>
-                  <div className="mt-1 space-y-3">
-                    {org.stripe_customer_id ? (
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="px-2 py-0.5 rounded-full bg-success/10 text-success text-xs font-medium">
-                            Cliente Stripe vinculado
-                          </span>
-                          <span className="font-mono text-xs break-all text-card-foreground">{maskStripeCustomerId(org.stripe_customer_id)}</span>
-                          <a
-                            href={`https://dashboard.stripe.com/customers/${org.stripe_customer_id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-primary hover:underline"
-                          >
-                            Abrir no Stripe
-                          </a>
-                        </div>
-
-                        {stripeCustomerDetailsQuery.isLoading ? (
-                          <p className="text-xs text-muted-foreground">Carregando detalhes do cliente…</p>
-                        ) : stripeCustomerDetailsQuery.isError ? (
-                          <p className="text-xs text-muted-foreground">Não foi possível carregar os detalhes do cliente.</p>
-                        ) : stripeCustomerDetailsQuery.data ? (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-lg border border-border bg-secondary/20 p-3">
-                            <div>
-                              <span className="text-xs text-muted-foreground">Nome</span>
-                              <p className="text-sm font-medium text-card-foreground">{stripeCustomerDetailsQuery.data.name || "-"}</p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-muted-foreground">E-mail</span>
-                              <p className="text-sm font-medium text-card-foreground break-all">{stripeCustomerDetailsQuery.data.email || "-"}</p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-muted-foreground">Telefone</span>
-                              <p className="text-sm font-medium text-card-foreground">{stripeCustomerDetailsQuery.data.phone || "-"}</p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-muted-foreground">Criado em</span>
-                              <p className="text-sm font-medium text-card-foreground">
-                                {stripeCustomerDetailsQuery.data.created
-                                  ? new Date(stripeCustomerDetailsQuery.data.created * 1000).toLocaleDateString("pt-BR")
-                                  : "-"}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-muted-foreground">Delinquente</span>
-                              <p className="text-sm font-medium text-card-foreground">
-                                {stripeCustomerDetailsQuery.data.delinquent === null
-                                  ? "-"
-                                  : stripeCustomerDetailsQuery.data.delinquent
-                                    ? "Sim"
-                                    : "Não"}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-muted-foreground">Saldo</span>
-                              <p className="text-sm font-medium text-card-foreground">
-                                {typeof stripeCustomerDetailsQuery.data.balance === "number"
-                                  ? `${stripeCustomerDetailsQuery.data.balance} ${stripeCustomerDetailsQuery.data.currency || ""}`.trim()
-                                  : "-"}
-                              </p>
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Nenhum cliente Stripe vinculado</p>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
-                      <div className="md:col-span-2 space-y-1">
-                        <label className="text-xs text-muted-foreground">Cliente Stripe</label>
-                        <Popover open={stripeCustomerPickerOpen} onOpenChange={setStripeCustomerPickerOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={stripeCustomerPickerOpen}
-                              className={cn("w-full justify-between", !selectedStripeCustomerId && "text-muted-foreground")}
-                            >
-                              {selectedStripeCustomer
-                                ? formatStripeCustomerLabel(selectedStripeCustomer)
-                                : selectedStripeCustomerId
-                                  ? `${selectedStripeCustomerId}`
-                                  : "Selecionar cliente"}
-                              <ChevronsUpDown className="opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[420px] p-0" align="start">
-                            <Command>
-                              <CommandInput placeholder="Buscar por nome, e-mail, telefone ou ID…" />
-                              <CommandList>
-                                <CommandEmpty>
-                                  {stripeCustomersQuery.isLoading ? "Carregando…" : "Nenhum cliente encontrado"}
-                                </CommandEmpty>
-                                <CommandGroup>
-                                  {stripeCustomers.map((c) => (
-                                    <CommandItem
-                                      key={c.id}
-                                      value={`${c.name || ""} ${c.email || ""} ${c.phone || ""} ${c.id}`}
-                                      onSelect={() => {
-                                        setSelectedStripeCustomerId(c.id);
-                                        setStripeCustomerPickerOpen(false);
-                                      }}
-                                    >
-                                      <Check className={cn("mr-2", selectedStripeCustomerId === c.id ? "opacity-100" : "opacity-0")} />
-                                      <span className="text-sm">{formatStripeCustomerLabel(c)}</span>
-                                    </CommandItem>
-                                  ))}
-                                  {stripeCustomersHasMore && (
-                                    <CommandItem
-                                      value="__load_more__"
-                                      onSelect={() => {
-                                        if (!loadMoreStripeCustomersMutation.isPending) {
-                                          loadMoreStripeCustomersMutation.mutate();
-                                        }
-                                      }}
-                                      disabled={loadMoreStripeCustomersMutation.isPending}
-                                    >
-                                      <span className="text-sm text-muted-foreground">
-                                        {loadMoreStripeCustomersMutation.isPending ? "Carregando mais…" : "Carregar mais"}
-                                      </span>
-                                    </CommandItem>
-                                  )}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        {stripeCustomersQuery.isError && (
-                          <p className="text-xs text-muted-foreground">Falha ao listar clientes da Stripe.</p>
-                        )}
-                      </div>
-                      <Button
-                        onClick={() => linkStripeCustomerMutation.mutate()}
-                        disabled={!selectedStripeCustomerId.trim() || linkStripeCustomerMutation.isPending}
-                      >
-                        {linkStripeCustomerMutation.isPending ? "Vinculando..." : "Vincular cliente"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           )}

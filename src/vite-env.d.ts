@@ -24,13 +24,6 @@ declare module "https://deno.land/std@0.224.0/testing/asserts.ts" {
   export function assertEquals<T>(actual: T, expected: T, msg?: string): void;
 }
 
-declare module "https://esm.sh/stripe@14.24.0?target=deno" {
-  export default class Stripe {
-    constructor(...args: any[]);
-    [key: string]: any;
-  }
-}
-
 declare const Deno: {
   env: {
     get: (key: string) => string | undefined;

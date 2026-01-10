@@ -670,9 +670,6 @@ export type Database = {
           settings: Json | null
           slug: string | null
           status: string
-          stripe_customer_id: string | null
-          stripe_price_id: string | null
-          stripe_subscription_id: string | null
           trial_ends_at: string | null
           trial_started_at: string | null
           updated_at: string
@@ -694,9 +691,6 @@ export type Database = {
           settings?: Json | null
           slug?: string | null
           status?: string
-          stripe_customer_id?: string | null
-          stripe_price_id?: string | null
-          stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
           updated_at?: string
@@ -718,9 +712,6 @@ export type Database = {
           settings?: Json | null
           slug?: string | null
           status?: string
-          stripe_customer_id?: string | null
-          stripe_price_id?: string | null
-          stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
           updated_at?: string

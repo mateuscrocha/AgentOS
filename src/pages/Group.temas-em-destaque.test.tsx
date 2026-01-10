@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Group from "./Group";
 
 vi.mock("@/components/layout/AdminLayout", () => {
@@ -139,13 +140,21 @@ describe("Group dashboard — Temas em destaque", () => {
     document.body.appendChild(container);
     const root = createRoot(container);
 
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
     await act(async () => {
       root.render(
-        <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000"]}>
-          <Routes>
-            <Route path="/groups/:groupId" element={<Group />} />
-          </Routes>
-        </MemoryRouter>,
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000"]}>
+            <Routes>
+              <Route path="/groups/:groupId" element={<Group />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
       );
     });
 
