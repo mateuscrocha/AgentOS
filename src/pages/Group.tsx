@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -8,6 +8,8 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import { useGroupDashboard } from "@/hooks/use-group-dashboard";
 import AccessDenied from "./AccessDenied";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   SummarySection,
   ConversationRhythmSection,
@@ -28,9 +30,12 @@ import {
   buildStoredPeriod,
 } from "@/components/group-dashboard/period-utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Loader2, MessageSquare } from "lucide-react";
 import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/components/ui/sonner";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
  
@@ -65,6 +70,7 @@ const Group = () => {
   const navigate = useNavigate();
   const { loading: authLoading } = useAuth();
   const { isLoading: rolesLoading, isSystemAdmin, isOrgAdmin, isGroupManager } = useUserRoles();
+  const queryClient = useQueryClient();
   const isGroupIdValid = typeof groupId === "string" && UUID_RE.test(groupId);
   
   // Period filter state
@@ -73,6 +79,10 @@ const Group = () => {
   const [helpOpen, setHelpOpen] = useState(false);
   const [ikigaiOpen, setIkigaiOpen] = useState(false);
   const [forceGuideVisible, setForceGuideVisible] = useState(false);
+  const [sendMessageOpen, setSendMessageOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [messageTouched, setMessageTouched] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   
   
   const currentRange = getDateRange(selectedPeriod, customRange);
@@ -137,6 +147,57 @@ const Group = () => {
 
   const guideStorageKey = group?.id ? `group-dashboard:first-read-guide:dismissed:${group.id}` : null;
   const canShowGuideControls = import.meta.env.DEV || isSystemAdmin || isOrgAdmin || isGroupManager;
+
+  const messageIsEmpty = !messageText.trim();
+
+  const resetSendModalState = () => {
+    setMessageText("");
+    setMessageTouched(false);
+  };
+
+  useEffect(() => {
+    if (!sendMessageOpen) return;
+    const t = setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [sendMessageOpen]);
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async (payload: { groupId: string; text: string }) => {
+      const { error } = await supabase.from("messages").insert({
+        group_id: payload.groupId,
+        message_type: "text",
+        text: payload.text,
+        content: payload.text,
+        from_me: true,
+        direction: "outbound",
+        provider: "admin_manual",
+        delivery_status: "queued",
+        status: "queued",
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      notify.success("Mensagem enviada", "Tudo certo.");
+      queryClient.invalidateQueries({ queryKey: ["group-dashboard-recent", group?.id] });
+      queryClient.invalidateQueries({ queryKey: ["group-dashboard", group?.id] } as any);
+      setTimeout(() => {
+        setSendMessageOpen(false);
+        resetSendModalState();
+      }, 650);
+    },
+    onError: () => {
+      notify.error("Falha ao enviar", "Tente novamente.");
+    },
+  });
+
+  const handleSubmitMessage = () => {
+    setMessageTouched(true);
+    if (!group?.id) return;
+    if (messageIsEmpty) return;
+    sendMessageMutation.mutate({ groupId: group.id, text: messageText.replace(/\r\n/g, "\n") });
+  };
 
   const handleShowGuideAgain = () => {
     if (!guideStorageKey) return;
@@ -257,6 +318,15 @@ const Group = () => {
           onClearFilters={handleClearFilters}
           rightActions={(
             <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-8"
+                onClick={() => setSendMessageOpen(true)}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Enviar mensagem
+              </Button>
               {canShowGuideControls && guideStorageKey ? (
                 <Button variant="link" size="sm" className="h-8 px-0 text-xs" onClick={handleShowGuideAgain}>
                   Mostrar guia novamente
@@ -343,6 +413,71 @@ const Group = () => {
             </div>
           </SheetContent>
         </Sheet>
+
+        <Dialog
+          open={sendMessageOpen}
+          onOpenChange={(open) => {
+            if (!open && !sendMessageMutation.isPending) resetSendModalState();
+            setSendMessageOpen(open);
+          }}
+        >
+          <DialogContent className="w-full max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Enviar mensagem</DialogTitle>
+              <DialogDescription>Digite a mensagem e confirme o envio.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              <label htmlFor="group-send-message" className="text-sm font-medium text-foreground">
+                Mensagem
+              </label>
+              <Textarea
+                id="group-send-message"
+                ref={textareaRef}
+                value={messageText}
+                onChange={(e) => {
+                  setMessageText(e.target.value);
+                  setMessageTouched(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    handleSubmitMessage();
+                  }
+                }}
+                placeholder="Digite sua mensagem…"
+                rows={6}
+                className="resize-none"
+                aria-invalid={messageTouched && messageIsEmpty}
+                aria-describedby={messageTouched && messageIsEmpty ? "group-send-message-error" : undefined}
+              />
+              {messageTouched && messageIsEmpty ? (
+                <div id="group-send-message-error" className="text-sm text-destructive">
+                  A mensagem não pode estar vazia.
+                </div>
+              ) : null}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSendMessageOpen(false)}
+                disabled={sendMessageMutation.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmitMessage}
+                disabled={sendMessageMutation.isPending || messageIsEmpty}
+              >
+                {sendMessageMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {sendMessageMutation.isPending ? "Confirmando…" : "Confirmar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         
 
