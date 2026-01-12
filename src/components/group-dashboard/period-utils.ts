@@ -120,7 +120,7 @@ export function getDateRange(period: PeriodType, customRange?: DateRange): DateR
       const from = fromZonedTime(`${ym}-01T00:00:00`, SAO_PAULO_TZ);
       const nextMonthStr = formatInTimeZone(addMonths(from, 1), SAO_PAULO_TZ, "yyyy-MM");
       const nextStart = fromZonedTime(`${nextMonthStr}-01T00:00:00`, SAO_PAULO_TZ);
-      const to = new Date(nextStart.getTime() - 1000);
+      const to = new Date(nextStart.getTime() - 1);
       return { from, to };
     }
     case '7d': {

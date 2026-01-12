@@ -995,6 +995,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_system_signal_concentration: {
+        Args: { p_start: string; p_end: string; p_limit?: number }
+        Returns: Json
+      }
       has_group_access: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean

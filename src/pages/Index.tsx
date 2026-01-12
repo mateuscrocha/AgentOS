@@ -7,12 +7,13 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Skeleton } from "@/components/ui/skeleton";
  
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
-import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight } from "lucide-react";
+import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight, ChevronRight } from "lucide-react";
 import { PeriodReportSystem } from "@/components/dashboard/PeriodReport";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
@@ -36,6 +37,22 @@ type RecentGroupRow = {
   organization_id: string;
   organizations?: { name: string } | null;
 };
+
+type SignalConcentrationTopGroup = {
+  id: string;
+  name: string;
+  count: number;
+  activeMembers: number;
+};
+
+type SignalConcentrationPayload = {
+  groupId: string;
+  groupName: string;
+  share: number;
+  topGroups: SignalConcentrationTopGroup[];
+  totalMessages: number;
+  activeGroups: number;
+} | null;
 
 const Index = () => {
   const navigate = useNavigate();
@@ -81,6 +98,8 @@ const Index = () => {
     setCustomRange(undefined);
   };
   const [keywordsMode, setKeywordsMode] = useState<'themes'|'words'>('themes');
+
+  const formatNumberBR = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
   useEffect(() => {
     try {
@@ -471,71 +490,13 @@ const Index = () => {
   } = useQuery({
     queryKey: ["signal-concentration", currentRange.from.toISOString(), currentRange.to.toISOString()],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("group_id,member_id")
-        .is("deleted_at", null)
-        .gte("created_at", currentRange.from.toISOString())
-        .lte("created_at", currentRange.to.toISOString());
+      const { data, error } = await supabase.rpc("get_system_signal_concentration", {
+        p_start: currentRange.from.toISOString(),
+        p_end: currentRange.to.toISOString(),
+        p_limit: 5,
+      });
       if (error) throw error;
-      const counts: Record<string, number> = {};
-      const memberSets: Record<string, Set<string>> = {};
-      (data || []).forEach((row: any) => {
-        const gid = row.group_id as string | null;
-        if (!gid) return;
-        counts[gid] = (counts[gid] || 0) + 1;
-        const mid = row.member_id as string | null;
-        if (mid) {
-          if (!memberSets[gid]) memberSets[gid] = new Set<string>();
-          memberSets[gid].add(mid);
-        }
-      });
-      const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-      const total = entries.reduce((acc, [, v]) => acc + v, 0);
-      if (entries.length === 0 || total === 0) return null;
-      const [topId, topCount] = entries[0];
-      const share = Math.round((topCount / total) * 100);
-      const topIds = entries.slice(0, 5).map(([id]) => id);
-
-      const { data: topGroupsData } = await supabase
-        .from("groups")
-        .select("id,name")
-        .in("id", topIds);
-      const nameMap: Record<string, string> = {};
-      (topGroupsData || []).forEach((g: any) => { nameMap[g.id] = g.name; });
-
-      const { data: membersForTop } = await supabase
-        .from("members")
-        .select("group_id")
-        .is("deleted_at", null)
-        .in("group_id", topIds);
-      const totalMembersByGroup: Record<string, number> = {};
-      (membersForTop || []).forEach((m: any) => {
-        const gid = m.group_id as string | null;
-        if (!gid) return;
-        totalMembersByGroup[gid] = (totalMembersByGroup[gid] || 0) + 1;
-      });
-
-      const topGroups = entries.slice(0, 5).map(([id, c]) => ({
-        id,
-        name: nameMap[id] || id,
-        count: c,
-        activeMembers: memberSets[id]?.size || 0,
-        totalMembers: totalMembersByGroup[id] || 0,
-      }));
-
-      const { data: group } = await supabase
-        .from("groups")
-        .select("name")
-        .eq("id", topId)
-        .maybeSingle();
-      return {
-        groupId: topId,
-        groupName: group?.name || topId,
-        share,
-        topGroups,
-        activeGroups: counts ? Object.keys(counts).length : 0,
-      };
+      return data as unknown as SignalConcentrationPayload;
     },
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
@@ -868,39 +829,106 @@ const Index = () => {
             subtitle="Mensagens por grupo no período selecionado"
           />
 
-          {signalConcentrationLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
-          {!signalConcentrationLoading && signalConcentrationError && (<ErrorState title="Falha ao carregar" message="Não foi possível carregar" retry={refetchConcentration} />)}
-          {!signalConcentrationLoading && !signalConcentrationError && signalConcentration && (
-            (() => {
-              const totalTop = (signalConcentration.topGroups || []).reduce((acc: number, it: any) => acc + (it.count || 0), 0);
-              return (
-                <div className="space-y-2">
-                  {(signalConcentration.topGroups || []).map((g: any, i: number) => {
-                    const participation = totalTop ? Math.round((Number(g.count || 0) / totalTop) * 100) : 0;
-                    const avgPerDay = (() => { const d = periodDays || 0; return d ? Math.round(Number(g.count || 0) / d) : 0; })();
-                    return (
-                  <button
-                    key={g.id}
-                    onClick={() => navigate(`/groups/${g.id}`)}
-                    className="w-full text-left rounded-lg border border-border bg-card/50 p-3 hover:bg-secondary/40 transition-colors"
-                  >
-                    <div className="text-sm font-medium text-card-foreground">{`${i + 1}. ${g.name}`}</div>
-                    <div className="mt-1 text-sm text-card-foreground">
-                      <span className="font-semibold">{Number(g.count || 0)}</span>
-                      <span className="ml-1">msgs</span>
+          {signalConcentrationLoading ? (
+            <div className="mt-4 space-y-3" aria-live="polite" aria-busy="true">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="rounded-lg border border-border bg-card/50 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-8/12" />
+                      <div className="flex flex-wrap gap-2">
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-3">
-                      <span className="whitespace-nowrap">{Number(g.activeMembers || 0)} ativos</span>
-                      <span className="whitespace-nowrap">{avgPerDay}/dia</span>
-                      <span className="whitespace-nowrap">{participation}% do total</span>
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-16" />
+                      <Skeleton className="h-3 w-10" />
                     </div>
-                  </button>
-                );
-              })}
+                  </div>
+                  <div className="mt-3">
+                    <Skeleton className="h-2 w-full" />
+                  </div>
+                </div>
+              ))}
             </div>
-          );
-        })()
-      )}
+          ) : signalConcentrationError ? (
+            <div className="mt-3">
+              <ErrorState title="Falha ao carregar" message="Não foi possível carregar os grupos mais ativos." retry={refetchConcentration} />
+            </div>
+          ) : !signalConcentration || !signalConcentration.topGroups || signalConcentration.topGroups.length === 0 ? (
+            <div className="mt-3 rounded-lg border border-border bg-secondary/20 p-4">
+              <p className="text-sm text-muted-foreground">Ainda não há atividade suficiente no período selecionado.</p>
+            </div>
+          ) : (
+            (() => {
+              const totalMessages = Number(signalConcentration.totalMessages || 0);
+              const activeGroups = Number(signalConcentration.activeGroups || 0);
+              const totalMessagesLabel = formatNumberBR(totalMessages);
+              const activeGroupsLabel = formatNumberBR(activeGroups);
+
+              return (
+                <div className="mt-4 space-y-3" aria-live="polite">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium text-card-foreground tabular-nums">{totalMessagesLabel}</span> mensagens •{" "}
+                      <span className="font-medium text-card-foreground tabular-nums">{activeGroupsLabel}</span> grupos com atividade
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">Top 5 por volume</div>
+                  </div>
+
+                  <ul className="space-y-2" role="list">
+                    {signalConcentration.topGroups.map((g, i) => {
+                      const count = Number(g.count || 0);
+                      const participation = totalMessages ? Math.round((count / totalMessages) * 100) : 0;
+                      const avgPerDay = periodDays ? Math.round(count / periodDays) : 0;
+                      const metricsId = `active-group-metrics-${g.id}`;
+
+                      return (
+                        <li key={g.id} role="listitem">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/groups/${g.id}`)}
+                            aria-label={`Abrir dashboard do grupo ${g.name}`}
+                            aria-describedby={metricsId}
+                            className="group w-full min-h-[72px] text-left rounded-lg border border-border bg-card/50 p-3 transition-colors transition-transform duration-150 ease-out hover:bg-secondary/40 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-semibold text-card-foreground truncate">
+                                  {i + 1}. {g.name}
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground" id={metricsId}>
+                                  <span className="whitespace-nowrap tabular-nums">{formatNumberBR(Number(g.activeMembers || 0))} ativos</span>
+                                  <span className="whitespace-nowrap tabular-nums">{formatNumberBR(avgPerDay)}/dia</span>
+                                  <span className="whitespace-nowrap tabular-nums">{participation}% do total</span>
+                                </div>
+                              </div>
+
+                              <div className="shrink-0 flex items-center gap-2">
+                                <div className="text-right">
+                                  <div className="text-base font-semibold text-card-foreground tabular-nums">
+                                    {formatNumberBR(count)}
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground">msgs</div>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-150 ease-out group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+                              </div>
+                            </div>
+
+                            <div className="mt-3 h-2 w-full rounded bg-muted" aria-hidden="true">
+                              <div className="h-2 rounded bg-primary" style={{ width: `${Math.max(0, Math.min(100, participation))}%` }} />
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })()
+          )}
 
         </section>
 
