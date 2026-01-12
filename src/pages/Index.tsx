@@ -4,18 +4,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
-import { ConnectionStatus } from "@/components/dashboard/ConnectionStatus";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
  
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
-import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight, ArrowRight } from "lucide-react";
+import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight } from "lucide-react";
 import { PeriodReportSystem } from "@/components/dashboard/PeriodReport";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
@@ -30,7 +27,15 @@ import {
  
 import { format, addDays, subDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { formatDateKeySP, getHourSP, formatDateSimpleBR, formatDateTickBR, SAO_PAULO_TZ } from "@/lib/date";
+import { formatDateKeySP, getHourSP, formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
+
+type RecentGroupRow = {
+  id: string;
+  name: string;
+  created_at: string;
+  organization_id: string;
+  organizations?: { name: string } | null;
+};
 
 const Index = () => {
   const navigate = useNavigate();
@@ -187,6 +192,18 @@ const Index = () => {
     return count ?? 0;
   };
 
+  const fetchRecentGroups = async () => {
+    const { data, error } = await supabase
+      .from("groups")
+      .select("id, name, created_at, organization_id, organizations(name)")
+      .is("deleted_at", null)
+      .or("is_archived.eq.false,is_archived.is.null")
+      .order("created_at", { ascending: false })
+      .limit(6);
+    if (error) throw error;
+    return (data ?? []) as RecentGroupRow[];
+  };
+
   
 
   const {
@@ -218,6 +235,18 @@ const Index = () => {
   } = useQuery({
     queryKey: ["kpi-members-total"],
     queryFn: fetchTotalMembersCount,
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
+  const {
+    data: recentGroups,
+    isLoading: recentGroupsLoading,
+    error: recentGroupsError,
+    refetch: refetchRecentGroups,
+  } = useQuery({
+    queryKey: ["system-recent-groups"],
+    queryFn: fetchRecentGroups,
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
   });
@@ -597,35 +626,6 @@ const Index = () => {
     retry: 1,
   });
 
-  const { data: messagesPerDay, isLoading: messagesPerDayLoading } = useQuery({
-    queryKey: ["system-messages-per-day", currentRange.from.toISOString(), currentRange.to.toISOString()],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("messages")
-        .select("created_at")
-        .is("deleted_at", null)
-        .gte("created_at", currentRange.from.toISOString())
-        .lte("created_at", currentRange.to.toISOString())
-        .order("created_at", { ascending: true });
-      const countsByDay: Record<string, number> = {};
-      const periodDays = Math.ceil((currentRange.to.getTime() - currentRange.from.getTime()) / (1000 * 60 * 60 * 24));
-      for (let i = periodDays - 1; i >= 0; i--) {
-        const date = subDays(currentRange.to, i);
-        const key = formatDateKeySP(date);
-        countsByDay[key] = 0;
-      }
-      (data || []).forEach((m: any) => {
-        const key = formatDateKeySP(new Date(m.created_at));
-        if (countsByDay[key] !== undefined) {
-          countsByDay[key] = (countsByDay[key] || 0) + 1;
-        }
-      });
-      return Object.entries(countsByDay).map(([date, count]) => ({ date, count }));
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
   const { data: peakData, isLoading: peakLoading } = useQuery({
     queryKey: ["system-peak-hour", currentRange.from.toISOString(), currentRange.to.toISOString(), prevStartISO, prevEndISO],
     queryFn: async () => {
@@ -816,68 +816,50 @@ const Index = () => {
           trendingBigrams={(signalKeywords?.bigrams || []) as any}
         />
 
-        <section className="rounded-xl border border-border bg-card p-5" id="conversation-rhythm">
+        <section className="rounded-xl border border-border bg-card p-5" id="recent-groups">
           <SectionHeader
-            title="Ritmo da Conversa"
-            subtitle="Evolução diária de mensagens no período selecionado"
+            title="Últimos grupos incluídos"
+            subtitle="Novos grupos adicionados ao sistema"
+            linkHref="/system/groups"
+            linkLabel="Ver todos"
           />
 
-          {messagesPerDayLoading ? (
-            <div className="h-[220px] w-full rounded-lg border border-border bg-secondary/30" />
-          ) : !messagesPerDay || messagesPerDay.length === 0 ? (
-            <div className="h-[220px] flex items-center justify-center bg-secondary/30 rounded-lg">
-              <p className="text-sm text-muted-foreground">Sem dados de atividade</p>
+          {recentGroupsLoading ? (
+            <div className="mt-3 space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-[58px] rounded-lg border border-border bg-secondary/30" />
+              ))}
+            </div>
+          ) : recentGroupsError ? (
+            <div className="mt-3">
+              <ErrorState title="Falha ao carregar" message="Não foi possível carregar os grupos recentes." retry={refetchRecentGroups} />
+            </div>
+          ) : !recentGroups || recentGroups.length === 0 ? (
+            <div className="mt-3 rounded-lg border border-border bg-secondary/20 p-4">
+              <p className="text-sm text-muted-foreground">Nenhum grupo encontrado.</p>
             </div>
           ) : (
-            <ChartContainer
-              config={{ count: { label: "Mensagens", color: "hsl(var(--primary))" } }}
-              className="h-[220px] w-full"
-            >
-              <LineChart data={messagesPerDay}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(d) => formatDateTickBR(String(d))}
-                  tick={{ fontSize: 11 }}
-                  className="text-muted-foreground"
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  className="text-muted-foreground"
-                  axisLine={false}
-                  tickLine={false}
-                  width={40}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      hideLabel
-                      hideIndicator
-                      formatter={(value, _name, item: any) => {
-                        const d = item && item.payload ? item.payload.date : "";
-                        const dateStr = formatDateTickBR(String(d));
-                        const countStr = Number(value || 0).toLocaleString("pt-BR");
-                        return (
-                          <span className="font-medium">{dateStr} • {countStr} mensagens</span>
-                        );
-                      }}
-                    />
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ r: 2 }}
-                  activeDot={{ r: 3 }}
-                />
-              </LineChart>
-            </ChartContainer>
+            <div className="mt-3 space-y-2">
+              {recentGroups.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => navigate(`/groups/${g.id}`)}
+                  className="w-full text-left rounded-lg border border-border bg-card/50 p-3 hover:bg-secondary/40 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-card-foreground truncate">{g.name}</div>
+                      <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
+                        <span className="whitespace-nowrap">{g.organizations?.name || "—"}</span>
+                        <span className="whitespace-nowrap">Incluído em {formatDateSimpleBR(g.created_at)}</span>
+                      </div>
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
-
         </section>
 
         <section className="rounded-xl border border-border bg-card p-5" id="keywords">
@@ -922,13 +904,6 @@ const Index = () => {
 
         </section>
 
-        <section className="rounded-xl border border-border bg-card p-5">
-          <SectionHeader
-            title="Saúde da plataforma"
-            subtitle="Status operacional atual"
-          />
-          <ConnectionStatus />
-        </section>
       </div>
     </AdminLayout>
   );
