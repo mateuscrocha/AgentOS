@@ -79,6 +79,7 @@
   - `src/pages/GroupMessages.tsx`
   - `src/pages/GroupEvents.tsx`
   - `src/components/group-dashboard/`
+  - Nota: guia "Primeira leitura do seu grupo" desativado temporariamente (removido em 2026-01-12)
 - Métricas e visualizações:
   - `src/components/dashboard/StatsCard.tsx`
   - `src/components/dashboard/RulesCard.tsx`

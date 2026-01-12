@@ -21,7 +21,6 @@ import {
 } from "@/components/group-dashboard";
 import { PeriodReport } from "@/components/group-dashboard";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
-import { FirstReadGuideCard } from "@/components/group-dashboard/FirstReadGuideCard";
 import {
   PeriodType,
   DateRange,
@@ -69,7 +68,7 @@ const Group = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { loading: authLoading } = useAuth();
-  const { isLoading: rolesLoading, isSystemAdmin, isOrgAdmin, isGroupManager } = useUserRoles();
+  const { isLoading: rolesLoading } = useUserRoles();
   const queryClient = useQueryClient();
   const isGroupIdValid = typeof groupId === "string" && UUID_RE.test(groupId);
   
@@ -78,7 +77,6 @@ const Group = () => {
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() => loadSavedGroupPeriod(groupId).range);
   const [helpOpen, setHelpOpen] = useState(false);
   const [ikigaiOpen, setIkigaiOpen] = useState(false);
-  const [forceGuideVisible, setForceGuideVisible] = useState(false);
   const [sendMessageOpen, setSendMessageOpen] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [messageTouched, setMessageTouched] = useState(false);
@@ -145,9 +143,6 @@ const Group = () => {
     trendingBigrams,
   } = useGroupDashboard({ groupId, dateRange: currentRange });
 
-  const guideStorageKey = group?.id ? `group-dashboard:first-read-guide:dismissed:${group.id}` : null;
-  const canShowGuideControls = import.meta.env.DEV || isSystemAdmin || isOrgAdmin || isGroupManager;
-
   const messageIsEmpty = !messageText.trim();
 
   const resetSendModalState = () => {
@@ -198,18 +193,6 @@ const Group = () => {
     if (messageIsEmpty) return;
     sendMessageMutation.mutate({ groupId: group.id, text: messageText.replace(/\r\n/g, "\n") });
   };
-
-  const handleShowGuideAgain = () => {
-    if (!guideStorageKey) return;
-    try {
-      localStorage.removeItem(guideStorageKey);
-    } catch {
-      void 0;
-    }
-    setForceGuideVisible(true);
-  };
-
-  
 
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
     setSelectedPeriod(period);
@@ -328,11 +311,7 @@ const Group = () => {
                 <MessageSquare className="h-4 w-4" />
                 Enviar mensagem
               </Button>
-              {canShowGuideControls && guideStorageKey ? (
-                <Button variant="link" size="sm" className="h-8 px-0 text-xs" onClick={handleShowGuideAgain}>
-                  Mostrar guia novamente
-                </Button>
-              ) : null}
+              {/* Removido em 2026-01-12: guia de primeira leitura do dashboard (desativação temporária). */}
               <Button variant="link" size="sm" className="h-8 px-0 text-xs" onClick={() => setHelpOpen(true)}>
                 <HelpCircle className="h-4 w-4" />
                 Como ler este dashboard
@@ -340,14 +319,6 @@ const Group = () => {
             </div>
           )}
         />
-
-        {group?.id ? (
-          <FirstReadGuideCard
-            storageKey={guideStorageKey || `group-dashboard:first-read-guide:dismissed:${group.id}`}
-            forceVisible={forceGuideVisible}
-            onDismiss={() => setForceGuideVisible(false)}
-          />
-        ) : null}
 
         
 
