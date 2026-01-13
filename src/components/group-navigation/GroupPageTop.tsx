@@ -157,53 +157,19 @@ export function GroupPageTop({
       );
     }
 
-    const visible = orderedSpecialMembers.slice(0, 6);
-    const extra = Math.max(0, total - visible.length);
-
     return (
       <>
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Administração do grupo</div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            {visible.map((m) => {
-              const role = ROLE_META[m.roleKey];
-              const RoleIcon = role.Icon;
-              return (
-                <div
-                  key={m.id}
-                  className="shrink-0 flex items-center gap-2 rounded-full border border-border bg-secondary/30 px-2 py-1"
-                >
-                  <Avatar className="h-7 w-7">
-                    {m.profile_pic_url ? (
-                      <AvatarImage src={m.profile_pic_url} alt="" referrerPolicy="no-referrer" />
-                    ) : (
-                      <AvatarFallback>{m.avatarFallback}</AvatarFallback>
-                    )}
-                  </Avatar>
-                  <RoleIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="max-w-[160px] truncate text-sm font-medium text-card-foreground">{m.displayLabel}</span>
-                  <span
-                    className={cn(
-                      "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
-                      role.badgeClass,
-                    )}
-                  >
-                    {role.shortLabel}
-                  </span>
-                </div>
-              );
-            })}
-
-            {extra > 0 ? (
-              <button
-                type="button"
-                onClick={() => setAdminsModalOpen(true)}
-                className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
-              >
-                +{extra} administradores
-              </button>
-            ) : null}
-          </div>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-0 py-0 text-xs text-muted-foreground"
+            onClick={() => setAdminsModalOpen(true)}
+          >
+            Ver administradores ({total})
+          </Button>
         </div>
 
         <Dialog open={adminsModalOpen} onOpenChange={setAdminsModalOpen}>

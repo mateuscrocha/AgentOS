@@ -1,14 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, ChevronRight, Search } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MetricHelp } from "@/components/ui/metric-help";
 import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
-import { MessageDetailsDrawer } from "@/components/messages/MessageDetailsDrawer";
-import { useNavigate } from "react-router-dom";
 
 type PeakMomentResponse = {
   interval: {
@@ -53,8 +50,6 @@ export function PeakMomentSection({
   isDashboardLoading?: boolean;
 }) {
   const { isAuthenticated } = useAuth();
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const windowMinutes = 60;
 
@@ -174,106 +169,6 @@ export function PeakMomentSection({
     };
   }, [data, messagesPerDay, windowMinutes]);
 
-  const keyMessages = useMemo(() => {
-    const items = (data?.representative_messages || [])
-      .slice()
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-    if (items.length <= 3) return items;
-    const first = items[0];
-    const last = items[items.length - 1];
-    const middle = items[Math.floor(items.length / 2)];
-    return [first, middle, last];
-  }, [data]);
-
-  const unfoldText = useMemo(() => {
-    const uniqueParticipants = data?.kpis?.unique_participants ?? 0;
-
-    const previews = keyMessages.map((m) => (m.preview_text || "").trim()).filter(Boolean);
-    const questions = previews.reduce((acc, t) => acc + (t.match(/\?/g)?.length ?? 0), 0);
-    const exclamations = previews.reduce((acc, t) => acc + (t.match(/!/g)?.length ?? 0), 0);
-
-    const firstPreview = (keyMessages[0]?.preview_text || "").trim();
-    const hasLink = /https?:\/\//i.test(firstPreview);
-    const isLong = firstPreview.length >= 110;
-
-    if (keyMessages.length === 0) {
-      return "Uma troca rápida puxou mensagens em sequência.";
-    }
-
-    if (keyMessages.length === 1) {
-      if (hasLink) return "Um link compartilhado puxou comentários em sequência.";
-      if (questions > 0) return "Uma pergunta puxou respostas em sequência.";
-      if (exclamations > 0) return "Uma novidade puxou reações rápidas.";
-      if (isLong) return "Uma explicação mais longa puxou respostas em sequência.";
-      return "Um recado puxou respostas em sequência.";
-    }
-
-    if (hasLink) return "Um link compartilhado virou uma troca em sequência.";
-    if (questions > exclamations) return "Uma pergunta abriu espaço para respostas em sequência.";
-    if (exclamations > questions) return "Uma novidade puxou reações rápidas.";
-    if (uniqueParticipants >= 6) return "Um tópico engajou várias pessoas e virou uma troca em sequência.";
-    if (isLong) return "Uma explicação mais longa puxou respostas em sequência.";
-    return "Um recado puxou respostas em sequência.";
-  }, [data, keyMessages]);
-
-  const MessageBubble = ({
-    messageId,
-    sender,
-    timeLabel,
-    preview,
-  }: {
-    messageId: string;
-    sender: string;
-    timeLabel: string;
-    preview: string;
-  }) => {
-    return (
-      <div className="flex w-full justify-start">
-        <div className="relative w-full rounded-2xl rounded-tl-md border border-emerald-200/70 bg-emerald-50 px-4 py-3 text-left shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/25">
-          <span
-            aria-hidden="true"
-            className="absolute left-0 top-4 -translate-x-1/2 h-3 w-3 rotate-45 border-l border-t border-emerald-200/70 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/25"
-          />
-
-          <div className="min-w-0 truncate text-xs font-semibold text-emerald-900 dark:text-emerald-200">
-            {sender}
-          </div>
-
-          <div className="mt-1.5 pt-0.5 text-sm text-foreground/90 leading-relaxed line-clamp-4 whitespace-pre-wrap break-words">
-            {preview}
-          </div>
-
-          <div className="mt-2 flex items-center justify-end gap-2">
-            <span className="text-[11px] text-muted-foreground tabular-nums">{timeLabel}</span>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Ver no contexto"
-                  className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/80 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => setSelectedMessageId(messageId)}
-                >
-                  <Search className="h-3.5 w-3.5" strokeWidth={1.5} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="left" align="center">
-                Ver no contexto
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const formatTimeSP = (dateStr: string) =>
-    new Intl.DateTimeFormat("pt-BR", {
-      timeZone: SAO_PAULO_TZ,
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(dateStr));
-
   return (
     <section className="rounded-xl border border-border bg-card p-5">
       <div className="space-y-1">
@@ -326,61 +221,9 @@ export function PeakMomentSection({
               <p className="mt-1 text-sm text-muted-foreground">{intensityRead.support}</p>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-sm font-semibold text-card-foreground">Como a conversa se desenrolou</p>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{unfoldText}</p>
-
-              {keyMessages.length > 0 ? (
-                <div className="mt-3 space-y-2">
-                  {keyMessages.map((m) => {
-                    const timeLabel = formatTimeSP(m.created_at);
-                    const sender = m.sender_name || "Desconhecido";
-                    const preview = (m.preview_text || "").trim() || "[Mensagem]";
-
-                    return (
-                      <MessageBubble
-                        key={m.message_id}
-                        messageId={m.message_id}
-                        sender={sender}
-                        timeLabel={timeLabel}
-                        preview={preview}
-                      />
-                    );
-                  })}
-                </div>
-              ) : null}
-
-              <div className="mt-4 border-t border-border pt-4">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => {
-                    if (!peakInterval) return;
-                    const sp = new URLSearchParams({
-                      from: peakInterval.start.toISOString(),
-                      to: peakInterval.end.toISOString(),
-                    });
-                    navigate(`/groups/${groupId}/messages?${sp.toString()}`);
-                  }}
-                >
-                  Ver mais mensagens desse momento
-                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </div>
-
-      <MessageDetailsDrawer
-        open={!!selectedMessageId}
-        onOpenChange={(open) => {
-          if (!open) setSelectedMessageId(null);
-        }}
-        groupId={groupId}
-        messageId={selectedMessageId as string}
-        variant="sheet"
-      />
     </section>
   );
 }

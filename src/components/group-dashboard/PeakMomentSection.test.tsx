@@ -51,7 +51,7 @@ describe("PeakMomentSection", () => {
     navigateMock.mockReset();
   });
 
-  it("remove bloco de insights e mantém narrativa com mensagens em ordem", async () => {
+  it("não exibe o bloco 'Como a conversa se desenrolou'", async () => {
     rpcMock.mockResolvedValue({
       data: {
         interval: {
@@ -122,15 +122,9 @@ describe("PeakMomentSection", () => {
 
     expect(container.textContent).toContain("Momento de Pico");
     expect(container.textContent).toContain("40 mensagens em 1 hora");
-    expect(container.textContent).toContain("Como a conversa se desenrolou");
+    expect(container.textContent).not.toContain("Como a conversa se desenrolou");
     expect(container.textContent).not.toContain("Insight");
-
-    const text = container.textContent || "";
-    expect(text.indexOf("Ana")).toBeGreaterThanOrEqual(0);
-    expect(text.indexOf("Bia")).toBeGreaterThanOrEqual(0);
-    expect(text.indexOf("Caio")).toBeGreaterThanOrEqual(0);
-    expect(text.indexOf("Ana")).toBeLessThan(text.indexOf("Bia"));
-    expect(text.indexOf("Bia")).toBeLessThan(text.indexOf("Caio"));
+    expect(container.textContent).not.toContain("Ver mais mensagens desse momento");
 
     await act(async () => {
       root.unmount();
@@ -139,7 +133,7 @@ describe("PeakMomentSection", () => {
     container.remove();
   });
 
-  it("usa bubbles sem restrição de max-width e abre drawer no clique", async () => {
+  it("não exibe bubbles nem abre drawer", async () => {
     rpcMock.mockResolvedValue({
       data: {
         interval: {
@@ -197,22 +191,10 @@ describe("PeakMomentSection", () => {
     });
 
     const bubble = container.querySelector("div.bg-emerald-50");
-    expect(bubble).toBeTruthy();
-    expect((bubble as HTMLDivElement).className).not.toMatch(/max-w/);
-
-    const drawer = container.querySelector('[data-testid="drawer"]') as HTMLDivElement | null;
-    expect(drawer?.getAttribute("data-open")).toBe("false");
+    expect(bubble).toBeFalsy();
 
     const btn = container.querySelector('button[aria-label="Ver no contexto"]') as HTMLButtonElement | null;
-    expect(btn).toBeTruthy();
-
-    await act(async () => {
-      btn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    const drawerAfter = container.querySelector('[data-testid="drawer"]') as HTMLDivElement | null;
-    expect(drawerAfter?.getAttribute("data-open")).toBe("true");
-    expect(drawerAfter?.getAttribute("data-message-id")).toBe("m1");
+    expect(btn).toBeFalsy();
 
     await act(async () => {
       root.unmount();
@@ -221,7 +203,7 @@ describe("PeakMomentSection", () => {
     container.remove();
   });
 
-  it("navega para mensagens do grupo com filtro do intervalo do pico", async () => {
+  it("não exibe CTA de navegação para mensagens do pico", async () => {
     rpcMock.mockResolvedValue({
       data: {
         interval: {
@@ -281,18 +263,8 @@ describe("PeakMomentSection", () => {
     const cta = Array.from(container.querySelectorAll("button")).find((b) =>
       (b.textContent || "").includes("Ver mais mensagens desse momento"),
     );
-    expect(cta).toBeTruthy();
-
-    await act(async () => {
-      cta?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    const from = new Date("2026-01-07T13:00:00-03:00").toISOString();
-    const to = new Date("2026-01-07T14:00:00-03:00").toISOString();
-    const sp = new URLSearchParams({ from, to }).toString();
-    expect(navigateMock).toHaveBeenCalledWith(
-      `/groups/00000000-0000-4000-8000-000000000000/messages?${sp}`,
-    );
+    expect(cta).toBeFalsy();
+    expect(navigateMock).not.toHaveBeenCalled();
 
     await act(async () => {
       root.unmount();

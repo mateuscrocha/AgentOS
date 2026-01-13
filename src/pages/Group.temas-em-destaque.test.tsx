@@ -135,7 +135,7 @@ describe("Group dashboard — Temas em destaque", () => {
     localStorage.clear();
   });
 
-  it("exibe Temas em destaque com texto idêntico ao original", async () => {
+  it("não exibe Temas em destaque", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -162,9 +162,9 @@ describe("Group dashboard — Temas em destaque", () => {
       await Promise.resolve();
     });
 
-    expect(container.textContent).toContain("Temas em destaque");
-    expect(container.textContent).toContain("“foco total” — +42%");
-    expect(container.textContent).toContain("Estes temas apareceram com muito mais frequência neste período.");
+    expect(container.textContent).not.toContain("Temas em destaque");
+    expect(container.textContent).not.toContain("“foco total” — +42%");
+    expect(container.textContent).not.toContain("Estes temas apareceram com muito mais frequência neste período.");
 
     await act(async () => {
       root.unmount();

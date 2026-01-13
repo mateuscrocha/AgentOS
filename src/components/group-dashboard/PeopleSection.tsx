@@ -29,7 +29,6 @@ interface PeopleSectionProps {
   previousMemberEngagement?: MemberEngagement | null;
   isLoading?: boolean;
   periodLabel?: string;
-  totalMessagesInPeriod?: number;
 }
 
 export function PeopleSection({ 
@@ -41,7 +40,6 @@ export function PeopleSection({
   previousMemberEngagement,
   isLoading,
   periodLabel = "período",
-  totalMessagesInPeriod,
 }: PeopleSectionProps) {
   // UX: padroniza o texto do período para dar contexto imediato às métricas (ex.: "nos últimos 7 dias").
   const formatPeriodSuffix = (label: string) => {
@@ -94,13 +92,6 @@ export function PeopleSection({
   };
 
   const top5 = useMemo(() => topParticipants.slice(0, 5), [topParticipants]);
-  const maxTop5Count = useMemo(() => {
-    const values = top5.map(p => p.count);
-    return values.length > 0 ? Math.max(...values) : 0;
-  }, [top5]);
-
-  const totalMessages = Math.max(0, Number(totalMessagesInPeriod ?? 0));
-  const showTop5Percent = totalMessages > 0;
 
   const [topMemberOpen, setTopMemberOpen] = useState(false);
   const canOpenTopMember = !!topParticipant?.id;
@@ -208,22 +199,19 @@ export function PeopleSection({
           ) : (
             <div className="space-y-2">
               {top5.map((participant, index) => {
-                const ratio = maxTop5Count > 0 ? participant.count / maxTop5Count : 0;
-                const percent = showTop5Percent ? Math.round((participant.count / totalMessages) * 100) : undefined;
-                const barWidth = participant.count === 0 ? 0 : Math.max(6, Math.round(ratio * 100));
                 return (
                 <div 
                   key={participant.id} 
-                  className="flex items-center gap-3 p-2 rounded-lg bg-card/50"
+                  className="flex items-center justify-between gap-3 p-2 rounded-lg bg-card/50"
                 >
-                  <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center ${
-                    index === 0 ? 'bg-primary text-primary-foreground' :
-                    index === 1 ? 'bg-accent text-accent-foreground' :
-                    'bg-muted text-muted-foreground'
-                  }`}>
-                    {index + 1}
-                  </span>
-                  <div className="min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center ${
+                      index === 0 ? 'bg-primary text-primary-foreground' :
+                      index === 1 ? 'bg-accent text-accent-foreground' :
+                      'bg-muted text-muted-foreground'
+                    }`}>
+                      {index + 1}
+                    </span>
                     <MemberInlineTrigger
                       memberId={participant.id}
                       groupId={groupId}
@@ -232,15 +220,7 @@ export function PeopleSection({
                       size="sm"
                     />
                   </div>
-                  <div className="flex-1 h-2 rounded bg-muted overflow-hidden">
-                    <div className="h-2 rounded bg-primary/30" style={{ width: `${barWidth}%` }} />
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground tabular-nums">{participant.count}</div>
-                    {showTop5Percent && percent !== undefined ? (
-                      <div className="text-[11px] text-muted-foreground">{percent}% do período</div>
-                    ) : null}
-                  </div>
+                  <div className="text-xs text-muted-foreground tabular-nums">{participant.count}</div>
                 </div>
               );
               })}

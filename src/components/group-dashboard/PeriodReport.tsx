@@ -1,13 +1,8 @@
 import { SectionHeader } from "./SectionHeader";
-import { Link } from "react-router-dom";
 import { Clock, Info } from "lucide-react";
 import { KpiCard } from "./KpiCard";
 
 type EngagementDistribution = { recorrentes: number; esporadicos: number; inativos: number };
-
-type Tone = "info" | "positive" | "attention";
-
-type BigramItem = { phrase: string; delta: number };
 
 interface PeriodReportProps {
   stats: {
@@ -24,26 +19,10 @@ interface PeriodReportProps {
   currentMembers: number;
   periodDays: number;
   memberEngagement?: EngagementDistribution;
-  previousMemberEngagement?: EngagementDistribution | null;
-  atRiskMembersCount?: number;
-  newMembersCount?: number;
-  previousNewMembersCount?: number;
-  exitedMembersCount?: number;
-  previousExitedMembersCount?: number;
-  groupId: string;
-  trendingBigrams?: BigramItem[];
 }
 
-export function PeriodReport({
-  stats,
-  previousStats,
-  currentMembers,
-  periodDays,
-  memberEngagement,
-  previousMemberEngagement,
-  groupId,
-  trendingBigrams,
-}: PeriodReportProps) {
+export function PeriodReport(props: PeriodReportProps) {
+  const { currentMembers, periodDays, memberEngagement } = props;
   const dist = memberEngagement || { recorrentes: 0, esporadicos: 0, inativos: 0 };
   const members = Math.max(0, currentMembers || 0);
   const activeMembers = Math.max(0, (dist.recorrentes || 0) + (dist.esporadicos || 0));
@@ -56,28 +35,9 @@ export function PeriodReport({
     ? `A conversa foi sustentada por uma base ativa de ${format(activeMembers)} pessoas (${activePercent}% do grupo), enquanto ${format(observers)} acompanharam como observadores — algo comum em grupos de WhatsApp.`
     : "Neste período, ninguém enviou mensagens. O grupo ficou mais em modo observação — algo comum em alguns momentos.";
 
-  const highlights = activeMembers > 0
-    ? [
-        `${participationAmongActives}% dos membros ativos participaram neste período`,
-        `A base ativa foi formada por ${format(activeMembers)} pessoas`,
-        `${format(observers)} membros acompanharam sem enviar mensagens`,
-        "Esse padrão é comum: poucos sustentam a maior parte das conversas",
-      ]
-    : [
-        "Neste período, a base ativa ficou zerada",
-        `${format(observers)} membros acompanharam sem enviar mensagens`,
-        "Esse padrão é comum: poucos sustentam a maior parte das conversas",
-      ];
-
   const conclusion = activeMembers > 0
     ? "Existe uma comunidade ativa pequena, porém consistente."
     : "O grupo ficou mais em modo observação neste período.";
-
-  const topThemes = (trendingBigrams || [])
-    .filter((b) => (b.delta || 0) > 0)
-    .sort((a, b) => (b.delta || 0) - (a.delta || 0))
-    .slice(0, 3);
-  const showThemes = topThemes.length > 0;
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
@@ -139,30 +99,6 @@ export function PeriodReport({
             valueClassName="text-muted-foreground"
             className="shadow-sm"
           />
-        </div>
-
-        {showThemes && (
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-card-foreground">Temas em destaque</p>
-            <ul className="list-disc pl-5 space-y-1 text-sm text-card-foreground">
-              {topThemes.map((t) => (
-                <li key={t.phrase}>“{t.phrase}” — +{t.delta}%</li>
-              ))}
-            </ul>
-            <p className="text-xs text-muted-foreground">Estes temas apareceram com muito mais frequência neste período.</p>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-card-foreground">Destaques do período</p>
-          <ul className="space-y-2 text-sm text-card-foreground/90">
-            {highlights.map((text) => (
-              <li key={text} className="flex items-start gap-2">
-                <span className="mt-2 h-1.5 w-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
-                <span className="max-w-[70ch]">{text}</span>
-              </li>
-            ))}
-          </ul>
         </div>
 
         <div className="rounded-lg bg-muted/30 p-3">
