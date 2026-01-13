@@ -1,18 +1,23 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, HelpCircle, Link as LinkIcon, Users } from "lucide-react";
+import { Check, Copy, FileText } from "lucide-react";
 
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { LoadingState } from "@/components/ui/loading-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateDescriptiveBR } from "@/lib/date";
-import { formatWhatsAppRichText } from "@/lib/whatsapp-format";
+import { renderWhatsappToReact } from "@/lib/whatsapp-format";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
 import AccessDenied from "./AccessDenied";
@@ -25,11 +30,41 @@ type GroupDailySummaryRow = {
   created_at: string;
 };
 
+type GroupDailyTopicRow = {
+  id: string;
+  group_id: string;
+  topic_date: string;
+  rank: number;
+  title: string;
+  content: string;
+  created_at: string;
+};
+
+type GroupDailyKeywordRow = {
+  id: string;
+  group_id: string;
+  keyword_date: string;
+  keyword: string;
+  rank: number;
+  created_at: string;
+};
+
 function asNoonUTCFromDateOnly(dateOnly: string): string {
   const raw = (dateOnly || "").trim();
   if (!raw) return raw;
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw}T12:00:00.000Z`;
   return raw;
+}
+
+function dateKey(value: unknown): string {
+  if (typeof value === "string") {
+    const m = value.match(/\d{4}-\d{2}-\d{2}/);
+    return m?.[0] ?? value.trim();
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  return getString(value);
 }
 
 function getString(v: unknown): string {
@@ -55,7 +90,7 @@ function getGroupSummariesErrorCopy(error: unknown): { title: string; message: s
   if (isAccessDenied) {
     return {
       title: "Acesso negado",
-      message: "Você não tem permissão para acessar os resumos deste grupo.",
+      message: "Você não tem permissão para acessar as conversas deste grupo.",
       isAccessDenied: true,
     };
   }
@@ -90,7 +125,7 @@ function getGroupSummariesErrorCopy(error: unknown): { title: string; message: s
   }
 
   return {
-    title: "Não foi possível carregar os resumos",
+    title: "Não foi possível carregar as conversas",
     message: "Tente novamente.",
   };
 }
@@ -144,143 +179,97 @@ function pickPreviewText(text: string): string {
   return normalized.slice(0, cut).trimEnd() + "…";
 }
 
-function pickQuickView(text: string): string {
-  const raw = (text || "").trim();
-  if (!raw) return "";
-
-  const parts = raw.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-  const firstRaw = parts[0] || raw;
-  const cleaned = cleanPreviewText(firstRaw);
-  if (!cleaned) return "";
-
-  const min = 140;
-  const max = 260;
-  if (cleaned.length <= max) return cleaned;
-
-  const window = cleaned.slice(0, max + 1);
-  let cut = -1;
-  for (let i = Math.min(window.length - 1, max); i >= min; i--) {
-    const ch = window[i];
-    if (ch === "." || ch === "!" || ch === "?" || ch === "…") {
-      cut = i + 1;
-      break;
-    }
-  }
-
-  if (cut === -1) {
-    const sliced = cleaned.slice(0, max);
-    return sliced.replace(/\s+\S*$/, "").trimEnd() + "…";
-  }
-
-  return cleaned.slice(0, cut).trimEnd() + "…";
+function pickTopicPreview(text: string): string {
+  const normalized = cleanPreviewText(text);
+  if (!normalized) return "";
+  const max = 160;
+  if (normalized.length <= max) return normalized;
+  const sliced = normalized.slice(0, max);
+  return sliced.replace(/\s+\S*$/, "").trimEnd() + "…";
 }
 
-function extractLinks(text: string): string[] {
-  const raw = text || "";
-  const matches = raw.match(/https?:\/\/[^\s)\]}>,]+/gi) || [];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const m of matches) {
-    const cleaned = m.replace(/[),.;:]+$/g, "");
-    if (!cleaned) continue;
-    if (seen.has(cleaned)) continue;
-    seen.add(cleaned);
-    out.push(cleaned);
-  }
-  return out;
+function joinHumanList(items: string[]): string {
+  const clean = items.map((s) => normalizeWhitespace(s)).filter(Boolean);
+  if (clean.length === 0) return "";
+  if (clean.length === 1) return clean[0];
+  if (clean.length === 2) return `${clean[0]} e ${clean[1]}`;
+  return `${clean.slice(0, -1).join(", ")} e ${clean[clean.length - 1]}`;
 }
 
-function extractDiscussionPoints(text: string): string[] {
-  const raw = text || "";
-  const lines = raw.split(/\r?\n/).map((l) => l.trim());
-  const out: string[] = [];
-  const seen = new Set<string>();
+function pickHumanDaySummary(topics: GroupDailyTopicRow[], keywords: GroupDailyKeywordRow[]): string {
+  const titles = Array.from(
+    new Set(
+      (topics || [])
+        .map((t) => cleanInlineLabel(t.title || ""))
+        .filter(Boolean)
+        .slice(0, 3)
+    )
+  ).slice(0, 2);
 
-  const push = (v: string) => {
-    let s = cleanPreviewText(v);
-    s = s.replace(
-      /^(?:perguntas?|quest(?:ões|oes)|discuss(?:ão|ao)|ponto(?:s)?|tema(?:s)?|assunto(?:s)?|tópico(?:s)?)[\s:–-]+/i,
-      ""
-    );
-    s = normalizeWhitespace(s);
-    if (!s) return;
-    const lower = s.toLowerCase();
-    if (lower.startsWith("o que gerou discussão")) return;
-    if (lower.startsWith("visão rápida")) return;
-    if (s.length < 6) return;
-    if (s.length > 240) return;
-    if (seen.has(s)) return;
-    seen.add(s);
-    out.push(s);
-  };
-
-  for (const line of lines) {
-    if (!line) continue;
-    if (line.includes("?")) {
-      const chunks = line.split(/(?<=\?)/g).map((c) => c.trim());
-      for (const c of chunks) {
-        if (c.endsWith("?")) push(c);
-      }
-    }
+  if (titles.length > 0) {
+    return `O dia girou em torno de ${joinHumanList(titles)}.`;
   }
 
-  for (const line of lines) {
-    if (!line) continue;
-    const bullet = line.match(/^(?:[-*•]|\d+\.)\s+(.*)$/);
-    if (bullet?.[1]) push(bullet[1]);
+  const terms = Array.from(
+    new Set(
+      (keywords || [])
+        .map((kw) => cleanInlineLabel(kw.keyword || ""))
+        .filter(Boolean)
+        .slice(0, 3)
+    )
+  );
+
+  if (terms.length > 0) {
+    return `O dia girou em torno de ${joinHumanList(terms)}.`;
   }
 
-  return out.slice(0, 10);
+  return "Dia com conversas variadas entre os membros.";
 }
 
-function extractPeopleMentions(text: string): string[] {
-  const raw = text || "";
-  const out: string[] = [];
-  const seen = new Set<string>();
-
-  const add = (v: string) => {
-    const s = normalizeWhitespace(v).replace(/^@+/, "");
-    if (!s) return;
-    if (s.length < 2) return;
-    if (s.length > 40) return;
-    const key = s.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    out.push(s);
-  };
-
-  for (const m of raw.matchAll(/@([A-Za-zÀ-ÿ][\wÀ-ÿ._-]{1,40})/g)) {
-    add(m[1] || "");
-  }
-
-  for (const m of raw.matchAll(/\b([A-ZÀ-Ý][a-zà-ÿ]{2,}(?:\s+[A-ZÀ-Ý][a-zà-ÿ]{2,})+)\b/g)) {
-    const v = (m[1] || "").trim();
-    if (!v) continue;
-    if (v.split(/\s+/).length > 3) continue;
-    add(v);
-  }
-
-  return out.slice(0, 12);
+function cleanInlineLabel(input: string): string {
+  return normalizeWhitespace(stripEmojis(input));
 }
 
-function formatLinkLabel(url: string): string {
-  try {
-    const u = new URL(url);
-    const host = u.host.replace(/^www\./, "");
-    const path = u.pathname && u.pathname !== "/" ? u.pathname : "";
-    const shortPath = path.length > 24 ? path.slice(0, 24) + "…" : path;
-    return `${host}${shortPath}`;
-  } catch {
-    return url.length > 42 ? url.slice(0, 42) + "…" : url;
+function countLinks(text: string): number {
+  const raw = (text || "").toString();
+  const matches = raw.match(/https?:\/\/[^\s)\]}>,]+/gi);
+  return matches?.length ?? 0;
+}
+
+async function copyToClipboard(text: string): Promise<void> {
+  const raw = (text ?? "").toString();
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(raw);
+    return;
   }
+  const el = document.createElement("textarea");
+  el.value = raw;
+  el.style.position = "fixed";
+  el.style.left = "-9999px";
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand("copy");
+  document.body.removeChild(el);
+}
+
+function toPlainText(text: string): string {
+  const raw = (text || "").toString();
+  const withoutCodeBlocks = raw.replace(/```[\s\S]*?```/g, " ");
+  const withoutInlineCode = withoutCodeBlocks.replace(/`([^`]+?)`/g, "$1");
+  const withoutMarkers = withoutInlineCode.replace(/[*_~]+/g, "");
+  return withoutMarkers.replace(/\r\n/g, "\n").trim();
 }
 
 const GroupSummaries = () => {
   const { groupId } = useParams();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const normalizedGroupId = typeof groupId === "string" ? groupId.trim() : "";
-  const [openSummaryId, setOpenSummaryId] = useState<string | null>(null);
-  const [openOriginalText, setOpenOriginalText] = useState<Record<string, boolean>>({});
+  const [openSummaryId, setOpenSummaryId] = useState<string | undefined>(undefined);
+  const [daysLimit, setDaysLimit] = useState(30);
+  const [copiedRawId, setCopiedRawId] = useState<string | null>(null);
+  const [copiedPlainId, setCopiedPlainId] = useState<string | null>(null);
+  const [showAllTopicsByDay, setShowAllTopicsByDay] = useState<Record<string, boolean>>({});
+  const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
 
   const { data: groupInfo } = useQuery({
     queryKey: ["group-info", groupId],
@@ -339,56 +328,128 @@ const GroupSummaries = () => {
   });
 
   const {
-    data: summaries,
+    data,
     isLoading,
     error,
     refetch,
   } = useQuery({
-    queryKey: ["group-summaries", normalizedGroupId],
+    queryKey: ["group-conversations", normalizedGroupId, daysLimit],
     queryFn: async () => {
-      const { data: dailyData, error: dailyError } = await (supabase as any)
+      const { data: summariesData, error: summariesError } = await (supabase as any)
         .from("group_daily_summaries")
         .select("id, group_id, summary_date, summary_text, created_at")
         .eq("group_id", normalizedGroupId)
         .order("summary_date", { ascending: false })
         .order("created_at", { ascending: false })
-        .limit(120);
-      if (dailyError) throw dailyError;
+        .limit(daysLimit);
+      if (summariesError) throw summariesError;
 
-      return (dailyData ?? []) as unknown as GroupDailySummaryRow[];
+      const summaries = (summariesData ?? []) as unknown as GroupDailySummaryRow[];
+      const dates = Array.from(
+        new Set(
+          summaries
+            .map((s) => dateKey(s.summary_date))
+            .filter((d) => d.length > 0)
+        )
+      );
+
+      if (dates.length === 0) {
+        return { summaries: [], topics: [], keywords: [] } as {
+          summaries: GroupDailySummaryRow[];
+          topics: GroupDailyTopicRow[];
+          keywords: GroupDailyKeywordRow[];
+        };
+      }
+
+      const { data: topicsData, error: topicsError } = await (supabase as any)
+        .from("group_daily_topics")
+        .select("id, group_id, topic_date, rank, title, content, created_at")
+        .eq("group_id", normalizedGroupId)
+        .in("topic_date", dates)
+        .order("topic_date", { ascending: false })
+        .order("rank", { ascending: true })
+        .limit(1000);
+      if (topicsError) throw topicsError;
+
+      const { data: keywordsData, error: keywordsError } = await (supabase as any)
+        .from("group_daily_keywords")
+        .select("id, group_id, keyword_date, keyword, rank, created_at")
+        .eq("group_id", normalizedGroupId)
+        .in("keyword_date", dates)
+        .order("keyword_date", { ascending: false })
+        .order("rank", { ascending: true })
+        .limit(2000);
+      if (keywordsError) throw keywordsError;
+
+      return {
+        summaries,
+        topics: (topicsData ?? []) as unknown as GroupDailyTopicRow[],
+        keywords: (keywordsData ?? []) as unknown as GroupDailyKeywordRow[],
+      };
     },
     enabled: normalizedGroupId.length > 0 && isAuthenticated,
   });
 
-  const summariesView = useMemo(() => {
-    return (summaries ?? []).map((s) => {
+  const conversationsView = useMemo(() => {
+    const topicsByDate: Record<string, GroupDailyTopicRow[]> = {};
+    const keywordsByDate: Record<string, GroupDailyKeywordRow[]> = {};
+
+    for (const t of (data?.topics ?? [])) {
+      const k = dateKey(t.topic_date);
+      if (!k) continue;
+      (topicsByDate[k] ||= []).push(t);
+    }
+
+    for (const kw of (data?.keywords ?? [])) {
+      const k = dateKey(kw.keyword_date);
+      if (!k) continue;
+      (keywordsByDate[k] ||= []).push(kw);
+    }
+
+    return (data?.summaries ?? []).map((s) => {
       const text = s.summary_text || "";
-      const links = extractLinks(text);
-      const discussion = extractDiscussionPoints(text);
-      const people = extractPeopleMentions(text);
       const preview = pickPreviewText(text);
-      const quickView = pickQuickView(text);
+      const k = dateKey(s.summary_date);
+      const topics = topicsByDate[k] ?? [];
+      const keywords = keywordsByDate[k] ?? [];
       return {
         ...s,
-        dateLabel: asNoonUTCFromDateOnly(s.summary_date),
+        dateLabel: asNoonUTCFromDateOnly(k),
         preview,
-        quickView,
-        links,
-        discussion,
-        people,
-        flags: {
-          hasLinks: links.length > 0,
-          hasQuestions: text.includes("?"),
-          hasPeople: people.length > 0,
-        },
+        topics,
+        keywords,
+        linksCount: countLinks(text),
       };
     });
-  }, [summaries]);
+  }, [data]);
+
+  const filteredConversationsView = useMemo(() => {
+    const k = normalizeWhitespace(selectedKeyword || "").toLowerCase();
+    if (!k) return conversationsView;
+    return conversationsView.filter((s) =>
+      (s.keywords || []).some((kw) => normalizeWhitespace(kw.keyword || "").toLowerCase() === k)
+    );
+  }, [conversationsView, selectedKeyword]);
 
   if (authLoading) {
     return (
-      <AdminLayout title="Resumos do grupo" subtitle="Verificando acesso...">
-        <LoadingState message="Verificando permissões..." />
+      <AdminLayout title="Diário" subtitle="Verificando acesso...">
+        <div className="space-y-3 animate-fade-in">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <Card key={idx} className="rounded-xl border border-border bg-card p-4 sm:p-5">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-2 min-w-0 flex-1">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-full max-w-[520px]" />
+                  </div>
+                  <Skeleton className="h-8 w-24 rounded-md" />
+                </div>
+                <Skeleton className="h-3 w-56" />
+              </div>
+            </Card>
+          ))}
+        </div>
       </AdminLayout>
     );
   }
@@ -400,8 +461,8 @@ const GroupSummaries = () => {
 
   return (
     <AdminLayout
-      title="Resumos do grupo"
-      subtitle="O que aconteceu no grupo, organizado pelo Bóris"
+      title="Diário"
+      subtitle="Resumo, tópicos e palavras-chave por dia"
     >
       <div className="space-y-6 animate-fade-in">
         <GroupPageTop
@@ -409,7 +470,7 @@ const GroupSummaries = () => {
             { label: "Central do Bóris", href: "/" },
             { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
-            { label: "Resumos" },
+            { label: "Diário" },
           ]}
           group={{
             groupId: groupId as string,
@@ -423,184 +484,275 @@ const GroupSummaries = () => {
           activeTab="resumos"
         />
 
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-foreground">Resumos do grupo</h2>
-          <p className="text-sm text-muted-foreground">O que aconteceu no grupo, organizado pelo Bóris</p>
-        </div>
-
         {isLoading ? (
-          <LoadingState message="Carregando resumos..." />
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <Card key={idx} className="rounded-xl border border-border bg-card p-4 sm:p-5">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-2 min-w-0 flex-1">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-4 w-full max-w-[520px]" />
+                    </div>
+                    <Skeleton className="h-8 w-24 rounded-md" />
+                  </div>
+                  <Skeleton className="h-3 w-56" />
+                </div>
+              </Card>
+            ))}
+          </div>
         ) : error ? (
           <ErrorState title={errorCopy?.title} message={errorCopy?.message} retry={refetch} />
-        ) : summariesView.length === 0 ? (
+        ) : conversationsView.length === 0 ? (
           <EmptyState
             icon={FileText}
-            title="Nenhum resumo ainda"
-            message="Quando o Bóris gerar resumos diários, eles aparecerão aqui para consulta."
+            title="Nenhuma conversa registrada ainda"
+            message="Nenhuma conversa registrada ainda. Quando o Bóris gerar resumos, eles aparecerão aqui."
           />
         ) : (
           <div className="space-y-3">
-            {summariesView.map((s) => {
+            {selectedKeyword ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-muted-foreground">
+                  Filtrando por: <span className="font-medium text-foreground">{selectedKeyword}</span>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedKeyword(null)}>
+                  Limpar filtro
+                </Button>
+              </div>
+            ) : null}
+
+            {selectedKeyword && filteredConversationsView.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="Nenhum dia corresponde ao filtro"
+                message="Tente escolher outra palavra-chave ou limpar o filtro para ver todos os dias."
+              />
+            ) : null}
+
+            <Accordion
+              type="single"
+              collapsible
+              value={openSummaryId}
+              onValueChange={(v) => setOpenSummaryId(v)}
+              className="space-y-3"
+            >
+            {filteredConversationsView.map((s) => {
               const isOpen = openSummaryId === s.id;
-              const originalOpen = !!openOriginalText[s.id];
-              const canShowQuick = !!s.quickView;
-              const canShowDiscussion = s.discussion.length > 0;
-              const canShowPeople = s.people.length > 0;
-              const canShowLinks = s.links.length > 0;
-              const cardTitle = `Resumo do dia${groupInfo?.groupName ? ` • ${groupInfo.groupName}` : ""}`;
+              const showAllTopics = !!showAllTopicsByDay[s.id];
+              const topicsVisible = s.topics.slice(0, showAllTopics ? 50 : 3);
+              const topicsExtra = Math.max(0, s.topics.length - 3);
+
+              const countsLine = [
+                s.topics.length > 0 ? `${s.topics.length} tópico${s.topics.length === 1 ? "" : "s"}` : "",
+                s.keywords.length > 0 ? `${s.keywords.length} palavra${s.keywords.length === 1 ? "" : "s"}-chave` : "",
+                s.linksCount > 0 ? `${s.linksCount} link${s.linksCount === 1 ? "" : "s"}` : "",
+              ]
+                .filter(Boolean)
+                .join(" • ");
 
               return (
-                <div key={s.id} className="rounded-xl border border-border bg-card">
-                  <div className="p-4 sm:p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          {formatDateDescriptiveBR(s.dateLabel)}
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-card-foreground truncate">{cardTitle}</div>
-                        <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                          {s.preview || "Resumo disponível para este dia."}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {s.flags.hasLinks ? (
-                            <Badge variant="secondary" className="gap-1">
-                              <LinkIcon className="h-3.5 w-3.5" />
-                              Links
-                            </Badge>
-                          ) : null}
-                          {s.flags.hasQuestions ? (
-                            <Badge variant="secondary" className="gap-1">
-                              <HelpCircle className="h-3.5 w-3.5" />
-                              Perguntas
-                            </Badge>
-                          ) : null}
-                          {s.flags.hasPeople ? (
-                            <Badge variant="secondary" className="gap-1">
-                              <Users className="h-3.5 w-3.5" />
-                              Pessoas mencionadas
-                            </Badge>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <Button
-                        size="sm"
-                        variant={isOpen ? "secondary" : "outline"}
-                        className="shrink-0"
-                        onClick={() => {
-                          setOpenSummaryId((curr) => (curr === s.id ? null : s.id));
-                          setOpenOriginalText((curr) => ({
-                            ...curr,
-                            [s.id]: false,
-                          }));
-                        }}
-                      >
-                        {isOpen ? "Fechar" : "Ver detalhes"}
-                      </Button>
-                    </div>
-
-                    {isOpen ? (
-                      <div className="mt-5 space-y-4">
-                        {canShowQuick ? (
-                          <section className="rounded-xl border border-primary/20 bg-primary/5 p-4 shadow-sm border-l-4 border-l-primary/60">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-card-foreground">Visão rápida</div>
-                                <div className="mt-0.5 text-xs text-muted-foreground">Leitura curta do Bóris</div>
-                              </div>
+                <AccordionItem key={s.id} value={s.id} className="border-0">
+                  <Card
+                    className={cn(
+                      "rounded-xl border border-border bg-card transition-colors",
+                      isOpen ? "border-l-4 border-l-orange-300 bg-muted/10" : ""
+                    )}
+                  >
+                    <AccordionTrigger className="px-4 py-4 sm:px-5 sm:py-5 hover:no-underline">
+                      <div className="flex w-full items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <div className="text-sm font-semibold text-foreground">
+                              {formatDateDescriptiveBR(s.dateLabel)}
                             </div>
-                            <p className="mt-2 text-sm text-card-foreground leading-relaxed line-clamp-3">{s.quickView}</p>
-                          </section>
-                        ) : null}
-
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                          {canShowDiscussion ? (
-                            <section className="lg:col-span-2 rounded-xl border border-border bg-card/40 p-4">
-                              <div className="text-sm font-semibold text-card-foreground">O que gerou discussão</div>
-                              <div className="mt-0.5 text-xs text-muted-foreground">Perguntas e pontos centrais</div>
-                              <ul className="mt-2 space-y-1 text-sm text-card-foreground">
-                                {s.discussion.map((item) => (
-                                  <li key={item} className="flex gap-2">
-                                    <span className="text-muted-foreground">•</span>
-                                    <span className="min-w-0">{item}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </section>
-                          ) : null}
-
-                          {canShowPeople ? (
-                            <section className="rounded-xl border border-border bg-card/40 p-4">
-                              <div className="text-sm font-semibold text-card-foreground">Pessoas mencionadas</div>
-                              <div className="mt-0.5 text-xs text-muted-foreground">Menções detectadas no texto</div>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {s.people.map((p) => (
-                                  <span
-                                    key={p}
-                                    className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs text-card-foreground/80"
-                                  >
-                                    {p}
-                                  </span>
-                                ))}
-                              </div>
-                            </section>
-                          ) : null}
-                        </div>
-
-                        {canShowLinks ? (
-                          <section className="rounded-xl border border-border bg-card/40 p-4">
-                            <div className="text-sm font-semibold text-card-foreground">Links</div>
-                            <div className="mt-0.5 text-xs text-muted-foreground">URLs citadas no resumo</div>
-                            <ul className="mt-2 space-y-1 text-sm">
-                              {s.links.map((href) => (
-                                <li key={href} className="flex items-start gap-2">
-                                  <span className="text-muted-foreground mt-0.5">•</span>
-                                  <a
-                                    href={href}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-primary underline underline-offset-2 break-all"
-                                  >
-                                    {formatLinkLabel(href)}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
-                          </section>
-                        ) : null}
-
-                        <section className="rounded-xl border border-border bg-secondary/30 p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-card-foreground">Texto original do WhatsApp</div>
-                              <div className="mt-0.5 text-xs text-muted-foreground">Conteúdo bruto com formatação convertida</div>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setOpenOriginalText((curr) => ({
-                                  ...curr,
-                                  [s.id]: !curr[s.id],
-                                }));
-                              }}
-                            >
-                              {originalOpen ? "Ocultar texto completo do WhatsApp" : "Ver texto completo do WhatsApp"}
-                            </Button>
+                            <div className="text-xs text-muted-foreground">Resumo do dia</div>
                           </div>
 
-                          {originalOpen ? (
-                            <div className="mt-3 rounded-lg border border-border bg-background/50 p-3 text-sm text-card-foreground break-words">
-                              {formatWhatsAppRichText(s.summary_text)}
-                            </div>
-                          ) : null}
-                        </section>
+                          <div className="mt-2 rounded-lg border border-orange-200/60 bg-orange-50/60 px-3 py-2 dark:border-orange-900/40 dark:bg-orange-950/15">
+                            <p className="text-sm text-foreground line-clamp-2">
+                              {pickHumanDaySummary(s.topics, s.keywords)}
+                            </p>
+                          </div>
+
+                          <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
+                            {s.preview || "Resumo disponível para este dia."}
+                          </p>
+
+                          {countsLine ? <div className="mt-2 text-xs text-muted-foreground">{countsLine}</div> : null}
+                        </div>
+
+                        <div className="shrink-0 text-sm font-medium text-muted-foreground">Ver detalhes</div>
                       </div>
-                    ) : null}
-                  </div>
-                </div>
+                    </AccordionTrigger>
+
+                    <AccordionContent className="px-4 pb-4 sm:px-5 sm:pb-5 transition-all duration-200">
+                      <div className="space-y-4">
+                        <div className="space-y-3">
+                          <div className="text-sm font-medium text-foreground">Assuntos que mais movimentaram o dia</div>
+                          {topicsVisible.length > 0 ? (
+                            <div className="space-y-2">
+                              {topicsVisible.map((t) => {
+                                const title = cleanInlineLabel(t.title || "");
+                                const preview = pickTopicPreview(t.content || "");
+
+                                return (
+                                  <Alert
+                                    key={t.id}
+                                    className="border border-border border-l-2 border-l-orange-200 bg-muted/20 p-4 sm:p-5 transition-colors duration-200 hover:bg-muted/30"
+                                  >
+                                    <div>
+                                      <AlertTitle className="text-sm font-medium">{title || "Tópico"}</AlertTitle>
+                                      <AlertDescription>
+                                        <p className="max-w-[72ch] text-sm text-muted-foreground line-clamp-2">
+                                          {preview || "Sem detalhes adicionais para este tópico."}
+                                        </p>
+                                      </AlertDescription>
+                                    </div>
+                                  </Alert>
+                                );
+                              })}
+
+                              {topicsExtra > 0 ? (
+                                <div className="pt-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setShowAllTopicsByDay((curr) => ({ ...curr, [s.id]: !showAllTopics }));
+                                    }}
+                                  >
+                                    {showAllTopics ? "Ver menos tópicos" : "Ver mais tópicos"}
+                                  </Button>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">Nenhum tópico disponível para este dia.</div>
+                          )}
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-3">
+                          <div className="text-sm font-medium text-foreground">Palavras-chave</div>
+                          {s.keywords.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {s.keywords.map((kw) => {
+                                const isSelected =
+                                  normalizeWhitespace(selectedKeyword || "").toLowerCase() ===
+                                  normalizeWhitespace(kw.keyword || "").toLowerCase();
+
+                                return (
+                                  <Button
+                                    key={kw.id}
+                                    size="sm"
+                                    variant="outline"
+                                    className={cn(
+                                      "h-7 rounded-full px-3 text-xs font-medium",
+                                      "whitespace-nowrap",
+                                      isSelected
+                                        ? "border-orange-300 bg-orange-50/60 text-foreground dark:border-orange-900/60 dark:bg-orange-950/20"
+                                        : "text-muted-foreground"
+                                    )}
+                                    aria-pressed={isSelected}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setSelectedKeyword((curr) => {
+                                        const next = normalizeWhitespace(kw.keyword || "");
+                                        if (!next) return curr;
+                                        if (normalizeWhitespace(curr || "").toLowerCase() === next.toLowerCase()) return null;
+                                        return next;
+                                      });
+                                    }}
+                                  >
+                                    {kw.keyword}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">Nenhuma palavra-chave disponível para este dia.</div>
+                          )}
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm font-medium text-foreground">Resumo completo do WhatsApp</div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={async (e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  await copyToClipboard(s.summary_text || "");
+                                  setCopiedRawId(s.id);
+                                  window.setTimeout(() => setCopiedRawId((curr) => (curr === s.id ? null : curr)), 1400);
+                                }}
+                              >
+                                {copiedRawId === s.id ? (
+                                  <Check className="mr-2 h-4 w-4" />
+                                ) : (
+                                  <Copy className="mr-2 h-4 w-4" />
+                                )}
+                                Copiar resumo
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={async (e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  await copyToClipboard(toPlainText(s.summary_text || ""));
+                                  setCopiedPlainId(s.id);
+                                  window.setTimeout(() => setCopiedPlainId((curr) => (curr === s.id ? null : curr)), 1400);
+                                }}
+                              >
+                                {copiedPlainId === s.id ? (
+                                  <Check className="mr-2 h-4 w-4" />
+                                ) : (
+                                  <Copy className="mr-2 h-4 w-4" />
+                                )}
+                                Copiar versão limpa
+                              </Button>
+                            </div>
+                          </div>
+
+                          <section className="rounded-xl border border-border bg-muted/30 p-4 sm:p-5">
+                            <ScrollArea className="max-h-[460px] pr-3">
+                              <div className="text-sm text-card-foreground break-words">
+                                {renderWhatsappToReact(s.summary_text)}
+                              </div>
+                            </ScrollArea>
+                          </section>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </Card>
+                </AccordionItem>
               );
             })}
+
+            </Accordion>
+
+            {conversationsView.length >= daysLimit ? (
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setDaysLimit((curr) => curr + 30)}
+                >
+                  Carregar mais
+                </Button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
