@@ -10,7 +10,7 @@ CREATE TABLE public.group_daily_topics (
   topic_date date NOT NULL,
   rank int NOT NULL,
   title text NOT NULL,
-  summary text NOT NULL,
+  content text NOT NULL,
   keywords text[] NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (group_id, topic_date, rank)

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { ReactNode } from "react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 interface AdminHeaderProps {
   title: string;
@@ -67,11 +68,14 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-6">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-        {subtitle && (
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
-        )}
+      <div className="flex items-start gap-3">
+        <SidebarTrigger variant="ghost" size="icon" className="md:hidden mt-1" />
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+          {subtitle && (
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-4">

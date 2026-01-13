@@ -287,3 +287,7 @@ export function applyWhatsAppStylesToParts(parts: Array<string | ReactNode>): Re
   }
   return out;
 }
+
+export function renderWhatsappToReact(rawText: string): JSX.Element {
+  return formatWhatsAppRichText(rawText);
+}

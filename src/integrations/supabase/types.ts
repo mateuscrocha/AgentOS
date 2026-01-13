@@ -44,6 +44,51 @@ export type Database = {
         }
         Relationships: []
       }
+      group_daily_topics: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          rank: number
+          content: string
+          title: string
+          topic_date: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          rank: number
+          content: string
+          title: string
+          topic_date: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          rank?: number
+          content?: string
+          title?: string
+          topic_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_daily_topics_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_daily_topics_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
       group_members: {
         Row: {
           created_at: string

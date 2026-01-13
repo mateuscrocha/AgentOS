@@ -40,6 +40,11 @@
 - Onboarding cria `User`, `Organization`, `Group` e vínculos automaticamente.
 - Redirecionamento pós-onboarding para a página do grupo.
 
+## Tabelas de conversas (Supabase)
+- `group_daily_summaries`: resumo diário do grupo (texto bruto do WhatsApp).
+- `group_daily_topics`: tópicos diários do grupo (`content` é o texto do tópico).
+- `group_daily_keywords`: palavras-chave diárias do grupo.
+
 ## O que não é responsabilidade deste escopo
 - Envio de mensagens no WhatsApp.
 - Moderação ativa de conversas.
@@ -79,4 +84,3 @@
   - `supabase/functions/provision-onboarding/index.ts`
   - `supabase/functions/provision-group/index.ts`
   - `supabase/migrations/`
-

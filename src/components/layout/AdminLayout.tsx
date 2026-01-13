@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminHeader } from "./AdminHeader";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -11,14 +12,12 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutProps) {
   return (
-    <div className="min-h-screen bg-background">
+    <SidebarProvider defaultOpen>
       <AdminSidebar />
-      <div className="pl-64 transition-all duration-300">
+      <SidebarInset>
         <AdminHeader title={title} subtitle={subtitle} actions={actions} />
-        <main className="p-6">
-          {children}
-        </main>
-      </div>
-    </div>
+        <main className="p-6">{children}</main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

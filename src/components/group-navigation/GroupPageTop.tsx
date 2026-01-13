@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserRoles } from "@/hooks/use-user-roles";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ActiveTab = "painel" | "membros" | "mensagens" | "resumos" | "enquetes" | "atividade" | "configuracoes";
 
@@ -262,7 +263,7 @@ export function GroupPageTop({
   }> = [
     { key: "painel", label: "Painel", href: `/groups/${group.groupId}`, Icon: LayoutDashboard },
     { key: "mensagens", label: "Mensagens", href: `/groups/${group.groupId}/messages`, Icon: MessageSquare },
-    { key: "resumos", label: "Resumos", href: `/groups/${group.groupId}/summaries`, Icon: FileText },
+    { key: "resumos", label: "Diário", href: `/groups/${group.groupId}/summaries`, Icon: FileText },
     { key: "enquetes", label: "Enquetes", href: `/groups/${group.groupId}/polls`, Icon: ListChecks },
     { key: "membros", label: "Membros", href: `/groups/${group.groupId}/members`, Icon: Users },
     { key: "atividade", label: "Atividade", href: `/groups/${group.groupId}/events`, Icon: Activity },
@@ -273,7 +274,9 @@ export function GroupPageTop({
 
   return (
     <section className={cn("space-y-4 mb-6", className)}>
-      <Breadcrumbs items={breadcrumbItems} />
+      <div className="sticky top-16 z-20 -mx-6 px-6 py-3 bg-background/80 backdrop-blur border-b border-border">
+        <Breadcrumbs items={breadcrumbItems} />
+      </div>
       <div className="space-y-0">
         <GroupHeader
           groupId={group.groupId}
@@ -286,29 +289,26 @@ export function GroupPageTop({
         />
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-2">
-        <div className="flex items-center gap-2 overflow-x-auto">
+      <Tabs value={activeTab}>
+        <TabsList className="w-full justify-start gap-1 overflow-x-auto bg-card border border-border p-1 h-auto">
           {navItems.map(({ key, label, href, Icon }) => (
-            <Button
+            <TabsTrigger
               key={key}
+              value={key}
               asChild
-              size="sm"
-              variant={key === activeTab ? "secondary" : "ghost"}
               className={cn(
                 "shrink-0 justify-start gap-2",
-                key === activeTab
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                key === activeTab ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
             >
               <Link to={href}>
                 <Icon className={cn("h-4 w-4", key === activeTab ? "text-primary" : "text-muted-foreground")} />
                 {label}
               </Link>
-            </Button>
+            </TabsTrigger>
           ))}
-        </div>
-      </div>
+        </TabsList>
+      </Tabs>
 
       {filters && (
         <div className="rounded-lg border border-border bg-card p-3">

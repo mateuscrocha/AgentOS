@@ -32,7 +32,9 @@ export function AdminPageHeader({
 }: AdminPageHeaderProps) {
   return (
     <section className={cn("space-y-4 mb-6", className)}>
-      <Breadcrumbs items={breadcrumbItems} />
+      <div className="sticky top-16 z-20 -mx-6 px-6 py-3 bg-background/80 backdrop-blur border-b border-border">
+        <Breadcrumbs items={breadcrumbItems} />
+      </div>
 
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -73,4 +75,3 @@ export function AdminPageHeader({
     </section>
   );
 }
-
