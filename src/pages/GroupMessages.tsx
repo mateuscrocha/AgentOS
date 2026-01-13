@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { ImportMessagesModal } from "@/components/modals/ImportMessagesModal";
+import { formatWhatsAppStyles } from "@/lib/whatsapp-format";
  
  
 
@@ -280,7 +281,9 @@ const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
     default:
       return (
         <span className="text-sm line-clamp-1 max-w-[200px]">
-          {message.content_preview || `[${translateMessageType(message.message_type)}]`}
+          {message.message_type === "system"
+            ? formatWhatsAppStyles(message.content_preview || `[${translateMessageType(message.message_type)}]`)
+            : (message.content_preview || `[${translateMessageType(message.message_type)}]`)}
         </span>
       );
   }

@@ -11,6 +11,7 @@ import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { formatDateTimeBR } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { applyWhatsAppStylesToParts, formatWhatsAppStyles } from "@/lib/whatsapp-format";
 import { Link as LinkIcon, Image, Mic, Video, FileText, MessageSquare, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
 type Variant = "sheet" | "dialog";
@@ -96,7 +97,7 @@ const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string,
     lastIndex = idx + match[0].length;
   }
   if (lastIndex < text.length) result.push(text.slice(lastIndex));
-  return result;
+  return applyWhatsAppStylesToParts(result);
 };
 
 export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, variant = "sheet" }: MessageDetailsDrawerProps) {
@@ -474,13 +475,22 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                     <span className="text-muted-foreground/60">•</span>
                     <span className="truncate">{c.member_name || "Desconhecido"}</span>
                   </div>
-                  <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">{c.content_preview || `[${translateType(c.message_type)}]`}</div>
+                  <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">
+                    {c.message_type === "system"
+                      ? formatWhatsAppStyles(c.content_preview || `[${translateType(c.message_type)}]`)
+                      : (c.content_preview || `[${translateType(c.message_type)}]`)}
+                  </div>
                 </div>
               ))}
 
               <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
                 <div className="text-[11px] font-medium text-muted-foreground">Mensagem selecionada</div>
-                <div className="mt-1 text-sm text-card-foreground whitespace-pre-wrap break-words">{(message?.text || message?.content || message?.media_caption || "").toString().trim() || `[${translateType(message?.message_type || "text")}]`}</div>
+                <div className="mt-1 text-sm text-card-foreground whitespace-pre-wrap break-words">
+                  {(() => {
+                    const raw = (message?.text || message?.content || message?.media_caption || "").toString().trim() || `[${translateType(message?.message_type || "text")}]`;
+                    return message?.message_type === "system" ? formatWhatsAppStyles(raw) : raw;
+                  })()}
+                </div>
               </div>
 
               {contextRows.after.map((c) => (
@@ -490,7 +500,11 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                     <span className="text-muted-foreground/60">•</span>
                     <span className="truncate">{c.member_name || "Desconhecido"}</span>
                   </div>
-                  <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">{c.content_preview || `[${translateType(c.message_type)}]`}</div>
+                  <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">
+                    {c.message_type === "system"
+                      ? formatWhatsAppStyles(c.content_preview || `[${translateType(c.message_type)}]`)
+                      : (c.content_preview || `[${translateType(c.message_type)}]`)}
+                  </div>
                 </div>
               ))}
 

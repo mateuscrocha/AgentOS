@@ -4,14 +4,14 @@ import { GroupHeader } from "@/components/group-dashboard/GroupHeader";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Activity, Crown, LayoutDashboard, ListChecks, MessageSquare, Settings, Shield, Star, Users } from "lucide-react";
+import { Activity, Crown, FileText, LayoutDashboard, ListChecks, MessageSquare, Settings, Shield, Star, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserRoles } from "@/hooks/use-user-roles";
 
-type ActiveTab = "painel" | "membros" | "mensagens" | "enquetes" | "atividade" | "configuracoes";
+type ActiveTab = "painel" | "membros" | "mensagens" | "resumos" | "enquetes" | "atividade" | "configuracoes";
 
 type MemberRoleKey = "OWNER" | "SUPERADMIN" | "ADMIN";
 
@@ -262,6 +262,7 @@ export function GroupPageTop({
   }> = [
     { key: "painel", label: "Painel", href: `/groups/${group.groupId}`, Icon: LayoutDashboard },
     { key: "mensagens", label: "Mensagens", href: `/groups/${group.groupId}/messages`, Icon: MessageSquare },
+    { key: "resumos", label: "Resumos", href: `/groups/${group.groupId}/summaries`, Icon: FileText },
     { key: "enquetes", label: "Enquetes", href: `/groups/${group.groupId}/polls`, Icon: ListChecks },
     { key: "membros", label: "Membros", href: `/groups/${group.groupId}/members`, Icon: Users },
     { key: "atividade", label: "Atividade", href: `/groups/${group.groupId}/events`, Icon: Activity },

@@ -12,6 +12,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 import { Activity, FileText, Image, MapPin, Mic, Smile, Video, Shield, User, Database, Link as LinkIcon, Calendar, Users, Globe, ArrowDownLeft, ArrowUpRight, CheckCircle2 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
+import { applyWhatsAppStylesToParts, formatWhatsAppStyles } from "@/lib/whatsapp-format";
 
 interface MessageDetailModalProps {
   open: boolean;
@@ -96,7 +97,7 @@ const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string,
   if (lastIndex < text.length) {
     result.push(text.slice(lastIndex));
   }
-  return result;
+  return applyWhatsAppStylesToParts(result);
 };
 
 export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: MessageDetailModalProps) {
@@ -393,7 +394,13 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                             <span className="text-xs text-muted-foreground">{new Date(repliedMessage.created_at).toLocaleString("pt-BR")}</span>
                           </div>
                           <div className="text-sm text-card-foreground line-clamp-3 whitespace-pre-wrap break-words">
-                            {(repliedMessage.text || repliedMessage.content || repliedMessage.media_caption || "").toString().trim() || `[${translateType(repliedMessage.message_type || "text")}]`}
+                            {repliedMessage.message_type === "system"
+                              ? formatWhatsAppStyles(
+                                  (repliedMessage.text || repliedMessage.content || repliedMessage.media_caption || "").toString().trim() ||
+                                    `[${translateType(repliedMessage.message_type || "text")}]`
+                                )
+                              : ((repliedMessage.text || repliedMessage.content || repliedMessage.media_caption || "").toString().trim() ||
+                                  `[${translateType(repliedMessage.message_type || "text")}]`)}
                           </div>
                         </div>
                       ) : (
@@ -403,7 +410,7 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                   )}
 
                   <div className="rounded-xl border border-border bg-secondary/30 p-4 sm:p-5 shadow-sm">
-                    {message.message_type === "text" && (
+                    {(message.message_type === "text" || message.message_type === "system") && (
                       <div className="text-[15px] leading-relaxed text-card-foreground whitespace-pre-wrap break-words">
                         {message.text
                           ? renderTextWithMentionsAndLinks(message.text, mentionMap || {})
@@ -499,7 +506,9 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                                 <span className="truncate">{c.member_name || "Desconhecido"}</span>
                               </div>
                               <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">
-                                {c.content_preview || `[${translateType(c.message_type)}]`}
+                                {c.message_type === "system"
+                                  ? formatWhatsAppStyles(c.content_preview || `[${translateType(c.message_type)}]`)
+                                  : (c.content_preview || `[${translateType(c.message_type)}]`)}
                               </div>
                             </div>
                           ))}
@@ -512,7 +521,11 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                               <span className="ml-auto text-[11px] text-primary">Selecionada</span>
                             </div>
                             <div className="mt-1 text-sm text-card-foreground whitespace-pre-wrap break-words">
-                              {(message.text || message.content || message.media_caption || "").toString().trim() || `[${translateType(message.message_type)}]`}
+                              {message.message_type === "system"
+                                ? formatWhatsAppStyles(
+                                    (message.text || message.content || message.media_caption || "").toString().trim() || `[${translateType(message.message_type)}]`
+                                  )
+                                : ((message.text || message.content || message.media_caption || "").toString().trim() || `[${translateType(message.message_type)}]`)}
                             </div>
                           </div>
 
@@ -524,7 +537,9 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                                 <span className="truncate">{c.member_name || "Desconhecido"}</span>
                               </div>
                               <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">
-                                {c.content_preview || `[${translateType(c.message_type)}]`}
+                                {c.message_type === "system"
+                                  ? formatWhatsAppStyles(c.content_preview || `[${translateType(c.message_type)}]`)
+                                  : (c.content_preview || `[${translateType(c.message_type)}]`)}
                               </div>
                             </div>
                           ))}

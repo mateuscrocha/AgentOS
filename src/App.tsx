@@ -15,6 +15,7 @@ import Org from "./pages/Org";
 import Group from "./pages/Group";
 import GroupMembers from "./pages/GroupMembers";
 import GroupMessages from "./pages/GroupMessages";
+import GroupSummaries from "./pages/GroupSummaries";
 import GroupEvents from "./pages/GroupEvents";
 import GroupPoll from "./pages/GroupPoll";
 import GroupPolls from "./pages/GroupPolls";
@@ -90,6 +91,7 @@ const App = () => (
             <Route path="/group/:groupId" element={<Group />} />
             <Route path="/group/:groupId/members" element={<GroupMembers />} />
             <Route path="/group/:groupId/messages" element={<GroupMessages />} />
+            <Route path="/group/:groupId/summaries" element={<GroupSummaries />} />
             <Route path="/group/:groupId/polls" element={<GroupPolls />} />
             <Route path="/group/:groupId/polls/:pollId" element={<GroupPoll />} />
             <Route path="/group/:groupId/events" element={<GroupEvents />} />
@@ -97,6 +99,7 @@ const App = () => (
             <Route path="/groups/:groupId" element={<Group />} />
             <Route path="/groups/:groupId/members" element={<GroupMembers />} />
             <Route path="/groups/:groupId/messages" element={<GroupMessages />} />
+            <Route path="/groups/:groupId/summaries" element={<GroupSummaries />} />
             <Route path="/groups/:groupId/polls" element={<GroupPolls />} />
             <Route path="/groups/:groupId/polls/:pollId" element={<GroupPoll />} />
             <Route path="/groups/:groupId/events" element={<GroupEvents />} />
