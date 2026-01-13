@@ -1,4 +1,4 @@
-import { Users, Wifi, WifiOff, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { Wifi, WifiOff, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
 import { useUserRoles } from "@/hooks/use-user-roles";
@@ -21,7 +21,7 @@ interface GroupHeaderProps {
 export function GroupHeader({ 
   groupId,
   name, 
-  provider, 
+  provider: _provider, 
   totalMembers, 
   lastMessageAt,
   syncStatus,
@@ -45,11 +45,6 @@ export function GroupHeader({
     enabled: !!groupId,
     staleTime: 60_000,
   });
-
-  const profilePicUrl: string | null =
-    (groupHeaderInfo as any)?.metadata?.profile_pic_url ||
-    (groupHeaderInfo as any)?.metadata?.profilePicUrl ||
-    null;
 
   const updateGroupDetails = useMutation({
     mutationFn: async () => {
@@ -144,18 +139,6 @@ export function GroupHeader({
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 border-b border-border">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 shrink-0 overflow-hidden">
-          {profilePicUrl ? (
-            <img
-              src={profilePicUrl}
-              alt=""
-              className="h-full w-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <Users className="h-7 w-7 text-primary" />
-          )}
-        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <h2 className="text-lg font-semibold text-card-foreground truncate min-w-0">{name}</h2>
@@ -177,11 +160,6 @@ export function GroupHeader({
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-muted-foreground">
-            {isSystemAdmin ? (
-              <span className="capitalize">{provider}</span>
-            ) : (
-              <span>{groupStatus.label === 'Desconectado' ? 'Integração desconectada' : 'Integração ativa'}</span>
-            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <span

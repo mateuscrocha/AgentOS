@@ -26,10 +26,7 @@ import {
   parseStoredPeriod,
   buildStoredPeriod,
 } from "@/components/group-dashboard/period-utils";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { HelpCircle } from "lucide-react";
 import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
-import { Button } from "@/components/ui/button";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
  
@@ -69,16 +66,10 @@ const Group = () => {
   // Period filter state
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>(() => loadSavedGroupPeriod(groupId).period);
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() => loadSavedGroupPeriod(groupId).range);
-  const [helpOpen, setHelpOpen] = useState(false);
   const [ikigaiOpen, setIkigaiOpen] = useState(false);
   
   
   const currentRange = getDateRange(selectedPeriod, customRange);
-  const hasActiveFilters = selectedPeriod !== '7d' || !!customRange;
-  const handleClearFilters = () => {
-    setSelectedPeriod('7d');
-    setCustomRange(undefined);
-  };
 
   useEffect(() => {
     const { period, range } = loadSavedGroupPeriod(groupId);
@@ -235,83 +226,7 @@ const Group = () => {
               onChange={handlePeriodChange}
             />
           )}
-          showClearFilters={hasActiveFilters}
-          onClearFilters={handleClearFilters}
-          rightActions={(
-            <div className="flex items-center gap-3">
-              <Button variant="link" size="sm" className="h-8 px-0 text-xs" onClick={() => setHelpOpen(true)}>
-                <HelpCircle className="h-4 w-4" />
-                Como ler este dashboard
-              </Button>
-            </div>
-          )}
         />
-
-        
-
-        {/* Help Sheet */}
-        <Sheet open={helpOpen} onOpenChange={setHelpOpen}>
-          <SheetContent side="right" className="sm:max-w-sm overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>Como ler este dashboard</SheetTitle>
-              <SheetDescription>
-                Orientação rápida para interpretar os dados sem ansiedade.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="space-y-5 mt-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-card-foreground">Para que serve este dashboard</p>
-                <p className="text-sm text-muted-foreground">
-                  Este painel mostra o comportamento do grupo no período.
-                  Ajuda a observar padrões e intensidade, sem julgar pessoas.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-card-foreground">Como ler os dados</p>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>1. Pulso do Grupo: resumo de volume e participação.</p>
-                  <p>2. Ritmo da Conversa: mensagens por dia e picos.</p>
-                  <p>3. Crescimento: entradas/saídas e membros atuais.</p>
-                  <p>4. Esforço e Ruído: percepção de esforço e intensidade.</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-card-foreground">O que este painel não faz</p>
-                <p className="text-sm text-muted-foreground">
-                  Não mede satisfação, nem avalia qualidade individual.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-card-foreground">Dica rápida</p>
-                <p className="text-sm text-muted-foreground">
-                  Evite conclusões por um único pico. Observe o padrão do período.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-card-foreground">Explicações por KPI e gráfico</p>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p><strong className="text-card-foreground">Mensagens (período):</strong> total de mensagens no intervalo escolhido. Não indica qualidade do conteúdo.</p>
-                  <p><strong className="text-card-foreground">Membros ativos:</strong> quem enviou ao menos uma mensagem no período. Não significa atividade diária constante.</p>
-                  <p><strong className="text-card-foreground">Taxa de participação:</strong> percentual do grupo que participou no período. Não mede profundidade ou qualidade da conversa.</p>
-                  <p><strong className="text-card-foreground">Crescimento líquido:</strong> entradas menos saídas no período. Não mostra motivos das mudanças.</p>
-                  <p><strong className="text-card-foreground">Ritmo da Conversa (gráfico):</strong> evolução de mensagens por dia para perceber picos e calmarias. Útil para padrão temporal, não para avaliar conteúdo.</p>
-                  <p><strong className="text-card-foreground">Horário mais ativo:</strong> faixa de hora com maior volume. Indica concentração de atividade, não necessidade de resposta.</p>
-                  <p><strong className="text-card-foreground">Mensagens no pico:</strong> quantidade de mensagens na hora mais ativa. Mostra intensidade pontual, não pressão constante.</p>
-                  <p><strong className="text-card-foreground">Top 5 participantes / Membro mais ativo:</strong> quem mais contribuiu em volume. Não é medida de valor individual ou qualidade.</p>
-                  <p><strong className="text-card-foreground">Crescimento do Grupo (entradas/saídas):</strong> barras de mudanças de membros. Não avalia motivos pessoais ou operacionais.</p>
-                  <p><strong className="text-card-foreground">Membros atuais:</strong> total de membros ao fim do período. Contextualiza tamanho, não engajamento.</p>
-                  <p><strong className="text-card-foreground">Dias com atividade:</strong> dias que tiveram mensagens. Mostra frequência geral, não constância individual.</p>
-                  <p><strong className="text-card-foreground">Mensagens por membro ativo:</strong> média de mensagens entre quem participou. Não reflete distribuição entre todos os membros.</p>
-                  <p><strong className="text-card-foreground">Dias com excesso de mensagens:</strong> dias acima da média diária do grupo. Indica intensidade, não problema.</p>
-                  <p><strong className="text-card-foreground">Distribuição da atividade:</strong> leitura se a conversa está concentrada ou distribuída. É descritivo, sem pontuação ou julgamento.</p>
-                  <p><strong className="text-card-foreground">Membros sem participação recente:</strong> membros sem mensagens no período. Não define desinteresse e pode ser circunstancial.</p>
-                  <p><strong className="text-card-foreground">O que engajou no grupo:</strong> mensagens que receberam reações. Mostra estímulos de engajamento, não validações de conteúdo.</p>
-                  <p><strong className="text-card-foreground">Distribuição de engajamento (gráfico):</strong> percentuais de recorrentes, esporádicos e inativos. Descreve perfis de participação, sem julgamento.</p>
-                </div>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
 
         <div className="space-y-12">
           <section className="space-y-6">
@@ -359,12 +274,7 @@ const Group = () => {
             </div>
           </section>
 
-          <section className="space-y-6">
-            <header className="space-y-1">
-              <h2 className="text-lg font-semibold text-foreground">Ritmo da conversa</h2>
-              <p className="text-sm text-muted-foreground">Evolução do volume, picos e horários</p>
-            </header>
-
+          <section className="space-y-8">
             <div className="space-y-8">
               <ConversationRhythmSection
                 messagesPerDay={messagesPerDay}

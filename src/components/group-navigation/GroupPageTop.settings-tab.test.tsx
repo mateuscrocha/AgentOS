@@ -53,7 +53,7 @@ describe("GroupPageTop — aba Configurações", () => {
     canEditValue = false;
   });
 
-  it("exibe Configurações quando o usuário pode editar o grupo", async () => {
+  it("não exibe Configurações mesmo quando o usuário pode editar o grupo", async () => {
     canEditValue = true;
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -79,7 +79,7 @@ describe("GroupPageTop — aba Configurações", () => {
       );
     });
 
-    expect(container.textContent).toContain("Configurações");
+    expect(container.textContent).not.toContain("Configurações");
 
     await act(async () => {
       root.unmount();

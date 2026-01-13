@@ -48,6 +48,12 @@ export function AdminSidebar() {
     (href: string) => {
       if (href === "/") return location.pathname === "/";
       if (href === "/system/events") return location.pathname === "/system/events";
+      if (/^\/groups\/[^/]+$/.test(href) || /^\/group\/[^/]+$/.test(href)) {
+        return location.pathname === href || location.pathname === `${href}/dashboard`;
+      }
+      if (/^\/organization\/[^/]+\/dashboard$/.test(href)) {
+        return location.pathname === href;
+      }
       return location.pathname.startsWith(href);
     },
     [location.pathname],
@@ -82,17 +88,26 @@ export function AdminSidebar() {
     return "/";
   }, [isSystemAdmin, orgIdForNavigation]);
 
+  const organizacoesHref = useMemo(() => {
+    if (isSystemAdmin) return "/system/organizations";
+    if (orgIdForNavigation) return `/organization/${orgIdForNavigation}/dashboard`;
+    return null;
+  }, [isSystemAdmin, orgIdForNavigation]);
+
   const generalItems: NavItem[] = useMemo(
-    () => [
-      { icon: LayoutDashboard, label: "Painel", href: painelHref },
-      { icon: Users, label: "Grupos", href: gruposHref },
-    ],
-    [gruposHref, painelHref],
+    () => {
+      const items: NavItem[] = [{ icon: LayoutDashboard, label: "Painel", href: painelHref }];
+      if (organizacoesHref) items.push({ icon: Building2, label: "Organizações", href: organizacoesHref });
+      items.push({ icon: Users, label: "Grupos", href: gruposHref });
+      return items;
+    },
+    [gruposHref, organizacoesHref, painelHref],
   );
 
   const groupItems: NavItem[] = useMemo(() => {
     if (!currentGroupId) return [];
     return [
+      { icon: LayoutDashboard, label: "Painel do grupo", href: `/groups/${currentGroupId}` },
       { icon: FileText, label: "Diário", href: `/groups/${currentGroupId}/summaries` },
       { icon: MessageSquare, label: "Mensagens", href: `/groups/${currentGroupId}/messages` },
       { icon: Users, label: "Membros", href: `/groups/${currentGroupId}/members` },
@@ -105,7 +120,6 @@ export function AdminSidebar() {
   const adminItems: NavItem[] = useMemo(() => {
     if (!isSystemAdmin) return [];
     return [
-      { icon: Building2, label: "Organizações", href: "/system/organizations" },
       { icon: Users, label: "Usuários", href: "/system/users" },
       { icon: Activity, label: "Logs", href: "/system/events" },
       { icon: Settings, label: "Configurações do sistema", href: "/system/settings" },

@@ -3,14 +3,11 @@ import { Breadcrumbs, type BreadcrumbItem } from "@/components/ui/breadcrumbs";
 import { GroupHeader } from "@/components/group-dashboard/GroupHeader";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import { Activity, Crown, FileText, LayoutDashboard, ListChecks, MessageSquare, Settings, Shield, Star, Users } from "lucide-react";
+import { Crown, Shield, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useUserRoles } from "@/hooks/use-user-roles";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ActiveTab = "painel" | "membros" | "mensagens" | "resumos" | "enquetes" | "atividade" | "configuracoes";
 
@@ -105,15 +102,14 @@ interface GroupPageTopProps {
 export function GroupPageTop({
   breadcrumbItems,
   group,
-  activeTab,
+  activeTab: _activeTab,
   filters,
-  showClearFilters,
-  onClearFilters,
+  showClearFilters: _showClearFilters,
+  onClearFilters: _onClearFilters,
   rightActions,
   className,
 }: GroupPageTopProps) {
   const [adminsModalOpen, setAdminsModalOpen] = useState(false);
-  const { canEditGroup, isLoading: rolesLoading } = useUserRoles();
 
   const { data: specialMembers } = useQuery({
     queryKey: ["group-special-members", group.groupId],
@@ -219,25 +215,6 @@ export function GroupPageTop({
     );
   }, [adminsModalOpen, orderedSpecialMembers]);
 
-  const canShowSettingsTab = !rolesLoading && canEditGroup(group.groupId, group.organizationId);
-
-  const navItems: Array<{
-    key: ActiveTab;
-    label: string;
-    href: string;
-    Icon: typeof LayoutDashboard;
-  }> = [
-    { key: "painel", label: "Painel", href: `/groups/${group.groupId}`, Icon: LayoutDashboard },
-    { key: "mensagens", label: "Mensagens", href: `/groups/${group.groupId}/messages`, Icon: MessageSquare },
-    { key: "resumos", label: "Diário", href: `/groups/${group.groupId}/summaries`, Icon: FileText },
-    { key: "enquetes", label: "Enquetes", href: `/groups/${group.groupId}/polls`, Icon: ListChecks },
-    { key: "membros", label: "Membros", href: `/groups/${group.groupId}/members`, Icon: Users },
-    { key: "atividade", label: "Atividade", href: `/groups/${group.groupId}/events`, Icon: Activity },
-    ...(canShowSettingsTab
-      ? [{ key: "configuracoes" as const, label: "Configurações", href: `/groups/${group.groupId}/edit`, Icon: Settings }]
-      : []),
-  ];
-
   return (
     <section className={cn("space-y-4 mb-6", className)}>
       <div className="sticky top-16 z-20 -mx-6 px-6 py-3 bg-background/80 backdrop-blur border-b border-border">
@@ -255,37 +232,11 @@ export function GroupPageTop({
         />
       </div>
 
-      <Tabs value={activeTab}>
-        <TabsList className="w-full justify-start gap-1 overflow-x-auto bg-card border border-border p-1 h-auto">
-          {navItems.map(({ key, label, href, Icon }) => (
-            <TabsTrigger
-              key={key}
-              value={key}
-              asChild
-              className={cn(
-                "shrink-0 justify-start gap-2",
-                key === activeTab ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Link to={href}>
-                <Icon className={cn("h-4 w-4", key === activeTab ? "text-primary" : "text-muted-foreground")} />
-                {label}
-              </Link>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
       {filters && (
         <div className="rounded-lg border border-border bg-card p-3">
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div className="flex flex-wrap items-center gap-3">{filters}</div>
             <div className="flex items-center gap-2">
-              {showClearFilters && (
-                <Button variant="ghost" size="sm" onClick={onClearFilters}>
-                  Limpar filtros
-                </Button>
-              )}
               {rightActions}
             </div>
           </div>
