@@ -89,10 +89,9 @@ export function AdminSidebar() {
   }, [isSystemAdmin, orgIdForNavigation]);
 
   const organizacoesHref = useMemo(() => {
-    if (isSystemAdmin) return "/system/organizations";
-    if (orgIdForNavigation) return `/organization/${orgIdForNavigation}/dashboard`;
-    return null;
-  }, [isSystemAdmin, orgIdForNavigation]);
+    if (!isSystemAdmin) return null;
+    return "/system/organizations";
+  }, [isSystemAdmin]);
 
   const generalItems: NavItem[] = useMemo(
     () => {

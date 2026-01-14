@@ -14,7 +14,6 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
 import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight, ChevronRight } from "lucide-react";
-import { PeriodReportSystem } from "@/components/dashboard/PeriodReport";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { SectionHeader } from "@/components/group-dashboard/SectionHeader";
@@ -738,6 +737,17 @@ const Index = () => {
 
   const periodLabel = `${formatDateSimpleBR(currentRange.from)} — ${formatDateSimpleBR(currentRange.to)}`;
 
+  const getAddedRelativeLabel = (createdAt: string) => {
+    const createdMs = new Date(createdAt).getTime();
+    if (!Number.isFinite(createdMs)) return "";
+
+    const nowMs = Date.now();
+    const diffDays = Math.max(0, Math.floor((nowMs - createdMs) / 86_400_000));
+    if (diffDays === 0) return "Adicionado hoje";
+    if (diffDays === 1) return "Adicionado ontem";
+    return `Adicionado há ${diffDays} dias`;
+  };
+
   return (
     <AdminLayout 
       title="Central do Bóris" 
@@ -767,20 +777,11 @@ const Index = () => {
           )}
         />
 
-        <PeriodReportSystem
-          messagesCurrent={kpiMessagesPeriod || 0}
-          messagesPrev={kpiMessagesPrevPeriod || 0}
-          activeMembersCurrent={kpiActiveMembersPeriod || 0}
-          totalMembers={kpiMembers || 0}
-          activeOrgsCurrent={kpiOrgsPeriod || 0}
-          totalOrgs={kpiOrgs || 0}
-          trendingBigrams={(signalKeywords?.bigrams || []) as any}
-        />
-
         <section className="rounded-xl border border-border bg-card p-5" id="recent-groups">
           <SectionHeader
             title="Últimos grupos incluídos"
-            subtitle="Novos grupos adicionados ao sistema"
+            subtitle="Novos grupos adicionados recentemente"
+            subtitleClassName="font-normal text-muted-foreground/80"
             linkHref="/system/groups"
             linkLabel="Ver todos"
           />
@@ -805,17 +806,23 @@ const Index = () => {
                 <button
                   key={g.id}
                   onClick={() => navigate(`/groups/${g.id}`)}
-                  className="w-full text-left rounded-lg border border-border bg-card/50 p-3 hover:bg-secondary/40 transition-colors"
+                  className="group w-full text-left rounded-lg border border-border bg-card/50 px-3 py-2.5 transition-colors hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-card-foreground truncate">{g.name}</div>
-                      <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
-                        <span className="whitespace-nowrap">{g.organizations?.name || "—"}</span>
-                        <span className="whitespace-nowrap">Incluído em {formatDateSimpleBR(g.created_at)}</span>
+                      <div className="text-sm font-semibold text-foreground truncate">{g.name}</div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        <span className="truncate max-w-[40ch]">{g.organizations?.name || "—"}</span>
+                        <span className="text-muted-foreground/60">•</span>
+                        <span
+                          className="whitespace-nowrap tabular-nums text-muted-foreground/80"
+                          title={getAddedRelativeLabel(g.created_at)}
+                        >
+                          {formatDateSimpleBR(g.created_at)}
+                        </span>
                       </div>
                     </div>
-                    <ArrowUpRight className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
                   </div>
                 </button>
               ))}
@@ -827,6 +834,7 @@ const Index = () => {
           <SectionHeader
             title="Grupos mais ativos"
             subtitle="Mensagens por grupo no período selecionado"
+            subtitleClassName="font-normal text-muted-foreground/80"
           />
 
           {signalConcentrationLoading ? (
@@ -871,11 +879,14 @@ const Index = () => {
               return (
                 <div className="mt-4 space-y-3" aria-live="polite">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-xs text-muted-foreground">
-                      <span className="font-medium text-card-foreground tabular-nums">{totalMessagesLabel}</span> mensagens •{" "}
-                      <span className="font-medium text-card-foreground tabular-nums">{activeGroupsLabel}</span> grupos com atividade
+                    <div className="text-sm text-card-foreground">
+                      <span className="font-semibold tabular-nums">{totalMessagesLabel}</span>{" "}
+                      <span className="text-muted-foreground">mensagens no período</span>
+                      <span className="mx-2 text-muted-foreground/50">·</span>
+                      <span className="font-semibold tabular-nums">{activeGroupsLabel}</span>{" "}
+                      <span className="text-muted-foreground">grupos com atividade</span>
                     </div>
-                    <div className="text-[11px] text-muted-foreground">Top 5 por volume</div>
+                    <div className="text-[11px] text-muted-foreground/80">Top 5 por volume</div>
                   </div>
 
                   <ul className="space-y-2" role="list">
@@ -892,33 +903,36 @@ const Index = () => {
                             onClick={() => navigate(`/groups/${g.id}`)}
                             aria-label={`Abrir dashboard do grupo ${g.name}`}
                             aria-describedby={metricsId}
-                            className="group w-full min-h-[72px] text-left rounded-lg border border-border bg-card/50 p-3 transition-colors transition-transform duration-150 ease-out hover:bg-secondary/40 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+                            className="group w-full text-left rounded-lg border border-border bg-card/50 px-3 py-2.5 transition-colors hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
-                                <div className="text-sm font-semibold text-card-foreground truncate">
-                                  {i + 1}. {g.name}
+                                <div className="flex items-baseline gap-2 min-w-0">
+                                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground/80">{i + 1}.</span>
+                                  <div className="text-sm font-semibold text-foreground truncate">{g.name}</div>
                                 </div>
-                                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground" id={metricsId}>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground" id={metricsId}>
                                   <span className="whitespace-nowrap tabular-nums">{formatNumberBR(Number(g.activeMembers || 0))} ativos</span>
+                                  <span className="text-muted-foreground/50">·</span>
                                   <span className="whitespace-nowrap tabular-nums">{formatNumberBR(avgPerDay)}/dia</span>
+                                  <span className="text-muted-foreground/50">·</span>
                                   <span className="whitespace-nowrap tabular-nums">{participation}% do total</span>
                                 </div>
                               </div>
 
                               <div className="shrink-0 flex items-center gap-2">
                                 <div className="text-right">
-                                  <div className="text-base font-semibold text-card-foreground tabular-nums">
+                                  <div className="text-lg font-semibold text-card-foreground tabular-nums leading-none">
                                     {formatNumberBR(count)}
                                   </div>
-                                  <div className="text-[11px] text-muted-foreground">msgs</div>
+                                  <div className="mt-1 text-[11px] text-muted-foreground/80">mensagens</div>
                                 </div>
-                                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-150 ease-out group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+                                <ChevronRight className="h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
                               </div>
                             </div>
 
-                            <div className="mt-3 h-2 w-full rounded bg-muted" aria-hidden="true">
-                              <div className="h-2 rounded bg-primary" style={{ width: `${Math.max(0, Math.min(100, participation))}%` }} />
+                            <div className="mt-2.5 h-2 w-full rounded bg-muted/60" aria-hidden="true">
+                              <div className="h-2 rounded bg-primary/70" style={{ width: `${Math.max(0, Math.min(100, participation))}%` }} />
                             </div>
                           </button>
                         </li>

@@ -170,7 +170,6 @@ export function SummarySection({
               changeType={changeType}
               icon={icon}
               variant="kpi"
-              description={`entradas: +${newMembersCount} · saídas: -${exitedMembersCount}`}
             />
           );
         })()}

@@ -87,7 +87,6 @@ export function GroupGrowthSection({
             )}
             <div>
               <p className="text-xs font-medium text-muted-foreground">Membros atuais</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">Tamanho atual do grupo</p>
             </div>
           </div>
 
@@ -101,7 +100,6 @@ export function GroupGrowthSection({
             )}
             <div>
               <p className="text-xs font-medium text-muted-foreground">Saldo do período</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">Mais saídas do que entradas {periodLabel && periodLabel !== "período" ? `(${periodLabel})` : "nos últimos dias"}</p>
             </div>
           </div>
 
@@ -109,11 +107,10 @@ export function GroupGrowthSection({
             {isLoading ? (
               <Skeleton className="h-9 w-20" />
             ) : (
-              <p className="text-xl font-semibold tabular-nums text-success">+{entriesTotal.toLocaleString("pt-BR")}</p>
+              <p className="text-2xl font-semibold tabular-nums text-success">+{entriesTotal.toLocaleString("pt-BR")}</p>
             )}
             <div>
               <p className="text-xs font-medium text-muted-foreground">Entradas</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">pessoas que entraram</p>
             </div>
           </div>
 
@@ -121,11 +118,10 @@ export function GroupGrowthSection({
             {isLoading ? (
               <Skeleton className="h-9 w-20" />
             ) : (
-              <p className="text-xl font-semibold tabular-nums text-muted-foreground">−{exitsTotal.toLocaleString("pt-BR")}</p>
+              <p className="text-2xl font-semibold tabular-nums text-muted-foreground">−{exitsTotal.toLocaleString("pt-BR")}</p>
             )}
             <div>
               <p className="text-xs font-medium text-muted-foreground">Saídas</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">pessoas que saíram</p>
             </div>
           </div>
         </div>
