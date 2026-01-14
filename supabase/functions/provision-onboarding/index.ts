@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { insertMembersFromParticipantsForGroup } from "../_shared/members-from-participants.ts";
 
 type Env = {
   get: (key: string) => string | undefined;
@@ -46,6 +47,7 @@ interface ProvisionPayload {
     name: string;
     is_admin: boolean;
     is_super_admin?: boolean;
+    is_owner?: boolean;
     whatsapp_provider_id: string;
   }>;
 }
@@ -349,8 +351,10 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
 
     const primaryPhone = normalizePhone(payload.lead.whatsapp_phone);
 
+
     let txData: unknown = null;
     let txError: any = null;
+    let usedRpc: 'v2' | 'v1' | 'none' = 'v2';
 
     ({ data: txData, error: txError } = await supabase.rpc('public_onboarding_provision_tx_v2', {
       p_user_id: payload.lead.user_id,
@@ -381,6 +385,8 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
         p_group_invite_link: payload.group.invite_link,
         p_group_whatsapp_provider_id: payload.group.whatsapp_provider_id,
       }));
+
+      usedRpc = 'v1';
     }
 
     if (txError && isMissingRpc(txError, 'public_onboarding_provision_tx')) {
@@ -389,6 +395,8 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
         code: txError?.code,
         message: txError?.message,
       }));
+
+      usedRpc = 'none';
 
       const leadPhoneE164 = primaryPhone;
       let organizationId: string | null = null;
@@ -622,6 +630,11 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
         }
       };
 
+      const insertMembersFromParticipants = async () => {
+        if (!groupId) return;
+        await insertMembersFromParticipantsForGroup({ supabase, groupId, participants: payload.participants });
+      };
+
       const insertOrgAdminRole = async () => {
         const row: any = {
           user_id: payload.lead.user_id,
@@ -660,6 +673,7 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
           return conflictResponse;
         }
         await upsertPrimaryContact();
+        await insertMembersFromParticipants();
         await insertOrgAdminRole();
         await insertEvent();
 
@@ -728,6 +742,17 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
         },
         500
       );
+    }
+
+    if (usedRpc === 'v1') {
+      try {
+        await insertMembersFromParticipantsForGroup({ supabase, groupId, participants: payload.participants });
+      } catch (e: any) {
+        console.error('Falha ao inserir membros após RPC v1', JSON.stringify({
+          correlation_id: correlationId,
+          message: e?.message || String(e),
+        }));
+      }
     }
 
     const createAssistantWebhookUrl =

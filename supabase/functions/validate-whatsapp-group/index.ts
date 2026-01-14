@@ -10,6 +10,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-correlation-id',
 };
 
+export type NormalizedParticipant = {
+  phone: string;
+  name: string;
+  is_admin: boolean;
+  is_super_admin: boolean;
+  is_owner: boolean;
+  whatsapp_provider_id: string;
+};
+
+export function normalizeParticipants(raw: unknown): NormalizedParticipant[] {
+  const list = Array.isArray(raw) ? raw : [];
+  return list.map((p: any) => {
+    const phone = String(p?.phone ?? '');
+    const isOwner = !!(p?.isSuperAdmin);
+    return {
+      phone,
+      name: phone,
+      is_admin: !!(p?.isAdmin || p?.isSuperAdmin),
+      is_super_admin: !!(p?.isSuperAdmin),
+      is_owner: isOwner,
+      whatsapp_provider_id: String(p?.lid || phone),
+    };
+  });
+}
+
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -139,13 +164,7 @@ serve(async (req: Request) => {
       }));
       
       // Map participants to our format
-      const participants = (groupData.participants || []).map((p: { phone: string; isAdmin?: boolean; isSuperAdmin?: boolean; lid?: string }) => ({
-        phone: p.phone,
-        name: p.phone,
-        is_admin: p.isAdmin || p.isSuperAdmin || false,
-        is_super_admin: p.isSuperAdmin || false,
-        whatsapp_provider_id: p.lid || p.phone,
-      }));
+      const participants = normalizeParticipants(groupData.participants);
 
       const groupName = groupData.name || groupData.subject || '';
       const providerId = groupData.phone || '';

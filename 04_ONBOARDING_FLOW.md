@@ -27,7 +27,7 @@
 - Validação do grupo via Edge Function `validate-whatsapp-group` com n8n.
 - Provisionamento inicial via `provision-onboarding` (service role).
 - Criação automática de `Organization` e `Group`.
-- Inserção opcional de `Members` baseada nos participantes retornados.
+- Inserção opcional de `Members` baseada nos participantes retornados, com deduplicação e hierarquia consistente (`OWNER`/`SUPERADMIN`/`ADMIN`).
 - Upsert de `profiles` com nome do lead.
 - Atribuição de papel `ORG_ADMIN` ao usuário criado para a nova organização.
 - Registro do evento `ONBOARDING_COMPLETED` em `events`.
@@ -70,10 +70,11 @@
   - `supabase/functions/provision-group/index.ts:123` (inserir `groups`)
   - `supabase/functions/provision-group/index.ts:152` (inserir `members`)
   - `supabase/functions/provision-group/index.ts:184` (registrar `GROUP_ADDED` em `events`)
+- Núcleo compartilhado (membros a partir de participantes):
+  - `supabase/functions/_shared/members-from-participants.ts`
 - Tipos e tabelas relacionadas:
   - `src/integrations/supabase/types.ts:17` (`events` Row)
   - `src/integrations/supabase/types.ts:613` (`user_roles` Row)
   - `src/integrations/supabase/types.ts:491` (`organizations` Row)
   - `src/integrations/supabase/types.ts:125` (`groups` Row)
   - `src/integrations/supabase/types.ts:208` (`members` Row)
-

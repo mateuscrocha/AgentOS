@@ -60,12 +60,13 @@ function makePayload() {
       name: "Grupo",
       invite_link: "https://chat.whatsapp.com/abc",
     },
-    participants: [],
+    participants: [] as any[],
   };
 }
 
 DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não existe", async () => {
   const calls: RpcCall[] = [];
+  let membersInserted: any[] | null = null;
   const groupRow = {
     id: "group-1",
     name: "Grupo",
@@ -115,13 +116,33 @@ DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não exist
         },
         from: (table: string) => {
           if (table === "groups") return makeGroupsBuilder(groupRow);
+          if (table === 'members') {
+            return {
+              insert: async (values: any[]) => {
+                membersInserted = values;
+                return { error: null };
+              },
+            } as any;
+          }
           throw new Error(`unexpected table: ${table}`);
         },
       } as any;
     }) as any,
   });
 
-  const res = await handler(makeReq(makePayload()));
+  const payload = makePayload();
+  payload.participants = [
+    {
+      phone: '11999990000',
+      name: 'Dono',
+      is_admin: false,
+      is_super_admin: true,
+      is_owner: true,
+      whatsapp_provider_id: 'lid-1',
+    },
+  ];
+
+  const res = await handler(makeReq(payload));
   assertEquals(res.status, 200);
   const body = await res.json();
   assertEquals(body.success, true);
@@ -129,6 +150,13 @@ DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não exist
   assertEquals(calls[0].fn, "public_onboarding_provision_tx_v2");
   assertEquals(calls[1].fn, "public_onboarding_provision_tx");
   assertEquals(Object.prototype.hasOwnProperty.call(calls[1].args, "p_lead_phone_e164"), true);
+  assertEquals(Array.isArray(membersInserted), true);
+  const inserted = (membersInserted ?? []) as any[];
+  assertEquals(inserted.length, 1);
+  assertEquals(inserted[0]?.phone_e164, '+5511999990000');
+  assertEquals(inserted[0]?.is_admin, true);
+  assertEquals(inserted[0]?.is_super_admin, true);
+  assertEquals(inserted[0]?.is_owner, true);
 });
 
 DenoRef.test("provision-onboarding usa RPC v2 quando disponível", async () => {
@@ -258,6 +286,9 @@ DenoRef.test("provision-onboarding usa fallback sem RPC quando v1 e v2 não exis
         calls.push({ table, action: 'select', cols });
         return builder;
       },
+      then(onFulfilled: any, onRejected: any) {
+        return Promise.resolve({ data: null, error: null }).then(onFulfilled, onRejected);
+      },
       eq(col: string, value: any) {
         state.filters[`eq:${col}`] = value;
         calls.push({ table, action: 'eq', col, value });
@@ -327,10 +358,38 @@ DenoRef.test("provision-onboarding usa fallback sem RPC quando v1 e v2 não exis
     }) as any,
   });
 
-  const res = await handler(makeReq(makePayload()));
+  const payload = makePayload();
+  payload.participants = [
+    {
+      phone: '11999990000',
+      name: 'Dono',
+      is_admin: false,
+      is_super_admin: true,
+      is_owner: true,
+      whatsapp_provider_id: 'lid-1',
+    },
+    {
+      phone: '+5511888887777',
+      name: 'Admin',
+      is_admin: true,
+      is_super_admin: false,
+      whatsapp_provider_id: 'lid-2',
+    },
+  ];
+
+  const res = await handler(makeReq(payload));
   assertEquals(res.status, 200);
   const body = await res.json();
   assertEquals(body.success, true);
   assertEquals(body.organization_id, 'org-1');
   assertEquals(body.group_id, 'group-1');
+
+  const membersInsert = calls.find((c) => c.table === 'members' && c.action === 'insert');
+  assertEquals(!!membersInsert, true);
+  assertEquals(Array.isArray(membersInsert.values), true);
+  const first = membersInsert.values[0];
+  assertEquals(first.is_admin, true);
+  assertEquals(first.is_super_admin, true);
+  assertEquals(first.is_owner, true);
+  assertEquals(first.phone_e164, '+5511999990000');
 });

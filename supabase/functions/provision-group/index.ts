@@ -1,6 +1,24 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { insertMembersFromParticipantsForGroup } from "../_shared/members-from-participants.ts";
+
+type Env = {
+  get: (key: string) => string | undefined;
+};
+
+type CreateClient = typeof createClient;
+
+type Deps = {
+  createClient?: CreateClient;
+  env?: Env;
+  fetch?: typeof fetch;
+  crypto?: Crypto;
+};
+
+const defaultEnv: Env = {
+  get: (key: string) => (globalThis as any)?.Deno?.env?.get?.(key),
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +44,18 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isRetryableStatus = (status: number) => status === 408 || status === 429 || (status >= 500 && status <= 599);
 
 const truncateText = (text: string, limit = 2000) => (text.length > limit ? `${text.slice(0, limit)}…` : text);
+
+const isUnknownColumnError = (err: any): boolean => {
+  const code = String(err?.code || '');
+  const message = String(err?.message || '');
+  const msg = message.toLowerCase();
+  return (
+    code === '42703' ||
+    (msg.includes('column') && msg.includes('does not exist')) ||
+    (msg.includes('column') && msg.includes('schema cache')) ||
+    (msg.includes('could not find the') && msg.includes('column'))
+  );
+};
 
 const sendCreateAssistantWebhook = async (args: {
   url: string;
@@ -179,23 +209,20 @@ type GroupRow = {
   sync_error?: string | null;
 };
 
-function toE164(phone: string | null | undefined): string | null {
-  const digits = (phone || "").replace(/\D/g, "");
-  if (digits.length < 8) return null;
-  if (digits.length > 18) return null;
-  if (digits.startsWith("55") && digits.length >= 10) return `+${digits}`;
-  if (digits.length === 10 || digits.length === 11) return `+55${digits}`;
-  return `+${digits}`;
-}
+export const createProvisionGroupHandler = (deps: Deps = {}) => {
+  const env = deps.env ?? defaultEnv;
+  const createClientImpl = deps.createClient ?? createClient;
+  const fetchImpl = deps.fetch ?? fetch;
+  const cryptoImpl = deps.crypto ?? crypto;
 
-serve(async (req: Request) => {
+  return async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const correlationId = req.headers.get('x-correlation-id') ?? crypto.randomUUID();
+    const correlationId = req.headers.get('x-correlation-id') ?? cryptoImpl.randomUUID();
 
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
@@ -242,11 +269,24 @@ serve(async (req: Request) => {
       );
     }
 
-    // Create Supabase client with user's token to respect RLS
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseUrl = env.get('SUPABASE_URL');
+    const supabaseAnonKey = env.get('SUPABASE_ANON_KEY');
+
+    if (!supabaseUrl) {
+      return new Response(
+        JSON.stringify({ success: false, code: 'SUPABASE_URL_NOT_CONFIGURED', message: 'SUPABASE_URL não configurada no ambiente da função' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!supabaseAnonKey) {
+      return new Response(
+        JSON.stringify({ success: false, code: 'SUPABASE_ANON_KEY_NOT_CONFIGURED', message: 'SUPABASE_ANON_KEY não configurada no ambiente da função' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+    const supabaseUser = createClientImpl(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: { Authorization: authHeader },
       },
@@ -284,12 +324,26 @@ serve(async (req: Request) => {
       );
     }
 
-    // Check if group with same provider_group_id already exists
-    const { data: existingGroup } = await supabaseUser
-      .from('groups')
-      .select('id, name')
-      .eq('whatsapp_provider_id', payload.group.whatsapp_provider_id)
-      .maybeSingle();
+    const findExistingGroup = async () => {
+      let existing: any = null;
+      let err: any = null;
+      ({ data: existing, error: err } = await supabaseUser
+        .from('groups')
+        .select('id, name')
+        .eq('whatsapp_provider_id', payload.group.whatsapp_provider_id)
+        .maybeSingle());
+      if (err && isUnknownColumnError(err)) {
+        ({ data: existing, error: err } = await supabaseUser
+          .from('groups')
+          .select('id, name')
+          .eq('provider_group_id', payload.group.whatsapp_provider_id)
+          .maybeSingle());
+      }
+      if (err) throw err;
+      return existing;
+    };
+
+    const existingGroup = await findExistingGroup().catch(() => null);
 
     if (existingGroup) {
       return new Response(
@@ -302,26 +356,74 @@ serve(async (req: Request) => {
       );
     }
 
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    const serviceRoleKey = env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!serviceRoleKey) {
+      return new Response(
+        JSON.stringify({ success: false, code: 'SERVICE_ROLE_NOT_CONFIGURED', message: 'SUPABASE_SERVICE_ROLE_KEY não configurada no ambiente da função' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseAdmin = createClientImpl(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       },
     });
 
-    // Create Group - RLS will enforce permission
-    const { data: group, error: groupError } = await supabaseUser
-      .from('groups')
-      .insert({
+    const tryInsertGroup = async () => {
+      const base: any = {
         name: payload.group.name,
         organization_id: payload.organization_id,
         provider: 'whatsapp',
-        whatsapp_provider_id: payload.group.whatsapp_provider_id,
         invite_link: payload.group.invite_link,
-      })
-      .select('id')
-      .single();
+        invite_link_status: 'valid',
+        status: 'active',
+        is_active: true,
+        is_archived: false,
+      };
+
+      let insertPayload: any = { ...base, whatsapp_provider_id: payload.group.whatsapp_provider_id };
+      let res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
+
+      if (res.error && isUnknownColumnError(res.error)) {
+        insertPayload = { ...base, provider_group_id: payload.group.whatsapp_provider_id };
+        res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
+      }
+
+      if (res.error && isUnknownColumnError(res.error)) {
+        const minimalBase: any = {
+          name: payload.group.name,
+          organization_id: payload.organization_id,
+          provider: 'whatsapp',
+          invite_link: payload.group.invite_link,
+        };
+        insertPayload = { ...minimalBase, whatsapp_provider_id: payload.group.whatsapp_provider_id };
+        res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
+        if (res.error && isUnknownColumnError(res.error)) {
+          insertPayload = { ...minimalBase, provider_group_id: payload.group.whatsapp_provider_id };
+          res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
+        }
+      }
+
+      if (res.error && isUnknownColumnError(res.error)) {
+        const minimalBase: any = {
+          name: payload.group.name,
+          organization_id: payload.organization_id,
+          provider: 'whatsapp',
+        };
+        insertPayload = { ...minimalBase, whatsapp_provider_id: payload.group.whatsapp_provider_id };
+        res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
+        if (res.error && isUnknownColumnError(res.error)) {
+          insertPayload = { ...minimalBase, provider_group_id: payload.group.whatsapp_provider_id };
+          res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
+        }
+      }
+
+      return res;
+    };
+
+    const { data: group, error: groupError } = await tryInsertGroup();
 
     if (groupError) {
       console.error('Error adding group:', groupError);
@@ -356,69 +458,26 @@ serve(async (req: Request) => {
       }
     };
 
-    // Create Members from participants - RLS will enforce permission
-    if (payload.participants && payload.participants.length > 0) {
-      const nowIso = new Date().toISOString();
-
-      const normalizedParticipants = payload.participants
-        .map((p) => {
-          const phoneE164 = toE164(p.phone);
-          const whatsappProviderId = (p.whatsapp_provider_id || p.phone || "").toString().trim();
-          return {
-            phone_raw: (p.phone || "").toString(),
-            phone_e164: phoneE164,
-            whatsapp_provider_id: whatsappProviderId || null,
-            is_admin: !!p.is_admin,
-            is_super_admin: !!p.is_super_admin,
-            name: (p.name || "").toString().trim() || null,
-          };
-        })
-        .filter((p) => !!p.phone_e164 && !!p.whatsapp_provider_id);
-
-      const participantsUnique: typeof normalizedParticipants = [];
-      const seenParticipantKeys = new Set<string>();
-      for (const p of normalizedParticipants) {
-        const key = (p.whatsapp_provider_id || p.phone_e164 || "").trim();
-        if (!key) continue;
-        if (seenParticipantKeys.has(key)) continue;
-        seenParticipantKeys.add(key);
-        participantsUnique.push(p);
-      }
-
-      const membersToInsert = participantsUnique.map((p) => ({
-        group_id: group.id,
-        name: p.name || p.phone_raw,
-        phone_e164: p.phone_e164,
-        is_admin: p.is_admin || false,
-        is_super_admin: p.is_super_admin || false,
-        whatsapp_provider_id: p.whatsapp_provider_id,
-        provider: 'whatsapp',
-        first_seen_at: nowIso,
-        joined_at: nowIso,
-        status: 'active',
-      }));
-
-      const { error: membersError } = await supabaseUser
-        .from('members')
-        .insert(membersToInsert);
-
-      if (membersError) {
-        console.error('Error creating members:', membersError);
-        // Continue anyway, members are not critical
-      } else {
-        console.log('Members added:', membersToInsert.length);
-      }
+    try {
+      await insertMembersFromParticipantsForGroup({
+        supabase: supabaseUser,
+        groupId: group.id,
+        participants: payload.participants,
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('Error creating members:', msg);
     }
 
     const createAssistantWebhookUrl =
-      Deno.env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL') ||
-      Deno.env.get('N8N_WEBHOOK_CREATE_ASSISTANT_URL');
+      env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL') ||
+      env.get('N8N_WEBHOOK_CREATE_ASSISTANT_URL');
 
     const createAssistantWebhookApiKey =
-      Deno.env.get('N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
-      Deno.env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
-      Deno.env.get('N8N_WEBHOOK_API_KEY') ||
-      Deno.env.get('VITE_N8N_WEBHOOK_API_KEY');
+      env.get('N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
+      env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
+      env.get('N8N_WEBHOOK_API_KEY') ||
+      env.get('VITE_N8N_WEBHOOK_API_KEY');
 
     if (!createAssistantWebhookUrl) {
       try {
@@ -481,7 +540,7 @@ serve(async (req: Request) => {
         url: createAssistantWebhookUrl,
         group: (groupRow as GroupRow) ?? fallbackGroup,
         correlationId,
-        fetchImpl: fetch,
+        fetchImpl,
         apiKey: createAssistantWebhookApiKey,
         maxAttempts: 3,
         timeoutMs: 10_000,
@@ -559,4 +618,7 @@ serve(async (req: Request) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+  };
+};
+
+serve(createProvisionGroupHandler());

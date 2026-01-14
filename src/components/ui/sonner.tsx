@@ -1,66 +1,43 @@
+import * as React from "react";
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
+
 type NotifyOpts = {
-  actionLabel?: string;
-  onAction?: () => void;
   duration?: number;
 };
 
 type NotifyType = "success" | "error" | "warning" | "info";
 
-const icons: Record<NotifyType, string> = {
-  success: "✓",
-  error: "✕",
-  warning: "⚠",
-  info: "ⓘ",
+const DEFAULT_DURATION_MS: Record<NotifyType, number> = {
+  success: 3500,
+  info: 3500,
+  warning: 5000,
+  error: 10000,
 };
 
-const styles: Record<NotifyType, { bg: string; title: string; icon: string; border: string }> = {
-  success: { bg: "bg-success/10", title: "text-success", icon: "text-success", border: "border-success/20" },
-  error: { bg: "bg-destructive/10", title: "text-destructive", icon: "text-destructive", border: "border-destructive/20" },
-  warning: { bg: "bg-warning/10", title: "text-warning", icon: "text-warning", border: "border-warning/20" },
-  info: { bg: "bg-blue-50", title: "text-blue-700", icon: "text-blue-700", border: "border-blue-200" },
-};
+function show(type: NotifyType, title: string, description?: string, opts?: NotifyOpts) {
+  const duration = opts?.duration ?? DEFAULT_DURATION_MS[type];
 
-function show(type: NotifyType, title: string, message: string, opts?: NotifyOpts) {
-  const s = styles[type];
-  return toast.custom(
-    () => (
-      <div
-        className={cn(
-          "flex items-start gap-3 max-w-[460px] p-4 rounded-xl shadow-lg border",
-          s.bg,
-          s.border,
-        )}
-      >
-        <div className={cn("shrink-0 text-[20px] leading-5", s.icon)}>{icons[type]}</div>
-        <div className="flex-1">
-          <div className={cn("text-[14px] font-semibold", s.title)}>{title}</div>
-          <div className="text-[13px] text-muted-foreground">{message}</div>
-          {opts?.actionLabel && opts?.onAction ? (
-            <button
-              onClick={opts.onAction}
-              className="mt-2 text-[13px] font-medium underline"
-            >
-              {opts.actionLabel}
-            </button>
-          ) : null}
-        </div>
-      </div>
-    ),
-    {
-      duration: opts?.duration ?? 5000,
-    },
-  );
+  switch (type) {
+    case "success":
+      return toast.success(title, { description, duration });
+    case "info":
+      return toast.info(title, { description, duration });
+    case "warning":
+      return toast.warning(title, { description, duration });
+    case "error":
+      return toast.error(title, { description, duration });
+  }
 }
 
 export const notify = {
-  success: (title: string, message: string, opts?: NotifyOpts) => show("success", title, message, opts),
-  error: (title: string, message: string, opts?: NotifyOpts) => show("error", title, message, opts),
-  warning: (title: string, message: string, opts?: NotifyOpts) => show("warning", title, message, opts),
-  info: (title: string, message: string, opts?: NotifyOpts) => show("info", title, message, opts),
+  success: (title: string, description?: string, opts?: NotifyOpts) => show("success", title, description, opts),
+  error: (title: string, description?: string, opts?: NotifyOpts) => show("error", title, description, opts),
+  warning: (title: string, description?: string, opts?: NotifyOpts) => show("warning", title, description, opts),
+  info: (title: string, description?: string, opts?: NotifyOpts) => show("info", title, description, opts),
 };
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
@@ -71,9 +48,46 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
-      position="top-right"
-      duration={5000}
+      position="bottom-right"
+      visibleToasts={3}
       closeButton
+      richColors={false}
+      offset={{
+        right: "calc(env(safe-area-inset-right, 0px) + 16px)",
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+      }}
+      mobileOffset={{
+        right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        left: "calc(env(safe-area-inset-left, 0px) + 12px)",
+      }}
+      icons={{
+        success: <CheckCircle2 className="h-4 w-4 text-success" />,
+        info: <Info className="h-4 w-4 text-muted-foreground" />,
+        warning: <AlertTriangle className="h-4 w-4 text-warning" />,
+        error: <XCircle className="h-4 w-4 text-destructive" />,
+        close: <X className="h-4 w-4" />,
+      }}
+      toastOptions={{
+        classNames: {
+          toast: cn(
+            "group pointer-events-auto relative w-full max-w-[420px] overflow-hidden rounded-lg border border-border bg-background text-foreground shadow-card",
+            "px-4 py-3 pr-10",
+          ),
+          title: "text-sm font-medium leading-5",
+          description: "text-sm leading-5 text-muted-foreground",
+          icon: "mt-0.5",
+          closeButton: cn(
+            "absolute right-2 top-2 rounded-md p-1 text-muted-foreground/70",
+            "opacity-0 transition-opacity group-hover:opacity-100",
+            "focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
+          ),
+          success: "border-l-2 border-l-success/40",
+          info: "border-l-2 border-l-muted-foreground/20",
+          warning: "border-l-2 border-l-warning/35",
+          error: "border-l-2 border-l-destructive/40",
+        },
+      }}
       {...props}
     />
   );
