@@ -1,19 +1,19 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Copy, FileText } from "lucide-react";
+import { Check, ChevronDown, Copy, FileText } from "lucide-react";
 
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateDescriptiveBR } from "@/lib/date";
 import { renderWhatsappToReact } from "@/lib/whatsapp-format";
@@ -510,7 +510,7 @@ const GroupSummaries = () => {
             message="Nenhuma conversa registrada ainda. Quando o Bóris gerar resumos, eles aparecerão aqui."
           />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4 w-full max-w-[1100px] mx-auto">
             {selectedKeyword ? (
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm text-muted-foreground">
@@ -535,7 +535,7 @@ const GroupSummaries = () => {
               collapsible
               value={openSummaryId}
               onValueChange={(v) => setOpenSummaryId(v)}
-              className="space-y-3"
+              className="space-y-4"
             >
             {filteredConversationsView.map((s) => {
               const isOpen = openSummaryId === s.id;
@@ -555,41 +555,54 @@ const GroupSummaries = () => {
                 <AccordionItem key={s.id} value={s.id} className="border-0">
                   <Card
                     className={cn(
-                      "rounded-xl border border-border bg-card transition-colors",
-                      isOpen ? "border-l-4 border-l-orange-300 bg-muted/10" : ""
+                      "group rounded-xl border border-border bg-card transition-colors",
+                      "hover:bg-secondary/10 focus-within:ring-1 focus-within:ring-ring/15",
+                      isOpen ? "shadow-card" : ""
                     )}
                   >
-                    <AccordionTrigger className="px-4 py-4 sm:px-5 sm:py-5 hover:no-underline">
-                      <div className="flex w-full items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline gap-2">
-                            <div className="text-sm font-semibold text-foreground">
-                              {formatDateDescriptiveBR(s.dateLabel)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Resumo do dia</div>
+                    <AccordionTrigger className="px-4 py-4 sm:px-5 sm:py-5 hover:no-underline justify-start items-start gap-2 font-normal focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/20">
+                      <div className="min-w-0 flex-1 text-left space-y-3">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <div className="text-sm font-semibold text-foreground">
+                            {formatDateDescriptiveBR(s.dateLabel)}
                           </div>
-
-                          <div className="mt-2 rounded-lg border border-orange-200/60 bg-orange-50/60 px-3 py-2 dark:border-orange-900/40 dark:bg-orange-950/15">
-                            <p className="text-sm text-foreground line-clamp-2">
-                              {pickHumanDaySummary(s.topics, s.keywords)}
-                            </p>
+                          <div className="rounded-full bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            Resumo do dia
                           </div>
-
-                          <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
-                            {s.preview || "Resumo disponível para este dia."}
-                          </p>
-
-                          {countsLine ? <div className="mt-2 text-xs text-muted-foreground">{countsLine}</div> : null}
                         </div>
 
-                        <div className="shrink-0 text-sm font-medium text-muted-foreground">Ver detalhes</div>
+                        {countsLine ? (
+                          <div className="text-xs text-muted-foreground/80">{countsLine}</div>
+                        ) : null}
+
+                        <div
+                          className={cn(
+                            "rounded-xl border border-border bg-card px-4 py-3 shadow-sm",
+                            "border-l-2 border-l-primary/20",
+                            "group-hover:border-l-primary/30",
+                          )}
+                        >
+                          <p className="max-w-[86ch] text-[15px] leading-relaxed font-semibold text-foreground line-clamp-3">
+                            {pickHumanDaySummary(s.topics, s.keywords)}
+                          </p>
+                        </div>
+
+                        {!isOpen ? (
+                          <p className="text-xs text-muted-foreground line-clamp-1 max-w-[96ch]">
+                            {s.preview || "Resumo disponível para este dia."}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="shrink-0 mt-0.5 flex items-center gap-2 text-xs font-medium text-muted-foreground/80">
+                        <span>Ver detalhes</span>
                       </div>
                     </AccordionTrigger>
 
                     <AccordionContent className="px-4 pb-4 sm:px-5 sm:pb-5 transition-all duration-200">
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         <div className="space-y-3">
-                          <div className="text-sm font-medium text-foreground">Assuntos que mais movimentaram o dia</div>
+                          <div className="text-sm font-semibold text-foreground">Assuntos que mais movimentaram o dia</div>
                           {topicsVisible.length > 0 ? (
                             <div className="space-y-2">
                               {topicsVisible.map((t) => {
@@ -597,19 +610,20 @@ const GroupSummaries = () => {
                                 const preview = pickTopicPreview(t.content || "");
 
                                 return (
-                                  <Alert
+                                  <div
                                     key={t.id}
-                                    className="border border-border border-l-2 border-l-orange-200 bg-muted/20 p-4 sm:p-5 transition-colors duration-200 hover:bg-muted/30"
+                                    className={cn(
+                                      "rounded-xl border border-border bg-card p-4 sm:p-5",
+                                      "border-l-2 border-l-transparent",
+                                      "transition-colors duration-200",
+                                      "hover:bg-secondary/20 hover:border-l-primary/30",
+                                    )}
                                   >
-                                    <div>
-                                      <AlertTitle className="text-sm font-medium">{title || "Tópico"}</AlertTitle>
-                                      <AlertDescription>
-                                        <p className="max-w-[72ch] text-sm text-muted-foreground line-clamp-2">
-                                          {preview || "Sem detalhes adicionais para este tópico."}
-                                        </p>
-                                      </AlertDescription>
-                                    </div>
-                                  </Alert>
+                                    <div className="text-sm font-medium text-foreground">{title || "Tópico"}</div>
+                                    <p className="mt-1 max-w-[86ch] text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                                      {preview || "Sem detalhes adicionais para este tópico."}
+                                    </p>
+                                  </div>
                                 );
                               })}
 
@@ -635,12 +649,15 @@ const GroupSummaries = () => {
                           )}
                         </div>
 
-                        <Separator />
+                        <Separator className="bg-border/60" />
 
                         <div className="space-y-3">
-                          <div className="text-sm font-medium text-foreground">Palavras-chave</div>
+                          <div className="space-y-1">
+                            <div className="text-sm font-semibold text-foreground">Palavras-chave</div>
+                            <div className="text-xs text-muted-foreground">Linguagem mais usada no dia</div>
+                          </div>
                           {s.keywords.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5">
                               {s.keywords.map((kw) => {
                                 const isSelected =
                                   normalizeWhitespace(selectedKeyword || "").toLowerCase() ===
@@ -650,13 +667,13 @@ const GroupSummaries = () => {
                                   <Button
                                     key={kw.id}
                                     size="sm"
-                                    variant="outline"
+                                    variant="ghost"
                                     className={cn(
-                                      "h-7 rounded-full px-3 text-xs font-medium",
-                                      "whitespace-nowrap",
+                                      "h-6 rounded-full px-2.5 text-[11px] font-medium whitespace-nowrap",
+                                      "bg-muted/30 hover:bg-muted/50",
                                       isSelected
-                                        ? "border-orange-300 bg-orange-50/60 text-foreground dark:border-orange-900/60 dark:bg-orange-950/20"
-                                        : "text-muted-foreground"
+                                        ? "text-foreground bg-secondary hover:bg-secondary/80 ring-1 ring-primary/20"
+                                        : "text-muted-foreground hover:text-foreground"
                                     )}
                                     aria-pressed={isSelected}
                                     onClick={(e) => {
@@ -680,15 +697,30 @@ const GroupSummaries = () => {
                           )}
                         </div>
 
-                        <Separator />
+                        <Separator className="bg-border/60" />
 
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-sm font-medium text-foreground">Resumo completo do WhatsApp</div>
+                        <Collapsible className="rounded-xl border border-border bg-card">
+                          <div className="flex items-center justify-between gap-3 px-4 py-3">
+                            <CollapsibleTrigger asChild>
+                              <button
+                                type="button"
+                                className={cn(
+                                  "group flex min-w-0 items-center gap-2 text-left",
+                                  "text-sm font-semibold text-foreground",
+                                  "hover:text-foreground/90",
+                                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/20"
+                                )}
+                              >
+                                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                                <span className="truncate">Resumo completo do WhatsApp</span>
+                              </button>
+                            </CollapsibleTrigger>
+
                             <div className="flex items-center gap-2">
                               <Button
                                 size="sm"
                                 variant="secondary"
+                                className="h-8 hover:bg-primary/10"
                                 onClick={async (e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -707,6 +739,7 @@ const GroupSummaries = () => {
                               <Button
                                 size="sm"
                                 variant="secondary"
+                                className="h-8 hover:bg-primary/10"
                                 onClick={async (e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -725,14 +758,16 @@ const GroupSummaries = () => {
                             </div>
                           </div>
 
-                          <section className="rounded-xl border border-border bg-muted/30 p-4 sm:p-5">
-                            <ScrollArea className="max-h-[460px] pr-3">
-                              <div className="text-sm text-card-foreground break-words">
-                                {renderWhatsappToReact(s.summary_text)}
-                              </div>
-                            </ScrollArea>
-                          </section>
-                        </div>
+                          <CollapsibleContent className="px-4 pb-4">
+                            <section className="rounded-xl border border-border bg-muted/10 p-4 sm:p-5">
+                              <ScrollArea className="max-h-[460px] pr-3">
+                                <div className="text-[13px] leading-relaxed font-mono text-card-foreground break-words">
+                                  {renderWhatsappToReact(s.summary_text)}
+                                </div>
+                              </ScrollArea>
+                            </section>
+                          </CollapsibleContent>
+                        </Collapsible>
                       </div>
                     </AccordionContent>
                   </Card>
