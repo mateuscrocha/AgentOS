@@ -9,9 +9,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
-import { Loader2, PencilLine, Plus, Trash2 } from "lucide-react";
+import { Loader2, MoreHorizontal, PencilLine, Plus, Trash2 } from "lucide-react";
 import { logEvent } from "@/lib/audit";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -57,12 +63,14 @@ export function EditIkigaiModal({
   const [keywords, setKeywords] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
+  const [manualValue, setManualValue] = useState<string>("");
 
   useEffect(() => {
     if (open) {
       setKeywords(Array.from(new Set((currentKeywords || []).map(k => k.trim()).filter(Boolean))));
       setEditingIndex(null);
       setEditingValue("");
+      setManualValue("");
     }
   }, [open, currentKeywords]);
 
@@ -94,7 +102,12 @@ export function EditIkigaiModal({
     setEditingValue("");
   };
 
-  const periodNote = useMemo(() => `Sugestões baseadas nas conversas do ${periodLabel}`, [periodLabel]);
+  const periodNote = useMemo(() => periodLabel, [periodLabel]);
+
+  const suggestedThemes = useMemo(() => (suggestions.themes || []).slice(0, 5), [suggestions.themes]);
+  const keywordSuggestions = useMemo(() => suggestions.keywords || [], [suggestions.keywords]);
+
+  const formatMentions = (count: number) => `${count} ${count === 1 ? "menção" : "menções"}`;
 
   const handleApply = async () => {
     setSaving(true);
@@ -139,110 +152,186 @@ export function EditIkigaiModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border max-w-2xl">
+      <DialogContent className="bg-card border-border max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-card-foreground">Gerenciar Ikigai do Grupo</DialogTitle>
+          <p className="text-sm text-muted-foreground">Ajuste os temas para refletirem melhor como o grupo conversa hoje.</p>
         </DialogHeader>
 
-        <div className="space-y-6 py-2">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-card-foreground">Temas atuais</p>
-            <div className="flex flex-wrap gap-2">
-              {keywords.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhum tema definido</p>
-              )}
-              {keywords.map((k, idx) => (
-                <div key={k} className="flex items-center gap-2">
-                  {editingIndex === idx ? (
-                    <div className="flex items-center gap-2">
-                      <Input value={editingValue} onChange={(e) => setEditingValue(e.target.value)} className="h-8" />
-                      <Button size="sm" onClick={confirmEdit}>OK</Button>
-                      <Button size="sm" variant="outline" onClick={() => { setEditingIndex(null); setEditingValue(""); }}>Cancelar</Button>
-                    </div>
-                  ) : (
-                    <Badge variant="outline" className="text-sm">
-                      {k}
-                    </Badge>
-                  )}
-                  {editingIndex !== idx && (
-                    <Button size="sm" variant="ghost" onClick={() => startEdit(idx, k)}>
-                      <PencilLine className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => removeKeyword(k)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+        <div className="flex-1 overflow-y-auto py-2">
+          <div className="space-y-6">
+            <div className="rounded-lg border border-border bg-secondary/20 px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                O Ikigai do grupo é definido pelos temas — eles orientam a leitura das conversas e ajudam a interpretar o momento atual.
+              </p>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-card-foreground">{periodNote}</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Temas sugeridos</p>
-                <div className="space-y-3">
-                  {(suggestions.themes || []).length === 0 && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Não identificamos novos temas recorrentes neste período com base nos critérios atuais.</p>
-                      <p className="text-xs text-muted-foreground">Você pode tentar analisar outro período ou ajustar os temas existentes.</p>
-                    </div>
-                  )}
-                  {(suggestions.themes || []).map(t => (
-                    <div key={t.phrase} className="rounded-lg border border-border p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-sm">{t.phrase}</Badge>
-                          <span className="text-xs text-muted-foreground">{t.count}</span>
-                        </div>
-                        <Button size="sm" onClick={() => addKeyword(t.phrase)}>
-                          <Plus className="h-4 w-4" />
-                          Aceitar
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-card-foreground">Temas atuais</p>
+                <p className="text-xs text-muted-foreground">Esses são os temas que hoje definem o propósito do grupo.</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {keywords.length === 0 && <p className="text-sm text-muted-foreground">Nenhum tema definido</p>}
+
+                {keywords.map((k, idx) => (
+                  <div key={k} className="group inline-flex items-center gap-1">
+                    {editingIndex === idx ? (
+                      <div className="flex flex-1 items-center gap-2">
+                        <Input
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          className="h-8"
+                        />
+                        <Button size="sm" variant="secondary" onClick={confirmEdit}>
+                          OK
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingIndex(null);
+                            setEditingValue("");
+                          }}
+                        >
+                          Cancelar
                         </Button>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {(t.keywords || []).map(k => (
-                          <Button key={`${t.phrase}-${k.term}`} size="sm" variant="outline" onClick={() => addKeyword(k.term)}>
-                            {k.term}
-                            <span className="ml-2 text-xs text-muted-foreground">{k.count}</span>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="border-border bg-muted/40 text-muted-foreground text-sm font-medium"
+                      >
+                        {k}
+                      </Badge>
+                    )}
+
+                    {editingIndex !== idx ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        ))}
-                      </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => startEdit(idx, k)}>
+                            <PencilLine className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => removeKeyword(k)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Remover
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-card-foreground">O que as conversas estão mostrando</p>
+                <p className="text-xs text-muted-foreground">Sugestões com base nas conversas ({periodNote}).</p>
+              </div>
+
+              <div className="rounded-lg border border-border bg-card p-4 transition-colors">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-card-foreground">Temas sugeridos</p>
+                  <p className="text-xs text-muted-foreground">
+                    Esses temas aparecem com frequência nas conversas recentes e podem reforçar o propósito do grupo.
+                  </p>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {suggestedThemes.length === 0 ? (
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">
+                        Não identificamos novos temas recorrentes neste período com base nos critérios atuais.
+                      </p>
+                      <p className="text-xs text-muted-foreground">Você pode tentar analisar outro período ou ajustar os temas existentes.</p>
                     </div>
-                  ))}
+                  ) : (
+                    suggestedThemes.map((t) => (
+                      <div
+                        key={t.phrase}
+                        className="flex items-start justify-between gap-3 rounded-md border border-border bg-secondary/10 px-3 py-3 transition-colors hover:bg-secondary/20"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-card-foreground truncate">{t.phrase}</div>
+                          <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">{formatMentions(t.count)}</div>
+                        </div>
+
+                        <Button size="sm" variant="secondary" onClick={() => addKeyword(t.phrase)}>
+                          Adicionar como tema
+                        </Button>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Keywords sugeridas</p>
-                <div className="flex flex-wrap gap-2">
-                  {(suggestions.keywords || []).length === 0 ? (
+              <div className="rounded-lg border border-border bg-muted/20 p-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-card-foreground">Palavras frequentes da linguagem do grupo</p>
+                  <p className="text-xs text-muted-foreground">
+                    Nem todas essas palavras precisam virar temas. Elas ajudam a entender a linguagem do grupo.
+                  </p>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {keywordSuggestions.length === 0 ? (
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Não encontramos novas keywords recorrentes neste período.</p>
+                      <p className="text-sm text-muted-foreground">Não encontramos palavras recorrentes neste período.</p>
                       <p className="text-xs text-muted-foreground">Você pode tentar analisar outro período ou revisar os temas definidos.</p>
                     </div>
                   ) : (
-                    (suggestions.keywords || []).map(k => (
-                      <Button key={k.term} size="sm" variant="outline" onClick={() => addKeyword(k.term)}>
-                        {k.term}
-                        <span className="ml-2 text-xs text-muted-foreground">{k.count}</span>
-                      </Button>
+                    keywordSuggestions.map((k) => (
+                      <Badge
+                        key={k.term}
+                        variant="outline"
+                        className="border-border bg-muted/30 text-muted-foreground text-[11px] font-medium"
+                      >
+                        <span className="truncate max-w-[160px]">{k.term}</span>
+                        <span className="ml-2 tabular-nums opacity-80">{k.count}</span>
+                      </Badge>
                     ))
                   )}
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-card-foreground">Adicionar manualmente</p>
-            <div className="flex items-center gap-2">
-              <Input placeholder="Digite um tema" value={editingValue} onChange={(e) => setEditingValue(e.target.value)} className="h-9" />
-              <Button onClick={() => { addKeyword(editingValue); setEditingValue(""); }}>
-                <Plus className="h-4 w-4" />
-                Adicionar
-              </Button>
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-card-foreground">Adicionar manualmente</p>
+                <p className="text-xs text-muted-foreground">
+                  Use apenas se o tema for importante, mas ainda não aparece nas conversas.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Digite um tema"
+                  value={manualValue}
+                  onChange={(e) => setManualValue(e.target.value)}
+                  className="h-9"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    addKeyword(manualValue);
+                    setManualValue("");
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Adicionar
+                </Button>
+              </div>
             </div>
           </div>
         </div>

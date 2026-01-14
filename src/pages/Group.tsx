@@ -14,7 +14,6 @@ import {
   PeakMomentSection,
   PeopleSection,
   GroupGrowthSection,
-  EffortNoiseSection,
   PurposeAlignmentSection,
 } from "@/components/group-dashboard";
 import { PeriodReport } from "@/components/group-dashboard";
@@ -94,7 +93,6 @@ const Group = () => {
     previousStats,
     messagesPerDay,
     activeMembersPerDay,
-    membersOverview,
     memberEntriesPerDay,
     memberExitsPerDay,
     memberEvents,
@@ -230,11 +228,6 @@ const Group = () => {
 
         <div className="space-y-12">
           <section className="space-y-6">
-            <header className="space-y-1">
-              <h2 className="text-lg font-semibold text-foreground">Panorama</h2>
-              <p className="text-sm text-muted-foreground">KPIs principais, base ativa x observadores e resumo do período</p>
-            </header>
-
             <div className="space-y-8">
               {(() => {
                 const summaryStats = {
@@ -290,25 +283,10 @@ const Group = () => {
                 messagesPerDay={messagesPerDay}
                 isDashboardLoading={isLoading}
               />
-
-              <EffortNoiseSection
-                stats={stats}
-                messagesPerDay={messagesPerDay}
-                membersOverview={membersOverview}
-                periodDays={periodDays}
-                isLoading={isLoading}
-                periodLabel={getPeriodLabel()}
-                currentMembers={currentMembers}
-              />
             </div>
           </section>
 
           <section className="space-y-6">
-            <header className="space-y-1">
-              <h2 className="text-lg font-semibold text-foreground">Pessoas & Engajamento</h2>
-              <p className="text-sm text-muted-foreground">Membros ativos, distribuição da conversa e recorrência</p>
-            </header>
-
             <div className="space-y-8">
               <PeopleSection
                 groupId={group.id}
@@ -346,11 +324,6 @@ const Group = () => {
           </section>
 
           <section className="space-y-6">
-            <header className="space-y-1">
-              <h2 className="text-lg font-semibold text-foreground">Temas & Propósito</h2>
-              <p className="text-sm text-muted-foreground">Leitura qualitativa e insights interpretativos</p>
-            </header>
-
             <div className="space-y-8">
               <PurposeAlignmentSection
                 alignedPercent={alignedMessagesPercent}

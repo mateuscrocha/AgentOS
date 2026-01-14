@@ -11,6 +11,7 @@ interface SectionHeaderProps {
   subtitleClassName?: string;
   linkHref?: string;
   linkLabel?: string;
+  linkClassName?: string;
   className?: string;
   helpText?: string;
 }
@@ -22,6 +23,7 @@ export function SectionHeader({
   subtitleClassName,
   linkHref, 
   linkLabel = "Ver mais",
+  linkClassName,
   className,
   helpText,
 }: SectionHeaderProps) {
@@ -53,7 +55,10 @@ export function SectionHeader({
       {linkHref && (
         <Link 
           to={linkHref}
-          className="flex items-center gap-1 text-xs text-primary hover:underline transition-colors"
+          className={cn(
+            "flex items-center gap-1 text-xs transition-colors",
+            linkClassName ?? "text-primary hover:underline",
+          )}
         >
           {linkLabel}
           <ChevronRight className="h-3 w-3" />

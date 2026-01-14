@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays } from "lucide-react";
+import { Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MetricHelp } from "@/components/ui/metric-help";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
 
 type PeakMomentResponse = {
@@ -140,51 +141,66 @@ export function PeakMomentSection({
     const safeTypical = typicalPerHour && typicalPerHour > 0 ? Math.max(0.75, typicalPerHour) : null;
     const ratio = safeTypical ? peakTotal / safeTypical : null;
 
-    const intensityLabel = (() => {
-      if (!ratio) return "Acima do normal para o grupo";
-      if (ratio >= 3) return "Muito acima do ritmo típico do grupo";
-      if (ratio >= 1.8) return "Acima do ritmo típico do grupo";
-      if (ratio >= 1.2) return "Levemente acima do ritmo típico do grupo";
-      return "Próximo do ritmo típico do grupo";
-    })();
+    const ratioRead = ratio ? `${ratio.toFixed(1).replace(".", ",")}x` : null;
 
     const participantsRead = (() => {
       if (uniqueParticipants <= 0) return "";
-      if (uniqueParticipants === 1) return "Concentrado em 1 pessoa";
-      return `${uniqueParticipants.toLocaleString("pt-BR")} participantes`;
+      if (uniqueParticipants === 1) return "1 participante ativo";
+      return `${uniqueParticipants.toLocaleString("pt-BR")} participantes ativos`;
     })();
 
-    const ratioRead = ratio ? `${ratio.toFixed(1).replace(".", ",")}×` : null;
-    const support = (() => {
-      if (ratioRead && participantsRead) return `${intensityLabel} (${ratioRead}) · ${participantsRead}`;
-      if (participantsRead) return `${intensityLabel} · ${participantsRead}`;
-      return intensityLabel;
+    const badgeLabel = (() => {
+      if (!ratio) return "Alta atividade";
+      if (ratio >= 1.5) return "Pico acima do normal";
+      return "Alta atividade";
     })();
 
     return {
       peakTotal,
-      support,
       ratio,
+      ratioRead,
       uniqueParticipants,
+      participantsRead,
+      badgeLabel,
     };
   }, [data, messagesPerDay, windowMinutes]);
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold text-card-foreground">Momento de Pico</h3>
-        <div className="mt-1 flex items-center gap-2 text-sm">
-          <CalendarDays className="h-4 w-4 text-muted-foreground/70" strokeWidth={1.5} aria-hidden="true" />
+    <section className="rounded-xl border border-border bg-card p-5 border-l-4 border-l-primary/30">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-card-foreground">Momento de Pico</h3>
+            {!isLoading && !isError && !noRelevantPeak ? (
+              <Badge variant="outline" className="h-5 px-2 text-[11px] text-muted-foreground">
+                {intensityRead.badgeLabel}
+              </Badge>
+            ) : null}
+          </div>
+
           {peakInterval ? (
-            <p className="text-muted-foreground">
-              <span className="font-medium text-foreground/80">{peakWeekdayLabel},</span>{" "}
-              <span className="tabular-nums">{peakDateLabel} • {peakHourRangeLabel || "—"}</span>
+            <p className="text-sm text-muted-foreground tabular-nums">
+              <span className="capitalize">{peakWeekdayLabel}</span>, {peakDateLabel} • {peakHourRangeLabel || "—"}
             </p>
           ) : (
-            <p className="text-muted-foreground">—</p>
+            <p className="text-sm text-muted-foreground">—</p>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">Maior atividade do grupo no período analisado</p>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Entenda o Momento de Pico"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground/80 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Info className="h-4 w-4" strokeWidth={1.7} aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" align="end" className="max-w-[280px]">
+            Período em que o grupo teve atividade muito acima do padrão normal.
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <div className="mt-4">
@@ -205,22 +221,22 @@ export function PeakMomentSection({
           </div>
         ) : (
           <div className="space-y-5">
-            <div className="rounded-xl border border-border bg-secondary/20 p-4">
-              <div className="flex items-center gap-1.5">
-                <p className="text-xs font-medium text-muted-foreground">Intensidade</p>
-                <MetricHelp
-                  metricTitle="Intensidade"
-                  whatIs="Quantas mensagens aconteceram no momento mais movimentado do período (em 1 hora)."
-                  howToInterpret="Ajuda a entender quando a conversa acelera: picos concentrados costumam aparecer quando um tema engaja várias pessoas ao mesmo tempo."
-                  whatToObserve="Se o pico vem com poucos participantes, a conversa pode estar concentrada em poucas pessoas."
-                />
-              </div>
-              <p className="mt-1 text-xl sm:text-2xl font-semibold text-card-foreground tabular-nums">
+            <div className="space-y-1">
+              <p className="text-2xl sm:text-3xl font-semibold text-primary/80 tabular-nums">
                 {intensityRead.peakTotal.toLocaleString("pt-BR")} mensagens em 1 hora
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">{intensityRead.support}</p>
-            </div>
+              <p className="text-sm text-muted-foreground">Pico de atividade do grupo</p>
 
+              {intensityRead.ratioRead || intensityRead.participantsRead ? (
+                <p className="text-sm text-muted-foreground">
+                  {intensityRead.ratioRead ? (
+                    <span className="font-medium text-foreground/80">{intensityRead.ratioRead} acima do normal</span>
+                  ) : null}
+                  {intensityRead.ratioRead && intensityRead.participantsRead ? ", " : null}
+                  {intensityRead.participantsRead ? `com ${intensityRead.participantsRead}` : null}
+                </p>
+              ) : null}
+            </div>
           </div>
         )}
       </div>

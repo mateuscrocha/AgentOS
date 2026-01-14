@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Crown } from "lucide-react";
+import { Crown, Medal } from "lucide-react";
 import { SectionHeader } from "./SectionHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
@@ -13,6 +13,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 import { MemberDetailsDrawer } from "@/components/members/MemberDetailsDrawer";
 import { MetricHelp } from "@/components/ui/metric-help";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface MemberEngagement {
   recorrentes: number;
@@ -34,7 +35,6 @@ interface PeopleSectionProps {
 export function PeopleSection({ 
   groupId,
   topParticipant,
-  previousTopParticipant,
   topParticipants,
   memberEngagement,
   previousMemberEngagement,
@@ -68,28 +68,23 @@ export function PeopleSection({
   const chartConfig = {
     recorrentes: {
       label: "Recorrentes",
-      color: "hsl(var(--success))",
+      color: "hsl(var(--success) / 0.35)",
     },
     esporadicos: {
       label: "Esporádicos",
-      color: "hsl(var(--warning))",
+      color: "hsl(var(--warning) / 0.28)",
     },
     inativos: {
       label: "Inativos",
-      color: "hsl(var(--muted))",
+      color: "hsl(var(--muted-foreground) / 0.22)",
     },
   };
 
   const donutData = memberEngagement ? [
-    { name: 'Recorrentes', value: memberEngagement.recorrentes, color: 'hsl(var(--success))' },
-    { name: 'Esporádicos', value: memberEngagement.esporadicos, color: 'hsl(var(--warning))' },
-    { name: 'Inativos', value: memberEngagement.inativos, color: 'hsl(var(--muted-foreground))' },
+    { name: 'Recorrentes', value: memberEngagement.recorrentes, color: 'hsl(var(--success) / 0.35)' },
+    { name: 'Esporádicos', value: memberEngagement.esporadicos, color: 'hsl(var(--warning) / 0.28)' },
+    { name: 'Inativos', value: memberEngagement.inativos, color: 'hsl(var(--muted-foreground) / 0.22)' },
   ].filter(d => d.value > 0) : [];
-
-  const engagementDelta = (key: keyof MemberEngagement) => {
-    if (!memberEngagement || !previousMemberEngagement) return undefined;
-    return memberEngagement[key] - previousMemberEngagement[key];
-  };
 
   const top5 = useMemo(() => topParticipants.slice(0, 5), [topParticipants]);
 
@@ -97,71 +92,103 @@ export function PeopleSection({
   const canOpenTopMember = !!topParticipant?.id;
   const periodSuffix = formatPeriodSuffix(periodLabel);
   const basedOnText = formatBasedOnPeriod(periodLabel);
+  const highlightPeriodLabel = useMemo(() => {
+    if (!periodLabel || periodLabel === "período") return "Últimos 14 dias";
+    if (/^últimos\s+/i.test(periodLabel)) return periodLabel.replace(/^últimos\s+/i, "Últimos ");
+    if (/^\d+\s+dias$/i.test(periodLabel)) return `Últimos ${periodLabel}`;
+    return periodLabel;
+  }, [periodLabel]);
+
+  const leftInactivity = useMemo(() => {
+    if (!memberEngagement || !previousMemberEngagement) return undefined;
+    return previousMemberEngagement.inativos - memberEngagement.inativos;
+  }, [memberEngagement, previousMemberEngagement]);
+
+  const deltaRecorrentes = useMemo(() => {
+    if (!memberEngagement || !previousMemberEngagement) return undefined;
+    return memberEngagement.recorrentes - previousMemberEngagement.recorrentes;
+  }, [memberEngagement, previousMemberEngagement]);
+
+  const deltaEsporadicos = useMemo(() => {
+    if (!memberEngagement || !previousMemberEngagement) return undefined;
+    return memberEngagement.esporadicos - previousMemberEngagement.esporadicos;
+  }, [memberEngagement, previousMemberEngagement]);
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader 
         title="Pessoas do Grupo" 
-        subtitle={`Quem sustenta a conversa (${periodLabel})`}
+        subtitle="Dinâmica social do grupo"
         linkHref={`/groups/${groupId}/members`}
         linkLabel="Ver todos"
+        linkClassName="text-muted-foreground hover:text-foreground"
       />
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* UX: hierarquia mais humana (nome em destaque) + contexto de período explícito + badge significativo. */}
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-xs font-medium text-muted-foreground">Membro mais ativo no período</p>
-            <span className="text-[11px] text-primary font-medium bg-primary/10 px-2 py-1 rounded-full whitespace-nowrap">
-              Sustentou a conversa
-            </span>
+
+      <div className="space-y-6">
+        <div className="rounded-xl border border-border border-l-4 border-l-primary bg-card/50 p-6 transition-colors hover:bg-card hover:shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-card-foreground">Quem sustentou a conversa</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{highlightPeriodLabel}</p>
+            </div>
           </div>
 
-          <div className="mt-3 flex flex-col items-center text-center">
+          <div className="mt-5">
             {isLoading ? (
-              <>
-                <Skeleton className="h-[72px] w-[72px] rounded-full" />
-                <Skeleton className="h-5 w-44 mt-3" />
-                <Skeleton className="h-4 w-36 mt-2" />
-              </>
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-14 w-14 rounded-full" />
+                <div className="flex-1">
+                  <Skeleton className="h-6 w-56" />
+                  <Skeleton className="h-4 w-44 mt-2" />
+                </div>
+              </div>
             ) : topParticipant ? (
               <>
-                <button
-                  type="button"
-                  className={cn("rounded-full", canOpenTopMember && "cursor-pointer")}
-                  onClick={() => {
-                    if (canOpenTopMember) setTopMemberOpen(true);
-                  }}
-                >
-                  <Avatar className="h-[72px] w-[72px] ring-2 ring-primary/15 shadow-sm">
-                    {topParticipant.avatarUrl ? (
-                      <AvatarImage src={topParticipant.avatarUrl || undefined} alt={topParticipant.name || "Membro mais ativo"} referrerPolicy="no-referrer" />
-                    ) : null}
-                    <AvatarFallback>
-                      <Crown className="h-8 w-8 text-primary" />
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      type="button"
+                      className={cn("rounded-full", canOpenTopMember && "cursor-pointer")}
+                      onClick={() => {
+                        if (canOpenTopMember) setTopMemberOpen(true);
+                      }}
+                    >
+                      <Avatar className="h-14 w-14 ring-1 ring-primary/15">
+                        {topParticipant.avatarUrl ? (
+                          <AvatarImage src={topParticipant.avatarUrl || undefined} alt={topParticipant.name || "Membro mais ativo"} referrerPolicy="no-referrer" />
+                        ) : null}
+                        <AvatarFallback>
+                          <Crown className="h-6 w-6 text-primary" />
+                        </AvatarFallback>
+                      </Avatar>
+                    </button>
 
-                <button
-                  type="button"
-                  className={cn(
-                    "mt-3 max-w-full truncate text-base font-semibold text-card-foreground",
-                    canOpenTopMember ? "hover:underline" : "cursor-default"
-                  )}
-                  onClick={() => {
-                    if (canOpenTopMember) setTopMemberOpen(true);
-                  }}
-                >
-                  {topParticipant.name}
-                </button>
+                    <div className="min-w-0">
+                      <button
+                        type="button"
+                        className={cn(
+                          "max-w-full truncate text-lg sm:text-xl font-semibold text-card-foreground",
+                          canOpenTopMember ? "hover:underline" : "cursor-default"
+                        )}
+                        onClick={() => {
+                          if (canOpenTopMember) setTopMemberOpen(true);
+                        }}
+                      >
+                        {topParticipant.name}
+                      </button>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        <span className="font-semibold text-card-foreground tabular-nums">{topParticipant.count}</span> mensagens {periodSuffix}
+                      </p>
+                    </div>
+                  </div>
 
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {topParticipant.count} mensagens {periodSuffix}
-                </p>
+                  <span className="hidden sm:inline-flex text-[11px] text-primary font-medium bg-primary/10 px-2 py-1 rounded-full whitespace-nowrap">
+                    Sustentou a conversa
+                  </span>
+                </div>
 
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Participou ativamente do grupo ao longo do período.
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Sustentou a conversa do grupo ao longo dos últimos dias.
                 </p>
 
                 {topParticipant.id ? (
@@ -175,153 +202,195 @@ export function PeopleSection({
                 ) : null}
               </>
             ) : (
-              <div className="h-[132px] flex items-center justify-center">
+              <div className="h-[104px] flex items-center justify-center">
                 <p className="text-sm text-muted-foreground">Sem dados</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* UX: adiciona contexto do período e barra proporcional para leitura instantânea do ranking. */}
-        <div className="rounded-lg border border-border bg-secondary/30 p-4">
-          <div className="mb-3">
-            <p className="text-sm font-medium text-muted-foreground">Top 5 participantes do período</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{basedOnText}</p>
-          </div>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-8 w-full" />
-              ))}
-            </div>
-          ) : topParticipants.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem dados</p>
-          ) : (
-            <div className="space-y-2">
-              {top5.map((participant, index) => {
-                return (
-                <div 
-                  key={participant.id} 
-                  className="flex items-center justify-between gap-3 p-2 rounded-lg bg-card/50"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center ${
-                      index === 0 ? 'bg-primary text-primary-foreground' :
-                      index === 1 ? 'bg-accent text-accent-foreground' :
-                      'bg-muted text-muted-foreground'
-                    }`}>
-                      {index + 1}
-                    </span>
-                    <MemberInlineTrigger
-                      memberId={participant.id}
-                      groupId={groupId}
-                      name={participant.name}
-                      avatarUrl={participant.avatarUrl}
-                      size="sm"
-                    />
-                  </div>
-                  <div className="text-xs text-muted-foreground tabular-nums">{participant.count}</div>
-                </div>
-              );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* UX: separa conceitos (o que é cada categoria) de números e variação para reduzir confusão. */}
-        <div className="rounded-lg border border-border bg-secondary/30 p-4">
-          <div className="flex items-start justify-between gap-2 mb-3">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Distribuição de engajamento do grupo</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="rounded-xl border border-border bg-secondary/20 p-5 transition-colors hover:bg-secondary/30 hover:shadow-sm">
+            <div className="mb-4">
+              <p className="text-sm font-medium text-card-foreground">Top participantes</p>
               <p className="text-xs text-muted-foreground mt-0.5">{basedOnText}</p>
             </div>
-            <MetricHelp
-              metricTitle="Distribuição de engajamento do grupo"
-              whatIs="Como o grupo se divide entre pessoas recorrentes, esporádicas e inativas no período."
-              howToInterpret="Mostra se a conversa é sustentada por uma base que volta com frequência ou por participação mais pontual."
-              whatToObserve="Se a fatia de recorrentes diminui e a de inativos cresce, pode ser um sinal de conversa perdendo tração."
-            />
-          </div>
-          {isLoading ? (
-            <Skeleton className="h-[150px] w-full" />
-          ) : (
-            <>
-              {donutData.length === 0 ? (
-                <div className="h-[120px] flex items-center justify-center">
-                  <p className="text-sm text-muted-foreground">Sem dados</p>
-                </div>
-              ) : (
-                <ChartContainer config={chartConfig} className="h-[120px] w-full">
-                  <PieChart>
-                    <Pie
-                      data={donutData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={55}
-                      paddingAngle={2}
-                      dataKey="value"
+
+            {isLoading ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-full" />
+                ))}
+              </div>
+            ) : topParticipants.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem dados</p>
+            ) : (
+              <div className="space-y-3">
+                {top5.map((participant, index) => {
+                  const isMedal = index < 3;
+                  return (
+                    <div
+                      key={participant.id}
+                      className="flex items-center justify-between gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-card/60"
                     >
-                      {donutData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                  </PieChart>
-                </ChartContainer>
-              )}
+                      <div className="flex items-center gap-3 min-w-0">
+                        {isMedal ? (
+                          <Medal className={cn("h-4 w-4", index === 0 ? "text-primary" : "text-muted-foreground")} />
+                        ) : (
+                          <span className="w-4 text-xs text-muted-foreground tabular-nums text-center">{index + 1}</span>
+                        )}
+                        <MemberInlineTrigger
+                          memberId={participant.id}
+                          groupId={groupId}
+                          name={participant.name}
+                          avatarUrl={participant.avatarUrl}
+                          size="sm"
+                        />
+                      </div>
 
-              {memberEngagement ? (
-                <div className="mt-3 space-y-3">
-                  <div className="space-y-1 text-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2.5 w-2.5 rounded-full bg-success" />
-                        <span className="text-muted-foreground">Recorrentes</span>
+                      <div className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                        {participant.count} mensagens
                       </div>
-                      <span className="text-card-foreground tabular-nums">{memberEngagement.recorrentes} membros</span>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2.5 w-2.5 rounded-full bg-warning" />
-                        <span className="text-muted-foreground">Esporádicos</span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-secondary/20 p-5 transition-colors hover:bg-secondary/30 hover:shadow-sm">
+            <div className="flex items-start justify-between gap-2 mb-4">
+              <div>
+                <p className="text-sm font-medium text-card-foreground">Distribuição de engajamento</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{basedOnText}</p>
+              </div>
+              <MetricHelp
+                metricTitle="Distribuição de engajamento"
+                whatIs="Como o grupo se divide entre pessoas recorrentes, esporádicas e inativas no período."
+                howToInterpret="Mostra se a conversa é sustentada por uma base que volta com frequência ou por participação mais pontual."
+                whatToObserve="Se a fatia de recorrentes diminui e a de inativos cresce, pode ser um sinal de conversa perdendo tração."
+              />
+            </div>
+
+            {isLoading ? (
+              <Skeleton className="h-[160px] w-full" />
+            ) : (
+              <>
+                {memberEngagement ? (
+                  <div className="space-y-1">
+                    <p className="text-sm">
+                      <span className="font-semibold text-card-foreground tabular-nums">{memberEngagement.recorrentes}</span> membros participam com frequência
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-semibold text-card-foreground tabular-nums">{memberEngagement.inativos}</span> estão inativos
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="tabular-nums">{memberEngagement.esporadicos}</span> participam de vez em quando
+                    </p>
+                  </div>
+                ) : null}
+
+                {donutData.length === 0 ? (
+                  <div className="h-[96px] flex items-center justify-center">
+                    <p className="text-sm text-muted-foreground">Sem dados</p>
+                  </div>
+                ) : (
+                  <ChartContainer config={chartConfig} className="h-[96px] w-full mt-4">
+                    <PieChart>
+                      <Pie
+                        data={donutData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={28}
+                        outerRadius={42}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {donutData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ChartContainer>
+                )}
+
+                {memberEngagement ? (
+                  <div className="mt-4 space-y-4">
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2.5 w-2.5 rounded-full bg-success/40" />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-muted-foreground underline decoration-dotted underline-offset-2 cursor-help">
+                                Recorrentes
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-[260px]">
+                              Pessoas que participam com frequência no período.
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <span className="text-muted-foreground tabular-nums">{memberEngagement.recorrentes}</span>
                       </div>
-                      <span className="text-card-foreground tabular-nums">{memberEngagement.esporadicos} membros</span>
+
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2.5 w-2.5 rounded-full bg-warning/35" />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-muted-foreground underline decoration-dotted underline-offset-2 cursor-help">
+                                Esporádicos
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-[260px]">
+                              Pessoas que aparecem de vez em quando no período.
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <span className="text-muted-foreground tabular-nums">{memberEngagement.esporadicos}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/30" />
+                          <span className="text-muted-foreground">Inativos</span>
+                        </div>
+                        <span className="text-muted-foreground tabular-nums">{memberEngagement.inativos}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground" />
-                        <span className="text-muted-foreground">Inativos</span>
-                      </div>
-                      <span className="text-card-foreground tabular-nums">{memberEngagement.inativos} membros</span>
+
+                    <div className="pt-3 border-t border-border">
+                      <p className="text-xs font-medium text-muted-foreground">Evolução recente do engajamento</p>
+                      {previousMemberEngagement ? (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {leftInactivity === undefined ? (
+                            "—"
+                          ) : leftInactivity > 0 ? (
+                            <>
+                              <span className="font-semibold text-success tabular-nums">+{leftInactivity}</span> membros deixaram a inatividade
+                              {deltaRecorrentes !== undefined && deltaEsporadicos !== undefined ? (
+                                <span className="text-xs text-muted-foreground"> ({`recorrentes ${deltaRecorrentes >= 0 ? "+" : ""}${deltaRecorrentes}, esporádicos ${deltaEsporadicos >= 0 ? "+" : ""}${deltaEsporadicos}`})</span>
+                              ) : null}
+                            </>
+                          ) : leftInactivity < 0 ? (
+                            <>
+                              <span className="font-semibold tabular-nums">{Math.abs(leftInactivity)}</span> membros entraram na inatividade
+                            </>
+                          ) : (
+                            "Sem mudança na inatividade"
+                          )}
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs text-muted-foreground">Sem comparação anterior.</p>
+                      )}
                     </div>
                   </div>
-
-                  <div className="pt-2 border-t border-border">
-                    <p className="text-xs font-medium text-muted-foreground">Variação vs período anterior</p>
-                    {previousMemberEngagement ? (
-                      <div className="mt-2 space-y-1 text-sm">
-                        {(["recorrentes", "esporadicos", "inativos"] as const).map((k) => {
-                          const delta = engagementDelta(k);
-                          const label = k === "recorrentes" ? "recorrentes" : k === "esporadicos" ? "esporádicos" : "inativos";
-                          const formatted = delta === undefined ? "—" : `${delta >= 0 ? "+" : ""}${delta}`;
-                          const color = delta === undefined || delta === 0 ? "text-muted-foreground" : delta > 0 ? "text-success" : "text-destructive";
-                          return (
-                            <div key={k} className="flex items-center justify-between">
-                              <span className="text-muted-foreground">{label}</span>
-                              <span className={cn("tabular-nums", color)}>{formatted}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="mt-1 text-xs text-muted-foreground">Sem comparação anterior.</p>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-            </>
-          )}
+                ) : null}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </section>

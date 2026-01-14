@@ -4,7 +4,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Feather, Info, Repeat, Target, Users } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Activity, Feather, Repeat, Target, Users } from "lucide-react";
 
 interface PurposeAlignmentSectionProps {
   alignedPercent?: number;
@@ -84,12 +85,29 @@ export function PurposeAlignmentSection({
 
   const status = interpret();
 
-  const toneClasses =
-    status.tone === "success"
-      ? "border-success/20 bg-success/10 text-success"
-      : status.tone === "warning"
-        ? "border-warning/25 bg-warning/10 text-warning"
-        : "border-border bg-muted/40 text-muted-foreground";
+  const toneClasses = canEvaluate
+    ? "border-primary/20 bg-primary/10 text-primary"
+    : "border-border bg-muted/40 text-muted-foreground";
+
+  const alignedRounded = canEvaluate ? Math.round(alignedPercent as number) : undefined;
+
+  const meaningShort = (() => {
+    if (!canEvaluate) {
+      return "Sem temas definidos, a leitura não tem uma referência clara para encontrar conexões. Defina temas para ver esse diagnóstico de forma mais fiel.";
+    }
+
+    const p = Math.max(0, Math.min(100, Math.round(alignedPercent as number)));
+
+    if (p >= 50) {
+      return "O propósito aparece com frequência nas conversas. Se quiser mais precisão, ajuste os temas para ficarem mais específicos e próximos do vocabulário do grupo.";
+    }
+
+    if (p >= 20) {
+      return "O propósito aparece nas conversas, mas divide espaço com pautas do dia a dia. Se quiser mais foco, ajuste os temas para refletirem melhor como o grupo fala.";
+    }
+
+    return "O propósito apareceu pouco nas conversas neste período. Isso é comum quando os temas estão genéricos ou distantes do cotidiano do grupo.";
+  })();
 
   const data = [
     { eixo: "Alinhadas", valor: alignedPercent ?? 0 },
@@ -107,140 +125,120 @@ export function PurposeAlignmentSection({
     <section className="rounded-xl border border-border bg-card p-5">
       <SectionHeader
         title="Alinhamento com o Propósito"
-        subtitle={`Leitura interpretativa das conversas — ${periodText}`}
+        subtitle={`Diagnóstico das conversas — ${periodText}`}
         helpText={helpText}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-secondary/20 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <Badge className={toneClasses}>
-                <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-current opacity-70" aria-hidden="true" />
-                {status.label}
-              </Badge>
-              {onOpenIkigai ? (
-                <Button size="sm" variant="outline" onClick={onOpenIkigai}>
-                  Gerenciar temas
-                </Button>
-              ) : null}
-            </div>
-
-            {isLoading ? (
-              <div className="mt-3 space-y-2">
-                <Skeleton className="h-4 w-11/12" />
-                <Skeleton className="h-4 w-9/12" />
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                {status.summary}
-              </p>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="text-xs font-medium text-muted-foreground">Percentual de alinhamento</div>
-            {isLoading ? (
-              <div className="mt-2 space-y-2">
-                <Skeleton className="h-8 w-24" />
-                <Skeleton className="h-4 w-10/12" />
-              </div>
-            ) : (
-              <div className="mt-2 space-y-2">
-                <div className="text-3xl font-bold tabular-nums text-card-foreground">
-                  {canEvaluate ? `${Math.round(alignedPercent)}%` : "—"}
+      <div className="space-y-6">
+        <div className="rounded-xl border border-border border-l-4 border-l-primary bg-card/50 p-6 transition-colors hover:bg-card hover:shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xl sm:text-2xl font-semibold text-card-foreground truncate">{status.label}</div>
+              {isLoading ? (
+                <div className="mt-2 space-y-2">
+                  <Skeleton className="h-4 w-11/12" />
+                  <Skeleton className="h-4 w-9/12" />
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {canEvaluate
-                    ? `${Math.round(alignedPercent)}% das mensagens analisadas se conectam com os temas do grupo.`
-                    : "Sem temas definidos, não há base para calcular este percentual."}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-border bg-secondary/20 p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-card-foreground">
-              <Info className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              <span>O que isso significa?</span>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{status.summary}</p>
+              )}
             </div>
-
-            {isLoading ? (
-              <div className="mt-3 space-y-2">
-                <Skeleton className="h-4 w-11/12" />
-                <Skeleton className="h-4 w-10/12" />
-                <Skeleton className="h-4 w-8/12" />
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                {status.meaning}
-              </p>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-border bg-card/50 p-4">
-            <div className="text-sm font-semibold text-card-foreground">Sobre esta leitura</div>
-            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-              <li>A leitura é baseada nos temas definidos para o grupo.</li>
-              <li>Valores baixos não indicam problema por si só.</li>
-              <li>Tema mal definido ou genérico reduz a precisão.</li>
-            </ul>
+            <Badge className={toneClasses}>{status.label}</Badge>
           </div>
         </div>
 
-        <div>
-          {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-[280px] w-full" />
-              <Skeleton className="h-4 w-10/12" />
-              <Skeleton className="h-4 w-11/12" />
-              <Skeleton className="h-4 w-9/12" />
-            </div>
-          ) : !canEvaluate ? (
-            <div className="rounded-xl border border-border bg-secondary/20 p-4">
-              <div className="text-sm font-semibold text-card-foreground">Radar do período</div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Para visualizar o radar, defina temas do grupo. O gráfico ajuda a comparar dimensões, sem julgar qualidade.
-              </p>
-              {onOpenIkigai ? (
-                <div className="mt-3">
-                  <Button size="sm" variant="outline" onClick={onOpenIkigai}>
-                    Gerenciar temas
-                  </Button>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="space-y-6 lg:col-span-2">
+            <div className="rounded-xl border border-border bg-secondary/20 p-5 transition-colors hover:bg-secondary/30 hover:shadow-sm">
+              <div className="text-sm font-semibold text-card-foreground">O que isso significa?</div>
+              {isLoading ? (
+                <div className="space-y-2">
+                  <div className="mt-3 space-y-2">
+                    <Skeleton className="h-4 w-11/12" />
+                    <Skeleton className="h-4 w-10/12" />
+                  </div>
                 </div>
-              ) : null}
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{meaningShort}</p>
+              )}
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-border bg-card p-4">
-                <div className="text-sm font-semibold text-card-foreground">Radar do período</div>
-                <p className="mt-1 text-xs text-muted-foreground">Comparação em 5 dimensões (0 a 100)</p>
+
+            <div className="rounded-xl border border-border bg-card p-5 transition-colors hover:bg-card/95 hover:shadow-sm">
+              {isLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-4/12" />
+                  <Skeleton className="h-4 w-8/12" />
+                </div>
+              ) : (
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Conversas alinhadas</div>
+                    <div className="mt-1 text-3xl font-semibold text-card-foreground tabular-nums">
+                      {canEvaluate ? `${alignedRounded}%` : "—"}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {canEvaluate ? "Percentual no período" : "Defina temas para calcular"}
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">Base</div>
+                    <div className="mt-1 text-sm font-medium text-card-foreground">
+                      {hasIkigai ? "Temas configurados" : "Sem temas"}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="lg:col-span-1">
+            <div className="rounded-xl border border-border bg-card p-5 transition-colors hover:bg-card/95 hover:shadow-sm">
+              <div className="text-sm font-semibold text-card-foreground">Radar do período</div>
+              <p className="mt-1 text-xs text-muted-foreground">Visual de apoio (0 a 100)</p>
+
+              {isLoading ? (
                 <div className="mt-3">
-                  <ChartContainer config={chartConfig} className="h-[260px] w-full">
+                  <Skeleton className="h-[220px] w-full" />
+                </div>
+              ) : !canEvaluate ? (
+                <p className="mt-3 text-sm text-muted-foreground">Para visualizar o radar, defina temas do grupo.</p>
+              ) : (
+                <div className="mt-3">
+                  <ChartContainer config={chartConfig} className="h-[220px] w-full">
                     <RadarChart data={data}>
-                      <PolarGrid stroke="hsl(var(--border))" />
-                      <PolarAngleAxis dataKey="eixo" tick={{ fontSize: 11 }} />
-                      <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
+                      <PolarGrid stroke="hsl(var(--border) / 0.65)" />
+                      <PolarAngleAxis dataKey="eixo" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                      <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Radar
-                        dataKey="valor"
-                        stroke="hsl(var(--primary))"
-                        fill="hsl(var(--primary))"
-                        fillOpacity={0.14}
-                      />
+                      <Radar dataKey="valor" stroke="hsl(var(--primary) / 0.7)" fill="hsl(var(--primary))" fillOpacity={0.1} />
                     </RadarChart>
                   </ChartContainer>
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-              <div className="rounded-xl border border-border bg-card/50 p-4">
-                <div className="text-sm font-semibold text-card-foreground">Como ler os eixos</div>
-                <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+        {onOpenIkigai ? (
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" onClick={onOpenIkigai}>
+              Gerenciar temas
+            </Button>
+          </div>
+        ) : null}
+
+        <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+          <Accordion type="multiple" className="w-full">
+            <AccordionItem value="axes" className="border-border/60">
+              <AccordionTrigger className="text-sm text-muted-foreground hover:text-foreground">Como ler os eixos</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex items-start gap-2">
                     <Target className="mt-0.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <div>
                       <div className="text-card-foreground font-medium">Alinhadas</div>
-                      <div>Percentual de mensagens que se conectam com os temas do grupo.</div>
+                      <div>Percentual de conversas que se conectam com os temas do grupo.</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
@@ -272,9 +270,20 @@ export function PurposeAlignmentSection({
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="about" className="border-border/60">
+              <AccordionTrigger className="text-sm text-muted-foreground hover:text-foreground">Sobre esta leitura</AccordionTrigger>
+              <AccordionContent>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  <li>A leitura é baseada nos temas definidos para o grupo.</li>
+                  <li>Valores baixos não indicam problema por si só.</li>
+                  <li>Tema mal definido ou genérico reduz a precisão.</li>
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </div>
     </section>
