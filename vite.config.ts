@@ -1,13 +1,20 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const appUrl = env.APP_URL?.trim() ? env.APP_URL.trim().replace(/\/+$/, "") : undefined;
+
+  return {
   server: {
     host: "::",
     port: 8080,
+  },
+  define: {
+    "process.env.APP_URL": appUrl ? JSON.stringify(appUrl) : "undefined",
   },
   optimizeDeps: {
     force: true,
@@ -23,4 +30,5 @@ export default defineConfig(({ mode }) => ({
     globals: true,
     include: ["src/**/*.test.{ts,tsx}"],
   },
-}));
+  };
+});

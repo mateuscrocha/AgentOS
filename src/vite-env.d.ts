@@ -30,3 +30,9 @@ declare const Deno: {
   };
   serve: (...args: any[]) => any;
 };
+
+declare const process: {
+  env: {
+    APP_URL?: string;
+  };
+};

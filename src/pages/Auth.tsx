@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { notify } from "@/components/ui/sonner";
+import { getAppUrl } from "@/lib/utils";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Email inválido");
@@ -110,7 +111,7 @@ const Auth = () => {
       setResetLoading(false);
       return;
     }
-    const redirectUrl = `${window.location.origin}/auth`;
+    const redirectUrl = `${getAppUrl()}/auth`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
     });

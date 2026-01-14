@@ -38,9 +38,25 @@ npm run dev
 
 ## Variáveis de ambiente
 
-Em desenvolvimento local, variáveis podem ficar no `.env`. Em produção, elas precisam existir no ambiente onde o código server-side roda (por exemplo, Edge Functions/Functions). O `.env` local é usado pelo Vite apenas para variáveis `VITE_*`.
+Em desenvolvimento local, variáveis podem ficar no `.env`. Em produção, elas precisam existir no ambiente onde o build é gerado e/ou onde o código server-side roda (por exemplo, Edge Functions/Functions). O `.env` local é usado pelo Vite para variáveis `VITE_*` e também para injetar `APP_URL` no frontend.
 
 O arquivo `.env` já está no `.gitignore`.
+
+### APP_URL
+
+`APP_URL` define a URL base da aplicação (usada para construir URLs absolutas, como redirecionamentos de autenticação). Se não estiver definida, o sistema usa o fallback `http://localhost:8080`.
+
+Exemplo (desenvolvimento local):
+
+```sh
+APP_URL="http://localhost:8080"
+```
+
+Exemplo (produção):
+
+```sh
+APP_URL="https://admin.seudominio.com"
+```
 
 **Edit a file directly in GitHub**
 

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { notify } from "@/components/ui/sonner";
+import { getAppUrl } from "@/lib/utils";
 import { getProvisioningErrorMessage, isGroupValidationSuccessful } from '@/utils/onboarding';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -351,12 +352,12 @@ export default function Onboarding() {
     }
     setIsSubmitting(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+          const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: { name: formData.name },
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${getAppUrl()}/`,
         },
       });
 
