@@ -38,7 +38,7 @@ function makeGroupsBuilder(group: any) {
 }
 
 function makeReq(body: any) {
-  return new Request(`${process.env.APP_URL || "http://localhost:8080"}/functions/v1/provision-onboarding`, {
+  return new Request(`${process.env.VITE_APP_URL || "http://localhost:8080"}/functions/v1/provision-onboarding`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -88,7 +88,7 @@ DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não exist
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
         return undefined;
@@ -155,7 +155,7 @@ DenoRef.test("provision-onboarding usa RPC v2 quando disponível", async () => {
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
         return undefined;
@@ -192,7 +192,7 @@ DenoRef.test("provision-onboarding retorna RPC_NOT_AVAILABLE quando v1 e v2 não
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;
       },
@@ -304,7 +304,7 @@ DenoRef.test("provision-onboarding usa fallback sem RPC quando v1 e v2 não exis
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
-        if (k === 'SUPABASE_URL') return process.env.APP_URL || 'http://localhost:8080';
+        if (k === 'SUPABASE_URL') return process.env.VITE_APP_URL || 'http://localhost:8080';
         if (k === 'SUPABASE_SERVICE_ROLE_KEY') return 'service';
         if (k === 'N8N_WEBHOOK_CREATE_ASSISTANT_URL') return 'http://webhook';
         return undefined;

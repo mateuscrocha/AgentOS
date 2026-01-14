@@ -6,16 +6,14 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const appUrl = env.APP_URL?.trim() ? env.APP_URL.trim().replace(/\/+$/, "") : undefined;
+  void env;
 
   return {
   server: {
     host: "::",
     port: 8080,
   },
-  define: {
-    "process.env.APP_URL": appUrl ? JSON.stringify(appUrl) : "undefined",
-  },
+  define: {},
   optimizeDeps: {
     force: true,
   },

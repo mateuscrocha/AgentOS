@@ -176,7 +176,7 @@ function makeCreateClientStub(state: any, calls: Call[]) {
 }
 
 function makeReq(body: any) {
-  return new Request(process.env.APP_URL || "http://localhost:8080", {
+  return new Request(process.env.VITE_APP_URL || "http://localhost:8080", {
     method: "POST",
     headers: {
       Authorization: "Bearer t",
@@ -198,7 +198,7 @@ DenoRef.test("delete-resource-cascade bloqueia quando não é SYSTEM_ADMIN", asy
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;
@@ -233,7 +233,7 @@ DenoRef.test("delete-resource-cascade exclui grupo removendo reações antes", a
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;
@@ -278,7 +278,7 @@ DenoRef.test("delete-resource-cascade retorna DEPENDENCIES_EXIST quando FK bloqu
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;
@@ -317,7 +317,7 @@ DenoRef.test("delete-resource-cascade retorna DEPENDENCY_CLEANUP_FAILED quando f
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;
@@ -353,7 +353,7 @@ DenoRef.test("delete-resource-cascade exclui organização limpando member_event
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;
@@ -395,7 +395,7 @@ DenoRef.test("delete-resource-cascade retorna DEPENDENCY_CLEANUP_FAILED quando f
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;

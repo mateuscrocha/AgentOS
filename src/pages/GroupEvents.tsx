@@ -80,9 +80,9 @@ export default function GroupEvents() {
   });
 
   // Fetch distinct event types for this group
-  const { data: eventTypes } = useQuery({
+  const { data: eventTypes } = useQuery<string[]>({
     queryKey: ["group-event-types", groupId, currentStartISO, currentEndISO],
-    queryFn: async () => {
+    queryFn: async (): Promise<string[]> => {
       const { data, error } = await supabase
         .from("events")
         .select("event_type")
@@ -93,8 +93,8 @@ export default function GroupEvents() {
         .order("event_type");
       
       if (error) throw error;
-      const unique = [...new Set(data?.map(e => e.event_type) || [])];
-      return unique;
+      const rows = (data ?? []) as Array<{ event_type: string | null }>;
+      return [...new Set(rows.map((e) => e.event_type).filter((v): v is string => !!v))];
     },
     enabled: !!groupId && hasAccess,
   });

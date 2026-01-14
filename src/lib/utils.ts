@@ -1,13 +1,19 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-const DEFAULT_APP_URL = "http://localhost:8080";
-
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export function getAppUrl() {
-  const envValue = (process.env.APP_URL ?? "").trim();
-  return (envValue || DEFAULT_APP_URL).replace(/\/+$/, "");
+  const envValue = (import.meta.env.VITE_APP_URL ?? "").trim();
+  const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "";
+
+  const base = (envValue || runtimeOrigin).trim().replace(/\/+$/, "");
+
+  if (!base) {
+    throw new Error("VITE_APP_URL não configurada e origem indisponível.");
+  }
+
+  return base;
 }

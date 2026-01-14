@@ -31,8 +31,6 @@ declare const Deno: {
   serve: (...args: any[]) => any;
 };
 
-declare const process: {
-  env: {
-    APP_URL?: string;
-  };
-};
+interface ImportMetaEnv {
+  readonly VITE_APP_URL?: string;
+}

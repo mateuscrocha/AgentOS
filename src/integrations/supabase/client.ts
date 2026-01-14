@@ -2,19 +2,40 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '').trim();
+const SUPABASE_PUBLISHABLE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '').trim();
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
 
 const SUPABASE_KEY = SUPABASE_PUBLISHABLE_KEY || SUPABASE_ANON_KEY;
+
+const missingVars: string[] = [];
+
+if (!SUPABASE_URL) missingVars.push('VITE_SUPABASE_URL');
+if (!SUPABASE_KEY) missingVars.push('VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY');
+
+const createMisconfiguredSupabaseClient = () => {
+  const message = `Supabase não configurado: ${missingVars.join(', ')}`;
+
+  return new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        if (prop === Symbol.toStringTag) return 'SupabaseClient';
+        throw new Error(message);
+      },
+    }
+  );
+};
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
+export const supabase = missingVars.length
+  ? (createMisconfiguredSupabaseClient() as any)
+  : createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        storage: localStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    });

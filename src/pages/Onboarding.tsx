@@ -158,7 +158,11 @@ export default function Onboarding() {
 
   const getFunctionUrl = (fnName: string): string => {
     const base = ((import.meta as any).env.VITE_SUPABASE_URL as string | undefined) || '';
-    return `${base.replace(/\/+$/, '')}/functions/v1/${fnName}`;
+    const trimmedBase = base.trim().replace(/\/+$/, '');
+    if (!trimmedBase) {
+      throw new Error('VITE_SUPABASE_URL não configurada.');
+    }
+    return `${trimmedBase}/functions/v1/${fnName}`;
   };
 
   const safeJsonParse = (raw: string): any => {
