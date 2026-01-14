@@ -3,15 +3,16 @@ import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, ArrowLeft, LogOut } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function OnboardingError() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { signOut } = useAuth();
   const message = location.state?.message || 'Ocorreu um erro durante o processo de onboarding.';
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     window.location.assign('/onboarding');
   };
 

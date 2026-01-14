@@ -1,6 +1,6 @@
 import { useEffect, useCallback, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, isExplicitSignOutRecent } from '@/hooks/use-auth';
 import { supabase } from '@/integrations/supabase/client';
 import { notify } from '@/components/ui/sonner';
 
@@ -23,6 +23,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, loading } = useAuth();
 
   const handleSessionExpired = useCallback(() => {
+    console.info('[auth] session-expired');
     notify.error("Sessão expirada", "Faça login novamente.");
     navigate('/auth', { replace: true });
   }, [navigate]);
@@ -31,6 +32,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
+        if (isExplicitSignOutRecent()) {
+          return;
+        }
         // Only show session expired if user was logged in and didn't explicitly log out
         if (isAuthenticated && !isPublicPath(location.pathname)) {
           handleSessionExpired();
