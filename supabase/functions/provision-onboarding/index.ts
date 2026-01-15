@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { insertMembersFromParticipantsForGroup } from "../_shared/members-from-participants.ts";
+import { ProvisionCoreError, provisionGroupWithMembersCore } from "../_shared/provision-group-core.ts";
 
 type Env = {
   get: (key: string) => string | undefined;
@@ -117,17 +117,6 @@ const isUniqueViolation = (err: any): boolean => {
 const isForeignKeyViolation = (err: any): boolean => {
   const code = String(err?.code || '');
   return code === '23503';
-};
-
-const isMissingRpc = (err: any, fnName: string): boolean => {
-  const code = String(err?.code || '');
-  const message = String(err?.message || '');
-  return (
-    code === 'PGRST202' ||
-    code === '42883' ||
-    message.includes(`Could not find the function public.${fnName}`) ||
-    message.includes(fnName)
-  );
 };
 
 const sendCreateAssistantWebhook = async (args: {
@@ -352,413 +341,29 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
     const primaryPhone = normalizePhone(payload.lead.whatsapp_phone);
 
     const hasParticipants = Array.isArray(payload.participants) && payload.participants.length > 0;
-    if (!hasParticipants && !primaryPhone) {
+    if (!hasParticipants) {
       return json(
         {
           success: false,
-          code: 'MEMBERS_SOURCE_MISSING',
-          message: 'Não foi possível inferir participantes nem telefone do lead para inserir Members',
+          code: 'WEBHOOK_CONTRACT_INVALID',
+          message: 'Lista de membros ausente ou vazia no payload',
         },
         400
       );
     }
 
 
-    let txData: unknown = null;
-    let txError: any = null;
-    let usedRpc: 'v2' | 'v1' | 'none' = 'v2';
-
-    ({ data: txData, error: txError } = await supabase.rpc('public_onboarding_provision_tx_v2', {
-      p_user_id: payload.lead.user_id,
-      p_lead_name: payload.lead.name,
-      p_lead_email: payload.lead.email,
-      p_lead_phone: primaryPhone,
-      p_organization_name: payload.organization.name,
-      p_group_name: payload.group.name,
-      p_group_invite_link: payload.group.invite_link,
-      p_group_whatsapp_provider_id: payload.group.whatsapp_provider_id,
-      p_participants: payload.participants ?? [],
-    }));
-
-    if (txError && isMissingRpc(txError, 'public_onboarding_provision_tx_v2')) {
-      console.warn('RPC v2 não encontrada; usando fallback v1', JSON.stringify({
-        correlation_id: correlationId,
-        code: txError?.code,
-        message: txError?.message,
-      }));
-
-      ({ data: txData, error: txError } = await supabase.rpc('public_onboarding_provision_tx', {
-        p_user_id: payload.lead.user_id,
-        p_lead_name: payload.lead.name,
-        p_lead_email: payload.lead.email,
-        p_lead_phone_e164: primaryPhone,
-        p_organization_name: payload.organization.name,
-        p_group_name: payload.group.name,
-        p_group_invite_link: payload.group.invite_link,
-        p_group_whatsapp_provider_id: payload.group.whatsapp_provider_id,
-      }));
-
-      usedRpc = 'v1';
-    }
-
-    if (txError && isMissingRpc(txError, 'public_onboarding_provision_tx')) {
-      console.warn('RPC v1/v2 não encontradas; usando fallback sem transação', JSON.stringify({
-        correlation_id: correlationId,
-        code: txError?.code,
-        message: txError?.message,
-      }));
-
-      usedRpc = 'none';
-
-      const leadPhoneE164 = primaryPhone;
-      let organizationId: string | null = null;
-      let groupId: string | null = null;
-      let canSetOwnerUserId = true;
-
-      const cleanupOrg = async () => {
-        if (!organizationId) return;
-        try {
-          if (groupId) {
-            await supabase.from('groups').delete().eq('id', groupId);
-          }
-        } catch {
-        }
-
-        try {
-          await supabase.from('organization_contacts').delete().eq('organization_id', organizationId);
-        } catch {
-        }
-
-        try {
-          await supabase.from('user_roles').delete().eq('organization_id', organizationId);
-        } catch {
-        }
-
-        try {
-          await supabase.from('events').delete().eq('entity_id', organizationId);
-        } catch {
-        }
-
-        try {
-          await supabase.from('organizations').delete().eq('id', organizationId);
-        } catch {
-        }
-      };
-
-      const tryInsertOrg = async () => {
-        const insertBase: any = {
-          name: payload.organization.name,
-          status: 'active',
-        };
-
-        let insertPayload: any = insertBase;
-        if (canSetOwnerUserId) {
-          insertPayload = { ...insertPayload, owner_user_id: payload.lead.user_id };
-        }
-
-        let res = await supabase
-          .from('organizations')
-          .insert(insertPayload)
-          .select('id')
-          .maybeSingle();
-
-        if (res.error && isUnknownColumnError(res.error)) {
-          res = await supabase
-            .from('organizations')
-            .insert(insertBase)
-            .select('id')
-            .maybeSingle();
-        }
-
-        if (res.error) throw res.error;
-        const data = res.data;
-        organizationId = (data as any)?.id ?? null;
-        if (!organizationId) throw new Error('Falha ao criar organização');
-
-        const orgPatch: any = {
-          contact_name: payload.lead.name,
-          contact_email: payload.lead.email,
-          contact_phone: leadPhoneE164,
-          updated_at: new Date().toISOString(),
-        };
-
-        if (canSetOwnerUserId) {
-          orgPatch.owner_user_id = payload.lead.user_id;
-        }
-
-        const { error: updErr } = await supabase.from('organizations').update(orgPatch).eq('id', organizationId);
-        if (updErr && !isUnknownColumnError(updErr)) {
-          throw updErr;
-        }
-      };
-
-      const findExistingGroup = async () => {
-        let existing: any = null;
-        let err: any = null;
-        ({ data: existing, error: err } = await supabase
-          .from('groups')
-          .select('id, name')
-          .eq('whatsapp_provider_id', payload.group.whatsapp_provider_id)
-          .maybeSingle());
-        if (err && isUnknownColumnError(err)) {
-          ({ data: existing, error: err } = await supabase
-            .from('groups')
-            .select('id, name')
-            .eq('provider_group_id', payload.group.whatsapp_provider_id)
-            .maybeSingle());
-        }
-        if (err) throw err;
-        return existing;
-      };
-
-      const tryInsertGroup = async () => {
-        const base: any = {
-          organization_id: organizationId,
-          name: payload.group.name,
-          provider: 'whatsapp',
-        };
-
-        let ins: any = {
-          ...base,
-          whatsapp_provider_id: payload.group.whatsapp_provider_id,
-        };
-
-        let res = await supabase.from('groups').insert(ins).select('id').maybeSingle();
-        if (res.error && isUnknownColumnError(res.error)) {
-          ins = { ...base, provider_group_id: payload.group.whatsapp_provider_id };
-          res = await supabase.from('groups').insert(ins).select('id').maybeSingle();
-        }
-
-        if (res.error && isUniqueViolation(res.error)) {
-          const existing = await findExistingGroup().catch(() => null);
-          return json(
-            {
-              success: false,
-              code: 'GROUP_ALREADY_PROVISIONED',
-              group_id: existing?.id ?? null,
-              group_name: existing?.name ?? null,
-              message: existing?.name
-                ? `Esse grupo já foi cadastrado como "${existing.name}".`
-                : 'Esse grupo já foi cadastrado.',
-            },
-            409
-          );
-        }
-
-        if (res.error) throw res.error;
-        groupId = (res.data as any)?.id ?? null;
-        if (!groupId) throw new Error('Falha ao criar grupo');
-
-        const groupPatch: any = {
-          invite_link: payload.group.invite_link,
-          invite_link_status: 'valid',
-          status: 'active',
-          is_active: true,
-          is_archived: false,
-          updated_at: new Date().toISOString(),
-        };
-
-        const { error: groupUpdErr } = await supabase.from('groups').update(groupPatch).eq('id', groupId);
-        if (groupUpdErr && !isUnknownColumnError(groupUpdErr)) {
-          throw groupUpdErr;
-        }
-      };
-
-      const upsertProfile = async () => {
-        const now = new Date().toISOString();
-
-        const fullProfile: any = {
-          id: payload.lead.user_id,
-          name: payload.lead.name,
-          phone_e164: leadPhoneE164,
-          status: 'active',
-          updated_at: now,
-        };
-
-        let { error } = await supabase.from('profiles').upsert(fullProfile, { onConflict: 'id' });
-        if (!error) return;
-
-        if (isForeignKeyViolation(error)) {
-          canSetOwnerUserId = false;
-          return;
-        }
-
-        if (isUnknownColumnError(error)) {
-          const minimalProfile: any = {
-            id: payload.lead.user_id,
-          };
-          const retry = await supabase.from('profiles').upsert(minimalProfile, { onConflict: 'id' });
-          if (retry.error) {
-            canSetOwnerUserId = false;
-            if (isForeignKeyViolation(retry.error) || isUnknownColumnError(retry.error)) return;
-            throw retry.error;
-          }
-          return;
-        }
-
-        throw error;
-      };
-
-      const upsertPrimaryContact = async () => {
-        const contact: any = {
-          organization_id: organizationId,
-          user_id: payload.lead.user_id,
-          name: payload.lead.name,
-          email: payload.lead.email,
-          phone: leadPhoneE164,
-          role_title: 'responsável principal',
-          contact_role: 'responsavel_principal',
-          is_primary: true,
-          updated_at: new Date().toISOString(),
-        };
-        const { error: insErr } = await supabase
-          .from('organization_contacts')
-          .insert(contact);
-
-        if (!insErr) return;
-        if (isUnknownColumnError(insErr)) return;
-        if (!isUniqueViolation(insErr)) throw insErr;
-
-        const { data: existing, error: selErr } = await supabase
-          .from('organization_contacts')
-          .select('id')
-          .eq('organization_id', organizationId)
-          .eq('is_primary', true)
-          .maybeSingle();
-        if (selErr && !isUnknownColumnError(selErr)) throw selErr;
-
-        if (existing?.id) {
-          const { error: updErr } = await supabase
-            .from('organization_contacts')
-            .update({
-              user_id: payload.lead.user_id,
-              name: payload.lead.name,
-              email: payload.lead.email,
-              phone: leadPhoneE164,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', existing.id);
-          if (updErr && !isUnknownColumnError(updErr)) throw updErr;
-        }
-      };
-
-      const insertMembersFromParticipants = async () => {
-        if (!groupId) return;
-        await insertMembersFromParticipantsForGroup({ supabase, groupId, participants: payload.participants });
-      };
-
-      const insertOrgAdminRole = async () => {
-        const row: any = {
-          user_id: payload.lead.user_id,
-          role: 'ORG_ADMIN',
-          organization_id: organizationId,
-          group_id: null,
-        };
-        const { error } = await supabase.from('user_roles').insert(row);
-        if (error && isForeignKeyViolation(error)) return;
-        if (error && !isUniqueViolation(error) && !isUnknownColumnError(error)) throw error;
-      };
-
-      const insertEvent = async () => {
-        const evt: any = {
-          event_type: 'ONBOARDING_COMPLETED',
-          entity_type: 'organization',
-          entity_id: organizationId,
-          user_id: payload.lead.user_id,
-          metadata: {
-            organization_name: payload.organization.name,
-            group_name: payload.group.name,
-            whatsapp_provider_id: payload.group.whatsapp_provider_id,
-          },
-        };
-        const { error } = await supabase.from('events').insert(evt);
-        if (error && isForeignKeyViolation(error)) return;
-        if (error && !isUnknownColumnError(error)) throw error;
-      };
-
-      try {
-        await upsertProfile();
-        await tryInsertOrg();
-        const conflictResponse = await tryInsertGroup();
-        if (conflictResponse) {
-          await cleanupOrg();
-          return conflictResponse;
-        }
-        await upsertPrimaryContact();
-        await insertMembersFromParticipants();
-        await insertOrgAdminRole();
-        await insertEvent();
-
-        txData = [{ organization_id: organizationId, group_id: groupId }];
-        txError = null;
-      } catch (e: any) {
-        await cleanupOrg();
-        return json(
-          {
-            success: false,
-            code: 'ONBOARDING_FALLBACK_FAILED',
-            message: `Falha no provisionamento (fallback): ${e?.message || String(e)}`,
-          },
-          500
-        );
-      }
-    }
-
-    if (txError) {
-      console.error('Error provisioning onboarding (tx)', JSON.stringify({
-        correlation_id: correlationId,
-        code: (txError as any)?.code,
-        message: (txError as any)?.message,
-        details: (txError as any)?.details,
-        hint: (txError as any)?.hint,
-      }));
-      if ((txError as any)?.code === '23505') {
-        const { data: existingGroup } = await supabase
-          .from('groups')
-          .select('id, name')
-          .eq('whatsapp_provider_id', payload.group.whatsapp_provider_id)
-          .maybeSingle();
-
-        return json(
-          {
-            success: false,
-            code: 'GROUP_ALREADY_PROVISIONED',
-            group_id: existingGroup?.id ?? null,
-            group_name: existingGroup?.name ?? null,
-            message: existingGroup?.name
-              ? `Esse grupo já foi cadastrado como "${existingGroup.name}".`
-              : 'Esse grupo já foi cadastrado.',
-          },
-          409
-        );
-      }
-      return json(
-        {
-          success: false,
-          code: 'ONBOARDING_TX_FAILED',
-          message: `Falha no provisionamento: ${txError.message}`,
-        },
-        500
-      );
-    }
-
-    const row = Array.isArray(txData) ? txData[0] : null;
-    const organizationId = row?.organization_id as string | undefined;
-    const groupId = row?.group_id as string | undefined;
-    if (!organizationId || !groupId) {
-      return json(
-        {
-          success: false,
-          code: 'ONBOARDING_TX_EMPTY',
-          message: 'Provisionamento retornou vazio',
-        },
-        500
-      );
-    }
+    const leadPhoneE164 = primaryPhone;
+    let organizationId: string | null = null;
+    let groupId: string | null = null;
+    let canSetOwnerUserId = true;
 
     const cleanupOrg = async () => {
+      if (!organizationId) return;
       try {
-        await supabase.from('groups').delete().eq('id', groupId);
+        if (groupId) {
+          await supabase.from('groups').delete().eq('id', groupId);
+        }
       } catch {
       }
 
@@ -783,106 +388,222 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
       }
     };
 
-    const participantsForMembers = (() => {
-      const participants = Array.isArray(payload.participants) ? payload.participants : [];
-      if (participants.length > 0) return participants;
-      return [
-        {
-          phone: primaryPhone,
-          name: payload.lead.name,
-          is_admin: true,
-          is_super_admin: true,
-          is_owner: true,
-          whatsapp_provider_id: `lead:${payload.lead.user_id}`,
-        },
-      ];
-    })();
+    const upsertProfile = async () => {
+      const now = new Date().toISOString();
 
-    console.log('Inserção automática de Members baseada nos participantes (obrigatória)', JSON.stringify({
-      correlation_id: correlationId,
-      organization_id: organizationId,
-      group_id: groupId,
-      used_rpc: usedRpc,
-      participants_count: Array.isArray(payload.participants) ? payload.participants.length : 0,
-      members_source: Array.isArray(payload.participants) && payload.participants.length > 0 ? 'participants' : 'lead_fallback',
-    }));
+      const fullProfile: any = {
+        id: payload.lead.user_id,
+        name: payload.lead.name,
+        phone_e164: leadPhoneE164,
+        status: 'active',
+        updated_at: now,
+      };
+
+      let { error } = await supabase.from('profiles').upsert(fullProfile, { onConflict: 'id' });
+      if (!error) return;
+
+      if (isForeignKeyViolation(error)) {
+        canSetOwnerUserId = false;
+        return;
+      }
+
+      if (isUnknownColumnError(error)) {
+        const minimalProfile: any = {
+          id: payload.lead.user_id,
+        };
+        const retry = await supabase.from('profiles').upsert(minimalProfile, { onConflict: 'id' });
+        if (retry.error) {
+          canSetOwnerUserId = false;
+          if (isForeignKeyViolation(retry.error) || isUnknownColumnError(retry.error)) return;
+          throw retry.error;
+        }
+        return;
+      }
+
+      throw error;
+    };
+
+    const tryInsertOrg = async () => {
+      const insertBase: any = {
+        name: payload.organization.name,
+        status: 'active',
+      };
+
+      let insertPayload: any = insertBase;
+      if (canSetOwnerUserId) {
+        insertPayload = { ...insertPayload, owner_user_id: payload.lead.user_id };
+      }
+
+      let res = await supabase
+        .from('organizations')
+        .insert(insertPayload)
+        .select('id')
+        .maybeSingle();
+
+      if (res.error && isUnknownColumnError(res.error)) {
+        res = await supabase
+          .from('organizations')
+          .insert(insertBase)
+          .select('id')
+          .maybeSingle();
+      }
+
+      if (res.error) throw res.error;
+      const data = res.data;
+      organizationId = (data as any)?.id ?? null;
+      if (!organizationId) throw new Error('Falha ao criar organização');
+
+      const orgPatch: any = {
+        contact_name: payload.lead.name,
+        contact_email: payload.lead.email,
+        contact_phone: leadPhoneE164,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (canSetOwnerUserId) {
+        orgPatch.owner_user_id = payload.lead.user_id;
+      }
+
+      const { error: updErr } = await supabase.from('organizations').update(orgPatch).eq('id', organizationId);
+      if (updErr && !isUnknownColumnError(updErr)) {
+        throw updErr;
+      }
+    };
+
+    const upsertPrimaryContact = async () => {
+      const contact: any = {
+        organization_id: organizationId,
+        user_id: payload.lead.user_id,
+        name: payload.lead.name,
+        email: payload.lead.email,
+        phone: leadPhoneE164,
+        role_title: 'responsável principal',
+        contact_role: 'responsavel_principal',
+        is_primary: true,
+        updated_at: new Date().toISOString(),
+      };
+      const { error: insErr } = await supabase
+        .from('organization_contacts')
+        .insert(contact);
+
+      if (!insErr) return;
+      if (isUnknownColumnError(insErr)) return;
+      if (!isUniqueViolation(insErr)) throw insErr;
+
+      const { data: existing, error: selErr } = await supabase
+        .from('organization_contacts')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('is_primary', true)
+        .maybeSingle();
+      if (selErr && !isUnknownColumnError(selErr)) throw selErr;
+
+      if (existing?.id) {
+        const { error: updErr } = await supabase
+          .from('organization_contacts')
+          .update({
+            user_id: payload.lead.user_id,
+            name: payload.lead.name,
+            email: payload.lead.email,
+            phone: leadPhoneE164,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id);
+        if (updErr && !isUnknownColumnError(updErr)) throw updErr;
+      }
+    };
+
+    const insertOrgAdminRole = async () => {
+      const row: any = {
+        user_id: payload.lead.user_id,
+        role: 'ORG_ADMIN',
+        organization_id: organizationId,
+        group_id: null,
+      };
+      const { error } = await supabase.from('user_roles').insert(row);
+      if (error && isForeignKeyViolation(error)) return;
+      if (error && !isUniqueViolation(error) && !isUnknownColumnError(error)) throw error;
+    };
+
+    const insertEvent = async () => {
+      const evt: any = {
+        event_type: 'ONBOARDING_COMPLETED',
+        entity_type: 'organization',
+        entity_id: organizationId,
+        user_id: payload.lead.user_id,
+        metadata: {
+          organization_name: payload.organization.name,
+          group_name: payload.group.name,
+          whatsapp_provider_id: payload.group.whatsapp_provider_id,
+        },
+      };
+      const { error } = await supabase.from('events').insert(evt);
+      if (error && isForeignKeyViolation(error)) return;
+      if (error && !isUnknownColumnError(error)) throw error;
+    };
 
     try {
-      const stats = await insertMembersFromParticipantsForGroup({ supabase, groupId, participants: participantsForMembers });
+      await upsertProfile();
+      await tryInsertOrg();
 
-      console.log('Inserção automática de Members finalizada', JSON.stringify({
-        correlation_id: correlationId,
-        organization_id: organizationId,
-        group_id: groupId,
-        used_rpc: usedRpc,
-        ...(stats ? { members_insert: stats } : {}),
-      }));
+      const orgId = organizationId;
+      if (!orgId) {
+        throw new Error('Falha ao criar organização');
+      }
+
+      const coreRes = await provisionGroupWithMembersCore({
+        supabase,
+        organizationId: orgId,
+        group: payload.group,
+        participants: payload.participants,
+        options: {
+          participantsPolicy: 'strict',
+          requireParticipants: true,
+          requireMembersInserted: true,
+          membersMode: 'required',
+        },
+      });
+      groupId = coreRes.group_id;
+
+      await upsertPrimaryContact();
+      await insertOrgAdminRole();
+      await insertEvent();
     } catch (e: any) {
-      console.error('Falha na inserção automática obrigatória de Members', JSON.stringify({
-        correlation_id: correlationId,
-        organization_id: organizationId,
-        group_id: groupId,
-        used_rpc: usedRpc,
-        message: e?.message || String(e),
-      }));
+      if (e instanceof ProvisionCoreError && e.code === 'GROUP_ALREADY_EXISTS') {
+        const existing = (e.details as any)?.existing_group;
+        await cleanupOrg();
+        return json(
+          {
+            success: false,
+            code: 'GROUP_ALREADY_PROVISIONED',
+            group_id: existing?.id ?? null,
+            group_name: existing?.name ?? null,
+            message: existing?.name
+              ? `Esse grupo já foi cadastrado como "${existing.name}".`
+              : 'Esse grupo já foi cadastrado.',
+          },
+          409
+        );
+      }
 
       await cleanupOrg();
-
       return json(
         {
           success: false,
-          code: 'MEMBERS_AUTO_INSERT_FAILED',
-          message: 'Falha ao inserir Members automaticamente durante o onboarding',
+          code: 'ONBOARDING_CORE_FAILED',
+          message: `Falha no provisionamento: ${e?.message || String(e)}`,
         },
         500
       );
     }
 
-    try {
-      const { data: groupRow, error: groupErr } = await supabase
-        .from('groups')
-        .select('id, organization_id')
-        .eq('id', groupId)
-        .maybeSingle();
-
-      if (groupErr) throw groupErr;
-      if (!groupRow?.id) throw new Error('Grupo não encontrado após provisionamento');
-      if ((groupRow as any).organization_id && (groupRow as any).organization_id !== organizationId) {
-        throw new Error('Inconsistência: group.organization_id não bate com organizationId retornado');
-      }
-
-      const { count: membersCount, error: membersCountErr } = await supabase
-        .from('members')
-        .select('id', { count: 'exact', head: true })
-        .eq('group_id', groupId);
-
-      if (membersCountErr) throw membersCountErr;
-      const n = Number(membersCount || 0);
-      if (!Number.isFinite(n) || n <= 0) {
-        throw new Error('Nenhum Member encontrado após inserção automática');
-      }
-
-      console.log('Inserção automática de Members validada com sucesso', JSON.stringify({
-        correlation_id: correlationId,
-        organization_id: organizationId,
-        group_id: groupId,
-        members_count: n,
-      }));
-    } catch (e: any) {
-      console.error('Falha ao validar integridade após inserção automática de Members', JSON.stringify({
-        correlation_id: correlationId,
-        organization_id: organizationId,
-        group_id: groupId,
-        message: e?.message || String(e),
-      }));
-
+    if (!organizationId || !groupId) {
       await cleanupOrg();
-
       return json(
         {
           success: false,
-          code: 'MEMBERS_INTEGRITY_FAILED',
-          message: 'Falha ao validar integridade após inserir Members automaticamente',
+          code: 'ONBOARDING_CORE_EMPTY',
+          message: 'Provisionamento retornou vazio',
         },
         500
       );

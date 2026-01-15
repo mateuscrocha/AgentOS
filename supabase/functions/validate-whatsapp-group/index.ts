@@ -176,7 +176,7 @@ const normalizeWebhookParticipants = (args: {
     return {
       phone: p.phone,
       name: p.phone,
-      is_admin: !!(p.isAdmin || p.isSuperAdmin),
+      is_admin: !!p.isAdmin,
       is_super_admin: !!p.isSuperAdmin,
       is_owner: isOwner,
       whatsapp_provider_id: p.lid || p.phone,

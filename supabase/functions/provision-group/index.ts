@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { insertMembersFromParticipantsForGroup } from "../_shared/members-from-participants.ts";
+import { ProvisionCoreError, provisionGroupWithMembersCore } from "../_shared/provision-group-core.ts";
 
 type Env = {
   get: (key: string) => string | undefined;
@@ -44,18 +44,6 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isRetryableStatus = (status: number) => status === 408 || status === 429 || (status >= 500 && status <= 599);
 
 const truncateText = (text: string, limit = 2000) => (text.length > limit ? `${text.slice(0, limit)}…` : text);
-
-const isUnknownColumnError = (err: any): boolean => {
-  const code = String(err?.code || '');
-  const message = String(err?.message || '');
-  const msg = message.toLowerCase();
-  return (
-    code === '42703' ||
-    (msg.includes('column') && msg.includes('does not exist')) ||
-    (msg.includes('column') && msg.includes('schema cache')) ||
-    (msg.includes('could not find the') && msg.includes('column'))
-  );
-};
 
 const sendCreateAssistantWebhook = async (args: {
   url: string;
@@ -324,38 +312,6 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
       );
     }
 
-    const findExistingGroup = async () => {
-      let existing: any = null;
-      let err: any = null;
-      ({ data: existing, error: err } = await supabaseUser
-        .from('groups')
-        .select('id, name')
-        .eq('whatsapp_provider_id', payload.group.whatsapp_provider_id)
-        .maybeSingle());
-      if (err && isUnknownColumnError(err)) {
-        ({ data: existing, error: err } = await supabaseUser
-          .from('groups')
-          .select('id, name')
-          .eq('provider_group_id', payload.group.whatsapp_provider_id)
-          .maybeSingle());
-      }
-      if (err) throw err;
-      return existing;
-    };
-
-    const existingGroup = await findExistingGroup().catch(() => null);
-
-    if (existingGroup) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          code: 'GROUP_ALREADY_EXISTS',
-          message: `Este grupo já está incluído como "${existingGroup.name}"`
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const serviceRoleKey = env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!serviceRoleKey) {
       return new Response(
@@ -371,103 +327,73 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
       },
     });
 
-    const tryInsertGroup = async () => {
-      const base: any = {
-        name: payload.group.name,
-        organization_id: payload.organization_id,
-        provider: 'whatsapp',
-        invite_link: payload.group.invite_link,
-        invite_link_status: 'valid',
-        status: 'active',
-        is_active: true,
-        is_archived: false,
-      };
+    let groupId: string;
+    try {
+      const coreRes = await provisionGroupWithMembersCore({
+        supabase: supabaseUser,
+        organizationId: payload.organization_id,
+        group: payload.group,
+        participants: payload.participants,
+        options: {
+          participantsPolicy: 'lenient',
+          requireParticipants: false,
+          requireMembersInserted: false,
+          membersMode: 'best_effort',
+        },
+      });
 
-      let insertPayload: any = { ...base, whatsapp_provider_id: payload.group.whatsapp_provider_id };
-      let res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
-
-      if (res.error && isUnknownColumnError(res.error)) {
-        insertPayload = { ...base, provider_group_id: payload.group.whatsapp_provider_id };
-        res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
-      }
-
-      if (res.error && isUnknownColumnError(res.error)) {
-        const minimalBase: any = {
-          name: payload.group.name,
-          organization_id: payload.organization_id,
-          provider: 'whatsapp',
-          invite_link: payload.group.invite_link,
-        };
-        insertPayload = { ...minimalBase, whatsapp_provider_id: payload.group.whatsapp_provider_id };
-        res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
-        if (res.error && isUnknownColumnError(res.error)) {
-          insertPayload = { ...minimalBase, provider_group_id: payload.group.whatsapp_provider_id };
-          res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
+      groupId = coreRes.group_id;
+    } catch (e: unknown) {
+      if (e instanceof ProvisionCoreError) {
+        if (e.code === 'GROUP_ALREADY_EXISTS') {
+          const name = (e.details as any)?.existing_group?.name;
+          const message = name
+            ? `Este grupo já está incluído como "${name}"`
+            : 'Este grupo já está incluído.';
+          return new Response(
+            JSON.stringify({ success: false, code: 'GROUP_ALREADY_EXISTS', message }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
+
+        return new Response(
+          JSON.stringify({ success: false, code: e.code, message: e.message }),
+          { status: e.status ?? 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
-      if (res.error && isUnknownColumnError(res.error)) {
-        const minimalBase: any = {
-          name: payload.group.name,
-          organization_id: payload.organization_id,
-          provider: 'whatsapp',
-        };
-        insertPayload = { ...minimalBase, whatsapp_provider_id: payload.group.whatsapp_provider_id };
-        res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
-        if (res.error && isUnknownColumnError(res.error)) {
-          insertPayload = { ...minimalBase, provider_group_id: payload.group.whatsapp_provider_id };
-          res = await supabaseUser.from('groups').insert(insertPayload).select('id').single();
-        }
-      }
-
-      return res;
-    };
-
-    const { data: group, error: groupError } = await tryInsertGroup();
-
-    if (groupError) {
-      console.error('Error adding group:', groupError);
-      if (groupError.message?.includes('row-level security')) {
+      const err: any = e;
+      if (String(err?.message || '').includes('row-level security')) {
         return new Response(
           JSON.stringify({ success: false, code: 'RLS_DENIED', message: 'Você não tem permissão para incluir grupos nesta organização' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
       return new Response(
-        JSON.stringify({ success: false, code: 'GROUP_INSERT_FAILED', message: 'Falha ao incluir grupo: ' + groupError.message }),
+        JSON.stringify({ success: false, code: 'GROUP_INSERT_FAILED', message: 'Falha ao incluir grupo' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Group added:', group.id);
+    console.log('Group added:', groupId);
 
     const cleanupGroup = async () => {
       try {
-        await supabaseAdmin.from('members').delete().eq('group_id', group.id);
+        await supabaseAdmin.from('members').delete().eq('group_id', groupId);
       } catch {
       }
 
       try {
-        await supabaseAdmin.from('events').delete().eq('entity_type', 'group').eq('entity_id', group.id);
+        await supabaseAdmin.from('events').delete().eq('entity_type', 'group').eq('entity_id', groupId);
       } catch {
       }
 
       try {
-        await supabaseAdmin.from('groups').delete().eq('id', group.id);
+        await supabaseAdmin.from('groups').delete().eq('id', groupId);
       } catch {
       }
     };
-
-    try {
-      await insertMembersFromParticipantsForGroup({
-        supabase: supabaseUser,
-        groupId: group.id,
-        participants: payload.participants,
-      });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error('Error creating members:', msg);
-    }
 
     const createAssistantWebhookUrl =
       env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL') ||
@@ -486,7 +412,7 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
           .insert({
             event_type: 'GROUP_WEBHOOK_FAILED',
             entity_type: 'group',
-            entity_id: group.id,
+            entity_id: groupId,
             user_id: user.id,
             metadata: {
               organization_id: payload.organization_id,
@@ -509,7 +435,7 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
       const { data: groupRow, error: groupRowError } = await supabaseAdmin
         .from('groups')
         .select('*')
-        .eq('id', group.id)
+        .eq('id', groupId)
         .maybeSingle();
 
       if (groupRowError) {
@@ -517,7 +443,7 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
       }
 
       const fallbackGroup: GroupRow = {
-        id: group.id,
+        id: groupId,
         name: payload.group.name,
         description: null,
         organization_id: payload.organization_id,
@@ -557,7 +483,7 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
           .insert({
             event_type: 'GROUP_WEBHOOK_FAILED',
             entity_type: 'group',
-            entity_id: group.id,
+            entity_id: groupId,
             user_id: user.id,
             metadata: {
               organization_id: payload.organization_id,
@@ -584,7 +510,7 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
       .insert({
         event_type: 'GROUP_ADDED',
         entity_type: 'group',
-        entity_id: group.id,
+        entity_id: groupId,
         user_id: user.id,
         metadata: {
           organization_id: payload.organization_id,
@@ -604,7 +530,7 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
     return new Response(
       JSON.stringify({
         success: true,
-        group_id: group.id,
+        group_id: groupId,
         message: 'Grupo incluído com sucesso',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -137,7 +137,7 @@ DenoRef.test("handler normaliza e retorna participantes no formato esperado", as
   assertEquals(Array.isArray(body.participants), true);
   assertEquals(body.participants[0].is_owner, true);
   assertEquals(body.participants[0].is_super_admin, true);
-  assertEquals(body.participants[0].is_admin, true);
+  assertEquals(body.participants[0].is_admin, false);
 });
 
 DenoRef.test("handler retorna erro claro quando payload do webhook é inválido", async () => {

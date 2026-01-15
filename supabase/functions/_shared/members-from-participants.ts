@@ -67,7 +67,7 @@ const normalizeParticipants = (participants: unknown): NormalizedParticipant[] =
 
       const isOwner = !!p?.is_owner;
       const isSuperAdmin = !!p?.is_super_admin;
-      const isAdmin = !!(p?.is_admin || isOwner || isSuperAdmin);
+      const isAdmin = !!p?.is_admin;
       const nameRaw = String(p?.name ?? '').trim();
       const name = nameRaw || null;
 

@@ -8,33 +8,156 @@ function assertEquals(actual: any, expected: any) {
   }
 }
 
-type RpcCall = { fn: string; args: any };
+function createMockSupabase(args?: { membersFirstInsertDuplicate?: boolean }) {
+  const calls: any[] = [];
+  const membersInserted: any[] = [];
+  let membersCount = 0;
+  let membersInsertCalls = 0;
 
-const okFetch = async () => {
-  return new Response(JSON.stringify({ success: true }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
-};
-
-function makeGroupsBuilder(group: any) {
-  const state: any = { filters: {} as Record<string, any> };
-  const builder: any = {
-    select(_cols: string) {
-      return builder;
-    },
-    eq(col: string, value: any) {
-      state.filters[`eq:${col}`] = value;
-      return builder;
-    },
-    maybeSingle() {
-      if (state.filters["eq:id"] === group.id) {
-        return Promise.resolve({ data: group, error: null });
-      }
-      return Promise.resolve({ data: null, error: null });
-    },
+  const groupRow = {
+    id: "group-1",
+    name: "Grupo",
+    description: null,
+    organization_id: "org-1",
+    provider: "whatsapp",
+    whatsapp_provider_id: "g-1",
+    provider_phone: null,
+    invite_link: "https://chat.whatsapp.com/abc",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    assistant_id: null,
+    has_assistant: false,
+    metadata: null,
+    raw_provider: null,
+    status: null,
+    sync_status: null,
+    sync_error: null,
   };
-  return builder;
+
+  const makeBuilder = (table: string) => {
+    const state: any = {
+      table,
+      insertPayload: null,
+      updatePayload: null,
+      deleteCalled: false,
+      upsertPayload: null,
+      selectCols: null,
+      selectOptions: null,
+      filters: {} as Record<string, any>,
+    };
+
+    const builder: any = {
+      insert(values: any) {
+        state.insertPayload = values;
+        calls.push({ table, action: "insert", values });
+
+        if (table === "members") {
+          membersInsertCalls += 1;
+          if (args?.membersFirstInsertDuplicate && membersInsertCalls === 1) {
+            return Promise.resolve({ error: { code: "23505", message: "duplicate key value violates unique constraint" } });
+          }
+
+          const row = Array.isArray(values) ? values[0] : values;
+          if (row) {
+            membersInserted.push(row);
+            membersCount = membersInserted.length;
+          }
+          return Promise.resolve({ error: null });
+        }
+
+        return builder;
+      },
+      upsert(values: any) {
+        state.upsertPayload = values;
+        calls.push({ table, action: "upsert", values });
+        return Promise.resolve({ data: null, error: null });
+      },
+      update(values: any) {
+        state.updatePayload = values;
+        calls.push({ table, action: "update", values });
+        return builder;
+      },
+      delete() {
+        state.deleteCalled = true;
+        calls.push({ table, action: "delete" });
+        return builder;
+      },
+      select(cols: string, options?: any) {
+        state.selectCols = cols;
+        state.selectOptions = options || null;
+        calls.push({ table, action: "select", cols, options: options || null });
+        return builder;
+      },
+      eq(col: string, value: any) {
+        state.filters[`eq:${col}`] = value;
+        calls.push({ table, action: "eq", col, value });
+        return builder;
+      },
+      is(col: string, value: any) {
+        state.filters[`is:${col}`] = value;
+        calls.push({ table, action: "is", col, value });
+        return builder;
+      },
+      maybeSingle() {
+        calls.push({ table, action: "maybeSingle" });
+
+        if (table === "organizations" && state.insertPayload) {
+          return Promise.resolve({ data: { id: "org-1" }, error: null });
+        }
+
+        if (table === "groups") {
+          if (state.insertPayload) {
+            return Promise.resolve({ data: { id: "group-1" }, error: null });
+          }
+
+          if (state.filters["eq:id"] === "group-1") {
+            return Promise.resolve({ data: groupRow, error: null });
+          }
+
+          if (state.filters["eq:whatsapp_provider_id"] === "g-1") {
+            return Promise.resolve({ data: null, error: null });
+          }
+        }
+
+        return Promise.resolve({ data: null, error: null });
+      },
+      single() {
+        calls.push({ table, action: "single" });
+
+        if (table === "groups" && state.insertPayload) {
+          return Promise.resolve({ data: { id: "group-1" }, error: null });
+        }
+
+        return Promise.resolve({ data: null, error: null });
+      },
+      then(onFulfilled: any, onRejected: any) {
+        if (table === "members" && state.selectOptions && state.selectOptions.count === "exact" && state.selectOptions.head === true) {
+          return Promise.resolve({ count: membersCount, error: null }).then(onFulfilled, onRejected);
+        }
+
+        if (table === "organizations" && state.insertPayload && state.selectCols) {
+          return Promise.resolve({ data: { id: "org-1" }, error: null }).then(onFulfilled, onRejected);
+        }
+
+        if (table === "groups" && state.insertPayload && state.selectCols) {
+          return Promise.resolve({ data: { id: "group-1" }, error: null }).then(onFulfilled, onRejected);
+        }
+
+        return Promise.resolve({ data: null, error: null }).then(onFulfilled, onRejected);
+      },
+    };
+
+    return builder;
+  };
+
+  return {
+    supabase: {
+      from: (table: string) => makeBuilder(table),
+    } as any,
+    calls,
+    membersInserted,
+    groupRow,
+  };
 }
 
 function makeReq(body: any) {
@@ -64,29 +187,9 @@ function makePayload() {
   };
 }
 
-DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não existe", async () => {
-  const calls: RpcCall[] = [];
-  const membersInserted: any[] = [];
-  let membersCount = 0;
-  const groupRow = {
-    id: "group-1",
-    name: "Grupo",
-    description: null,
-    organization_id: "org-1",
-    provider: "whatsapp",
-    whatsapp_provider_id: "g-1",
-    provider_phone: null,
-    invite_link: "https://chat.whatsapp.com/abc",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    assistant_id: null,
-    has_assistant: false,
-    metadata: null,
-    raw_provider: null,
-    status: null,
-    sync_status: null,
-    sync_error: null,
-  };
+DenoRef.test("provision-onboarding retorna erro quando participants está vazio", async () => {
+  const { supabase } = createMockSupabase();
+
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
@@ -96,54 +199,56 @@ DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não exist
         return undefined;
       },
     },
-    fetch: okFetch,
-    createClient: (() => {
-      return {
-        rpc: async (fn: string, args: any) => {
-          calls.push({ fn, args });
-          if (fn === "public_onboarding_provision_tx_v2") {
-            return {
-              data: null,
-              error: {
-                code: "PGRST202",
-                message: "Could not find the function public.public_onboarding_provision_tx_v2",
-              },
-            };
-          }
-          return {
-            data: [{ organization_id: "org-1", group_id: "group-1" }],
-            error: null,
-          };
-        },
-        from: (table: string) => {
-          if (table === "groups") return makeGroupsBuilder(groupRow);
-          if (table === 'members') {
-            return {
-              insert: async (values: any[]) => {
-                if (Array.isArray(values) && values[0]) membersInserted.push(values[0]);
-                membersCount = membersInserted.length;
-                return { error: null };
-              },
-              select: (_cols: string, _opts?: any) => ({
-                eq: async (_col: string, _value: any) => ({ count: membersCount, error: null }),
-              }),
-            } as any;
-          }
-          throw new Error(`unexpected table: ${table}`);
-        },
-      } as any;
+    createClient: (() => supabase) as any,
+  });
+
+  const res = await handler(makeReq(makePayload()));
+  assertEquals(res.status, 400);
+  const body = await res.json();
+  assertEquals(body.success, false);
+  assertEquals(body.code, "WEBHOOK_CONTRACT_INVALID");
+});
+
+DenoRef.test("provision-onboarding cria org+grupo, insere members e chama webhook", async () => {
+  const { supabase, membersInserted } = createMockSupabase();
+  const fetchCalls: Array<{ url: string; init: any }> = [];
+
+  const handler = createProvisionOnboardingHandler({
+    env: {
+      get: (k: string) => {
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
+        return undefined;
+      },
+    },
+    fetch: (async (input: any, init: any) => {
+      fetchCalls.push({ url: String(input), init });
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }) as any,
+    createClient: (() => supabase) as any,
   });
 
   const payload = makePayload();
   payload.participants = [
     {
-      phone: '11999990000',
-      name: 'Dono',
+      phone: "11999990000",
+      name: "Dono",
       is_admin: false,
       is_super_admin: true,
       is_owner: true,
-      whatsapp_provider_id: 'lid-1',
+      whatsapp_provider_id: "lid-1",
+    },
+    {
+      phone: "+5511888887777",
+      name: "Admin",
+      is_admin: true,
+      is_super_admin: false,
+      is_owner: false,
+      whatsapp_provider_id: "lid-2",
     },
   ];
 
@@ -151,117 +256,24 @@ DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não exist
   assertEquals(res.status, 200);
   const body = await res.json();
   assertEquals(body.success, true);
-  assertEquals(calls.length, 2);
-  assertEquals(calls[0].fn, "public_onboarding_provision_tx_v2");
-  assertEquals(calls[1].fn, "public_onboarding_provision_tx");
-  assertEquals(Object.prototype.hasOwnProperty.call(calls[1].args, "p_lead_phone_e164"), true);
-  assertEquals(Array.isArray(membersInserted), true);
-  const inserted = membersInserted as any[];
-  assertEquals(inserted.length, 1);
-  assertEquals(inserted[0]?.phone_e164, '+5511999990000');
-  assertEquals(inserted[0]?.is_admin, true);
-  assertEquals(inserted[0]?.is_super_admin, true);
-  assertEquals(inserted[0]?.is_owner, true);
+  assertEquals(body.organization_id, "org-1");
+  assertEquals(body.group_id, "group-1");
+
+  assertEquals(membersInserted.length, 2);
+  assertEquals(membersInserted[0]?.phone_e164, "+5511999990000");
+  assertEquals(membersInserted[0]?.is_admin, false);
+  assertEquals(membersInserted[0]?.is_super_admin, true);
+  assertEquals(membersInserted[0]?.is_owner, true);
+
+  assertEquals(fetchCalls.length, 1);
+  assertEquals(fetchCalls[0].url, "http://webhook");
+  const webhookBody = JSON.parse(fetchCalls[0].init?.body || "{}");
+  assertEquals(webhookBody.id, "group-1");
+  assertEquals(webhookBody.organization_id, "org-1");
 });
 
-DenoRef.test("provision-onboarding usa RPC v2 quando disponível", async () => {
-  const calls: RpcCall[] = [];
-  const membersInserted: any[] = [];
-  let membersCount = 0;
-  const groupRow = {
-    id: "group-1",
-    name: "Grupo",
-    description: null,
-    organization_id: "org-1",
-    provider: "whatsapp",
-    whatsapp_provider_id: "g-1",
-    provider_phone: null,
-    invite_link: "https://chat.whatsapp.com/abc",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    assistant_id: null,
-    has_assistant: false,
-    metadata: null,
-    raw_provider: null,
-    status: null,
-    sync_status: null,
-    sync_error: null,
-  };
-  const handler = createProvisionOnboardingHandler({
-    env: {
-      get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
-        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
-        return undefined;
-      },
-    },
-    fetch: okFetch,
-    createClient: (() => {
-      return {
-        rpc: async (fn: string, args: any) => {
-          calls.push({ fn, args });
-          return {
-            data: [{ organization_id: "org-1", group_id: "group-1" }],
-            error: null,
-          };
-        },
-        from: (table: string) => {
-          if (table === "groups") return makeGroupsBuilder(groupRow);
-          if (table === 'members') {
-            return {
-              insert: async (values: any[]) => {
-                if (Array.isArray(values) && values[0]) membersInserted.push(values[0]);
-                membersCount = membersInserted.length;
-                return { error: null };
-              },
-              select: (_cols: string, _opts?: any) => ({
-                eq: async (_col: string, _value: any) => ({ count: membersCount, error: null }),
-              }),
-            } as any;
-          }
-          throw new Error(`unexpected table: ${table}`);
-        },
-      } as any;
-    }) as any,
-  });
-
-  const res = await handler(makeReq(makePayload()));
-  assertEquals(res.status, 200);
-  const body = await res.json();
-  assertEquals(body.success, true);
-  assertEquals(calls.length, 1);
-  assertEquals(calls[0].fn, "public_onboarding_provision_tx_v2");
-  assertEquals(Object.prototype.hasOwnProperty.call(calls[0].args, "p_participants"), true);
-  assertEquals(Array.isArray(membersInserted), true);
-  assertEquals(membersInserted.length, 1);
-});
-
-DenoRef.test("provision-onboarding ignora duplicidade e continua inserindo outros Members", async () => {
-  const calls: RpcCall[] = [];
-  const membersInserted: any[] = [];
-  let membersCount = 0;
-  let insertCalls = 0;
-
-  const groupRow = {
-    id: "group-1",
-    name: "Grupo",
-    description: null,
-    organization_id: "org-1",
-    provider: "whatsapp",
-    whatsapp_provider_id: "g-1",
-    provider_phone: null,
-    invite_link: "https://chat.whatsapp.com/abc",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    assistant_id: null,
-    has_assistant: false,
-    metadata: null,
-    raw_provider: null,
-    status: null,
-    sync_status: null,
-    sync_error: null,
-  };
+DenoRef.test("provision-onboarding ignora duplicidade ao inserir Members", async () => {
+  const { supabase, membersInserted } = createMockSupabase({ membersFirstInsertDuplicate: true });
 
   const handler = createProvisionOnboardingHandler({
     env: {
@@ -272,38 +284,13 @@ DenoRef.test("provision-onboarding ignora duplicidade e continua inserindo outro
         return undefined;
       },
     },
-    fetch: okFetch,
-    createClient: (() => {
-      return {
-        rpc: async (fn: string, args: any) => {
-          calls.push({ fn, args });
-          return {
-            data: [{ organization_id: "org-1", group_id: "group-1" }],
-            error: null,
-          };
-        },
-        from: (table: string) => {
-          if (table === "groups") return makeGroupsBuilder(groupRow);
-          if (table === "members") {
-            return {
-              insert: async (values: any[]) => {
-                insertCalls += 1;
-                if (insertCalls === 1) {
-                  return { error: { code: "23505", message: "duplicate key value violates unique constraint" } };
-                }
-                if (Array.isArray(values) && values[0]) membersInserted.push(values[0]);
-                membersCount = membersInserted.length;
-                return { error: null };
-              },
-              select: (_cols: string, _opts?: any) => ({
-                eq: async (_col: string, _value: any) => ({ count: membersCount, error: null }),
-              }),
-            } as any;
-          }
-          throw new Error(`unexpected table: ${table}`);
-        },
-      } as any;
+    fetch: (async () => {
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }) as any,
+    createClient: (() => supabase) as any,
   });
 
   const payload = makePayload();
@@ -313,6 +300,7 @@ DenoRef.test("provision-onboarding ignora duplicidade e continua inserindo outro
       name: "A",
       is_admin: true,
       is_super_admin: false,
+      is_owner: false,
       whatsapp_provider_id: "lid-1",
     },
     {
@@ -320,6 +308,7 @@ DenoRef.test("provision-onboarding ignora duplicidade e continua inserindo outro
       name: "B",
       is_admin: true,
       is_super_admin: false,
+      is_owner: false,
       whatsapp_provider_id: "lid-2",
     },
   ];
@@ -328,197 +317,6 @@ DenoRef.test("provision-onboarding ignora duplicidade e continua inserindo outro
   assertEquals(res.status, 200);
   const body = await res.json();
   assertEquals(body.success, true);
-  assertEquals(calls.length, 1);
-  assertEquals(calls[0].fn, "public_onboarding_provision_tx_v2");
   assertEquals(membersInserted.length, 1);
   assertEquals(membersInserted[0]?.whatsapp_provider_id, "lid-2");
-});
-
-DenoRef.test("provision-onboarding retorna RPC_NOT_AVAILABLE quando v1 e v2 não existem", async () => {
-  const handler = createProvisionOnboardingHandler({
-    env: {
-      get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
-        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        return undefined;
-      },
-    },
-    createClient: (() => {
-      return {
-        rpc: async (fn: string) => {
-          return {
-            data: null,
-            error: {
-              code: "PGRST202",
-              message: `Could not find the function public.${fn}`,
-            },
-          };
-        },
-      } as any;
-    }) as any,
-  });
-
-  const res = await handler(makeReq(makePayload()));
-  assertEquals(res.status, 500);
-  const body = await res.json();
-  assertEquals(body.success, false);
-  assertEquals(body.code, "ONBOARDING_FALLBACK_FAILED");
-});
-
-DenoRef.test("provision-onboarding usa fallback sem RPC quando v1 e v2 não existem", async () => {
-  const calls: any[] = [];
-
-  const makeBuilder = (table: string) => {
-    const state: any = {
-      table,
-      insertPayload: null,
-      updatePayload: null,
-      deleteFilters: null,
-      upsertPayload: null,
-      selectCols: null,
-      selectOptions: null,
-      filters: {} as Record<string, any>,
-    };
-
-    const builder: any = {
-      insert(values: any) {
-        state.insertPayload = values;
-        calls.push({ table, action: 'insert', values });
-        return builder;
-      },
-      upsert(values: any, _opts?: any) {
-        state.upsertPayload = values;
-        calls.push({ table, action: 'upsert', values });
-        return Promise.resolve({ data: null, error: null });
-      },
-      update(values: any) {
-        state.updatePayload = values;
-        calls.push({ table, action: 'update', values });
-        return builder;
-      },
-      delete() {
-        calls.push({ table, action: 'delete' });
-        return builder;
-      },
-      select(cols: string, options?: any) {
-        state.selectCols = cols;
-        state.selectOptions = options || null;
-        calls.push({ table, action: 'select', cols });
-        return builder;
-      },
-      then(onFulfilled: any, onRejected: any) {
-        if (
-          table === 'members' &&
-          state.selectOptions &&
-          state.selectOptions.count === 'exact' &&
-          state.selectOptions.head === true &&
-          state.filters['eq:group_id'] === 'group-1'
-        ) {
-          return Promise.resolve({ count: 2, error: null }).then(onFulfilled, onRejected);
-        }
-        return Promise.resolve({ data: null, error: null }).then(onFulfilled, onRejected);
-      },
-      eq(col: string, value: any) {
-        state.filters[`eq:${col}`] = value;
-        calls.push({ table, action: 'eq', col, value });
-        return builder;
-      },
-      maybeSingle() {
-        if (table === 'organizations' && state.insertPayload) {
-          return Promise.resolve({ data: { id: 'org-1' }, error: null });
-        }
-        if (table === 'groups' && state.insertPayload) {
-          return Promise.resolve({ data: { id: 'group-1' }, error: null });
-        }
-        if (table === 'groups' && state.filters['eq:id'] === 'group-1') {
-          return Promise.resolve({
-            data: {
-              id: 'group-1',
-              name: 'Grupo',
-              description: null,
-              organization_id: 'org-1',
-              provider: 'whatsapp',
-              whatsapp_provider_id: 'g-1',
-              provider_phone: null,
-              invite_link: 'https://chat.whatsapp.com/abc',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              assistant_id: null,
-              has_assistant: false,
-              metadata: null,
-              raw_provider: null,
-              status: null,
-              sync_status: null,
-              sync_error: null,
-            },
-            error: null,
-          });
-        }
-        return Promise.resolve({ data: null, error: null });
-      },
-    };
-
-    return builder;
-  };
-
-  const handler = createProvisionOnboardingHandler({
-    env: {
-      get: (k: string) => {
-        if (k === 'SUPABASE_URL') return process.env.VITE_APP_URL || 'http://localhost:8080';
-        if (k === 'SUPABASE_SERVICE_ROLE_KEY') return 'service';
-        if (k === 'N8N_WEBHOOK_CREATE_ASSISTANT_URL') return 'http://webhook';
-        return undefined;
-      },
-    },
-    fetch: okFetch,
-    createClient: (() => {
-      return {
-        rpc: async (fn: string) => {
-          return {
-            data: null,
-            error: {
-              code: 'PGRST202',
-              message: `Could not find the function public.${fn}`,
-            },
-          };
-        },
-        from: (table: string) => makeBuilder(table),
-      } as any;
-    }) as any,
-  });
-
-  const payload = makePayload();
-  payload.participants = [
-    {
-      phone: '11999990000',
-      name: 'Dono',
-      is_admin: false,
-      is_super_admin: true,
-      is_owner: true,
-      whatsapp_provider_id: 'lid-1',
-    },
-    {
-      phone: '+5511888887777',
-      name: 'Admin',
-      is_admin: true,
-      is_super_admin: false,
-      whatsapp_provider_id: 'lid-2',
-    },
-  ];
-
-  const res = await handler(makeReq(payload));
-  assertEquals(res.status, 200);
-  const body = await res.json();
-  assertEquals(body.success, true);
-  assertEquals(body.organization_id, 'org-1');
-  assertEquals(body.group_id, 'group-1');
-
-  const membersInsert = calls.find((c) => c.table === 'members' && c.action === 'insert');
-  assertEquals(!!membersInsert, true);
-  assertEquals(Array.isArray(membersInsert.values), true);
-  const first = membersInsert.values[0];
-  assertEquals(first.is_admin, true);
-  assertEquals(first.is_super_admin, true);
-  assertEquals(first.is_owner, true);
-  assertEquals(first.phone_e164, '+5511999990000');
 });
