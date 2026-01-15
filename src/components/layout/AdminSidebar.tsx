@@ -135,7 +135,7 @@ export function AdminSidebar() {
   const renderNavItem = (item: NavItem) => {
     const active = isActive(item.href);
     return (
-      <SidebarMenuItem key={item.href}>
+      <SidebarMenuItem key={`${item.href}:${item.label}`}>
         <SidebarMenuButton
           asChild
           isActive={active}

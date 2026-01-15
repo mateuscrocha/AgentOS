@@ -155,6 +155,13 @@ export const insertMembersFromParticipantsForGroup = async (args: {
   if (!groupId) return;
   if (participants.length === 0) return;
 
+  const stats = {
+    attempted: 0,
+    inserted: 0,
+    skipped_unique: 0,
+    variant_index: -1,
+  };
+
   const nowIso = new Date().toISOString();
 
   const variants: Array<ReturnType<typeof buildRows>> = [
@@ -233,17 +240,34 @@ export const insertMembersFromParticipantsForGroup = async (args: {
   ];
 
   let lastError: any = null;
-  for (const rows of variants) {
-    const { error } = await supabase.from('members').insert(rows);
-    if (!error) return;
-    if (isUniqueViolation(error)) return;
-    if (isUnknownColumnError(error)) {
-      lastError = error;
-      continue;
+  for (let variantIndex = 0; variantIndex < variants.length; variantIndex += 1) {
+    const rows = variants[variantIndex];
+    let hadUnknownColumn = false;
+
+    for (const row of rows) {
+      stats.attempted += 1;
+      const { error } = await supabase.from('members').insert([row]);
+      if (!error) {
+        stats.inserted += 1;
+        continue;
+      }
+      if (isUniqueViolation(error)) {
+        stats.skipped_unique += 1;
+        continue;
+      }
+      if (isUnknownColumnError(error)) {
+        lastError = error;
+        hadUnknownColumn = true;
+        break;
+      }
+      throw error;
     }
-    throw error;
+
+    if (!hadUnknownColumn) {
+      stats.variant_index = variantIndex;
+      return stats;
+    }
   }
 
   if (lastError) return;
 };
-

@@ -351,6 +351,18 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
 
     const primaryPhone = normalizePhone(payload.lead.whatsapp_phone);
 
+    const hasParticipants = Array.isArray(payload.participants) && payload.participants.length > 0;
+    if (!hasParticipants && !primaryPhone) {
+      return json(
+        {
+          success: false,
+          code: 'MEMBERS_SOURCE_MISSING',
+          message: 'Não foi possível inferir participantes nem telefone do lead para inserir Members',
+        },
+        400
+      );
+    }
+
 
     let txData: unknown = null;
     let txError: any = null;
@@ -744,27 +756,6 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
       );
     }
 
-    if (usedRpc === 'v1') {
-      try {
-        await insertMembersFromParticipantsForGroup({ supabase, groupId, participants: payload.participants });
-      } catch (e: any) {
-        console.error('Falha ao inserir membros após RPC v1', JSON.stringify({
-          correlation_id: correlationId,
-          message: e?.message || String(e),
-        }));
-      }
-    }
-
-    const createAssistantWebhookUrl =
-      env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL') ||
-      env.get('N8N_WEBHOOK_CREATE_ASSISTANT_URL');
-
-    const createAssistantWebhookApiKey =
-      env.get('N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
-      env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
-      env.get('N8N_WEBHOOK_API_KEY') ||
-      env.get('VITE_N8N_WEBHOOK_API_KEY');
-
     const cleanupOrg = async () => {
       try {
         await supabase.from('groups').delete().eq('id', groupId);
@@ -791,6 +782,121 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
       } catch {
       }
     };
+
+    const participantsForMembers = (() => {
+      const participants = Array.isArray(payload.participants) ? payload.participants : [];
+      if (participants.length > 0) return participants;
+      return [
+        {
+          phone: primaryPhone,
+          name: payload.lead.name,
+          is_admin: true,
+          is_super_admin: true,
+          is_owner: true,
+          whatsapp_provider_id: `lead:${payload.lead.user_id}`,
+        },
+      ];
+    })();
+
+    console.log('Inserção automática de Members baseada nos participantes (obrigatória)', JSON.stringify({
+      correlation_id: correlationId,
+      organization_id: organizationId,
+      group_id: groupId,
+      used_rpc: usedRpc,
+      participants_count: Array.isArray(payload.participants) ? payload.participants.length : 0,
+      members_source: Array.isArray(payload.participants) && payload.participants.length > 0 ? 'participants' : 'lead_fallback',
+    }));
+
+    try {
+      const stats = await insertMembersFromParticipantsForGroup({ supabase, groupId, participants: participantsForMembers });
+
+      console.log('Inserção automática de Members finalizada', JSON.stringify({
+        correlation_id: correlationId,
+        organization_id: organizationId,
+        group_id: groupId,
+        used_rpc: usedRpc,
+        ...(stats ? { members_insert: stats } : {}),
+      }));
+    } catch (e: any) {
+      console.error('Falha na inserção automática obrigatória de Members', JSON.stringify({
+        correlation_id: correlationId,
+        organization_id: organizationId,
+        group_id: groupId,
+        used_rpc: usedRpc,
+        message: e?.message || String(e),
+      }));
+
+      await cleanupOrg();
+
+      return json(
+        {
+          success: false,
+          code: 'MEMBERS_AUTO_INSERT_FAILED',
+          message: 'Falha ao inserir Members automaticamente durante o onboarding',
+        },
+        500
+      );
+    }
+
+    try {
+      const { data: groupRow, error: groupErr } = await supabase
+        .from('groups')
+        .select('id, organization_id')
+        .eq('id', groupId)
+        .maybeSingle();
+
+      if (groupErr) throw groupErr;
+      if (!groupRow?.id) throw new Error('Grupo não encontrado após provisionamento');
+      if ((groupRow as any).organization_id && (groupRow as any).organization_id !== organizationId) {
+        throw new Error('Inconsistência: group.organization_id não bate com organizationId retornado');
+      }
+
+      const { count: membersCount, error: membersCountErr } = await supabase
+        .from('members')
+        .select('id', { count: 'exact', head: true })
+        .eq('group_id', groupId);
+
+      if (membersCountErr) throw membersCountErr;
+      const n = Number(membersCount || 0);
+      if (!Number.isFinite(n) || n <= 0) {
+        throw new Error('Nenhum Member encontrado após inserção automática');
+      }
+
+      console.log('Inserção automática de Members validada com sucesso', JSON.stringify({
+        correlation_id: correlationId,
+        organization_id: organizationId,
+        group_id: groupId,
+        members_count: n,
+      }));
+    } catch (e: any) {
+      console.error('Falha ao validar integridade após inserção automática de Members', JSON.stringify({
+        correlation_id: correlationId,
+        organization_id: organizationId,
+        group_id: groupId,
+        message: e?.message || String(e),
+      }));
+
+      await cleanupOrg();
+
+      return json(
+        {
+          success: false,
+          code: 'MEMBERS_INTEGRITY_FAILED',
+          message: 'Falha ao validar integridade após inserir Members automaticamente',
+        },
+        500
+      );
+    }
+
+    const createAssistantWebhookUrl =
+      env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL') ||
+      env.get('N8N_WEBHOOK_CREATE_ASSISTANT_URL');
+
+    const createAssistantWebhookApiKey =
+      env.get('N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
+      env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
+      env.get('N8N_WEBHOOK_API_KEY') ||
+      env.get('VITE_N8N_WEBHOOK_API_KEY');
 
     if (!createAssistantWebhookUrl) {
       console.error('Webhook de criação de assistant não configurado', JSON.stringify({

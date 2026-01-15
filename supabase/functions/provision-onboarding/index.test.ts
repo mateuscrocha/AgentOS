@@ -66,7 +66,8 @@ function makePayload() {
 
 DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não existe", async () => {
   const calls: RpcCall[] = [];
-  let membersInserted: any[] | null = null;
+  const membersInserted: any[] = [];
+  let membersCount = 0;
   const groupRow = {
     id: "group-1",
     name: "Grupo",
@@ -119,9 +120,13 @@ DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não exist
           if (table === 'members') {
             return {
               insert: async (values: any[]) => {
-                membersInserted = values;
+                if (Array.isArray(values) && values[0]) membersInserted.push(values[0]);
+                membersCount = membersInserted.length;
                 return { error: null };
               },
+              select: (_cols: string, _opts?: any) => ({
+                eq: async (_col: string, _value: any) => ({ count: membersCount, error: null }),
+              }),
             } as any;
           }
           throw new Error(`unexpected table: ${table}`);
@@ -151,7 +156,7 @@ DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não exist
   assertEquals(calls[1].fn, "public_onboarding_provision_tx");
   assertEquals(Object.prototype.hasOwnProperty.call(calls[1].args, "p_lead_phone_e164"), true);
   assertEquals(Array.isArray(membersInserted), true);
-  const inserted = (membersInserted ?? []) as any[];
+  const inserted = membersInserted as any[];
   assertEquals(inserted.length, 1);
   assertEquals(inserted[0]?.phone_e164, '+5511999990000');
   assertEquals(inserted[0]?.is_admin, true);
@@ -161,6 +166,8 @@ DenoRef.test("provision-onboarding faz fallback para RPC v1 quando v2 não exist
 
 DenoRef.test("provision-onboarding usa RPC v2 quando disponível", async () => {
   const calls: RpcCall[] = [];
+  const membersInserted: any[] = [];
+  let membersCount = 0;
   const groupRow = {
     id: "group-1",
     name: "Grupo",
@@ -201,6 +208,18 @@ DenoRef.test("provision-onboarding usa RPC v2 quando disponível", async () => {
         },
         from: (table: string) => {
           if (table === "groups") return makeGroupsBuilder(groupRow);
+          if (table === 'members') {
+            return {
+              insert: async (values: any[]) => {
+                if (Array.isArray(values) && values[0]) membersInserted.push(values[0]);
+                membersCount = membersInserted.length;
+                return { error: null };
+              },
+              select: (_cols: string, _opts?: any) => ({
+                eq: async (_col: string, _value: any) => ({ count: membersCount, error: null }),
+              }),
+            } as any;
+          }
           throw new Error(`unexpected table: ${table}`);
         },
       } as any;
@@ -214,6 +233,105 @@ DenoRef.test("provision-onboarding usa RPC v2 quando disponível", async () => {
   assertEquals(calls.length, 1);
   assertEquals(calls[0].fn, "public_onboarding_provision_tx_v2");
   assertEquals(Object.prototype.hasOwnProperty.call(calls[0].args, "p_participants"), true);
+  assertEquals(Array.isArray(membersInserted), true);
+  assertEquals(membersInserted.length, 1);
+});
+
+DenoRef.test("provision-onboarding ignora duplicidade e continua inserindo outros Members", async () => {
+  const calls: RpcCall[] = [];
+  const membersInserted: any[] = [];
+  let membersCount = 0;
+  let insertCalls = 0;
+
+  const groupRow = {
+    id: "group-1",
+    name: "Grupo",
+    description: null,
+    organization_id: "org-1",
+    provider: "whatsapp",
+    whatsapp_provider_id: "g-1",
+    provider_phone: null,
+    invite_link: "https://chat.whatsapp.com/abc",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    assistant_id: null,
+    has_assistant: false,
+    metadata: null,
+    raw_provider: null,
+    status: null,
+    sync_status: null,
+    sync_error: null,
+  };
+
+  const handler = createProvisionOnboardingHandler({
+    env: {
+      get: (k: string) => {
+        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
+        return undefined;
+      },
+    },
+    fetch: okFetch,
+    createClient: (() => {
+      return {
+        rpc: async (fn: string, args: any) => {
+          calls.push({ fn, args });
+          return {
+            data: [{ organization_id: "org-1", group_id: "group-1" }],
+            error: null,
+          };
+        },
+        from: (table: string) => {
+          if (table === "groups") return makeGroupsBuilder(groupRow);
+          if (table === "members") {
+            return {
+              insert: async (values: any[]) => {
+                insertCalls += 1;
+                if (insertCalls === 1) {
+                  return { error: { code: "23505", message: "duplicate key value violates unique constraint" } };
+                }
+                if (Array.isArray(values) && values[0]) membersInserted.push(values[0]);
+                membersCount = membersInserted.length;
+                return { error: null };
+              },
+              select: (_cols: string, _opts?: any) => ({
+                eq: async (_col: string, _value: any) => ({ count: membersCount, error: null }),
+              }),
+            } as any;
+          }
+          throw new Error(`unexpected table: ${table}`);
+        },
+      } as any;
+    }) as any,
+  });
+
+  const payload = makePayload();
+  payload.participants = [
+    {
+      phone: "11999990000",
+      name: "A",
+      is_admin: true,
+      is_super_admin: false,
+      whatsapp_provider_id: "lid-1",
+    },
+    {
+      phone: "11988887777",
+      name: "B",
+      is_admin: true,
+      is_super_admin: false,
+      whatsapp_provider_id: "lid-2",
+    },
+  ];
+
+  const res = await handler(makeReq(payload));
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals(body.success, true);
+  assertEquals(calls.length, 1);
+  assertEquals(calls[0].fn, "public_onboarding_provision_tx_v2");
+  assertEquals(membersInserted.length, 1);
+  assertEquals(membersInserted[0]?.whatsapp_provider_id, "lid-2");
 });
 
 DenoRef.test("provision-onboarding retorna RPC_NOT_AVAILABLE quando v1 e v2 não existem", async () => {
@@ -258,6 +376,7 @@ DenoRef.test("provision-onboarding usa fallback sem RPC quando v1 e v2 não exis
       deleteFilters: null,
       upsertPayload: null,
       selectCols: null,
+      selectOptions: null,
       filters: {} as Record<string, any>,
     };
 
@@ -281,12 +400,22 @@ DenoRef.test("provision-onboarding usa fallback sem RPC quando v1 e v2 não exis
         calls.push({ table, action: 'delete' });
         return builder;
       },
-      select(cols: string) {
+      select(cols: string, options?: any) {
         state.selectCols = cols;
+        state.selectOptions = options || null;
         calls.push({ table, action: 'select', cols });
         return builder;
       },
       then(onFulfilled: any, onRejected: any) {
+        if (
+          table === 'members' &&
+          state.selectOptions &&
+          state.selectOptions.count === 'exact' &&
+          state.selectOptions.head === true &&
+          state.filters['eq:group_id'] === 'group-1'
+        ) {
+          return Promise.resolve({ count: 2, error: null }).then(onFulfilled, onRejected);
+        }
         return Promise.resolve({ data: null, error: null }).then(onFulfilled, onRejected);
       },
       eq(col: string, value: any) {
