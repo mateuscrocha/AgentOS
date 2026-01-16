@@ -2,6 +2,21 @@ import { createValidateWhatsAppGroupHandler, validateWebhookGroupPayload } from 
 
 const DenoRef = (globalThis as any).Deno;
 
+function getTestBaseUrl() {
+  const raw = (
+    process.env.TEST_BASE_URL ||
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    process.env.VITE_APP_URL ||
+    ""
+  ).trim();
+
+  return (raw || "http://127.0.0.1:8080").trim().replace(/\/+$/, "");
+}
+
+const testBaseUrl = getTestBaseUrl();
+const testWebhookUrl = (process.env.TEST_WEBHOOK_URL || "http://127.0.0.1:9999/webhook").trim();
+
 function assertEquals(actual: any, expected: any) {
   if (actual !== expected) {
     throw new Error(`assertEquals falhou: esperado=${String(expected)} atual=${String(actual)}`);
@@ -34,7 +49,7 @@ function assertThrowsMessage(fn: () => unknown, expectedSubstring: string) {
 }
 
 function makeReq(body: any) {
-  return new Request("http://localhost:8080/functions/v1/validate-whatsapp-group", {
+  return new Request(new URL("/functions/v1/validate-whatsapp-group", testBaseUrl).toString(), {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-correlation-id": "corr-1" },
     body: JSON.stringify(body),
@@ -116,7 +131,7 @@ DenoRef.test("validateWebhookGroupPayload exige timestamps numéricos válidos",
 
 DenoRef.test("handler normaliza e retorna participantes no formato esperado", async () => {
   const handler = createValidateWhatsAppGroupHandler({
-    env: { get: (k: string) => (k === "VITE_N8N_CHECK_GROUP_ENTRY_URL" ? "http://webhook" : undefined) },
+    env: { get: (k: string) => (k === "VITE_N8N_CHECK_GROUP_ENTRY_URL" ? testWebhookUrl : undefined) },
     fetchImpl: async () => {
       return new Response(JSON.stringify([makeValidGroupPayload()]), {
         status: 200,
@@ -145,7 +160,7 @@ DenoRef.test("handler retorna erro claro quando payload do webhook é inválido"
   invalid.phone = "5511999990000";
 
   const handler = createValidateWhatsAppGroupHandler({
-    env: { get: (k: string) => (k === "VITE_N8N_CHECK_GROUP_ENTRY_URL" ? "http://webhook" : undefined) },
+    env: { get: (k: string) => (k === "VITE_N8N_CHECK_GROUP_ENTRY_URL" ? testWebhookUrl : undefined) },
     fetchImpl: async () => {
       return new Response(JSON.stringify([invalid]), {
         status: 200,

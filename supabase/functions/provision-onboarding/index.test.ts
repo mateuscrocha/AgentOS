@@ -2,6 +2,21 @@ import { createProvisionOnboardingHandler } from "./index.ts";
 
 const DenoRef = (globalThis as any).Deno;
 
+function getTestBaseUrl() {
+  const raw = (
+    process.env.TEST_BASE_URL ||
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    process.env.VITE_APP_URL ||
+    ""
+  ).trim();
+
+  return (raw || "http://127.0.0.1:8080").trim().replace(/\/+$/, "");
+}
+
+const testBaseUrl = getTestBaseUrl();
+const testWebhookUrl = (process.env.TEST_WEBHOOK_URL || "http://127.0.0.1:9999/webhook").trim();
+
 function assertEquals(actual: any, expected: any) {
   if (actual !== expected) {
     throw new Error(`assertEquals falhou: esperado=${String(expected)} atual=${String(actual)}`);
@@ -161,7 +176,7 @@ function createMockSupabase(args?: { membersFirstInsertDuplicate?: boolean }) {
 }
 
 function makeReq(body: any) {
-  return new Request(`${process.env.VITE_APP_URL || "http://localhost:8080"}/functions/v1/provision-onboarding`, {
+  return new Request(new URL("/functions/v1/provision-onboarding", testBaseUrl).toString(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -193,9 +208,9 @@ DenoRef.test("provision-onboarding retorna erro quando participants está vazio"
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
@@ -216,9 +231,9 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e chama webhoo
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
@@ -266,7 +281,7 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e chama webhoo
   assertEquals(membersInserted[0]?.is_owner, true);
 
   assertEquals(fetchCalls.length, 1);
-  assertEquals(fetchCalls[0].url, "http://webhook");
+  assertEquals(fetchCalls[0].url, testWebhookUrl);
   const webhookBody = JSON.parse(fetchCalls[0].init?.body || "{}");
   assertEquals(webhookBody.id, "group-1");
   assertEquals(webhookBody.organization_id, "org-1");
@@ -278,9 +293,9 @@ DenoRef.test("provision-onboarding ignora duplicidade ao inserir Members", async
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },

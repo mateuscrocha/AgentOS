@@ -49,7 +49,7 @@ O arquivo `.env` já está no `.gitignore`.
 Exemplo (desenvolvimento local):
 
 ```sh
-VITE_APP_URL="http://localhost:8080"
+VITE_APP_URL="http://127.0.0.1:8080"
 ```
 
 Exemplo (produção):
@@ -57,6 +57,32 @@ Exemplo (produção):
 ```sh
 VITE_APP_URL="https://admin.seudominio.com"
 ```
+
+### VITE_SUPABASE_URL
+
+`VITE_SUPABASE_URL` define a URL do projeto Supabase usada no frontend (por exemplo, para invocar Edge Functions em `/functions/v1`).
+
+Exemplo (desenvolvimento local):
+
+```sh
+VITE_SUPABASE_URL="http://127.0.0.1:8080"
+```
+
+Exemplo (produção):
+
+```sh
+VITE_SUPABASE_URL="https://<project-ref>.supabase.co"
+```
+
+### TEST_BASE_URL
+
+`TEST_BASE_URL` define a URL base usada pelos testes das Edge Functions (Deno) para construir URLs de request e para preencher `SUPABASE_URL` quando necessário.
+
+Se não estiver definida, os testes tentam usar `SUPABASE_URL`, `VITE_SUPABASE_URL` e `VITE_APP_URL`. Como fallback final, usam `http://127.0.0.1:8080`.
+
+### TEST_WEBHOOK_URL
+
+`TEST_WEBHOOK_URL` permite sobrescrever, nos testes, a URL do webhook (ex.: N8N). Se não estiver definida, os testes usam `http://127.0.0.1:9999/webhook` como valor padrão.
 
 **Edit a file directly in GitHub**
 

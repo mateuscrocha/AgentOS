@@ -4,6 +4,20 @@ import { createAdminDeleteUserHandler } from "./index.ts";
 
 const DenoRef = (globalThis as any).Deno;
 
+function getTestBaseUrl() {
+  const raw = (
+    process.env.TEST_BASE_URL ||
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    process.env.VITE_APP_URL ||
+    ""
+  ).trim();
+
+  return (raw || "http://127.0.0.1:8080").trim().replace(/\/+$/, "");
+}
+
+const testBaseUrl = getTestBaseUrl();
+
 type Call = { table: string; action: string; payload?: any; filters?: Record<string, any> };
 
 class Builder {
@@ -160,7 +174,7 @@ function makeCreateClientStub(state: any, calls: Call[]) {
 }
 
 function makeReq(userId: string, token = "t") {
-  return new Request(process.env.VITE_APP_URL || "http://localhost:8080", {
+  return new Request(testBaseUrl, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -190,7 +204,7 @@ DenoRef.test("admin-delete-user limpa owner_user_id quando não há substituto",
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;
@@ -233,7 +247,7 @@ DenoRef.test("admin-delete-user transfere owner_user_id quando há substituto", 
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;
@@ -268,7 +282,7 @@ DenoRef.test("admin-delete-user retorna 409 quando deleteUser falha por dependê
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;
@@ -299,7 +313,7 @@ DenoRef.test("admin-delete-user limpa group_members.granted_by_user_id antes de 
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;
@@ -332,7 +346,7 @@ DenoRef.test("admin-delete-user bloqueia exclusão do próprio usuário", async 
     createClient: makeCreateClientStub(state, calls) as any,
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return process.env.VITE_APP_URL || "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         return undefined;

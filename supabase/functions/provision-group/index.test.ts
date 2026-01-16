@@ -2,6 +2,21 @@ import { createProvisionGroupHandler } from "./index.ts";
 
 const DenoRef = (globalThis as any).Deno;
 
+function getTestBaseUrl() {
+  const raw = (
+    process.env.TEST_BASE_URL ||
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    process.env.VITE_APP_URL ||
+    ""
+  ).trim();
+
+  return (raw || "http://127.0.0.1:8080").trim().replace(/\/+$/, "");
+}
+
+const testBaseUrl = getTestBaseUrl();
+const testWebhookUrl = (process.env.TEST_WEBHOOK_URL || "http://127.0.0.1:9999/webhook").trim();
+
 function assertEquals(actual: any, expected: any) {
   if (actual !== expected) {
     throw new Error(`assertEquals falhou: esperado=${String(expected)} atual=${String(actual)}`);
@@ -16,7 +31,7 @@ const okFetch = async () => {
 };
 
 function makeReq(body: any) {
-  return new Request("http://localhost:8080/functions/v1/provision-group", {
+  return new Request(new URL("/functions/v1/provision-group", testBaseUrl).toString(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -162,10 +177,10 @@ DenoRef.test("provision-group insere membros preservando is_admin separado de is
   const handler = createProvisionGroupHandler({
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
@@ -319,10 +334,10 @@ DenoRef.test("provision-group deduplica participantes por whatsapp_provider_id",
   const handler = createProvisionGroupHandler({
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
@@ -477,10 +492,10 @@ DenoRef.test("provision-group ignora duplicidade e continua inserindo outros mem
   const handler = createProvisionGroupHandler({
     env: {
       get: (k: string) => {
-        if (k === "SUPABASE_URL") return "http://localhost:8080";
+        if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return "http://webhook";
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
