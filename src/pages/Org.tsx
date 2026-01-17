@@ -69,15 +69,21 @@ interface OrganizationDetail {
   metadata: Record<string, any> | null;
 }
 
-interface GroupItem {
+interface GroupListItem {
   id: string;
   name: string;
-  provider: string;
   created_at: string;
   organization_id: string;
   whatsapp_provider_id: string | null;
   is_active: boolean | null;
-  sync_status: string | null;
+}
+
+interface GroupDetails {
+  id: string;
+  name: string;
+  organization_id: string;
+  provider: string;
+  whatsapp_provider_id: string | null;
 }
 
 const Org = () => {
@@ -88,9 +94,9 @@ const Org = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { canEditOrg, canEditGroup, isLoading: rolesLoading, isSystemAdmin } = useUserRoles();
   const [editOrgOpen, setEditOrgOpen] = useState(false);
-  const [editGroup, setEditGroup] = useState<GroupItem | null>(null);
+  const [editGroup, setEditGroup] = useState<GroupDetails | null>(null);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
-  const [removeGroup, setRemoveGroup] = useState<GroupItem | null>(null);
+  const [removeGroup, setRemoveGroup] = useState<GroupListItem | null>(null);
   const [removing, setRemoving] = useState(false);
   const [editContactOpen, setEditContactOpen] = useState(false);
 
@@ -287,7 +293,7 @@ const Org = () => {
       
       const { data, error, count } = await supabase
         .from('groups')
-        .select('*', { count: 'exact' })
+        .select('id, name, created_at, organization_id, whatsapp_provider_id, is_active', { count: 'exact' })
         .eq('organization_id', orgId)
         .is('deleted_at', null)
         .neq('is_archived', true)
@@ -295,7 +301,7 @@ const Org = () => {
         .range(from, to);
       
       if (error) throw error;
-      return { items: (data ?? []) as GroupItem[], count: count ?? 0 };
+      return { items: (data ?? []) as GroupListItem[], count: count ?? 0 };
     },
     enabled: !!orgId && isAuthenticated,
   });
@@ -414,36 +420,10 @@ const Org = () => {
 
   const groupColumns = [
     { key: 'name', header: 'Nome' },
-    ...(isSystemAdmin ? [
-      { 
-        key: 'provider', 
-        header: 'Provider',
-        render: (group: GroupItem) => (
-          <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
-            {group.provider}
-          </span>
-        )
-      },
-    ] : []),
-    ...(isSystemAdmin ? [
-      { 
-        key: 'sync_status', 
-        header: 'Sync',
-        render: (group: GroupItem) => (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-            group.sync_status === 'synced' ? 'bg-success/10 text-success' :
-            group.sync_status === 'error' ? 'bg-destructive/10 text-destructive' :
-            'bg-muted text-muted-foreground'
-          }`}>
-            {group.sync_status || '-'}
-          </span>
-        )
-      },
-    ] : []),
     { 
       key: 'is_active', 
       header: 'Status',
-      render: (group: GroupItem) => (
+      render: (group: GroupListItem) => (
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
           group.is_active === true ? 'bg-success/10 text-success' :
           group.is_active === false ? 'bg-muted text-muted-foreground' :
@@ -456,13 +436,13 @@ const Org = () => {
     { 
       key: 'created_at', 
       header: 'Criado em',
-      render: (group: GroupItem) => formatDateSimpleBR(group.created_at)
+      render: (group: GroupListItem) => formatDateSimpleBR(group.created_at)
     },
     {
       key: 'actions',
       header: '',
       className: 'w-10',
-      render: (group: GroupItem) => {
+      render: (group: GroupListItem) => {
         const canEdit = canEditGroup(group.id, orgId);
         const canRemove = userCanEditOrg;
         if (!canEdit && !canRemove) return null;
@@ -472,9 +452,20 @@ const Org = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  setEditGroup(group);
+                  try {
+                    const { data, error } = await supabase
+                      .from('groups')
+                      .select('id, name, organization_id, provider, whatsapp_provider_id')
+                      .eq('id', group.id)
+                      .maybeSingle();
+                    if (error) throw error;
+                    if (!data) throw new Error('Grupo não encontrado');
+                    setEditGroup(data as GroupDetails);
+                  } catch {
+                    notify.error('Não foi possível abrir', 'Algo deu errado. Tente novamente.');
+                  }
                 }}
                 className="h-8 w-8 p-0"
               >

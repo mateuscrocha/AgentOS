@@ -48,11 +48,10 @@ import {
   UserCog, 
   Plus,
   Trash2,
+  Loader2,
   Crown,
   UserCheck,
   Search,
-  List,
-  LayoutGrid,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -134,8 +133,6 @@ const ROLE_PRIORITY: Record<AppRole, number> = {
   'USER': 1,
 };
 
-type ViewMode = 'list' | 'grid';
-
 type SortKey = 'name' | 'status' | 'created_at';
 type SortDir = 'asc' | 'desc';
 
@@ -146,7 +143,7 @@ type UserRow = {
 };
 
 export default function Users() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
   const queryClient = useQueryClient();
   
@@ -155,6 +152,7 @@ export default function Users() {
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<UserRole | null>(null);
+  const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
@@ -169,9 +167,8 @@ export default function Users() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>("all");
   const [roleFilter, setRoleFilter] = useState<'all' | AppRole | 'none'>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [sortKey, setSortKey] = useState<SortKey>('created_at');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [recentlyChanged, setRecentlyChanged] = useState<Record<string, number>>({});
   
   // Form state for adding role
@@ -370,6 +367,59 @@ export default function Users() {
         return;
       }
       notify.error('Falha na criação ou permissão', err?.message || 'Algo deu errado. Tente novamente.');
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { user_id: userId },
+      });
+
+      if (!error && data?.success) return data;
+
+      let message = error?.message || data?.message || "Falha ao excluir usuário";
+      let status: number | undefined = undefined;
+      let code: string | undefined = data?.code;
+
+      if (error instanceof FunctionsHttpError && (error as any).context) {
+        try {
+          const body = await (error as any).context.json();
+          if (body?.message) message = body.message;
+          if (typeof body?.status === "number") status = body.status;
+          if (typeof body?.code === "string") code = body.code;
+        } catch (_e) {
+          void 0;
+        }
+      }
+
+      const err: any = new Error(message);
+      err.status = status;
+      err.code = code;
+      throw err;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["all-user-roles"] });
+      notify.success("Usuário excluído", "Tudo certo.");
+      setUserToDelete(null);
+    },
+    onError: (err: any) => {
+      const status = err?.status as number | undefined;
+      const msg = err?.message || "Algo deu errado. Tente novamente.";
+      if (status === 404) {
+        notify.error("Usuário não encontrado", msg);
+        return;
+      }
+      if (status === 403) {
+        notify.error("Acesso negado", msg);
+        return;
+      }
+      if (status === 409) {
+        notify.error("Não foi possível excluir", msg);
+        return;
+      }
+      notify.error("Não foi possível concluir", msg);
     },
   });
 
@@ -631,6 +681,17 @@ export default function Users() {
       >
         Gerenciar papéis
       </button>
+      {profile.id !== user?.id && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setUserToDelete(profile);
+          }}
+          className="w-full text-left px-2 py-1.5 text-sm text-destructive"
+        >
+          Excluir usuário
+        </button>
+      )}
     </RowActions>
   );
 
@@ -642,27 +703,27 @@ export default function Users() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className={headerCls}>
+                <th className={cn(headerCls, "w-[320px]")}> 
                   <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-2 hover:text-card-foreground transition-colors">
                     <span>Nome</span>
                     <span className="text-muted-foreground">{sortIcon('name')}</span>
                   </button>
                 </th>
-                <th className={cn(headerCls, "hidden sm:table-cell")}>Telefone</th>
-                <th className={headerCls}>Papéis</th>
-                <th className={headerCls}>
+                <th className={cn(headerCls, "hidden sm:table-cell w-[170px]")}>Telefone</th>
+                <th className={cn(headerCls, "min-w-[260px]")}>Papéis</th>
+                <th className={cn(headerCls, "w-[150px]")}> 
                   <button onClick={() => toggleSort('status')} className="inline-flex items-center gap-2 hover:text-card-foreground transition-colors">
                     <span>Status</span>
                     <span className="text-muted-foreground">{sortIcon('status')}</span>
                   </button>
                 </th>
-                <th className={cn(headerCls, "hidden md:table-cell")}>
+                <th className={cn(headerCls, "hidden md:table-cell w-[140px]")}>
                   <button onClick={() => toggleSort('created_at')} className="inline-flex items-center gap-2 hover:text-card-foreground transition-colors">
                     <span>Criado em</span>
                     <span className="text-muted-foreground">{sortIcon('created_at')}</span>
                   </button>
                 </th>
-                <th className={cn(headerCls, "w-10")}></th>
+                <th className={cn(headerCls, "w-12")}></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -687,7 +748,6 @@ export default function Users() {
                               <Badge className="bg-primary/15 text-primary hover:bg-primary/15">Atualizado</Badge>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">{profile.id}</div>
                         </div>
                       </div>
                     </td>
@@ -706,84 +766,7 @@ export default function Users() {
     );
   };
 
-  const renderGrid = (rows: UserRow[]) => {
-    const sorted = sortRows(rows);
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {sorted.map((row) => {
-          const profile = row.profile;
-          const isRecent = !!recentlyChanged[profile.id];
-          const PrimaryIcon = row.primaryRole ? ROLE_ICONS[row.primaryRole] : UsersIcon;
-          return (
-            <div
-              key={profile.id}
-              className={cn(
-                "rounded-xl border border-border bg-card p-4 flex flex-col gap-3",
-                isRecent && "ring-2 ring-primary/25 bg-primary/5",
-              )}
-            >
-              <div className="flex items-start gap-3">
-                <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", row.primaryRole ? ROLE_COLORS[row.primaryRole] : "bg-secondary text-secondary-foreground")}>
-                  <PrimaryIcon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-card-foreground truncate">{profile.name || 'Sem nome'}</span>
-                        {isRecent && <Badge className="bg-primary/15 text-primary hover:bg-primary/15">Atualizado</Badge>}
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate">{profile.id}</div>
-                    </div>
-                    {renderActions(profile)}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm text-muted-foreground truncate">{profile.phone_e164 || 'Sem telefone'}</div>
-                {renderStatus(profile)}
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-muted-foreground">Papéis</div>
-                <div>{renderRolesBadges(row.roles)}</div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                Criado em {format(new Date(profile.created_at), 'dd/MM/yyyy', { locale: ptBR })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
   const renderLoading = () => {
-    if (viewMode === 'grid') {
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-start gap-3">
-                <Skeleton className="h-10 w-10 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-3 w-56" />
-                </div>
-              </div>
-              <div className="mt-4 space-y-2">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-4 w-full" />
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
     return (
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="border-b border-border p-4 flex gap-4">
@@ -860,41 +843,10 @@ export default function Users() {
                   <SelectItem value="none">Sem papéis</SelectItem>
                 </SelectContent>
               </Select>
-
-              <div className="flex items-center rounded-lg border border-border bg-card overflow-hidden">
-                <Button
-                  type="button"
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                  className="rounded-none"
-                >
-                  <List className="h-4 w-4 mr-1" />
-                  Lista
-                </Button>
-                <Button
-                  type="button"
-                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                  className="rounded-none"
-                >
-                  <LayoutGrid className="h-4 w-4 mr-1" />
-                  Grade
-                </Button>
-              </div>
             </div>
           )}
           showClearFilters={selectedPeriod !== '7d' || !!customRange || !!searchQuery || statusFilter !== 'all' || roleFilter !== 'all'}
           onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setSearchQuery(''); setStatusFilter('all'); setRoleFilter('all'); }}
-          filteredKpis={(
-            <StatsCard
-              title="Usuários no período"
-              value={profiles?.length ?? '—'}
-              icon={UsersIcon}
-              variant="kpi"
-            />
-          )}
           generalKpis={(
             <>
               <StatsCard
@@ -990,7 +942,7 @@ export default function Users() {
                         </div>
                       </div>
 
-                      {viewMode === 'grid' ? renderGrid(rows) : renderListTable(rows)}
+                      {renderListTable(rows)}
                     </div>
                   );
                 })}
@@ -1282,6 +1234,38 @@ export default function Users() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Usuário</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o usuário "{userToDelete?.name || "Sem nome"}"?
+              Esta ação é permanente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteUserMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => userToDelete && deleteUserMutation.mutate({ userId: userToDelete.id })}
+              disabled={deleteUserMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteUserMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Excluindo</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  <span>Excluir</span>
+                </>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

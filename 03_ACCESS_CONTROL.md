@@ -93,6 +93,16 @@
 - Validar que `READ_ONLY` não vê a aba e recebe bloqueio ao acessar a rota direta.
 - Acompanhar erros de acesso (RLS `PGRST301` / mensagens de permission) em logs de frontend e Supabase.
 
+## Atividades do grupo (via API)
+- A atividade do grupo é persistida em `public.events`.
+- Leitura via Supabase (programática) usa:
+  - `from('events').select('*').eq('entity_type', 'group').eq('entity_id', groupId).order('created_at', { ascending: false })`
+  - Opcional: filtrar por `event_type` e paginar com `.range(from, to)`.
+- A UI não exibe mais o item "Atividade" no menu do grupo, mas a rota `/groups/:groupId/events` continua existindo para acesso direto.
+- Permissões:
+  - A política padrão de leitura em `events` é restrita a `SYSTEM_ADMIN`.
+  - Para acesso por `ORG_ADMIN`/`GROUP_MANAGER`, criar endpoint/Edge Function dedicado com checagem `has_group_access`.
+
 ## Criação de usuário por Admin (novo)
 - Fluxo de criação em `src/pages/Users.tsx`:
   - Seleção de "Permissão inicial" (organização ou grupo).

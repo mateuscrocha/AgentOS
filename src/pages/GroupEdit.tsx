@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -113,13 +113,10 @@ export default function GroupEdit() {
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [archived, setArchived] = useState(false);
 
-  const metadata = useMemo(() => (group?.metadata ? { ...group.metadata } : {}), [group]);
   const [language, setLanguage] = useState<string>("");
   const [timezone, setTimezone] = useState<string>("");
 
   const [summaryTime, setSummaryTime] = useState<string>("");
-  const [frequency, setFrequency] = useState<string>("");
-  const [privacy, setPrivacy] = useState<string>("");
   const [inviteLinkInput, setInviteLinkInput] = useState<string>("");
   const [revalidating, setRevalidating] = useState(false);
 
@@ -175,8 +172,6 @@ export default function GroupEdit() {
 
     const ops = (m.operations || {}) as Record<string, any>;
     setSummaryTime((ops.summary_time as string) || "");
-    setFrequency((ops.frequency as string) || "");
-    setPrivacy((ops.privacy as string) || "");
 
     const feats = (m.features || {}) as Record<string, any>;
     const next = (Object.keys(FEATURE_LABELS) as FeatureKey[]).reduce((acc, key) => {
@@ -197,8 +192,6 @@ export default function GroupEdit() {
         operations: {
           ...((group?.metadata?.operations as any) || {}),
           summary_time: summaryTime || null,
-          frequency: frequency || null,
-          privacy: privacy || null,
         },
         features: {
           ...((group?.metadata?.features as any) || {}),
@@ -217,7 +210,6 @@ export default function GroupEdit() {
       const { error } = await supabase
         .from("groups")
         .update({
-          name: name.trim(),
           description: description.trim() || null,
           status,
           is_archived: archived,
@@ -440,7 +432,7 @@ export default function GroupEdit() {
 
   return (
     <AdminLayout title="Editar grupo" subtitle="Ajuste as configurações e recursos deste grupo.">
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 animate-fade-in">
         <GroupPageTop
           breadcrumbItems={breadcrumbItems}
           group={{
@@ -463,20 +455,21 @@ export default function GroupEdit() {
           )}
         />
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold">Informações do grupo</h3>
-              <p className="text-sm text-muted-foreground">Edite os dados básicos do grupo.</p>
+              <p className="text-sm text-muted-foreground">Dados essenciais e preferências do grupo.</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mt-3">
+            <div className="md:col-span-7">
               <label className="text-sm font-medium">Nome do grupo</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome" />
+              <Input value={name} readOnly className="bg-muted/40" />
             </div>
-            <div>
+
+            <div className="md:col-span-5">
               <label className="text-sm font-medium">Status</label>
               <Select value={status} onValueChange={(v) => setStatus(v as any)}>
                 <SelectTrigger>
@@ -488,65 +481,61 @@ export default function GroupEdit() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-2">
+
+            <div className="md:col-span-12">
               <label className="text-sm font-medium">Descrição</label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição do grupo" />
             </div>
-            <div>
+
+            <div className="md:col-span-4">
               <label className="text-sm font-medium">Idioma</label>
               <Input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="pt-BR" />
             </div>
-            <div>
+
+            <div className="md:col-span-4">
               <label className="text-sm font-medium">Timezone</label>
               <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="America/Sao_Paulo" />
             </div>
-            <div>
-              <label className="text-sm font-medium">Arquivar grupo</label>
-              <div className="flex items-center gap-3 mt-1">
+
+            <div className="md:col-span-4">
+              <label className="text-sm font-medium">Arquivo</label>
+              <div className="flex items-center gap-3 mt-2">
                 <Switch checked={archived} onCheckedChange={setArchived} />
-                <span className="text-sm text-muted-foreground">Marca como arquivado</span>
+                <span className="text-sm text-muted-foreground">Grupo arquivado</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-3 flex gap-2">
             <Button onClick={() => updateGroupMutation.mutate()} disabled={updateGroupMutation.isPending}>
               Salvar alterações
             </Button>
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-lg font-semibold">Configurações operacionais</h3>
           <p className="text-sm text-muted-foreground">Defina parâmetros de operação.</p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mt-3">
+            <div className="md:col-span-4">
               <label className="text-sm font-medium">Horário do resumo</label>
               <Input value={summaryTime} onChange={(e) => setSummaryTime(e.target.value)} placeholder="08:00" />
             </div>
-            <div>
-              <label className="text-sm font-medium">Frequência</label>
-              <Input value={frequency} onChange={(e) => setFrequency(e.target.value)} placeholder="diária / semanal" />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Privacidade</label>
-              <Input value={privacy} onChange={(e) => setPrivacy(e.target.value)} placeholder="pública / privada" />
-            </div>
           </div>
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-3 flex gap-2">
             <Button onClick={() => updateGroupMutation.mutate()} disabled={updateGroupMutation.isPending}>
               Salvar configurações
             </Button>
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-lg font-semibold">Conexão do WhatsApp</h3>
           <p className="text-sm text-muted-foreground">Edite o link de convite e revalide a conexão do grupo.</p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
             <div className="md:col-span-2">
               <label className="text-sm font-medium">Link de convite</label>
               <Input
@@ -562,18 +551,18 @@ export default function GroupEdit() {
             </div>
           </div>
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-3 flex gap-2">
             <Button onClick={handleRevalidateGroup} disabled={revalidating}>
               Revalidar grupo
             </Button>
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-lg font-semibold">Features do grupo</h3>
           <p className="text-sm text-muted-foreground">Ative ou ajuste os recursos disponíveis.</p>
 
-          <div className="space-y-4 mt-4">
+          <div className="space-y-3 mt-3">
             {(Object.keys(FEATURE_LABELS) as FeatureKey[]).map((key) => {
               const info = FEATURE_LABELS[key];
               const state = featuresState[key];
@@ -613,18 +602,18 @@ export default function GroupEdit() {
             })}
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3">
             <Button onClick={() => updateGroupMutation.mutate()} disabled={updateGroupMutation.isPending}>
               Salvar todas as features
             </Button>
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-lg font-semibold">Templates / textos</h3>
           <p className="text-sm text-muted-foreground">Edite conteúdos prontos para envio.</p>
 
-          <div className="grid grid-cols-1 gap-4 mt-4">
+          <div className="grid grid-cols-1 gap-3 mt-3">
             {(["WELCOME_MESSAGE", "SUMMARY_HEADER", "SUMMARY", "SUMMARY_FOOTER", "REPORT"] as FeatureKey[]).map((key) => (
               <div key={`tpl-${key}`} className="rounded-lg border border-border p-4">
                 <div className="flex items-center gap-2">
@@ -647,11 +636,11 @@ export default function GroupEdit() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-lg font-semibold">Ações avançadas</h3>
           <p className="text-sm text-muted-foreground">Somente para administradores com permissão.</p>
 
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-3 flex flex-wrap gap-3">
             <Button
               variant="secondary"
               onClick={() => updateStatusOnly.mutate(status === "active" ? "inactive" : "active")}

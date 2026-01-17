@@ -207,7 +207,7 @@ export default function GroupEvents() {
             { label: "Central do Bóris", href: "/" },
             ...(org ? [{ label: org.name, href: `/organization/${org.id}` }] : []),
             ...(group ? [{ label: group.name, href: `/groups/${group.id}` }] : []),
-            { label: "Atividade" },
+            { label: "Eventos" },
           ]}
           group={{
             groupId: groupId as string,
@@ -218,7 +218,7 @@ export default function GroupEvents() {
             lastMessageAt: lastMessageAt ?? null,
             syncStatus: group?.sync_status || null,
           }}
-          activeTab="atividade"
+          activeTab="painel"
           filters={(
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2">

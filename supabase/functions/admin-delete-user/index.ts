@@ -4,8 +4,8 @@ const DenoRef = (globalThis as any).Deno;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-correlation-id",
+  "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
 };
 
 function isUuid(v: string): boolean {
@@ -17,6 +17,77 @@ function isDependencyError(err: any): boolean {
   if (code === "23503") return true;
   const m = (err?.message || err || "").toString().toLowerCase();
   return m.includes("violates foreign key") || m.includes("foreign key") || m.includes("still referenced");
+}
+
+function isUnknownColumnError(err: any): boolean {
+  const code = (err?.code || "").toString();
+  if (code === "42703") return true;
+  const m = (err?.message || err || "").toString().toLowerCase();
+  return m.includes("column") && m.includes("does not exist");
+}
+
+async function trySendDeletionEmail(args: {
+  env: EnvGetter;
+  to: string;
+  name: string | null;
+}): Promise<{ attempted: boolean; sent: boolean; provider: string; error?: string }>
+{
+  const apiKey = (args.env.get("RESEND_API_KEY") || "").trim();
+  const from = (args.env.get("RESEND_FROM") || args.env.get("EMAIL_FROM") || "").trim();
+
+  if (!apiKey || !from) {
+    return {
+      attempted: true,
+      sent: false,
+      provider: "resend",
+      error: "EMAIL_NOT_CONFIGURED",
+    };
+  }
+
+  const safeName = (args.name || "").trim();
+  const subject = "Conta excluída";
+  const html = `
+    <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; line-height: 1.5;">
+      <p>${safeName ? `Olá, ${safeName}.` : "Olá."}</p>
+      <p>Sua conta foi excluída por um administrador do sistema.</p>
+      <p>Se você acredita que isso foi um engano, responda este email ou entre em contato com o suporte.</p>
+    </div>
+  `.trim();
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: args.to,
+        subject,
+        html,
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return {
+        attempted: true,
+        sent: false,
+        provider: "resend",
+        error: `HTTP_${res.status}${text ? `:${text.slice(0, 180)}` : ""}`,
+      };
+    }
+
+    return { attempted: true, sent: true, provider: "resend" };
+  } catch (e: any) {
+    return {
+      attempted: true,
+      sent: false,
+      provider: "resend",
+      error: e?.message || "EMAIL_SEND_FAILED",
+    };
+  }
 }
 
 type EnvGetter = { get: (key: string) => string | undefined };
@@ -40,6 +111,10 @@ export function createAdminDeleteUserHandler(deps: { createClient?: CreateClient
           "Connection": "keep-alive",
         },
       });
+
+    if (req.method !== "POST" && req.method !== "DELETE") {
+      return json({ success: false, message: "Method Not Allowed", code: "METHOD_NOT_ALLOWED" }, 405);
+    }
 
     try {
       const url = env.get("SUPABASE_URL")!;
@@ -75,8 +150,10 @@ export function createAdminDeleteUserHandler(deps: { createClient?: CreateClient
         return json({ success: false, message: "Forbidden", code: "FORBIDDEN" }, 403);
       }
 
+      const urlObj = new URL(req.url);
+      const queryUserId = (urlObj.searchParams.get("user_id") || "").trim();
       const payload = (await req.json().catch(() => null)) as { user_id?: string } | null;
-      const targetUserId = (payload?.user_id || "").trim();
+      const targetUserId = (queryUserId || payload?.user_id || "").trim();
       if (!isUuid(targetUserId)) {
         console.log(JSON.stringify({ stage: "validation", targetUserIdPresent: !!targetUserId, status: 400 }));
         return json({ success: false, message: "user_id inválido", code: "VALIDATION_ERROR" }, 400);
@@ -116,13 +193,16 @@ export function createAdminDeleteUserHandler(deps: { createClient?: CreateClient
         }
       }
 
-      let deletedEmail: string | null = null;
-      try {
-        const { data: u } = await (supabaseAdmin as any).auth.admin.getUserById(targetUserId);
-        deletedEmail = u?.user?.email || null;
-      } catch (_e) {
-        deletedEmail = null;
+      const { data: targetAuthUser, error: targetAuthUserErr } = await (supabaseAdmin as any).auth.admin.getUserById(targetUserId);
+      if (targetAuthUserErr) {
+        console.log(JSON.stringify({ stage: "get_target_user", error: targetAuthUserErr.message, status: 500 }));
+        return json({ success: false, message: "Falha ao buscar usuário", code: "SERVER_ERROR" }, 500);
       }
+      if (!targetAuthUser?.user?.id) {
+        return json({ success: false, message: "Usuário não encontrado", code: "USER_NOT_FOUND" }, 404);
+      }
+
+      const deletedEmail: string | null = targetAuthUser.user.email || null;
 
       const { data: profileRow } = await supabaseAdmin
         .from("profiles")
@@ -130,6 +210,27 @@ export function createAdminDeleteUserHandler(deps: { createClient?: CreateClient
         .eq("id", targetUserId)
         .maybeSingle();
       const deletedName = (profileRow as any)?.name || null;
+
+      const nowIso = new Date().toISOString();
+      {
+        const up1 = await supabaseAdmin
+          .from("profiles")
+          .update({ status: "inactive", deleted_at: nowIso, is_active: false })
+          .eq("id", targetUserId);
+        if (up1.error && isUnknownColumnError(up1.error)) {
+          const up2 = await supabaseAdmin
+            .from("profiles")
+            .update({ status: "inactive", deleted_at: nowIso })
+            .eq("id", targetUserId);
+          if (up2.error && !isUnknownColumnError(up2.error)) {
+            console.log(JSON.stringify({ stage: "soft_delete_profile", error: up2.error.message, status: 500 }));
+            return json({ success: false, message: "Falha ao desativar perfil", code: "SERVER_ERROR" }, 500);
+          }
+        } else if (up1.error) {
+          console.log(JSON.stringify({ stage: "soft_delete_profile", error: up1.error.message, status: 500 }));
+          return json({ success: false, message: "Falha ao desativar perfil", code: "SERVER_ERROR" }, 500);
+        }
+      }
 
       const ownershipChanges: Array<{ organization_id: string; new_owner_user_id: string | null }> = [];
       const { data: ownedOrgs, error: ownedOrgsErr } = await supabaseAdmin
@@ -193,6 +294,9 @@ export function createAdminDeleteUserHandler(deps: { createClient?: CreateClient
       const { error: deleteAuthErr } = await (supabaseAdmin as any).auth.admin.deleteUser(targetUserId);
       if (deleteAuthErr) {
         const msg = deleteAuthErr.message || "Falha ao excluir usuário";
+        if ((msg || "").toLowerCase().includes("user not found")) {
+          return json({ success: false, message: "Usuário não encontrado", code: "USER_NOT_FOUND" }, 404);
+        }
         const isDep = isDependencyError(deleteAuthErr);
         console.log(JSON.stringify({
           stage: "delete_auth_user",
@@ -206,6 +310,10 @@ export function createAdminDeleteUserHandler(deps: { createClient?: CreateClient
         }, isDep ? 409 : 400);
       }
 
+      const emailNotification = deletedEmail
+        ? await trySendDeletionEmail({ env, to: deletedEmail, name: deletedName })
+        : { attempted: false, sent: false, provider: "resend" };
+
       await supabaseAdmin.from("events").insert({
         event_type: "USER_DELETED",
         entity_type: "user",
@@ -216,6 +324,8 @@ export function createAdminDeleteUserHandler(deps: { createClient?: CreateClient
           deleted_user_email: deletedEmail,
           deleted_user_name: deletedName,
           ownership_changes: ownershipChanges,
+          email_notification: emailNotification,
+          profile_soft_deleted_at: nowIso,
         },
       });
 
@@ -224,6 +334,7 @@ export function createAdminDeleteUserHandler(deps: { createClient?: CreateClient
         success: true,
         deleted_user_id: targetUserId,
         ownership_changes: ownershipChanges,
+        email_notification: emailNotification,
       });
     } catch (err: any) {
       console.log(JSON.stringify({ stage: "catch", error: err?.message, status: 500 }));

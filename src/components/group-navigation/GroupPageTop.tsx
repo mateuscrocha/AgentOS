@@ -130,7 +130,10 @@ export function GroupPageTop({
     const list = (specialMembers ?? []).map((m) => ({
       ...m,
       roleKey: m.is_owner ? ("OWNER" as const) : m.is_super_admin ? ("SUPERADMIN" as const) : ("ADMIN" as const),
-      displayLabel: m.display_name || m.name || formatPhoneE164BR(m.phone_e164) || "Membro",
+      fullName: (m.name || "").trim() || "Membro",
+      username: (m.display_name || "").trim() || null,
+      whatsapp: formatPhoneE164BR(m.phone_e164) || "-",
+      displayLabel: (m.name || "").trim() || (m.display_name || "").trim() || formatPhoneE164BR(m.phone_e164) || "Membro",
       avatarFallback: getInitialsFromName(m.display_name || m.name) || getPhoneFallback(m.phone_e164) || "M",
     }));
 
@@ -175,6 +178,12 @@ export function GroupPageTop({
             </DialogHeader>
 
             <div className="space-y-2">
+              <div className="hidden sm:grid grid-cols-[1.2fr_1fr_0.9fr_auto] gap-3 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <div>Nome completo</div>
+                <div>Usuário</div>
+                <div>WhatsApp</div>
+                <div className="text-right">Papel</div>
+              </div>
               {orderedSpecialMembers.map((m) => {
                 const role = ROLE_META[m.roleKey];
                 const RoleIcon = role.Icon;
@@ -188,12 +197,27 @@ export function GroupPageTop({
                           <AvatarFallback>{m.avatarFallback}</AvatarFallback>
                         )}
                       </Avatar>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <RoleIcon className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-sm font-medium text-card-foreground truncate">{m.displayLabel}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-[1.2fr_1fr_0.9fr] gap-3">
+                          <div className="min-w-0">
+                            <div className="sm:hidden text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Nome completo</div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <RoleIcon className="h-4 w-4 text-muted-foreground flex-none" />
+                              <div className="text-sm font-medium text-card-foreground truncate">{m.fullName}</div>
+                            </div>
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="sm:hidden text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Usuário</div>
+                            <div className="text-sm text-muted-foreground truncate">{m.username || "-"}</div>
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="sm:hidden text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">WhatsApp</div>
+                            <div className="text-sm text-muted-foreground truncate">{m.whatsapp}</div>
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground">{role.label}</div>
+                        <div className="text-xs text-muted-foreground sm:hidden mt-1">{role.label}</div>
                       </div>
                     </div>
 

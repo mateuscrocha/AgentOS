@@ -162,7 +162,10 @@ function makeCreateClientStub(state: any, calls: Call[]) {
       from: (table: string) => new Builder(table, calls, state),
       auth: {
         admin: {
-          getUserById: async (_id: string) => ({ data: { user: { email: state.targetEmail ?? null } }, error: null }),
+          getUserById: async (_id: string) => {
+            if (state.targetExists === false) return { data: { user: null }, error: null };
+            return { data: { user: { id: _id, email: state.targetEmail ?? null } }, error: null };
+          },
           deleteUser: async (_id: string) => {
             if (state.deleteUserErrorMessage) return { error: { message: state.deleteUserErrorMessage } };
             return { error: null };
@@ -173,14 +176,29 @@ function makeCreateClientStub(state: any, calls: Call[]) {
   };
 }
 
-function makeReq(userId: string, token = "t") {
-  return new Request(testBaseUrl, {
-    method: "POST",
+function makeReq(args: {
+  userId: string;
+  token?: string;
+  method?: "POST" | "DELETE";
+  includeBody?: boolean;
+  useQuery?: boolean;
+}) {
+  const token = args.token ?? "t";
+  const method = args.method ?? "POST";
+  const includeBody = args.includeBody ?? true;
+  const useQuery = args.useQuery ?? false;
+
+  const url = useQuery
+    ? new URL(`/functions/v1/admin-delete-user?user_id=${args.userId}`, testBaseUrl).toString()
+    : testBaseUrl;
+
+  return new Request(url, {
+    method,
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ user_id: userId }),
+    body: includeBody ? JSON.stringify({ user_id: args.userId }) : undefined,
   });
 }
 
@@ -212,7 +230,7 @@ DenoRef.test("admin-delete-user limpa owner_user_id quando não há substituto",
     },
   });
 
-  const res = await handler(makeReq(targetUserId));
+  const res = await handler(makeReq({ userId: targetUserId }));
   assertEquals(res.status, 200);
   const body = await res.json();
   assertEquals(body.success, true);
@@ -255,7 +273,7 @@ DenoRef.test("admin-delete-user transfere owner_user_id quando há substituto", 
     },
   });
 
-  const res = await handler(makeReq(targetUserId));
+  const res = await handler(makeReq({ userId: targetUserId }));
   assertEquals(res.status, 200);
   const body = await res.json();
   assertEquals(body.success, true);
@@ -290,7 +308,7 @@ DenoRef.test("admin-delete-user retorna 409 quando deleteUser falha por dependê
     },
   });
 
-  const res = await handler(makeReq(targetUserId));
+  const res = await handler(makeReq({ userId: targetUserId }));
   assertEquals(res.status, 409);
   const body = await res.json();
   assertEquals(body.success, false);
@@ -321,7 +339,7 @@ DenoRef.test("admin-delete-user limpa group_members.granted_by_user_id antes de 
     },
   });
 
-  const res = await handler(makeReq(targetUserId));
+  const res = await handler(makeReq({ userId: targetUserId }));
   assertEquals(res.status, 200);
 
   const cleanup = calls.find((c) => c.table === "group_members" && c.action === "update");
@@ -354,9 +372,71 @@ DenoRef.test("admin-delete-user bloqueia exclusão do próprio usuário", async 
     },
   });
 
-  const res = await handler(makeReq(requesterId));
+  const res = await handler(makeReq({ userId: requesterId }));
   assertEquals(res.status, 400);
   const body = await res.json();
   assert(body.message);
   assertEquals(body.code, "CANNOT_DELETE_SELF");
+});
+
+DenoRef.test("admin-delete-user aceita DELETE com user_id na query", async () => {
+  const calls: Call[] = [];
+  const targetUserId = "67d69f28-dbd7-4878-931d-e8f3818cc622";
+
+  const state = {
+    requesterId: "06cb58c0-7019-4f92-acb6-a8dc3b3b4a46",
+    requesterIsSystemAdmin: true,
+    targetIsSystemAdmin: false,
+    systemAdminsCount: 2,
+    ownedOrgIds: [],
+  };
+
+  const handler = createAdminDeleteUserHandler({
+    createClient: makeCreateClientStub(state, calls) as any,
+    env: {
+      get: (k: string) => {
+        if (k === "SUPABASE_URL") return testBaseUrl;
+        if (k === "SUPABASE_ANON_KEY") return "anon";
+        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        return undefined;
+      },
+    },
+  });
+
+  const res = await handler(makeReq({ userId: targetUserId, method: "DELETE", includeBody: false, useQuery: true }));
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals(body.success, true);
+});
+
+DenoRef.test("admin-delete-user retorna 404 quando usuário não existe", async () => {
+  const calls: Call[] = [];
+  const targetUserId = "67d69f28-dbd7-4878-931d-e8f3818cc622";
+
+  const state = {
+    requesterId: "06cb58c0-7019-4f92-acb6-a8dc3b3b4a46",
+    requesterIsSystemAdmin: true,
+    targetIsSystemAdmin: false,
+    systemAdminsCount: 2,
+    ownedOrgIds: [],
+    targetExists: false,
+  };
+
+  const handler = createAdminDeleteUserHandler({
+    createClient: makeCreateClientStub(state, calls) as any,
+    env: {
+      get: (k: string) => {
+        if (k === "SUPABASE_URL") return testBaseUrl;
+        if (k === "SUPABASE_ANON_KEY") return "anon";
+        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        return undefined;
+      },
+    },
+  });
+
+  const res = await handler(makeReq({ userId: targetUserId }));
+  assertEquals(res.status, 404);
+  const body = await res.json();
+  assertEquals(body.success, false);
+  assertEquals(body.code, "USER_NOT_FOUND");
 });

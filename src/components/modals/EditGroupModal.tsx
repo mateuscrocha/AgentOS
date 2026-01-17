@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,16 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
-import { notify } from "@/components/ui/sonner";
-import { Loader2, AlertCircle, Lock } from "lucide-react";
-import { logEvent, getChangedFields } from "@/lib/audit";
-import { useAuth } from "@/hooks/use-auth";
-import { z } from "zod";
-
-const groupSchema = z.object({
-  name: z.string().trim().min(1, "Nome é obrigatório").max(100, "Nome deve ter no máximo 100 caracteres"),
-});
+import { Lock } from "lucide-react";
 
 interface Group {
   id: string;
@@ -39,87 +29,16 @@ export function EditGroupModal({
   group,
   open,
   onOpenChange,
-  onSuccess,
+  onSuccess: _onSuccess,
 }: EditGroupModalProps) {
-  const [name, setName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const { user } = useAuth();
-
-  useEffect(() => {
-    if (group) {
-      setName(group.name);
-      setErrors({});
-    }
-  }, [group]);
-
-  const validate = (): boolean => {
-    const result = groupSchema.safeParse({ name });
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach(err => {
-        if (err.path[0]) {
-          fieldErrors[err.path[0] as string] = err.message;
-        }
-      });
-      setErrors(fieldErrors);
-      return false;
-    }
-    setErrors({});
-    return true;
-  };
-
-  const handleSave = async () => {
-    if (!group || !validate()) return;
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("groups")
-        .update({ name: name.trim() })
-        .eq("id", group.id);
-
-      if (error) {
-        if (error.code === '42501' || error.message.includes('policy')) {
-          notify.error("Sem permissão", "Você não pode editar este grupo.");
-        } else {
-          notify.error("Não foi possível atualizar", "Algo deu errado. Tente novamente.");
-        }
-        return;
-      }
-
-      // Log audit event
-      if (user) {
-        const changedFields = getChangedFields(
-          group,
-          { name: name.trim() },
-          ['name']
-        );
-        await logEvent({
-          eventType: 'GROUP_UPDATED',
-          entityType: 'group',
-          entityId: group.id,
-          userId: user.id,
-          metadata: { fields_changed: changedFields },
-        });
-      }
-
-      notify.success("Grupo atualizado", "Dados salvos com sucesso.");
-      onSuccess();
-      onOpenChange(false);
-    } catch (error: any) {
-      notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const name = group?.name || "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-card-foreground">
-            Editar Grupo
+            Detalhes do Grupo
           </DialogTitle>
         </DialogHeader>
 
@@ -129,16 +48,10 @@ export function EditGroupModal({
             <Input
               id="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              readOnly
               placeholder="Nome do grupo"
-              className={errors.name ? "border-destructive" : ""}
+              className="bg-muted/40"
             />
-            {errors.name && (
-              <p className="text-sm text-destructive flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {errors.name}
-              </p>
-            )}
           </div>
 
           {/* Read-only fields */}
@@ -172,11 +85,7 @@ export function EditGroupModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Salvar
+            Fechar
           </Button>
         </DialogFooter>
       </DialogContent>

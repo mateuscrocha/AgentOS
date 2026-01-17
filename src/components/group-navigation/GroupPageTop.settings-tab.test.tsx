@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { GroupPageTop } from "./GroupPageTop";
+import { GroupTabs } from "./GroupTabs";
 
 let canEditValue = false;
 
@@ -44,6 +45,14 @@ vi.mock("@/components/group-dashboard/GroupHeader", () => {
 vi.mock("@/components/ui/button", () => {
   return {
     Button: ({ children }: { children: any }) => <div>{children}</div>,
+  };
+});
+
+vi.mock("@/components/ui/tabs", () => {
+  return {
+    Tabs: ({ children }: { children: any }) => <div>{children}</div>,
+    TabsList: ({ children }: { children: any }) => <div>{children}</div>,
+    TabsTrigger: ({ children }: { children: any }) => <button type="button">{children}</button>,
   };
 });
 
@@ -114,6 +123,33 @@ describe("GroupPageTop — aba Configurações", () => {
     });
 
     expect(container.textContent).not.toContain("Configurações");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+});
+
+describe("GroupTabs — remoção da aba Atividade", () => {
+  beforeEach(() => {
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+  });
+
+  it("não exibe a aba Atividade", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <GroupTabs groupId="00000000-0000-4000-8000-000000000000" activeTab="painel" />
+        </MemoryRouter>
+      );
+    });
+
+    expect(container.textContent).not.toContain("Atividade");
 
     await act(async () => {
       root.unmount();

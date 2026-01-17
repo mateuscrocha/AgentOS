@@ -111,7 +111,6 @@ export function AdminSidebar() {
       { icon: MessageSquare, label: "Mensagens", href: `/groups/${currentGroupId}/messages` },
       { icon: Users, label: "Membros", href: `/groups/${currentGroupId}/members` },
       { icon: ListChecks, label: "Enquetes", href: `/groups/${currentGroupId}/polls` },
-      { icon: Activity, label: "Atividade", href: `/groups/${currentGroupId}/events` },
       { icon: Settings, label: "Configurações do grupo", href: `/groups/${currentGroupId}/edit` },
     ];
   }, [currentGroupId]);

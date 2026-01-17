@@ -77,7 +77,7 @@
 - Grupo, membros e mensagens:
   - `src/pages/GroupMembers.tsx`
   - `src/pages/GroupMessages.tsx`
-  - `src/pages/GroupEvents.tsx`
+  - `src/pages/GroupEvents.tsx` (atividade via rota direta `/groups/:groupId/events`)
   - `src/components/group-dashboard/`
   - Nota: guia "Primeira leitura do seu grupo" desativado temporariamente (removido em 2026-01-12)
 - Métricas e visualizações:
