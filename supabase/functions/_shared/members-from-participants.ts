@@ -52,22 +52,27 @@ const toE164 = (raw: unknown): string | null => {
   return '+' + digits;
 };
 
+const toDigits = (raw: unknown): string => String(raw ?? '').replace(/\D/g, '');
+
 const normalizeParticipants = (participants: unknown): NormalizedParticipant[] => {
   if (!Array.isArray(participants) || participants.length === 0) return [];
 
   const normalized = participants
     .map((p: ParticipantLike) => {
+      const providerIdRaw = String(p?.whatsapp_provider_id ?? '').trim();
+      const providerDigits = toDigits(providerIdRaw);
       const phoneRaw = String(p?.phone ?? '').trim();
-      const phoneE164 = toE164(phoneRaw);
+
+      const phoneE164 = toE164(phoneRaw) ?? (providerDigits.length >= 10 ? toE164(providerDigits) : null);
       if (!phoneE164) return null;
 
-      const digits = phoneE164.replace(/\D/g, '');
-      const providerId = String(p?.whatsapp_provider_id ?? '').trim() || digits;
+      const digits = toDigits(phoneE164);
+      const providerId = providerIdRaw || digits;
       if (!providerId) return null;
 
       const isOwner = !!p?.is_owner;
       const isSuperAdmin = !!p?.is_super_admin;
-      const isAdmin = !!p?.is_admin;
+      const isAdmin = !!p?.is_admin || isOwner || isSuperAdmin;
       const nameRaw = String(p?.name ?? '').trim();
       const name = nameRaw || null;
 
@@ -87,7 +92,7 @@ const normalizeParticipants = (participants: unknown): NormalizedParticipant[] =
   const seen = new Set<string>();
 
   for (const p of normalized) {
-    const key = (p.whatsapp_provider_id || p.phone_e164).trim();
+    const key = toDigits(p.phone_e164) || toDigits(p.whatsapp_provider_id) || p.whatsapp_provider_id.trim() || p.phone_e164;
     if (!key) continue;
     if (seen.has(key)) continue;
     seen.add(key);

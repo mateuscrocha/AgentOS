@@ -3,12 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
-import { useUserRoles } from "@/hooks/use-user-roles";
 import { formatDateTimeBR } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { applyWhatsAppStylesToParts, formatWhatsAppStyles } from "@/lib/whatsapp-format";
@@ -101,8 +99,6 @@ const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string,
 };
 
 export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, variant = "sheet" }: MessageDetailsDrawerProps) {
-  const { isSystemAdmin } = useUserRoles();
-
   const sectionClassName = "rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3";
 
   const formatDateFriendly = (input?: string | Date): string => {
@@ -533,17 +529,6 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
           <div className="mt-1 text-base font-semibold text-card-foreground">{messageTypeLabel}</div>
         </div>
         <div className="p-4 rounded-xl border border-border bg-secondary/20">
-          <div className="text-[11px] font-medium text-muted-foreground">Direção</div>
-          <div className="mt-1 text-base font-semibold text-card-foreground inline-flex items-center gap-2">
-            <DirectionIcon className="h-4 w-4 text-muted-foreground" />
-            {directionLabel}
-          </div>
-        </div>
-        <div className="p-4 rounded-xl border border-border bg-secondary/20">
-          <div className="text-[11px] font-medium text-muted-foreground">Origem</div>
-          <div className="mt-1 text-base font-semibold text-card-foreground">{originLabel}</div>
-        </div>
-        <div className="p-4 rounded-xl border border-border bg-secondary/20">
           <div className="text-[11px] font-medium text-muted-foreground">Mensagens deste membro no grupo</div>
           <div className="mt-1 text-base font-semibold text-card-foreground tabular-nums">{memberMessageCount ?? 0}</div>
         </div>
@@ -555,137 +540,6 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
     </section>
   );
 
-  const keywordsSection = (
-    <section className={sectionClassName}>
-      <h4 className="text-sm font-semibold text-card-foreground">Assuntos</h4>
-      {(() => {
-        const text = ((message?.text || message?.content || "") as string);
-        const tokens = text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-        const stop = new Set(["de","da","do","e","a","o","um","uma","para","por","em","no","na","nos","nas","que","se","com","sem","mais","menos"]);
-        const counts: Record<string, number> = {};
-        for (const t of tokens) {
-          if (t.length < 3) continue;
-          if (stop.has(t)) continue;
-          counts[t] = (counts[t] || 0) + 1;
-        }
-        const items = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
-        if (items.length === 0) return <div className="text-sm text-muted-foreground">Sem assuntos detectados.</div>;
-        return (
-          <div className="flex flex-wrap gap-2">
-            {items.map(([term, count]) => (
-              <a
-                key={term}
-                href={`/groups/${groupId}/messages?q=${encodeURIComponent(term)}`}
-                className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-xs")}
-              >
-                <span className="font-medium">{term}</span>
-                <span className="ml-1 text-muted-foreground tabular-nums">{count}</span>
-              </a>
-            ))}
-          </div>
-        );
-      })()}
-    </section>
-  );
-
-  const actionsSection = (
-    <section className={sectionClassName}>
-      <h4 className="text-sm font-semibold text-card-foreground">Ações</h4>
-      <div className="flex flex-wrap gap-2">
-        {message?.member_id ? (
-          <Button asChild variant="outline" size="sm">
-            <a href={`/groups/${groupId}/messages`}>Ver mensagens deste membro</a>
-          </Button>
-        ) : null}
-        <Button asChild variant="outline" size="sm">
-          <a href={`/groups/${groupId}/messages`}>Ver na linha do tempo</a>
-        </Button>
-      </div>
-    </section>
-  );
-
-  const advancedSection = isSystemAdmin ? (
-    <section className={sectionClassName}>
-      <h4 className="text-sm font-semibold text-card-foreground">Técnico</h4>
-      <Tabs defaultValue="details">
-        <TabsList>
-          <TabsTrigger value="details">Detalhes</TabsTrigger>
-          <TabsTrigger value="advanced">Avançado</TabsTrigger>
-        </TabsList>
-        <TabsContent value="details" className="mt-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div>
-              <div className="text-muted-foreground">ID da mensagem</div>
-              <div className="font-mono text-xs break-all">{message?.id || ""}</div>
-            </div>
-            {message?.member_id ? (
-              <div>
-                <div className="text-muted-foreground">ID do remetente</div>
-                <div className="font-mono text-xs break-all">{message?.member_id}</div>
-              </div>
-            ) : null}
-            <div>
-              <div className="text-muted-foreground">ID do grupo</div>
-              <div className="font-mono text-xs break-all">{groupId}</div>
-            </div>
-            {message?.whatsapp_provider_id ? (
-              <div>
-                <div className="text-muted-foreground">ID no WhatsApp</div>
-                <div className="font-mono text-xs break-all">{message.whatsapp_provider_id}</div>
-              </div>
-            ) : null}
-            {message?.message_ts ? (
-              <div>
-                <div className="text-muted-foreground">Horário bruto</div>
-                <div className="font-mono text-xs break-all">{message.message_ts}</div>
-              </div>
-            ) : null}
-            {message?.delivery_status ? (
-              <div>
-                <div className="text-muted-foreground">Status de entrega</div>
-                <div className="font-mono text-xs break-all">{message.delivery_status}</div>
-              </div>
-            ) : null}
-            {message?.status ? (
-              <div>
-                <div className="text-muted-foreground">Status interno</div>
-                <div className="font-mono text-xs break-all">{message.status}</div>
-              </div>
-            ) : null}
-            {message?.provider ? (
-              <div>
-                <div className="text-muted-foreground">Origem exata</div>
-                <div className="font-mono text-xs break-all">{message.provider}</div>
-              </div>
-            ) : null}
-          </div>
-          {(message as any)?.raw_provider ? (
-            <div className="mt-3">
-              <div className="text-muted-foreground text-sm">Dados brutos do provedor</div>
-              <pre className="p-3 rounded-lg bg-secondary/30 text-xs overflow-auto max-h-60 text-card-foreground">{JSON.stringify((message as any).raw_provider, null, 2)}</pre>
-            </div>
-          ) : null}
-        </TabsContent>
-        <TabsContent value="advanced" className="mt-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            {(message as any)?.provider_message_id ? (
-              <div>
-                <div className="text-muted-foreground">ID da mensagem no provedor</div>
-                <div className="font-mono text-xs break-all">{(message as any).provider_message_id}</div>
-              </div>
-            ) : null}
-            {(message as any)?.provider_chat_id ? (
-              <div>
-                <div className="text-muted-foreground">ID do grupo no provedor</div>
-                <div className="font-mono text-xs break-all">{(message as any).provider_chat_id}</div>
-              </div>
-            ) : null}
-          </div>
-        </TabsContent>
-      </Tabs>
-    </section>
-  ) : null;
-
   const body = (
     <div className={cn("flex flex-col", variant === "dialog" ? "h-[85vh]" : "h-full")}>
       <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur px-5 sm:px-6 py-4">
@@ -696,9 +550,6 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
           {contentSection}
           {contextSection}
           {quickInfoSection}
-          {keywordsSection}
-          {actionsSection}
-          {advancedSection}
         </div>
       </div>
     </div>

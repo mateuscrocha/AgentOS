@@ -27,7 +27,7 @@
 - Validação do grupo via Edge Function `validate-whatsapp-group` com n8n.
 - Provisionamento inicial via `provision-onboarding` (service role).
 - Criação automática de `Organization` e `Group`.
-- Inserção automática obrigatória de `Members` baseada nos participantes retornados, com deduplicação e hierarquia consistente (`OWNER`/`SUPERADMIN`/`ADMIN`).
+- Inserção automática obrigatória de `Members` baseada nos participantes retornados, com deduplicação e hierarquia consistente (`OWNER`/`SUPERADMIN`/`ADMIN`), onde `is_admin` é sempre `true` para `OWNER` e `SUPERADMIN`.
 - Upsert de `profiles` com nome do lead.
 - Atribuição de papel `ORG_ADMIN` ao usuário criado para a nova organização.
 - Registro do evento `ONBOARDING_COMPLETED` em `events`.

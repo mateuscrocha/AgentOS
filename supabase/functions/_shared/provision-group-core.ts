@@ -61,6 +61,8 @@ const toE164 = (raw: unknown): string | null => {
   return '+' + digits;
 };
 
+const toDigits = (raw: unknown): string => String(raw ?? '').replace(/\D/g, '');
+
 const normalizeParticipants = (participants: unknown) => {
   const invalid: Array<{ index: number; reason: string }> = [];
   if (!Array.isArray(participants) || participants.length === 0) {
@@ -71,21 +73,23 @@ const normalizeParticipants = (participants: unknown) => {
   const seen = new Set<string>();
 
   participants.forEach((p: ParticipantLike, index) => {
+    const providerIdRaw = String(p?.whatsapp_provider_id ?? '').trim();
+    const providerDigits = toDigits(providerIdRaw);
     const phoneRaw = String(p?.phone ?? '').trim();
-    const phoneE164 = toE164(phoneRaw);
+    const phoneE164 = toE164(phoneRaw) ?? (providerDigits.length >= 10 ? toE164(providerDigits) : null);
     if (!phoneE164) {
       invalid.push({ index, reason: 'PHONE_INVALID' });
       return;
     }
 
-    const digits = phoneE164.replace(/\D/g, '');
-    const providerId = String(p?.whatsapp_provider_id ?? '').trim() || digits;
+    const digits = toDigits(phoneE164);
+    const providerId = providerIdRaw || digits;
     if (!providerId) {
       invalid.push({ index, reason: 'PROVIDER_ID_MISSING' });
       return;
     }
 
-    const key = providerId.trim() || phoneE164;
+    const key = digits || toDigits(providerId) || providerId.trim() || phoneE164;
     if (!key) {
       invalid.push({ index, reason: 'KEY_MISSING' });
       return;
@@ -94,12 +98,16 @@ const normalizeParticipants = (participants: unknown) => {
     if (seen.has(key)) return;
     seen.add(key);
 
+    const isOwner = !!p?.is_owner;
+    const isSuperAdmin = !!p?.is_super_admin;
+    const isAdmin = !!p?.is_admin || isOwner || isSuperAdmin;
+
     normalized.push({
       phone: phoneE164,
       name: String(p?.name ?? '').trim() || null,
-      is_admin: !!p?.is_admin,
-      is_super_admin: !!p?.is_super_admin,
-      is_owner: !!p?.is_owner,
+      is_admin: isAdmin,
+      is_super_admin: isSuperAdmin,
+      is_owner: isOwner,
       whatsapp_provider_id: providerId,
     });
   });

@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useParams, NavLink } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Activity, Copy, Loader2 } from "lucide-react";
+import { Activity, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -26,8 +25,6 @@ import { Textarea } from "@/components/ui/textarea";
 export default function GroupPoll() {
   const { groupId, pollId } = useParams();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const queryClient = useQueryClient();
-  const [maxVotesDraft, setMaxVotesDraft] = useState<string>("2");
   const [copyFallbackOpen, setCopyFallbackOpen] = useState(false);
   const [copyFallbackText, setCopyFallbackText] = useState("");
   const copyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -85,41 +82,13 @@ export default function GroupPoll() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("polls")
-        .select("id, question, max_options, max_votes_per_member, created_at")
+        .select("id, question, max_options, created_at")
         .eq("id", pollId)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
     enabled: !!pollId && isAuthenticated,
-  });
-
-  const maxVotesPerMember = (poll as any)?.max_votes_per_member;
-
-  useEffect(() => {
-    const v = maxVotesPerMember;
-    if (typeof v === "number" && Number.isFinite(v)) {
-      setMaxVotesDraft(String(v));
-    }
-  }, [maxVotesPerMember]);
-
-  const updateMaxVotesMutation = useMutation({
-    mutationFn: async () => {
-      const next = Number(maxVotesDraft);
-      if (!Number.isFinite(next) || next < 1) throw new Error("invalid max votes");
-      const { error } = await (supabase as any)
-        .from("polls")
-        .update({ max_votes_per_member: next })
-        .eq("id", pollId);
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      notify.success("Limite atualizado", "Tudo certo.");
-      await queryClient.invalidateQueries({ queryKey: ["poll", pollId] });
-    },
-    onError: () => {
-      notify.error("Não foi possível atualizar o limite", "Tente novamente.");
-    },
   });
 
   const { data: pollOptions } = useQuery({
@@ -224,7 +193,6 @@ export default function GroupPoll() {
     const question = String((poll as any)?.question ?? "");
     const title = makeShortTitle(question);
     const date = (poll as any)?.created_at ? formatDateSimpleBR((poll as any).created_at) : "—";
-    const maxVotes = Number((poll as any)?.max_votes_per_member ?? 2);
 
     const opts = [...(pollOptions ?? [])].sort((a: any, b: any) => {
       const d = Number(b.votesCount ?? 0) - Number(a.votesCount ?? 0);
@@ -261,7 +229,6 @@ export default function GroupPoll() {
     lines.push("*Engajamento*");
     lines.push(`- Votantes únicos: ${votersCount}`);
     lines.push(`- Total de votos: ${totalVotes}`);
-    lines.push(`- Máx. votos/pessoa: ${Number.isFinite(maxVotes) ? maxVotes : 2}`);
     lines.push("");
     lines.push("*Observação*");
     lines.push(`- Opções sem votos: ${zeroVoteOptions.length ? zeroVoteOptions.join(", ") : "nenhuma"}`);
@@ -308,32 +275,6 @@ export default function GroupPoll() {
               <h1 className="text-xl md:text-2xl font-semibold text-card-foreground">{(poll as any)?.question || "Enquete"}</h1>
               <p className="text-xs md:text-sm text-muted-foreground">Criada em {createdAtLabel}</p>
             </div>
-
-            {poll ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Máx. votos/pessoa</span>
-                <Input
-                  value={maxVotesDraft}
-                  onChange={(e) => setMaxVotesDraft(e.target.value)}
-                  type="number"
-                  min={1}
-                  className="w-20 h-8"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => updateMaxVotesMutation.mutate()}
-                  disabled={
-                    updateMaxVotesMutation.isPending ||
-                    Number(maxVotesDraft) === Number((poll as any)?.max_votes_per_member ?? 2) ||
-                    !Number.isFinite(Number(maxVotesDraft)) ||
-                    Number(maxVotesDraft) < 1
-                  }
-                >
-                  {updateMaxVotesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
-                </Button>
-              </div>
-            ) : null}
           </div>
 
           <div className="p-4 space-y-4">
@@ -373,7 +314,6 @@ export default function GroupPoll() {
                     <KpiCard title="Votos (seleções)" value={totalVotes} />
                     <KpiCard title="Votos registrados" value={voteEventsCount} />
                     <KpiCard title="Votantes únicos" value={votersCount} />
-                    <KpiCard title="Máx. votos/pessoa" value={(poll as any).max_votes_per_member ?? 2} />
                     <KpiCard title="Máx. opções" value={(poll as any).max_options ?? 1} />
                   </div>
 

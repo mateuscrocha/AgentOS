@@ -224,7 +224,7 @@ DenoRef.test("provision-onboarding retorna erro quando participants está vazio"
   assertEquals(body.code, "WEBHOOK_CONTRACT_INVALID");
 });
 
-DenoRef.test("provision-onboarding cria org+grupo, insere members e chama webhook", async () => {
+DenoRef.test("provision-onboarding cria org+grupo, insere members e marca OWNER/SUPERADMIN como admin", async () => {
   const { supabase, membersInserted } = createMockSupabase();
   const fetchCalls: Array<{ url: string; init: any }> = [];
 
@@ -276,7 +276,7 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e chama webhoo
 
   assertEquals(membersInserted.length, 2);
   assertEquals(membersInserted[0]?.phone_e164, "+5511999990000");
-  assertEquals(membersInserted[0]?.is_admin, false);
+  assertEquals(membersInserted[0]?.is_admin, true);
   assertEquals(membersInserted[0]?.is_super_admin, true);
   assertEquals(membersInserted[0]?.is_owner, true);
 

@@ -1,11 +1,6 @@
-import { Wifi, WifiOff, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { Wifi, WifiOff, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
-import { useUserRoles } from "@/hooks/use-user-roles";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { notify } from "@/components/ui/sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface GroupHeaderProps {
@@ -27,89 +22,6 @@ export function GroupHeader({
   syncStatus,
   bottomSlot
 }: GroupHeaderProps) {
-  const { isSystemAdmin } = useUserRoles();
-  const queryClient = useQueryClient();
-
-  const { data: groupHeaderInfo } = useQuery({
-    queryKey: ["group-header", groupId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("groups")
-        .select("id, invite_link, metadata")
-        .eq("id", groupId)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data as any;
-    },
-    enabled: !!groupId,
-    staleTime: 60_000,
-  });
-
-  const updateGroupDetails = useMutation({
-    mutationFn: async () => {
-      const inviteLink = String((groupHeaderInfo as any)?.invite_link || "").trim();
-      if (!inviteLink) {
-        throw new Error("LINK_CONVITE_AUSENTE");
-      }
-
-      const response = await supabase.functions.invoke("validate-whatsapp-group", {
-        body: { invite_link: inviteLink },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message || "Erro ao validar grupo");
-      }
-
-      const data = response.data as any;
-
-      if (!data?.is_valid || !data?.is_boris_in_group) {
-        throw new Error("VALIDACAO_FALHOU");
-      }
-
-      const nextName = typeof data?.group_name === "string" ? data.group_name.trim() : "";
-      const nextImage = typeof data?.group_image === "string" ? data.group_image.trim() : "";
-
-      if (!nextName && !nextImage) {
-        throw new Error("RESPOSTA_INCOMPLETA");
-      }
-
-      const currentMetadata = ((groupHeaderInfo as any)?.metadata ?? {}) as Record<string, any>;
-      const nextMetadata = { ...currentMetadata };
-      if (nextImage) nextMetadata.profile_pic_url = nextImage;
-
-      const payload: Record<string, any> = { metadata: nextMetadata };
-      if (nextName) payload.name = nextName;
-
-      const { error } = await supabase.from("groups").update(payload).eq("id", groupId);
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      notify.success("Grupo atualizado", "Nome e imagem do grupo foram atualizados.");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["group-header", groupId] }),
-        queryClient.invalidateQueries({ queryKey: ["group-info", groupId] }),
-        queryClient.invalidateQueries({ queryKey: ["group-dashboard", groupId] } as any),
-      ]);
-    },
-    onError: (err: any) => {
-      const msg = String(err?.message || "");
-      if (msg.includes("LINK_CONVITE_AUSENTE")) {
-        notify.warning("Convite necessário", "Configure o link do grupo e tente de novo.");
-        return;
-      }
-      if (msg.includes("VALIDACAO_FALHOU")) {
-        notify.warning("Não foi possível validar", "Tente novamente mais tarde.");
-        return;
-      }
-      if (msg.includes("RESPOSTA_INCOMPLETA")) {
-        notify.error("Resposta inesperada", "O validador não retornou nome/imagem do grupo.");
-        return;
-      }
-      notify.error("Falha ao atualizar", "Não foi possível atualizar o nome e a imagem do grupo.");
-    },
-  });
-
   const getGroupStatus = () => {
     if (syncStatus === 'error') {
       return { label: 'Desconectado', color: 'destructive', icon: WifiOff };
@@ -142,22 +54,6 @@ export function GroupHeader({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <h2 className="text-lg font-semibold text-card-foreground truncate min-w-0">{name}</h2>
-            {isSystemAdmin ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 shrink-0"
-                onClick={() => updateGroupDetails.mutate()}
-                disabled={updateGroupDetails.isPending}
-              >
-                {updateGroupDetails.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-              </Button>
-            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-muted-foreground">
             <Tooltip>

@@ -42,7 +42,7 @@ function makeReq(body: any) {
   });
 }
 
-DenoRef.test("provision-group insere membros preservando is_admin separado de is_super_admin/is_owner", async () => {
+DenoRef.test("provision-group marca OWNER/SUPERADMIN também como is_admin ...", async () => {
   const membersInserted: any[] = [];
 
   const payload = {
@@ -198,7 +198,7 @@ DenoRef.test("provision-group insere membros preservando is_admin separado de is
   const inserted = membersInserted as any[];
   assertEquals(inserted.length, 1);
   assertEquals(inserted[0]?.phone_e164, "+5511999990000");
-  assertEquals(inserted[0]?.is_admin, false);
+  assertEquals(inserted[0]?.is_admin, true);
   assertEquals(inserted[0]?.is_super_admin, true);
   assertEquals(inserted[0]?.is_owner, true);
 });

@@ -253,11 +253,10 @@ const Org = () => {
 
   const path = location.pathname;
   const isGroupsRoute = /^\/(?:org|organization)\/[^/]+\/groups$/.test(path);
-  const isSettingsRoute = /^\/(?:org|organization)\/[^/]+\/settings$/.test(path);
   const isDashboardRoute = /^\/(?:org|organization)\/[^/]+\/dashboard$/.test(path);
   const isKeywordsRoute = /^\/(?:org|organization)\/[^/]+\/keywords$/.test(path);
   const isBaseOrg = /^\/(?:org|organization)\/[^/]+\/?$/.test(path);
-  const isDefaultOrgHome = isBaseOrg && !isGroupsRoute && !isSettingsRoute && !isDashboardRoute && !isKeywordsRoute;
+  const isDefaultOrgHome = isBaseOrg && !isGroupsRoute && !isDashboardRoute && !isKeywordsRoute;
 
   const breadcrumbItems = (() => {
     const items = [
@@ -590,52 +589,6 @@ const Org = () => {
 
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {(isDashboardRoute || isDefaultOrgHome) && (
-          <div id="org-settings" className="rounded-xl border border-border bg-card p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Configurações da Organização</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Nome</span>
-                <p className="font-medium text-card-foreground">{org?.name || '-'}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Slug</span>
-                <p className="font-medium text-card-foreground font-mono">{org.slug || '-'}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Status</span>
-                <p className="font-medium text-card-foreground capitalize">{org.status}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Owner</span>
-                <p className="font-medium text-card-foreground">{ownerProfile?.name || org.owner_user_id || '-'}</p>
-              </div>
-              <div className="col-span-2">
-                <span className="text-muted-foreground">Descrição / propósito</span>
-                {(org.settings && (org.settings as any).description) ? (
-                  <p className="font-medium text-card-foreground whitespace-pre-wrap break-words">
-                    {(org.settings as any).description}
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Adicione uma descrição da organização</p>
-                )}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Criada em</span>
-                <p className="font-medium text-card-foreground">
-                  {new Date(org.created_at).toLocaleString('pt-BR')}
-                </p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Atualizada em</span>
-                <p className="font-medium text-card-foreground">
-                  {new Date(org.updated_at).toLocaleString('pt-BR')}
-                </p>
-              </div>
-            </div>
-          </div>
-          )}
-
           {/* Section: Contato da Organização */}
           {(isDashboardRoute || isDefaultOrgHome) && (
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
@@ -731,21 +684,6 @@ const Org = () => {
 
         {/* Collapsible sections for JSON data */}
         <div className="space-y-4">
-          {/* Settings */}
-          {org.settings && Object.keys(org.settings).length > 0 && (
-            <Collapsible className="rounded-xl border border-border bg-card">
-              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-secondary/30 transition-colors">
-                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Settings</span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="px-4 pb-4">
-                <pre className="p-4 rounded-lg bg-secondary/30 text-xs overflow-auto max-h-48 text-card-foreground">
-                  {JSON.stringify(org.settings, null, 2)}
-                </pre>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-
           {/* Metadata */}
           {org.metadata && Object.keys(org.metadata).length > 0 && (
             <Collapsible className="rounded-xl border border-border bg-card">
