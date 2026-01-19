@@ -3,10 +3,12 @@ import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { MemoryRouter } from "react-router-dom";
 
+let isSystemAdminValue = false;
+
 vi.mock("@/hooks/use-user-roles", () => {
   return {
     useUserRoles: () => ({
-      isSystemAdmin: false,
+      isSystemAdmin: isSystemAdminValue,
       getAccessibleOrgIds: () => ["00000000-0000-4000-8000-000000000001"],
       getAccessibleGroupIds: () => ["00000000-0000-4000-8000-000000000000"],
     }),
@@ -41,9 +43,10 @@ vi.mock("@/components/ui/collapsible", () => {
 describe("AdminSidebar — menu do grupo", () => {
   beforeEach(() => {
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+    isSystemAdminValue = false;
   });
 
-  it("não exibe o item Atividade no menu do grupo", async () => {
+  it("não exibe Configurações do grupo para não-system-admin", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -60,7 +63,7 @@ describe("AdminSidebar — menu do grupo", () => {
 
     expect(container.textContent).toContain("Painel do grupo");
     expect(container.textContent).toContain("Mensagens");
-    expect(container.textContent).toContain("Configurações do grupo");
+    expect(container.textContent).not.toContain("Configurações do grupo");
     expect(container.textContent).not.toContain("Atividade");
 
     await act(async () => {
@@ -68,5 +71,28 @@ describe("AdminSidebar — menu do grupo", () => {
     });
     container.remove();
   });
-});
 
+  it("exibe Configurações do grupo para SYSTEM_ADMIN", async () => {
+    isSystemAdminValue = true;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    const { AdminSidebar } = await import("./AdminSidebar");
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000"]}>
+          <AdminSidebar />
+        </MemoryRouter>
+      );
+    });
+
+    expect(container.textContent).toContain("Configurações do grupo");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+});

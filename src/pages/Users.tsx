@@ -303,15 +303,17 @@ export default function Users() {
         if (!error && data?.success) return data;
         let message = error?.message || data?.message || "Falha ao criar usuário";
         let status: number | undefined = undefined;
+        let code: string | undefined = data?.code;
         if (error instanceof FunctionsHttpError && (error as any).context) {
           try {
             const body = await (error as any).context.json();
             if (body?.message) message = body.message;
             if (typeof body?.status === "number") status = body.status;
+            if (typeof body?.code === "string") code = body.code;
             if (!status && body?.code === "EMAIL_EXISTS") status = 409;
           } catch (e) { void 0; }
         }
-        lastErr = Object.assign(new Error(message), { status });
+        lastErr = Object.assign(new Error(message), { status, code });
         const msg = (message || "").toLowerCase();
         const isNetwork = msg.includes("failed to send a request") || msg.includes("fetch") || msg.includes("network");
         if (!isNetwork || attempt === maxRetries) throw lastErr;
@@ -346,6 +348,10 @@ export default function Users() {
     },
     onError: (err: any) => {
       const raw = (err?.message || '').toLowerCase();
+      if (err?.code === 'PASSWORD_TOO_LONG' || (raw.includes('senha') && raw.includes('muito longa'))) {
+        notify.error('Senha muito longa', err?.message || 'Use uma senha menor.');
+        return;
+      }
       if (raw.includes('already registered') || raw.includes('email exists') || err?.status === 409) {
         notify.error('Email já existente', 'Escolha outro email.');
         return;
@@ -984,17 +990,23 @@ export default function Users() {
             <div>
               <Input
                 type="password"
-                placeholder="Senha"
+                placeholder="Senha (6 dígitos)"
                 value={newUserPassword}
-                onChange={(e) => setNewUserPassword(e.target.value)}
+                onChange={(e) => setNewUserPassword(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                pattern="\\d{6}"
+                maxLength={6}
               />
             </div>
             <div>
               <Input
                 type="password"
-                placeholder="Confirmar senha"
+                placeholder="Confirmar senha (6 dígitos)"
                 value={newUserPasswordConfirm}
-                onChange={(e) => setNewUserPasswordConfirm(e.target.value)}
+                onChange={(e) => setNewUserPasswordConfirm(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                pattern="\\d{6}"
+                maxLength={6}
               />
             </div>
             <div className="pt-2 border-t border-border space-y-2">
@@ -1067,6 +1079,10 @@ export default function Users() {
                 const emailOk = /.+@.+\..+/.test(email);
                 if (!emailOk) {
                   notify.warning('Atenção', 'Informe um email válido.');
+                  return;
+                }
+                if (!/^\d{6}$/.test(password)) {
+                  notify.warning('Atenção', 'A senha deve ter exatamente 6 dígitos.');
                   return;
                 }
                 if (password !== confirm) {

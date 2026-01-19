@@ -253,7 +253,7 @@ export default function Onboarding() {
         return digits.length >= 10;
       }
       case 'password':
-        return formData.password.length >= 10 && formData.password === formData.password_confirm;
+        return /^\d{6}$/.test(formData.password) && formData.password === formData.password_confirm;
       case 'how':
         return true;
       case 'prepare_group':
@@ -336,8 +336,8 @@ export default function Onboarding() {
   const handleConnectGroup = async () => {
     if (isSubmitting) return;
     setAccessError(null);
-    if (formData.password.length < 10) {
-      setAccessError('Senha deve ter pelo menos 10 caracteres');
+    if (!/^\d{6}$/.test(formData.password)) {
+      setAccessError('Senha deve ter exatamente 6 dígitos');
       setCurrentStep('password');
       return;
     }
@@ -370,6 +370,10 @@ export default function Onboarding() {
         if (authError.message.includes('already registered')) {
           notify.warning("Email já cadastrado", "Faça login para continuar.");
           navigate('/auth');
+          return;
+        }
+        if (/password/i.test(authError.message || "") && /(too\s*long|max(imum)?|at\s*most|limit|length|caracter)/i.test(authError.message || "")) {
+          notify.error("Senha muito longa", "Use uma senha menor.");
           return;
         }
         throw authError;
@@ -434,9 +438,7 @@ export default function Onboarding() {
     } catch (error: any) {
       const msg = error?.message || '';
       if (msg.includes('Password should be at least') || msg.includes('senha') || msg.includes('password')) {
-        const match = msg.match(/at least\s+(\d+)\s+characters/i);
-        const required = match ? match[1] : '10';
-        setAccessError(`Senha deve ter pelo menos ${required} caracteres`);
+        setAccessError('Senha deve ter exatamente 6 dígitos');
         setCurrentStep('password');
       } else {
         navigate('/onboarding/error', { 
@@ -534,24 +536,28 @@ export default function Onboarding() {
                 <label className="text-sm font-medium text-card-foreground mb-1.5 block">Senha</label>
                 <Input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="••••••"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                   onKeyDown={handleKeyDown}
-                  maxLength={255}
+                  inputMode="numeric"
+                  pattern="\\d{6}"
+                  maxLength={6}
                   className="h-12 text-lg"
                 />
-                <p className="text-[11px] text-muted-foreground/80 mt-2">Mínimo de 10 caracteres.</p>
+                <p className="text-[11px] text-muted-foreground/80 mt-2">Exatamente 6 dígitos.</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-card-foreground mb-1.5 block">Confirmar senha</label>
                 <Input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="••••••"
                   value={formData.password_confirm}
-                  onChange={(e) => setFormData({ ...formData, password_confirm: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, password_confirm: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                   onKeyDown={handleKeyDown}
-                  maxLength={255}
+                  inputMode="numeric"
+                  pattern="\\d{6}"
+                  maxLength={6}
                   className="h-12 text-lg"
                 />
               </div>

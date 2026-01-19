@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Users, MessageSquare, ListChecks, Settings, LayoutDashboard, FileText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUserRoles } from "@/hooks/use-user-roles";
 
 type ActiveTab = "painel" | "membros" | "mensagens" | "resumos" | "enquetes" | "configuracoes";
 
@@ -12,14 +13,15 @@ interface GroupTabsProps {
 
 export function GroupTabs({ groupId, activeTab, variant = "standalone" }: GroupTabsProps) {
   const navigate = useNavigate();
+  const { isSystemAdmin } = useUserRoles();
   const tabs: { key: ActiveTab; label: string; href: string; icon?: any }[] = [
     { key: "painel", label: "Painel", href: `/groups/${groupId}`, icon: LayoutDashboard },
     { key: "membros", label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
     { key: "mensagens", label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
     { key: "resumos", label: "Conversas", href: `/groups/${groupId}/summaries`, icon: FileText },
     { key: "enquetes", label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
-    { key: "configuracoes", label: "Configurações", href: `/groups/${groupId}/edit`, icon: Settings },
   ];
+  if (isSystemAdmin) tabs.push({ key: "configuracoes", label: "Configurações", href: `/groups/${groupId}/edit`, icon: Settings });
 
   const content = (
     <Tabs value={activeTab} onValueChange={(val) => {

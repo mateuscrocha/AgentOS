@@ -6,12 +6,14 @@ import { GroupPageTop } from "./GroupPageTop";
 import { GroupTabs } from "./GroupTabs";
 
 let canEditValue = false;
+let isSystemAdminValue = false;
 
 vi.mock("@/hooks/use-user-roles", () => {
   return {
     useUserRoles: () => ({
       isLoading: false,
       canEditGroup: () => canEditValue,
+      isSystemAdmin: isSystemAdminValue,
     }),
   };
 });
@@ -60,6 +62,7 @@ describe("GroupPageTop — aba Configurações", () => {
   beforeEach(() => {
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     canEditValue = false;
+    isSystemAdminValue = false;
   });
 
   it("não exibe Configurações mesmo quando o usuário pode editar o grupo", async () => {
@@ -134,6 +137,7 @@ describe("GroupPageTop — aba Configurações", () => {
 describe("GroupTabs — remoção da aba Atividade", () => {
   beforeEach(() => {
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+    isSystemAdminValue = false;
   });
 
   it("não exibe a aba Atividade", async () => {
@@ -150,6 +154,50 @@ describe("GroupTabs — remoção da aba Atividade", () => {
     });
 
     expect(container.textContent).not.toContain("Atividade");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("não exibe Configurações para não-system-admin", async () => {
+    isSystemAdminValue = false;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <GroupTabs groupId="00000000-0000-4000-8000-000000000000" activeTab="painel" />
+        </MemoryRouter>
+      );
+    });
+
+    expect(container.textContent).not.toContain("Configurações");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("exibe Configurações para SYSTEM_ADMIN", async () => {
+    isSystemAdminValue = true;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <GroupTabs groupId="00000000-0000-4000-8000-000000000000" activeTab="painel" />
+        </MemoryRouter>
+      );
+    });
+
+    expect(container.textContent).toContain("Configurações");
 
     await act(async () => {
       root.unmount();

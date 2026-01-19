@@ -8,7 +8,8 @@ import { getAppUrl } from "@/lib/utils";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Email inválido");
-const passwordSchema = z.string().min(8, "Senha deve ter pelo menos 8 caracteres");
+const loginPasswordSchema = z.string().min(1, "Senha é obrigatória");
+const newPasswordSchema = z.string().regex(/^\d{6}$/, "Senha deve ter exatamente 6 dígitos");
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ const Auth = () => {
   const validateInputs = () => {
     if (isRecovery) {
       try {
-        passwordSchema.parse(newPassword);
+        newPasswordSchema.parse(newPassword);
       } catch (e) {
         if (e instanceof z.ZodError) {
           setError(e.errors[0].message);
@@ -46,11 +47,13 @@ const Auth = () => {
     } else {
       try {
         emailSchema.parse(email);
-        passwordSchema.parse(password);
+        loginPasswordSchema.parse(password);
         return true;
       } catch (e) {
         if (e instanceof z.ZodError) {
           setError(e.errors[0].message);
+        } else if (e instanceof Error) {
+          setError(e.message);
         }
         return false;
       }
@@ -93,6 +96,8 @@ const Auth = () => {
         setError("Este email já está cadastrado");
       } else if (message.includes("Email not confirmed")) {
         setError("Por favor, confirme seu email antes de fazer login");
+      } else if (/password/i.test(message) && /(too\s*long|max(imum)?|at\s*most|limit|length|caracter)/i.test(message)) {
+        setError("Senha muito longa. Tente uma senha menor.");
       } else {
         setError(message);
       }
@@ -198,7 +203,7 @@ const Auth = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    minLength={8}
+                    autoComplete="current-password"
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
@@ -224,13 +229,17 @@ const Auth = () => {
                     <input
                       type="password"
                       value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••••"
+                      onChange={(e) => setNewPassword(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="••••••"
                       required
-                      minLength={8}
+                      inputMode="numeric"
+                      pattern="\\d{6}"
+                      maxLength={6}
+                      autoComplete="new-password"
                       className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
+                  <p className="mt-1 text-xs text-muted-foreground">Exatamente 6 dígitos.</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-card-foreground mb-1.5 block">
@@ -241,10 +250,13 @@ const Auth = () => {
                     <input
                       type="password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••"
+                      onChange={(e) => setConfirmPassword(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="••••••"
                       required
-                      minLength={8}
+                      inputMode="numeric"
+                      pattern="\\d{6}"
+                      maxLength={6}
+                      autoComplete="new-password"
                       className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
