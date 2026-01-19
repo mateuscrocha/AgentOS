@@ -44,31 +44,138 @@ export type Database = {
         }
         Relationships: []
       }
-      group_daily_topics: {
+      group_daily_keywords: {
         Row: {
           created_at: string
           group_id: string
           id: string
+          keyword: string
+          keyword_date: string
+          mentions_count: number
+          messages_count: number
+          participants_count: number
           rank: number
-          content: string
-          title: string
-          topic_date: string
         }
         Insert: {
           created_at?: string
           group_id: string
           id?: string
+          keyword: string
+          keyword_date: string
+          mentions_count?: number
+          messages_count?: number
+          participants_count?: number
           rank: number
-          content: string
-          title: string
-          topic_date: string
         }
         Update: {
           created_at?: string
           group_id?: string
           id?: string
+          keyword?: string
+          keyword_date?: string
+          mentions_count?: number
+          messages_count?: number
+          participants_count?: number
           rank?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_daily_keywords_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_daily_keywords_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "group_daily_keywords_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_daily_summaries: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          metadata: Json | null
+          summary_date: string
+          summary_text: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          metadata?: Json | null
+          summary_date: string
+          summary_text: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          metadata?: Json | null
+          summary_date?: string
+          summary_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_daily_summaries_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_daily_summaries_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "group_daily_summaries_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_daily_topics: {
+        Row: {
+          content: string
+          created_at: string
+          group_id: string
+          id: string
+          rank: number
+          title: string
+          topic_date: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          group_id: string
+          id?: string
+          rank: number
+          title: string
+          topic_date: string
+        }
+        Update: {
           content?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          rank?: number
           title?: string
           topic_date?: string
         }
@@ -87,7 +194,44 @@ export type Database = {
             referencedRelation: "v_group_overview"
             referencedColumns: ["group_id"]
           },
+          {
+            foreignKeyName: "group_daily_topics_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      group_daily_topics_backup_before_rename_summary_to_content_2026: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          rank: number
+          summary: string
+          title: string
+          topic_date: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          rank: number
+          summary: string
+          title: string
+          topic_date: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          rank?: number
+          summary?: string
+          title?: string
+          topic_date?: string
+        }
+        Relationships: []
       }
       group_members: {
         Row: {
@@ -144,6 +288,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "group_members_granted_by_user_id_fkey"
+            columns: ["granted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_br_time"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "group_members_group_id_fkey"
             columns: ["group_id"]
             isOneToOne: false
@@ -158,10 +309,76 @@ export type Database = {
             referencedColumns: ["group_id"]
           },
           {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "group_members_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_settings: {
+        Row: {
+          daily_summary_enabled: boolean
+          daily_summary_time: string
+          daily_topics_enabled: boolean
+          group_id: string
+          peak_moment_enabled: boolean
+          polls_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          daily_summary_enabled?: boolean
+          daily_summary_time?: string
+          daily_topics_enabled?: boolean
+          group_id: string
+          peak_moment_enabled?: boolean
+          polls_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          daily_summary_enabled?: boolean
+          daily_summary_time?: string
+          daily_topics_enabled?: boolean
+          group_id?: string
+          peak_moment_enabled?: boolean
+          polls_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_settings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_settings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "group_settings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "v_groups_br_time"
             referencedColumns: ["id"]
           },
         ]
@@ -169,84 +386,81 @@ export type Database = {
       groups: {
         Row: {
           assistant_id: string | null
+          assistant_prompt: string | null
           counts_cache: Json | null
           created_at: string
           created_at_provider: string | null
           deleted_at: string | null
           description: string | null
-          has_assistant: boolean
           id: string
           invite_link: string | null
           invite_link_status: string | null
           is_active: boolean | null
           is_archived: boolean | null
-          last_summary_at: string | null
           last_sync_at: string | null
           metadata: Json | null
           name: string
           organization_id: string
           provider: string
-          whatsapp_provider_id: string | null
           provider_phone: string | null
           raw_provider: Json | null
           status: string | null
           sync_error: string | null
           sync_status: string | null
           updated_at: string
+          whatsapp_provider_id: string | null
         }
         Insert: {
           assistant_id?: string | null
+          assistant_prompt?: string | null
           counts_cache?: Json | null
           created_at?: string
           created_at_provider?: string | null
           deleted_at?: string | null
           description?: string | null
-          has_assistant?: boolean
           id?: string
           invite_link?: string | null
           invite_link_status?: string | null
           is_active?: boolean | null
           is_archived?: boolean | null
-          last_summary_at?: string | null
           last_sync_at?: string | null
           metadata?: Json | null
           name: string
           organization_id: string
           provider?: string
-          whatsapp_provider_id?: string | null
           provider_phone?: string | null
           raw_provider?: Json | null
           status?: string | null
           sync_error?: string | null
           sync_status?: string | null
           updated_at?: string
+          whatsapp_provider_id?: string | null
         }
         Update: {
           assistant_id?: string | null
+          assistant_prompt?: string | null
           counts_cache?: Json | null
           created_at?: string
           created_at_provider?: string | null
           deleted_at?: string | null
           description?: string | null
-          has_assistant?: boolean
           id?: string
           invite_link?: string | null
           invite_link_status?: string | null
           is_active?: boolean | null
           is_archived?: boolean | null
-          last_summary_at?: string | null
           last_sync_at?: string | null
           metadata?: Json | null
           name?: string
           organization_id?: string
           provider?: string
-          whatsapp_provider_id?: string | null
           provider_phone?: string | null
           raw_provider?: Json | null
           status?: string | null
           sync_error?: string | null
           sync_status?: string | null
           updated_at?: string
+          whatsapp_provider_id?: string | null
         }
         Relationships: [
           {
@@ -256,53 +470,12 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      group_summaries: {
-        Row: {
-          assistant_id: string | null
-          created_at: string
-          group_id: string
-          id: string
-          metadata: Json | null
-          period_end: string
-          period_start: string
-          summary_text: string
-        }
-        Insert: {
-          assistant_id?: string | null
-          created_at?: string
-          group_id: string
-          id?: string
-          metadata?: Json | null
-          period_end: string
-          period_start: string
-          summary_text: string
-        }
-        Update: {
-          assistant_id?: string | null
-          created_at?: string
-          group_id?: string
-          id?: string
-          metadata?: Json | null
-          period_end?: string
-          period_start?: string
-          summary_text?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "group_summaries_group_id_fkey"
-            columns: ["group_id"]
+            foreignKeyName: "groups_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "groups"
+            referencedRelation: "v_organizations_br_time"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "group_summaries_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "v_group_overview"
-            referencedColumns: ["group_id"]
           },
         ]
       }
@@ -359,11 +532,39 @@ export type Database = {
             referencedColumns: ["group_id"]
           },
           {
+            foreignKeyName: "member_events_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "member_events_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "v_members_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "v_messages_with_members"
+            referencedColumns: ["member_id_resolved"]
+          },
+          {
+            foreignKeyName: "member_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "vw_groups_members"
+            referencedColumns: ["member_id"]
           },
         ]
       }
@@ -372,7 +573,6 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           display_name: string | null
-          first_seen_at: string | null
           group_id: string
           id: string
           is_admin: boolean
@@ -387,16 +587,16 @@ export type Database = {
           phone_e164: string | null
           profile_pic_url: string | null
           provider: string | null
-          whatsapp_provider_id: string | null
+          provider_member_id: string | null
           raw_provider: Json | null
           status: string | null
           updated_at: string
+          whatsapp_provider_id: string | null
         }
         Insert: {
           created_at?: string
           deleted_at?: string | null
           display_name?: string | null
-          first_seen_at?: string | null
           group_id: string
           id?: string
           is_admin?: boolean
@@ -411,16 +611,16 @@ export type Database = {
           phone_e164?: string | null
           profile_pic_url?: string | null
           provider?: string | null
-          whatsapp_provider_id?: string | null
+          provider_member_id?: string | null
           raw_provider?: Json | null
           status?: string | null
           updated_at?: string
+          whatsapp_provider_id?: string | null
         }
         Update: {
           created_at?: string
           deleted_at?: string | null
           display_name?: string | null
-          first_seen_at?: string | null
           group_id?: string
           id?: string
           is_admin?: boolean
@@ -435,10 +635,11 @@ export type Database = {
           phone_e164?: string | null
           profile_pic_url?: string | null
           provider?: string | null
-          whatsapp_provider_id?: string | null
+          provider_member_id?: string | null
           raw_provider?: Json | null
           status?: string | null
           updated_at?: string
+          whatsapp_provider_id?: string | null
         }
         Relationships: [
           {
@@ -455,6 +656,13 @@ export type Database = {
             referencedRelation: "v_group_overview"
             referencedColumns: ["group_id"]
           },
+          {
+            foreignKeyName: "members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
         ]
       }
       message_reactions: {
@@ -468,13 +676,13 @@ export type Database = {
           message_id: string
           metadata: Json | null
           provider: string | null
-          whatsapp_provider_id: string | null
           provider_reaction_key: string | null
           raw_provider: Json | null
           reacted_at: string
           removed_at: string | null
           status: string | null
           updated_at: string
+          whatsapp_provider_id: string | null
         }
         Insert: {
           created_at?: string
@@ -486,13 +694,13 @@ export type Database = {
           message_id: string
           metadata?: Json | null
           provider?: string | null
-          whatsapp_provider_id?: string | null
           provider_reaction_key?: string | null
           raw_provider?: Json | null
           reacted_at?: string
           removed_at?: string | null
           status?: string | null
           updated_at?: string
+          whatsapp_provider_id?: string | null
         }
         Update: {
           created_at?: string
@@ -504,18 +712,19 @@ export type Database = {
           message_id?: string
           metadata?: Json | null
           provider?: string | null
-          whatsapp_provider_id?: string | null
           provider_reaction_key?: string | null
           raw_provider?: Json | null
           reacted_at?: string
           removed_at?: string | null
           status?: string | null
           updated_at?: string
+          whatsapp_provider_id?: string | null
         }
         Relationships: []
       }
       messages: {
         Row: {
+          chat_whatsapp_provider_id: string | null
           content: string | null
           created_at: string
           deleted_at: string | null
@@ -539,8 +748,6 @@ export type Database = {
           message_type: string
           metadata: Json | null
           provider: string | null
-          chat_whatsapp_provider_id: string | null
-          whatsapp_provider_id: string | null
           raw_provider: Json | null
           read_count: number | null
           reference_message_id: string | null
@@ -551,9 +758,11 @@ export type Database = {
           text: string | null
           thumbnail_url: string | null
           type: string | null
-          updated_at: string | null
+          updated_at: string
+          whatsapp_provider_id: string | null
         }
         Insert: {
+          chat_whatsapp_provider_id?: string | null
           content?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -577,8 +786,6 @@ export type Database = {
           message_type?: string
           metadata?: Json | null
           provider?: string | null
-          chat_whatsapp_provider_id?: string | null
-          whatsapp_provider_id?: string | null
           raw_provider?: Json | null
           read_count?: number | null
           reference_message_id?: string | null
@@ -589,9 +796,11 @@ export type Database = {
           text?: string | null
           thumbnail_url?: string | null
           type?: string | null
-          updated_at?: string | null
+          updated_at?: string
+          whatsapp_provider_id?: string | null
         }
         Update: {
+          chat_whatsapp_provider_id?: string | null
           content?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -615,8 +824,6 @@ export type Database = {
           message_type?: string
           metadata?: Json | null
           provider?: string | null
-          chat_whatsapp_provider_id?: string | null
-          whatsapp_provider_id?: string | null
           raw_provider?: Json | null
           read_count?: number | null
           reference_message_id?: string | null
@@ -627,7 +834,8 @@ export type Database = {
           text?: string | null
           thumbnail_url?: string | null
           type?: string | null
-          updated_at?: string | null
+          updated_at?: string
+          whatsapp_provider_id?: string | null
         }
         Relationships: [
           {
@@ -645,11 +853,39 @@ export type Database = {
             referencedColumns: ["group_id"]
           },
           {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "messages_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "v_members_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "v_messages_with_members"
+            referencedColumns: ["member_id_resolved"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "vw_groups_members"
+            referencedColumns: ["member_id"]
           },
         ]
       }
@@ -695,6 +931,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "organization_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
         ]
       }
       organizations: {
@@ -715,6 +958,9 @@ export type Database = {
           settings: Json | null
           slug: string | null
           status: string
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
           trial_ends_at: string | null
           trial_started_at: string | null
           updated_at: string
@@ -736,6 +982,9 @@ export type Database = {
           settings?: Json | null
           slug?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
           updated_at?: string
@@ -757,6 +1006,9 @@ export type Database = {
           settings?: Json | null
           slug?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           trial_started_at?: string | null
           updated_at?: string
@@ -767,6 +1019,214 @@ export type Database = {
             columns: ["owner_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizations_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poll_options: {
+        Row: {
+          id: string
+          option_index: number
+          option_text: string
+          poll_id: string
+        }
+        Insert: {
+          id?: string
+          option_index: number
+          option_text: string
+          poll_id: string
+        }
+        Update: {
+          id?: string
+          option_index?: number
+          option_text?: string
+          poll_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_options_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_options_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "v_polls_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poll_votes: {
+        Row: {
+          created_at: string
+          id: string
+          person_id: string | null
+          poll_id: string
+          provider: string
+          provider_vote_message_id: string | null
+          raw_payload: Json | null
+          vote_sequence: number | null
+          voted_options: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          person_id?: string | null
+          poll_id: string
+          provider?: string
+          provider_vote_message_id?: string | null
+          raw_payload?: Json | null
+          vote_sequence?: number | null
+          voted_options: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          person_id?: string | null
+          poll_id?: string
+          provider?: string
+          provider_vote_message_id?: string | null
+          raw_payload?: Json | null
+          vote_sequence?: number | null
+          voted_options?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_members_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_messages_with_members"
+            referencedColumns: ["member_id_resolved"]
+          },
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "vw_groups_members"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "v_polls_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      polls: {
+        Row: {
+          created_at: string
+          created_by_person_id: string | null
+          group_id: string
+          id: string
+          max_options: number | null
+          max_votes_per_member: number
+          provider: string
+          question: string
+          whatsapp_provider_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_person_id?: string | null
+          group_id: string
+          id?: string
+          max_options?: number | null
+          max_votes_per_member?: number
+          provider?: string
+          question: string
+          whatsapp_provider_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by_person_id?: string | null
+          group_id?: string
+          id?: string
+          max_options?: number | null
+          max_votes_per_member?: number
+          provider?: string
+          question?: string
+          whatsapp_provider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "polls_created_by_person_id_fkey"
+            columns: ["created_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "polls_created_by_person_id_fkey"
+            columns: ["created_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "v_members_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "polls_created_by_person_id_fkey"
+            columns: ["created_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "v_messages_with_members"
+            referencedColumns: ["member_id_resolved"]
+          },
+          {
+            foreignKeyName: "polls_created_by_person_id_fkey"
+            columns: ["created_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "vw_groups_members"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "polls_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "polls_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "polls_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
             referencedColumns: ["id"]
           },
         ]
@@ -825,6 +1285,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_access_scope: {
+        Row: {
+          created_at: string
+          id: string
+          scope_id: string
+          scope_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          scope_id: string
+          scope_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          scope_id?: string
+          scope_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -866,16 +1350,167 @@ export type Database = {
             referencedColumns: ["group_id"]
           },
           {
+            foreignKeyName: "user_roles_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "user_roles_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_roles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
+      v_events_br_time: {
+        Row: {
+          created_at: string | null
+          created_at_local: string | null
+          entity_id: string | null
+          entity_type: string | null
+          event_type: string | null
+          id: string | null
+          metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_at_local?: never
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string | null
+          id?: string | null
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_at_local?: never
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string | null
+          id?: string | null
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      v_group_members_br_time: {
+        Row: {
+          created_at: string | null
+          created_at_local: string | null
+          deleted_at: string | null
+          granted_at: string | null
+          granted_by_user_id: string | null
+          group_id: string | null
+          id: string | null
+          is_active: boolean | null
+          metadata: Json | null
+          revoked_at: string | null
+          role_in_group: string | null
+          status: string | null
+          updated_at: string | null
+          updated_at_local: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_at_local?: never
+          deleted_at?: string | null
+          granted_at?: string | null
+          granted_by_user_id?: string | null
+          group_id?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          metadata?: Json | null
+          revoked_at?: string | null
+          role_in_group?: string | null
+          status?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_at_local?: never
+          deleted_at?: string | null
+          granted_at?: string | null
+          granted_by_user_id?: string | null
+          group_id?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          metadata?: Json | null
+          revoked_at?: string | null
+          role_in_group?: string | null
+          status?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_granted_by_user_id_fkey"
+            columns: ["granted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_granted_by_user_id_fkey"
+            columns: ["granted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_group_overview: {
         Row: {
           counts_cache: Json | null
@@ -893,8 +1528,8 @@ export type Database = {
           messages_count: number | null
           organization_id: string | null
           provider: string | null
-          whatsapp_provider_id: string | null
           sync_status: string | null
+          whatsapp_provider_id: string | null
         }
         Insert: {
           counts_cache?: Json | null
@@ -912,8 +1547,8 @@ export type Database = {
           messages_count?: never
           organization_id?: string | null
           provider?: string | null
-          whatsapp_provider_id?: string | null
           sync_status?: string | null
+          whatsapp_provider_id?: string | null
         }
         Update: {
           counts_cache?: Json | null
@@ -931,8 +1566,8 @@ export type Database = {
           messages_count?: never
           organization_id?: string | null
           provider?: string | null
-          whatsapp_provider_id?: string | null
           sync_status?: string | null
+          whatsapp_provider_id?: string | null
         }
         Relationships: [
           {
@@ -940,6 +1575,209 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_groups_br_time: {
+        Row: {
+          counts_cache: Json | null
+          created_at: string | null
+          created_at_local: string | null
+          created_at_provider: string | null
+          deleted_at: string | null
+          description: string | null
+          id: string | null
+          invite_link: string | null
+          invite_link_status: string | null
+          is_active: boolean | null
+          is_archived: boolean | null
+          last_sync_at: string | null
+          metadata: Json | null
+          name: string | null
+          organization_id: string | null
+          provider: string | null
+          provider_phone: string | null
+          raw_provider: Json | null
+          status: string | null
+          sync_error: string | null
+          sync_status: string | null
+          updated_at: string | null
+          updated_at_local: string | null
+          whatsapp_provider_id: string | null
+        }
+        Insert: {
+          counts_cache?: Json | null
+          created_at?: string | null
+          created_at_local?: never
+          created_at_provider?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string | null
+          invite_link?: string | null
+          invite_link_status?: string | null
+          is_active?: boolean | null
+          is_archived?: boolean | null
+          last_sync_at?: string | null
+          metadata?: Json | null
+          name?: string | null
+          organization_id?: string | null
+          provider?: string | null
+          provider_phone?: string | null
+          raw_provider?: Json | null
+          status?: string | null
+          sync_error?: string | null
+          sync_status?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          whatsapp_provider_id?: string | null
+        }
+        Update: {
+          counts_cache?: Json | null
+          created_at?: string | null
+          created_at_local?: never
+          created_at_provider?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string | null
+          invite_link?: string | null
+          invite_link_status?: string | null
+          is_active?: boolean | null
+          is_archived?: boolean | null
+          last_sync_at?: string | null
+          metadata?: Json | null
+          name?: string | null
+          organization_id?: string | null
+          provider?: string | null
+          provider_phone?: string | null
+          raw_provider?: Json | null
+          status?: string | null
+          sync_error?: string | null
+          sync_status?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          whatsapp_provider_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_members_br_time: {
+        Row: {
+          created_at: string | null
+          created_at_local: string | null
+          deleted_at: string | null
+          display_name: string | null
+          group_id: string | null
+          id: string | null
+          is_admin: boolean | null
+          is_owner: boolean | null
+          is_super_admin: boolean | null
+          joined_at: string | null
+          last_seen_message_at: string | null
+          left_at: string | null
+          lid: string | null
+          metadata: Json | null
+          name: string | null
+          phone_e164: string | null
+          profile_pic_url: string | null
+          provider: string | null
+          raw_provider: Json | null
+          status: string | null
+          updated_at: string | null
+          updated_at_local: string | null
+          whatsapp_provider_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_at_local?: never
+          deleted_at?: string | null
+          display_name?: string | null
+          group_id?: string | null
+          id?: string | null
+          is_admin?: boolean | null
+          is_owner?: boolean | null
+          is_super_admin?: boolean | null
+          joined_at?: string | null
+          last_seen_message_at?: string | null
+          left_at?: string | null
+          lid?: string | null
+          metadata?: Json | null
+          name?: string | null
+          phone_e164?: string | null
+          profile_pic_url?: string | null
+          provider?: string | null
+          raw_provider?: Json | null
+          status?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          whatsapp_provider_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_at_local?: never
+          deleted_at?: string | null
+          display_name?: string | null
+          group_id?: string | null
+          id?: string | null
+          is_admin?: boolean | null
+          is_owner?: boolean | null
+          is_super_admin?: boolean | null
+          joined_at?: string | null
+          last_seen_message_at?: string | null
+          left_at?: string | null
+          lid?: string | null
+          metadata?: Json | null
+          name?: string | null
+          phone_e164?: string | null
+          profile_pic_url?: string | null
+          provider?: string | null
+          raw_provider?: Json | null
+          status?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          whatsapp_provider_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
             referencedColumns: ["id"]
           },
         ]
@@ -954,11 +1792,74 @@ export type Database = {
           member_name: string | null
           member_phone: string | null
           message_id: string | null
-          whatsapp_provider_id: string | null
           reacted_at: string | null
           reaction_id: string | null
           reaction_status: string | null
           removed_at: string | null
+          whatsapp_provider_id: string | null
+        }
+        Relationships: []
+      }
+      v_message_reactions_br_time: {
+        Row: {
+          created_at: string | null
+          created_at_local: string | null
+          deleted_at: string | null
+          emoji: string | null
+          group_id: string | null
+          id: string | null
+          member_id: string | null
+          message_id: string | null
+          metadata: Json | null
+          provider: string | null
+          provider_reaction_key: string | null
+          raw_provider: Json | null
+          reacted_at: string | null
+          removed_at: string | null
+          status: string | null
+          updated_at: string | null
+          updated_at_local: string | null
+          whatsapp_provider_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_at_local?: never
+          deleted_at?: string | null
+          emoji?: string | null
+          group_id?: string | null
+          id?: string | null
+          member_id?: string | null
+          message_id?: string | null
+          metadata?: Json | null
+          provider?: string | null
+          provider_reaction_key?: string | null
+          raw_provider?: Json | null
+          reacted_at?: string | null
+          removed_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          whatsapp_provider_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_at_local?: never
+          deleted_at?: string | null
+          emoji?: string | null
+          group_id?: string | null
+          id?: string | null
+          member_id?: string | null
+          message_id?: string | null
+          metadata?: Json | null
+          provider?: string | null
+          provider_reaction_key?: string | null
+          raw_provider?: Json | null
+          reacted_at?: string | null
+          removed_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          whatsapp_provider_id?: string | null
         }
         Relationships: []
       }
@@ -970,6 +1871,179 @@ export type Database = {
           reactors: Json[] | null
         }
         Relationships: []
+      }
+      v_messages_br_time: {
+        Row: {
+          chat_whatsapp_provider_id: string | null
+          content: string | null
+          created_at: string | null
+          created_at_local: string | null
+          deleted_at: string | null
+          delivered_at: string | null
+          delivery_status: string | null
+          direction: string | null
+          edited_at: string | null
+          from_me: boolean | null
+          group_id: string | null
+          id: string | null
+          is_deleted: boolean | null
+          is_edit: boolean | null
+          last_read_at: string | null
+          media_caption: string | null
+          media_duration_sec: number | null
+          media_mime_type: string | null
+          media_size_bytes: number | null
+          media_url: string | null
+          member_id: string | null
+          message_ts: string | null
+          message_type: string | null
+          metadata: Json | null
+          provider: string | null
+          raw_provider: Json | null
+          read_count: number | null
+          reference_message_id: string | null
+          reply_to_whatsapp_provider_id: string | null
+          sender_name: string | null
+          sender_phone: string | null
+          status: string | null
+          text: string | null
+          thumbnail_url: string | null
+          type: string | null
+          updated_at: string | null
+          updated_at_local: string | null
+          whatsapp_provider_id: string | null
+        }
+        Insert: {
+          chat_whatsapp_provider_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          created_at_local?: never
+          deleted_at?: string | null
+          delivered_at?: string | null
+          delivery_status?: string | null
+          direction?: string | null
+          edited_at?: string | null
+          from_me?: boolean | null
+          group_id?: string | null
+          id?: string | null
+          is_deleted?: boolean | null
+          is_edit?: boolean | null
+          last_read_at?: string | null
+          media_caption?: string | null
+          media_duration_sec?: number | null
+          media_mime_type?: string | null
+          media_size_bytes?: number | null
+          media_url?: string | null
+          member_id?: string | null
+          message_ts?: string | null
+          message_type?: string | null
+          metadata?: Json | null
+          provider?: string | null
+          raw_provider?: Json | null
+          read_count?: number | null
+          reference_message_id?: string | null
+          reply_to_whatsapp_provider_id?: string | null
+          sender_name?: string | null
+          sender_phone?: string | null
+          status?: string | null
+          text?: string | null
+          thumbnail_url?: string | null
+          type?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          whatsapp_provider_id?: string | null
+        }
+        Update: {
+          chat_whatsapp_provider_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          created_at_local?: never
+          deleted_at?: string | null
+          delivered_at?: string | null
+          delivery_status?: string | null
+          direction?: string | null
+          edited_at?: string | null
+          from_me?: boolean | null
+          group_id?: string | null
+          id?: string | null
+          is_deleted?: boolean | null
+          is_edit?: boolean | null
+          last_read_at?: string | null
+          media_caption?: string | null
+          media_duration_sec?: number | null
+          media_mime_type?: string | null
+          media_size_bytes?: number | null
+          media_url?: string | null
+          member_id?: string | null
+          message_ts?: string | null
+          message_type?: string | null
+          metadata?: Json | null
+          provider?: string | null
+          raw_provider?: Json | null
+          read_count?: number | null
+          reference_message_id?: string | null
+          reply_to_whatsapp_provider_id?: string | null
+          sender_name?: string | null
+          sender_phone?: string | null
+          status?: string | null
+          text?: string | null
+          thumbnail_url?: string | null
+          type?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          whatsapp_provider_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "v_members_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "v_messages_with_members"
+            referencedColumns: ["member_id_resolved"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "vw_groups_members"
+            referencedColumns: ["member_id"]
+          },
+        ]
       }
       v_messages_feed: {
         Row: {
@@ -988,9 +2062,120 @@ export type Database = {
           message_id: string | null
           message_type: string | null
           provider: string | null
-          whatsapp_provider_id: string | null
           sender_phone: string | null
           status: string | null
+          type: string | null
+          whatsapp_provider_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "v_members_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "v_messages_with_members"
+            referencedColumns: ["member_id_resolved"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "vw_groups_members"
+            referencedColumns: ["member_id"]
+          },
+        ]
+      }
+      v_messages_with_members: {
+        Row: {
+          chat_whatsapp_provider_id: string | null
+          content: string | null
+          delivered_at: string | null
+          delivery_status: string | null
+          direction: string | null
+          display_name: string | null
+          edited_at: string | null
+          from_me: boolean | null
+          group_id: string | null
+          is_admin: boolean | null
+          is_deleted: boolean | null
+          is_edit: boolean | null
+          is_owner: boolean | null
+          is_super_admin: boolean | null
+          joined_at: string | null
+          last_read_at: string | null
+          last_seen_message_at: string | null
+          left_at: string | null
+          lid: string | null
+          media_caption: string | null
+          media_duration_sec: number | null
+          media_mime_type: string | null
+          media_size_bytes: number | null
+          media_url: string | null
+          member_created_at: string | null
+          member_deleted_at: string | null
+          member_id: string | null
+          member_id_resolved: string | null
+          member_metadata: Json | null
+          member_name: string | null
+          member_provider: string | null
+          member_provider_id: string | null
+          member_raw_provider: Json | null
+          member_status: string | null
+          member_updated_at: string | null
+          message_created_at: string | null
+          message_deleted_at: string | null
+          message_id: string | null
+          message_metadata: Json | null
+          message_provider: string | null
+          message_provider_id: string | null
+          message_raw_provider: Json | null
+          message_ts: string | null
+          message_type: string | null
+          message_updated_at: string | null
+          phone_e164: string | null
+          profile_pic_url: string | null
+          provider_member_id: string | null
+          read_count: number | null
+          reply_to_whatsapp_provider_id: string | null
+          sender_name: string | null
+          sender_phone: string | null
+          status: string | null
+          text: string | null
+          thumbnail_url: string | null
           type: string | null
         }
         Relationships: [
@@ -1009,10 +2194,640 @@ export type Database = {
             referencedColumns: ["group_id"]
           },
           {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "messages_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "v_members_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "v_messages_with_members"
+            referencedColumns: ["member_id_resolved"]
+          },
+          {
+            foreignKeyName: "messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "vw_groups_members"
+            referencedColumns: ["member_id"]
+          },
+        ]
+      }
+      v_organization_contacts_br_time: {
+        Row: {
+          created_at: string | null
+          created_at_local: string | null
+          email: string | null
+          id: string | null
+          is_primary: boolean | null
+          name: string | null
+          organization_id: string | null
+          phone: string | null
+          role_title: string | null
+          updated_at: string | null
+          updated_at_local: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_at_local?: never
+          email?: string | null
+          id?: string | null
+          is_primary?: boolean | null
+          name?: string | null
+          organization_id?: string | null
+          phone?: string | null
+          role_title?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+        }
+        Update: {
+          created_at?: string | null
+          created_at_local?: never
+          email?: string | null
+          id?: string | null
+          is_primary?: boolean | null
+          name?: string | null
+          organization_id?: string | null
+          phone?: string | null
+          role_title?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_organizations_br_time: {
+        Row: {
+          billing_plan: string | null
+          billing_status: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string | null
+          created_at_local: string | null
+          current_period_end: string | null
+          deleted_at: string | null
+          id: string | null
+          metadata: Json | null
+          name: string | null
+          owner_user_id: string | null
+          plan: string | null
+          settings: Json | null
+          slug: string | null
+          status: string | null
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          trial_ends_at: string | null
+          trial_started_at: string | null
+          updated_at: string | null
+          updated_at_local: string | null
+        }
+        Insert: {
+          billing_plan?: string | null
+          billing_status?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          created_at_local?: never
+          current_period_end?: string | null
+          deleted_at?: string | null
+          id?: string | null
+          metadata?: Json | null
+          name?: string | null
+          owner_user_id?: string | null
+          plan?: string | null
+          settings?: Json | null
+          slug?: string | null
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+        }
+        Update: {
+          billing_plan?: string | null
+          billing_status?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          created_at_local?: never
+          current_period_end?: string | null
+          deleted_at?: string | null
+          id?: string | null
+          metadata?: Json | null
+          name?: string | null
+          owner_user_id?: string | null
+          plan?: string | null
+          settings?: Json | null
+          slug?: string | null
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizations_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizations_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_poll_results: {
+        Row: {
+          option_index: number | null
+          option_text: string | null
+          poll_id: string | null
+          votes_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_options_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_options_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "v_polls_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_poll_summary: {
+        Row: {
+          poll_id: string | null
+          selections_count: number | null
+          vote_events_count: number | null
+          voters_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "v_polls_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_poll_votes_br_time: {
+        Row: {
+          created_at: string | null
+          created_at_local: string | null
+          id: string | null
+          person_id: string | null
+          poll_id: string | null
+          provider: string | null
+          voted_options: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_at_local?: never
+          id?: string | null
+          person_id?: string | null
+          poll_id?: string | null
+          provider?: string | null
+          voted_options?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          created_at_local?: never
+          id?: string | null
+          person_id?: string | null
+          poll_id?: string | null
+          provider?: string | null
+          voted_options?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_members_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_messages_with_members"
+            referencedColumns: ["member_id_resolved"]
+          },
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "vw_groups_members"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "v_polls_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_poll_votes_by_person: {
+        Row: {
+          created_at: string | null
+          person_id: string | null
+          person_name: string | null
+          poll_id: string | null
+          vote_sequence: number | null
+          voted_options: Json | null
+          votes_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_members_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_messages_with_members"
+            referencedColumns: ["member_id_resolved"]
+          },
+          {
+            foreignKeyName: "poll_votes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "vw_groups_members"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "v_polls_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_polls_br_time: {
+        Row: {
+          created_at: string | null
+          created_at_local: string | null
+          created_by_person_id: string | null
+          group_id: string | null
+          id: string | null
+          max_options: number | null
+          provider: string | null
+          question: string | null
+          whatsapp_provider_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_at_local?: never
+          created_by_person_id?: string | null
+          group_id?: string | null
+          id?: string | null
+          max_options?: number | null
+          provider?: string | null
+          question?: string | null
+          whatsapp_provider_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_at_local?: never
+          created_by_person_id?: string | null
+          group_id?: string | null
+          id?: string | null
+          max_options?: number | null
+          provider?: string | null
+          question?: string | null
+          whatsapp_provider_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "polls_created_by_person_id_fkey"
+            columns: ["created_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "polls_created_by_person_id_fkey"
+            columns: ["created_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "v_members_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "polls_created_by_person_id_fkey"
+            columns: ["created_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "v_messages_with_members"
+            referencedColumns: ["member_id_resolved"]
+          },
+          {
+            foreignKeyName: "polls_created_by_person_id_fkey"
+            columns: ["created_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "vw_groups_members"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "polls_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "polls_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "polls_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_profiles_br_time: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          created_at_local: string | null
+          deleted_at: string | null
+          id: string | null
+          is_active: boolean | null
+          last_login_at: string | null
+          locale: string | null
+          metadata: Json | null
+          name: string | null
+          phone_e164: string | null
+          role_global: string | null
+          status: string | null
+          timezone: string | null
+          updated_at: string | null
+          updated_at_local: string | null
+          whatsapp_verified_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          created_at_local?: never
+          deleted_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_login_at?: string | null
+          locale?: string | null
+          metadata?: Json | null
+          name?: string | null
+          phone_e164?: string | null
+          role_global?: string | null
+          status?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          whatsapp_verified_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          created_at_local?: never
+          deleted_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_login_at?: string | null
+          locale?: string | null
+          metadata?: Json | null
+          name?: string | null
+          phone_e164?: string | null
+          role_global?: string | null
+          status?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          updated_at_local?: never
+          whatsapp_verified_at?: string | null
+        }
+        Relationships: []
+      }
+      v_user_roles_br_time: {
+        Row: {
+          created_at: string | null
+          created_at_local: string | null
+          group_id: string | null
+          id: string | null
+          organization_id: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_at_local?: never
+          group_id?: string | null
+          id?: string | null
+          organization_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_at_local?: never
+          group_id?: string | null
+          id?: string | null
+          organization_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "user_roles_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_groups_members: {
+        Row: {
+          display_name: string | null
+          group_id: string | null
+          group_name: string | null
+          is_admin: boolean | null
+          is_owner: boolean | null
+          is_super_admin: boolean | null
+          joined_at: string | null
+          last_message_at: string | null
+          last_message_preview: string | null
+          last_seen_message_at: string | null
+          left_at: string | null
+          member_id: string | null
+          messages_count: number | null
+          name: string | null
+          organization_id: string | null
+          phone_e164: string | null
+          profile_pic_url: string | null
+          provider: string | null
+          provider_member_id: string | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
             referencedColumns: ["id"]
           },
         ]
@@ -1033,15 +2848,15 @@ export type Database = {
       }
       get_group_peak_moment: {
         Args: {
+          p_end: string
           p_group_id: string
           p_start: string
-          p_end: string
           p_window_minutes?: number
         }
         Returns: Json
       }
       get_system_signal_concentration: {
-        Args: { p_start: string; p_end: string; p_limit?: number }
+        Args: { p_end: string; p_limit?: number; p_start: string }
         Returns: Json
       }
       has_group_access: {
@@ -1067,9 +2882,9 @@ export type Database = {
         | "MEMBERSHIP_APPROVAL_REQUEST"
         | "REVOKED_MEMBERSHIP_REQUESTS"
         | "GROUP_PARTICIPANT_ADD"
-        | "GROUP_PARTICIPANT_INVITE"
         | "GROUP_PARTICIPANT_LEAVE"
         | "GROUP_PARTICIPANT_REMOVE"
+        | "GROUP_PARTICIPANT_INVITE"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1202,9 +3017,9 @@ export const Constants = {
         "MEMBERSHIP_APPROVAL_REQUEST",
         "REVOKED_MEMBERSHIP_REQUESTS",
         "GROUP_PARTICIPANT_ADD",
-        "GROUP_PARTICIPANT_INVITE",
         "GROUP_PARTICIPANT_LEAVE",
         "GROUP_PARTICIPANT_REMOVE",
+        "GROUP_PARTICIPANT_INVITE",
       ],
     },
   },
