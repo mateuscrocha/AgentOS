@@ -1,11 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
+const DenoRef = (globalThis as any).Deno;
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+const MAX_PASSWORD_LENGTH = 72;
 
 function normalizePhoneE164(phone: string): string {
   const raw = (phone || "").trim();
@@ -17,7 +21,14 @@ function normalizePhoneE164(phone: string): string {
   return "+55" + digits;
 }
 
-export default Deno.serve(async (req: Request) => {
+export function createAdminCreateUserHandler(args?: {
+  createClientImpl?: typeof createClient;
+  env?: { get: (key: string) => string | undefined };
+}) {
+  const createClientImpl = args?.createClientImpl ?? createClient;
+  const env = args?.env ?? DenoRef.env;
+
+  return async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -32,16 +43,16 @@ export default Deno.serve(async (req: Request) => {
     });
 
   try {
-    const url = Deno.env.get("SUPABASE_URL")!;
-    const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const url = env.get("SUPABASE_URL")!;
+    const anon = env.get("SUPABASE_ANON_KEY")!;
+    const service = env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const authHeader = req.headers.get("Authorization") || "";
     if (!authHeader.startsWith("Bearer ")) {
       return json({ success: false, message: "Unauthorized" }, 401);
     }
 
-    const supabaseUser = createClient(url, anon, {
+    const supabaseUser = createClientImpl(url, anon, {
       global: { headers: { Authorization: authHeader } },
     });
 
@@ -79,6 +90,14 @@ export default Deno.serve(async (req: Request) => {
       console.log(JSON.stringify({ stage: 'validation', payload: { name: !!payload?.name, email: !!payload?.email, scope_type: payload?.scope_type, scope_id: payload?.scope_id }, status: 400 }));
       return json({ success: false, message: "Dados obrigatórios ausentes", code: 'VALIDATION_ERROR' }, 400);
     }
+    const passwordLen = (payload.password || "").length;
+    if (passwordLen > MAX_PASSWORD_LENGTH) {
+      console.log(JSON.stringify({ stage: 'validation_password_too_long', len: passwordLen, status: 400 }));
+      return json(
+        { success: false, message: `Senha muito longa. Use no máximo ${MAX_PASSWORD_LENGTH} caracteres.`, code: 'PASSWORD_TOO_LONG' },
+        400
+      );
+    }
     if (!payload.scope_type || !payload.scope_id) {
       console.log(JSON.stringify({ stage: 'validation_scope', payload: { scope_type: payload.scope_type, scope_id: payload.scope_id }, status: 400 }));
       return json({ success: false, message: "Escopo inicial obrigatório", code: 'VALIDATION_ERROR' }, 400);
@@ -88,7 +107,7 @@ export default Deno.serve(async (req: Request) => {
       return json({ success: false, message: "Escopo inválido", code: 'VALIDATION_ERROR' }, 400);
     }
 
-    const supabaseAdmin = createClient(url, service);
+    const supabaseAdmin = createClientImpl(url, service);
 
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email: payload.email,
@@ -166,4 +185,13 @@ export default Deno.serve(async (req: Request) => {
     console.log(JSON.stringify({ stage: 'catch', error: err?.message, status: 500 }));
     return json({ success: false, message: err?.message || "Erro interno", code: 'SERVER_ERROR' }, 500);
   }
-});
+  };
+}
+
+const handler = createAdminCreateUserHandler();
+
+if ((import.meta as any).main) {
+  DenoRef.serve(handler);
+}
+
+export default handler;

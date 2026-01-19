@@ -15,7 +15,9 @@ import { z } from "zod";
 import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
 
 const nameSchema = z.string().min(1, "Nome é obrigatório").max(100, "Nome deve ter no máximo 100 caracteres");
-const passwordSchema = z.string().min(8, "Senha deve ter pelo menos 8 caracteres");
+const passwordSchema = z
+  .string()
+  .regex(/^\d{6}$/, "Senha deve ter exatamente 6 dígitos");
 
 const Account = () => {
   const { user, loading, signOut, isAuthenticated } = useAuth();
@@ -313,8 +315,12 @@ const Account = () => {
                     id="newPassword"
                     type={showPassword ? "text" : "password"}
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••"
+                    onChange={(e) => setNewPassword(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="••••••"
+                    inputMode="numeric"
+                    pattern="\\d{6}"
+                    maxLength={6}
+                    autoComplete="new-password"
                     className="pr-10"
                   />
                   <button
@@ -325,6 +331,7 @@ const Account = () => {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                <p className="text-xs text-muted-foreground">Exatamente 6 dígitos.</p>
               </div>
 
               {/* Confirm password */}
@@ -334,8 +341,12 @@ const Account = () => {
                   id="confirmPassword"
                   type={showPassword ? "text" : "password"}
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
+                  onChange={(e) => setConfirmPassword(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="••••••"
+                  inputMode="numeric"
+                  pattern="\\d{6}"
+                  maxLength={6}
+                  autoComplete="new-password"
                 />
               </div>
 
