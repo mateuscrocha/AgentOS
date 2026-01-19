@@ -4,10 +4,15 @@ import { act } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 const refetchMock = vi.fn();
+const insertEventMock = vi.fn(async () => ({ error: null }));
+let groupEditData: any | undefined;
+let initialGroupEditData: any | undefined;
+let GroupEditComponent: any;
+let isSystemAdminValue = true;
 
 vi.mock("@/hooks/use-auth", () => {
   return {
-    useAuth: () => ({ loading: false, isAuthenticated: true }),
+    useAuth: () => ({ loading: false, isAuthenticated: true, user: { id: "00000000-0000-4000-8000-000000000099" } }),
   };
 });
 
@@ -15,7 +20,7 @@ vi.mock("@/hooks/use-user-roles", () => {
   return {
     useUserRoles: () => ({
       isLoading: false,
-      canEditGroup: () => true,
+      isSystemAdmin: isSystemAdminValue,
     }),
   };
 });
@@ -50,7 +55,11 @@ vi.mock("@/components/ui/switch", () => {
 
 vi.mock("@/integrations/supabase/client", () => {
   return {
-    supabase: {},
+    supabase: {
+      from: () => ({
+        insert: insertEventMock,
+      }),
+    },
   };
 });
 
@@ -79,12 +88,15 @@ vi.mock("@tanstack/react-query", async () => {
     sync_status: null,
   };
 
+  initialGroupEditData = mockGroup;
+  groupEditData = mockGroup;
+
   return {
     ...actual,
     useQuery: (opts: any) => {
       const key = Array.isArray(opts?.queryKey) ? opts.queryKey[0] : opts?.queryKey;
       if (key === "group-edit") {
-        return { data: mockGroup, isLoading: false, error: null, refetch: refetchMock };
+        return { data: groupEditData, isLoading: false, error: null, refetch: refetchMock };
       }
       if (key === "group-members-count") {
         return { data: 0 };
@@ -100,23 +112,50 @@ vi.mock("@tanstack/react-query", async () => {
 });
 
 describe("GroupEdit — ajustes de UI", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     refetchMock.mockReset();
+    insertEventMock.mockClear();
+    isSystemAdminValue = true;
+    groupEditData = initialGroupEditData;
+    GroupEditComponent = (await import("./GroupEdit")).default;
   });
 
-  it("mantém nome como somente leitura e remove Frequência/Privacidade", async () => {
+  it("não quebra quando dados do grupo ainda não carregaram", async () => {
+    groupEditData = undefined;
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-
-    const { default: GroupEdit } = await import("./GroupEdit");
 
     await act(async () => {
       root.render(
         <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}>
           <Routes>
-            <Route path="/groups/:groupId/edit" element={<GroupEdit />} />
+            <Route path="/groups/:groupId/edit" element={<GroupEditComponent />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain("Carregando");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("mantém nome como somente leitura e remove Frequência/Privacidade", async () => {
+    groupEditData = initialGroupEditData;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}>
+          <Routes>
+            <Route path="/groups/:groupId/edit" element={<GroupEditComponent />} />
           </Routes>
         </MemoryRouter>
       );
@@ -135,5 +174,30 @@ describe("GroupEdit — ajustes de UI", () => {
     });
     container.remove();
   });
-});
 
+  it("bloqueia acesso para não-SYSTEM_ADMIN e registra evento", async () => {
+    isSystemAdminValue = false;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}>
+          <Routes>
+            <Route path="/groups/:groupId/edit" element={<GroupEditComponent />} />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+
+    expect(container.textContent).toContain("Acesso Negado");
+    expect(container.textContent).toContain("SYSTEM_ADMIN");
+    expect(insertEventMock).toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+});

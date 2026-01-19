@@ -105,15 +105,16 @@ export function AdminSidebar() {
 
   const groupItems: NavItem[] = useMemo(() => {
     if (!currentGroupId) return [];
-    return [
+    const items: NavItem[] = [
       { icon: LayoutDashboard, label: "Painel do grupo", href: `/groups/${currentGroupId}` },
       { icon: FileText, label: "Diário", href: `/groups/${currentGroupId}/summaries` },
       { icon: MessageSquare, label: "Mensagens", href: `/groups/${currentGroupId}/messages` },
       { icon: Users, label: "Membros", href: `/groups/${currentGroupId}/members` },
       { icon: ListChecks, label: "Enquetes", href: `/groups/${currentGroupId}/polls` },
-      { icon: Settings, label: "Configurações do grupo", href: `/groups/${currentGroupId}/edit` },
     ];
-  }, [currentGroupId]);
+    if (isSystemAdmin) items.push({ icon: Settings, label: "Configurações do grupo", href: `/groups/${currentGroupId}/edit` });
+    return items;
+  }, [currentGroupId, isSystemAdmin]);
 
   const adminItems: NavItem[] = useMemo(() => {
     if (!isSystemAdmin) return [];
