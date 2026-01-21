@@ -481,7 +481,6 @@ const GroupSummaries = () => {
             lastMessageAt: lastMessageAt ?? null,
             syncStatus: groupInfo?.syncStatus || null,
           }}
-          activeTab="resumos"
         />
 
         {isLoading ? (

@@ -664,7 +664,6 @@ const GroupMessages = () => {
             lastMessageAt: lastMessageAt ?? null,
             syncStatus: groupInfo?.syncStatus || null,
           }}
-          activeTab="mensagens"
           filters={(
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
               <div className="relative w-full sm:max-w-sm">

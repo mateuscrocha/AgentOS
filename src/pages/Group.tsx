@@ -216,7 +216,6 @@ const Group = () => {
             lastMessageAt: stats.lastMessageAt,
             syncStatus: group?.sync_status,
           }}
-          activeTab="painel"
           filters={(
             <PeriodFilter
               value={selectedPeriod}

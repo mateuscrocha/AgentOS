@@ -85,7 +85,6 @@ describe("GroupPageTop — aba Configurações", () => {
               lastMessageAt: null,
               syncStatus: null,
             }}
-            activeTab="painel"
           />
         </MemoryRouter>
       );
@@ -119,7 +118,6 @@ describe("GroupPageTop — aba Configurações", () => {
               lastMessageAt: null,
               syncStatus: null,
             }}
-            activeTab="painel"
           />
         </MemoryRouter>
       );

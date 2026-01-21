@@ -218,7 +218,6 @@ export default function GroupEvents() {
             lastMessageAt: lastMessageAt ?? null,
             syncStatus: group?.sync_status || null,
           }}
-          activeTab="painel"
           filters={(
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2">

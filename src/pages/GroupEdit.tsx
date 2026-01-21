@@ -754,7 +754,6 @@ export default function GroupEdit() {
             lastMessageAt: lastActivityAt || null,
             syncStatus: group.sync_status || null,
           }}
-          activeTab="configuracoes"
           rightActions={(
             <NavLink
               to={`/groups/${group.id}`}

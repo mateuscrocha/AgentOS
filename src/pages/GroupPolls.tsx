@@ -209,7 +209,6 @@ export default function GroupPolls() {
             lastMessageAt: lastMessageAt ?? null,
             syncStatus: groupInfo?.syncStatus || null,
           }}
-          activeTab="enquetes"
           filters={(
             <PeriodFilter
               value={selectedPeriod}

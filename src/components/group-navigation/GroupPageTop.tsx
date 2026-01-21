@@ -9,8 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-type ActiveTab = "painel" | "membros" | "mensagens" | "resumos" | "enquetes" | "atividade" | "configuracoes";
-
 type MemberRoleKey = "OWNER" | "SUPERADMIN" | "ADMIN";
 
 type SpecialMember = {
@@ -91,7 +89,6 @@ interface GroupTopInfo {
 interface GroupPageTopProps {
   breadcrumbItems: BreadcrumbItem[];
   group: GroupTopInfo;
-  activeTab: ActiveTab;
   filters?: ReactNode;
   showClearFilters?: boolean;
   onClearFilters?: () => void;
@@ -102,7 +99,6 @@ interface GroupPageTopProps {
 export function GroupPageTop({
   breadcrumbItems,
   group,
-  activeTab: _activeTab,
   filters,
   showClearFilters: _showClearFilters,
   onClearFilters: _onClearFilters,
