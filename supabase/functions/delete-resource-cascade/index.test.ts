@@ -178,7 +178,16 @@ function makeCreateClientStub(state: any, calls: Call[]) {
         auth: {
           getUser: async () => ({ data: { user: { id: state.requesterId } }, error: null }),
         },
-        rpc: async (_fn: string, _args: any) => ({ data: state.requesterIsSystemAdmin, error: null }),
+        rpc: async (fn: string, args: any) => {
+          calls.push({ table: "rpc", action: fn, payload: args });
+          if (fn === "is_system_admin") {
+            return { data: state.requesterIsSystemAdmin, error: null };
+          }
+          if (fn === "admin_group_delete_cascade") {
+            return { data: state.cascadeData ?? { success: true }, error: state.cascadeError ?? null };
+          }
+          return { data: null, error: null };
+        },
         __opts: opts,
       };
     }
@@ -232,15 +241,7 @@ DenoRef.test("delete-resource-cascade exclui grupo removendo reações antes", a
     requesterId: "06cb58c0-7019-4f92-acb6-a8dc3b3b4a46",
     requesterIsSystemAdmin: true,
     group: { id: groupId, organization_id: "c9c523fd-af5f-4f61-a240-f3256a77b94e", name: "Grupo" },
-    groupCounts: {
-      members: 1,
-      messages: 2,
-      group_members: 3,
-      polls: 4,
-      member_events: 5,
-      message_reactions: 6,
-      user_roles: 8,
-    },
+    cascadeData: { success: true },
   };
 
   const handler = createDeleteResourceCascadeHandler({
@@ -260,11 +261,13 @@ DenoRef.test("delete-resource-cascade exclui grupo removendo reações antes", a
   const body = await res.json();
   assertEquals(body.success, true);
 
-  const reactionsDeleteIndex = calls.findIndex((c) => c.table === "message_reactions" && c.action === "delete");
-  const groupDeleteIndex = calls.findIndex((c) => c.table === "groups" && c.action === "delete");
-  assertEquals(reactionsDeleteIndex >= 0, true);
-  assertEquals(groupDeleteIndex >= 0, true);
-  assertEquals(reactionsDeleteIndex < groupDeleteIndex, true);
+  const orgAttempt = calls.find((c) => c.table === "events" && c.action === "insert" && c.payload?.event_type === "ORG_GROUP_CASCADE_DELETE_ATTEMPT");
+  const orgDeleted = calls.find((c) => c.table === "events" && c.action === "insert" && c.payload?.event_type === "ORG_GROUP_CASCADE_DELETED");
+  assertEquals(!!orgAttempt, true);
+  assertEquals(!!orgDeleted, true);
+
+  const cascadeIndex = calls.findIndex((c) => c.table === "rpc" && c.action === "admin_group_delete_cascade");
+  assertEquals(cascadeIndex >= 0, true);
 });
 
 DenoRef.test("delete-resource-cascade retorna DEPENDENCIES_EXIST quando FK bloqueia exclusão de grupo", async () => {
@@ -275,17 +278,7 @@ DenoRef.test("delete-resource-cascade retorna DEPENDENCIES_EXIST quando FK bloqu
     requesterId: "06cb58c0-7019-4f92-acb6-a8dc3b3b4a46",
     requesterIsSystemAdmin: true,
     group: { id: groupId, organization_id: "c9c523fd-af5f-4f61-a240-f3256a77b94e", name: "Grupo" },
-    groupCounts: {
-      members: 0,
-      messages: 0,
-      group_members: 0,
-      polls: 0,
-      member_events: 0,
-      message_reactions: 0,
-      user_roles: 0,
-    },
-    groupDeleteError: true,
-    groupDeleteErrorCode: "23503",
+    cascadeError: { message: "fk", code: "23503" },
   };
 
   const handler = createDeleteResourceCascadeHandler({
@@ -305,45 +298,6 @@ DenoRef.test("delete-resource-cascade retorna DEPENDENCIES_EXIST quando FK bloqu
   const body = await res.json();
   assertEquals(body.success, false);
   assertEquals(body.code, "DEPENDENCIES_EXIST");
-});
-
-DenoRef.test("delete-resource-cascade retorna DEPENDENCY_CLEANUP_FAILED quando falha limpeza de grupo", async () => {
-  const calls: Call[] = [];
-  const groupId = "bd0f288d-310b-47d4-bca5-e10da4beb2ab";
-
-  const state = {
-    requesterId: "06cb58c0-7019-4f92-acb6-a8dc3b3b4a46",
-    requesterIsSystemAdmin: true,
-    group: { id: groupId, organization_id: "c9c523fd-af5f-4f61-a240-f3256a77b94e", name: "Grupo" },
-    groupCounts: {
-      members: 0,
-      messages: 0,
-      group_members: 0,
-      polls: 0,
-      member_events: 1,
-      message_reactions: 0,
-      user_roles: 0,
-    },
-    failMessageReactionsDelete: true,
-  };
-
-  const handler = createDeleteResourceCascadeHandler({
-    createClient: makeCreateClientStub(state, calls) as any,
-    env: {
-      get: (k: string) => {
-        if (k === "SUPABASE_URL") return testBaseUrl;
-        if (k === "SUPABASE_ANON_KEY") return "anon";
-        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        return undefined;
-      },
-    },
-  });
-
-  const res = await handler(makeReq({ resourceType: "group", resourceId: groupId }));
-  assertEquals(res.status, 400);
-  const body = await res.json();
-  assertEquals(body.success, false);
-  assertEquals(body.code, "DEPENDENCY_CLEANUP_FAILED");
 });
 
 DenoRef.test("delete-resource-cascade exclui organização limpando member_events e reações", async () => {
@@ -422,4 +376,26 @@ DenoRef.test("delete-resource-cascade retorna DEPENDENCY_CLEANUP_FAILED quando f
   const body = await res.json();
   assertEquals(body.success, false);
   assertEquals(body.code, "DEPENDENCY_CLEANUP_FAILED");
+});
+
+DenoRef.test("delete-resource-cascade retorna SERVER_ERROR quando ocorre exceção inesperada", async () => {
+  const handler = createDeleteResourceCascadeHandler({
+    createClient: (() => {
+      throw new Error("boom");
+    }) as any,
+    env: {
+      get: (k: string) => {
+        if (k === "SUPABASE_URL") return testBaseUrl;
+        if (k === "SUPABASE_ANON_KEY") return "anon";
+        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        return undefined;
+      },
+    },
+  });
+
+  const res = await handler(makeReq({ resourceType: "group", resourceId: "bd0f288d-310b-47d4-bca5-e10da4beb2ab" }));
+  assertEquals(res.status, 500);
+  const body = await res.json();
+  assertEquals(body.success, false);
+  assertEquals(body.code, "SERVER_ERROR");
 });

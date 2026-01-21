@@ -8,11 +8,10 @@ import { Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FunctionsHttpError } from "@supabase/supabase-js";
+import { FunctionsFetchError, FunctionsHttpError } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -26,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { notify } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
-import { AddGroupModal } from "@/components/modals/AddGroupModal";
+import { formatDateSimpleBR } from "@/lib/date";
 
 interface GroupRow {
   id: string;
@@ -36,39 +35,45 @@ interface GroupRow {
   organization_id: string;
   organizations?: { name: string } | null;
   invite_link?: string | null;
+  created_at?: string;
+  last_access_at?: string | null;
+  members_count?: number;
 }
 
 interface OrganizationOption { id: string; name: string; }
 
 const PAGE_SIZE = 10;
 
-function formatCounts(counts?: Record<string, number>): string {
-  if (!counts) return "";
-  const entries = Object.entries(counts)
-    .filter(([, v]) => typeof v === "number" && v > 0)
-    .sort((a, b) => (b[1] as number) - (a[1] as number))
-    .slice(0, 6)
-    .map(([k, v]) => `${k}: ${v}`);
-  return entries.length ? entries.join(" • ") : "";
-}
-
-async function parseInvokeError(err: any): Promise<{ message: string; code?: string; counts?: Record<string, number> }> {
+async function parseInvokeError(err: any): Promise<{ message: string; code?: string }> {
   let message = err?.message || "Algo deu errado. Tente novamente.";
   let code: string | undefined;
-  let counts: Record<string, number> | undefined;
 
   if (err instanceof FunctionsHttpError && (err as any).context) {
     try {
       const body = await (err as any).context.json();
       if (body?.message) message = body.message;
       if (typeof body?.code === "string") code = body.code;
-      if (body?.details?.counts && typeof body.details.counts === "object") counts = body.details.counts;
     } catch (_e) {
       void 0;
     }
   }
 
-  return { message, code, counts };
+  const isFetchError =
+    err instanceof FunctionsFetchError ||
+    err?.name === "FunctionsFetchError" ||
+    /failed to send a request to the edge function/i.test(message) ||
+    /fetch failed/i.test(message) ||
+    /networkerror/i.test(message);
+
+  if (!code && isFetchError) {
+    const isOffline = typeof navigator !== "undefined" && navigator?.onLine === false;
+    code = "NETWORK_ERROR";
+    message = isOffline
+      ? "Sem conexão com a internet."
+      : "Não foi possível comunicar com o servidor. Verifique sua conexão/VPN e tente novamente.";
+  }
+
+  return { message, code };
 }
 
 export default function SystemGroups() {
@@ -87,12 +92,7 @@ export default function SystemGroups() {
   const [editInviteGroup, setEditInviteGroup] = useState<GroupRow | null>(null);
   const [inviteLinkInput, setInviteLinkInput] = useState("");
   const [cascadeGroup, setCascadeGroup] = useState<GroupRow | null>(null);
-  const [confirmCascadeName, setConfirmCascadeName] = useState("");
   const [deletingCascade, setDeletingCascade] = useState(false);
-
-  const [selectCreateOrgOpen, setSelectCreateOrgOpen] = useState(false);
-  const [createGroupOpen, setCreateGroupOpen] = useState(false);
-  const [createGroupOrgId, setCreateGroupOrgId] = useState<string>("");
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
@@ -121,7 +121,7 @@ export default function SystemGroups() {
 
       let query = supabase
         .from("groups")
-        .select("id, name, provider, status, organization_id, invite_link, organizations(name)", { count: "exact" });
+        .select("id, name, provider, status, organization_id, invite_link, created_at, organizations(name)", { count: "exact" });
 
       if (debouncedSearch) {
         query = query.ilike("name", `%${debouncedSearch}%`);
@@ -137,7 +137,29 @@ export default function SystemGroups() {
 
       const { data, error, count } = await query.range(from, to);
       if (error) throw error;
-      return { items: (data ?? []) as GroupRow[], count: count ?? 0 };
+
+      const items = (data ?? []) as GroupRow[];
+      const groupIds = items.map((g) => g.id).filter(Boolean);
+      if (groupIds.length) {
+        const { data: overviewData, error: overviewErr } = await supabase
+          .from("v_group_overview")
+          .select("group_id, last_access_at, members_count")
+          .in("group_id", groupIds);
+        if (!overviewErr && Array.isArray(overviewData)) {
+          const byId = new Map<string, any>();
+          overviewData.forEach((row: any) => {
+            if (row?.group_id) byId.set(row.group_id, row);
+          });
+          items.forEach((g) => {
+            const o = byId.get(g.id);
+            if (!o) return;
+            g.last_access_at = o.last_access_at;
+            g.members_count = typeof o.members_count === "number" ? o.members_count : Number(o.members_count ?? 0);
+          });
+        }
+      }
+
+      return { items, count: count ?? 0 };
     },
     enabled: isAuthenticated,
   });
@@ -224,6 +246,30 @@ export default function SystemGroups() {
       ),
     },
     {
+      key: "members_count",
+      header: "Membros",
+      hideOn: "sm",
+      render: (g: GroupRow) => (
+        <span className="text-sm tabular-nums">{typeof g.members_count === "number" ? g.members_count.toLocaleString("pt-BR") : "—"}</span>
+      ),
+    },
+    {
+      key: "created_at",
+      header: "Criado em",
+      hideOn: "sm",
+      render: (g: GroupRow) => (
+        <span className="text-sm text-muted-foreground">{g.created_at ? formatDateSimpleBR(g.created_at) : "—"}</span>
+      ),
+    },
+    {
+      key: "last_access_at",
+      header: "Último acesso",
+      hideOn: "sm",
+      render: (g: GroupRow) => (
+        <span className="text-sm text-muted-foreground">{g.last_access_at ? formatDateSimpleBR(g.last_access_at) : "—"}</span>
+      ),
+    },
+    {
       key: "actions",
       header: "",
       className: "text-right w-0",
@@ -254,10 +300,10 @@ export default function SystemGroups() {
             Arquivar
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); setCascadeGroup(g); setConfirmCascadeName(""); }}
+            onClick={(e) => { e.stopPropagation(); setCascadeGroup(g); }}
             className="w-full text-left px-2 py-1.5 text-sm text-destructive"
           >
-            Excluir em cascata
+            Excluir grupo
           </button>
         </RowActions>
       ),
@@ -271,27 +317,6 @@ export default function SystemGroups() {
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
           title="Grupos"
           description="Gerenciar grupos do sistema"
-          actions={(
-            <Button
-              onClick={() => {
-                if (orgFilter) {
-                  setCreateGroupOrgId(orgFilter);
-                  setCreateGroupOpen(true);
-                  return;
-                }
-
-                if (!organizations?.length) {
-                  notify.warning("Atenção", "Selecione uma organização para incluir um grupo.");
-                  return;
-                }
-
-                setCreateGroupOrgId(organizations[0].id);
-                setSelectCreateOrgOpen(true);
-              }}
-            >
-              Novo grupo
-            </Button>
-          )}
           filters={(
             <div className="flex flex-wrap items-center gap-2">
               <input
@@ -438,34 +463,28 @@ export default function SystemGroups() {
         <AlertDialog open={!!cascadeGroup} onOpenChange={(open) => !open && setCascadeGroup(null)}>
           <AlertDialogContent className="bg-card border-border">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-card-foreground">Excluir grupo em cascata</AlertDialogTitle>
+              <AlertDialogTitle className="text-card-foreground">Excluir grupo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
                 Esta ação é irreversível e removerá o grupo e todos os dados associados.
-                Digite o nome do grupo para confirmar.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-3">
-              <input
-                type="text"
-                value={confirmCascadeName}
-                onChange={(e) => setConfirmCascadeName(e.target.value)}
-                placeholder={cascadeGroup?.name || "Nome do grupo"}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              />
+              {deletingCascade && (
+                <div className="text-xs text-muted-foreground">Excluindo…</div>
+              )}
             </div>
             <AlertDialogFooter>
               <AlertDialogCancel className="mr-2" onClick={() => setCascadeGroup(null)}>Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={async () => {
                   if (!cascadeGroup) return;
-                  if (confirmCascadeName !== cascadeGroup.name) {
-                    notify.warning("Confirmação incorreta", "Digite o nome do grupo exatamente.");
-                    return;
-                  }
                   setDeletingCascade(true);
                   try {
                     const { error } = await supabase.functions.invoke("delete-resource-cascade", {
-                      body: { resourceType: "group", resourceId: cascadeGroup.id },
+                      body: {
+                        resourceType: "group",
+                        resourceId: cascadeGroup.id,
+                      },
                     });
                     if (error) throw error;
                     notify.success("Grupo excluído", "Tudo certo.");
@@ -473,29 +492,28 @@ export default function SystemGroups() {
                     refetch();
                   } catch (err: any) {
                     const parsed = await parseInvokeError(err);
-                    const countsLabel = formatCounts(parsed.counts);
-                    if (parsed.code === "DEPENDENCIES_EXIST") {
-                      notify.warning("Dependências existentes", countsLabel || "Ainda há registros vinculados a este grupo.");
+                    if (parsed.code === "NETWORK_ERROR") {
+                      notify.error("Falha de conexão", parsed.message);
                       return;
                     }
-                    if (parsed.code === "DEPENDENCY_CLEANUP_FAILED") {
-                      notify.error("Falha na limpeza", countsLabel ? `${parsed.message} (${countsLabel})` : parsed.message);
+                    if (parsed.code === "DEPENDENCIES_EXIST") {
+                      notify.warning("Dependências existentes", "Ainda há registros vinculados a este grupo.");
                       return;
                     }
                     if (parsed.code === "FORBIDDEN" || /forbidden/i.test(parsed.message)) {
-                      notify.error("Acesso negado", "Apenas admins do sistema podem excluir grupos em cascata.");
+                      notify.error("Acesso negado", "Apenas admins do sistema podem excluir grupos.");
                       return;
                     }
                     if (parsed.code === "UNAUTHORIZED" || /unauthorized/i.test(parsed.message)) {
                       notify.error("Sessão expirada", "Faça login novamente.");
                       return;
                     }
-                    notify.error("Não foi possível excluir", countsLabel ? `${parsed.message} (${countsLabel})` : parsed.message);
+                    notify.error("Não foi possível excluir", parsed.message);
                   } finally {
                     setDeletingCascade(false);
                   }
                 }}
-                disabled={deletingCascade || confirmCascadeName !== cascadeGroup?.name}
+                disabled={deletingCascade}
               >
                 Confirmar exclusão
               </AlertDialogAction>
@@ -503,56 +521,7 @@ export default function SystemGroups() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <AlertDialog open={selectCreateOrgOpen} onOpenChange={setSelectCreateOrgOpen}>
-          <AlertDialogContent className="bg-card border-border">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-card-foreground">Novo grupo</AlertDialogTitle>
-              <AlertDialogDescription className="text-muted-foreground">
-                Selecione a organização onde o grupo será incluído.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="space-y-3">
-              <select
-                value={createGroupOrgId}
-                onChange={(e) => setCreateGroupOrgId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              >
-                {(organizations ?? []).map((org) => (
-                  <option key={org.id} value={org.id}>{org.name}</option>
-                ))}
-              </select>
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="mr-2">Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  if (!createGroupOrgId) {
-                    notify.warning("Atenção", "Selecione uma organização.");
-                    return;
-                  }
-                  setOrgFilter(createGroupOrgId);
-                  setPage(1);
-                  setSelectCreateOrgOpen(false);
-                  setCreateGroupOpen(true);
-                }}
-              >
-                Continuar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
-
-      <AddGroupModal
-        organizationId={createGroupOrgId}
-        organizationName={(organizations ?? []).find((o) => o.id === createGroupOrgId)?.name || ""}
-        open={createGroupOpen}
-        onOpenChange={setCreateGroupOpen}
-        onSuccess={(groupId) => {
-          refetch();
-          navigate(`/groups/${groupId}`);
-        }}
-      />
     </AdminLayout>
   );
 }
