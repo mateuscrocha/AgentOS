@@ -144,6 +144,7 @@ type SpecialMember = {
   profile_pic_url: string | null;
   is_super_admin: boolean;
   is_admin: boolean;
+  last_sender_name?: string | null;
 };
 
 type MemberRoleKey = "SUPERADMIN" | "ADMIN";
@@ -174,6 +175,14 @@ function formatPhoneE164BR(input?: string | null) {
     return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
   }
   return raw;
+}
+
+function isProbablyPhone(value?: string | null) {
+  const v = (value || "").trim();
+  if (!v) return false;
+  if (/[A-Za-zÀ-ÿ]/.test(v)) return false;
+  const digits = v.replace(/\D/g, "");
+  return digits.length >= 8;
 }
 
 export default function GroupEdit() {
@@ -587,7 +596,31 @@ export default function GroupEdit() {
         .is("deleted_at", null)
         .or("is_super_admin.eq.true,is_admin.eq.true");
       if (error) throw error;
-      return (data ?? []) as SpecialMember[];
+
+      const members = (data ?? []) as SpecialMember[];
+      const ids = members.map((m) => m.id).filter(Boolean);
+      if (ids.length === 0) return members;
+
+      const { data: msgs } = await supabase
+        .from("messages")
+        .select("member_id, sender_name, created_at")
+        .eq("group_id", groupId!)
+        .in("member_id", ids)
+        .is("deleted_at", null)
+        .not("sender_name", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const latestByMemberId: Record<string, string> = {};
+      (msgs ?? []).forEach((m: any) => {
+        const memberId = String(m.member_id || "");
+        if (!memberId || latestByMemberId[memberId]) return;
+        const senderName = String(m.sender_name || "").trim();
+        if (!senderName || isProbablyPhone(senderName)) return;
+        latestByMemberId[memberId] = senderName;
+      });
+
+      return members.map((m) => ({ ...m, last_sender_name: latestByMemberId[m.id] || null }));
     },
     enabled: !!groupId && isAuthenticated && isSystemAdmin,
     staleTime: 30_000,
@@ -597,10 +630,19 @@ export default function GroupEdit() {
   const orderedSpecialMembers = useMemo(() => {
     const list = (specialMembers ?? []).map((m) => {
       const roleKey: MemberRoleKey = m.is_super_admin ? "SUPERADMIN" : "ADMIN";
-      const fullName = (m.name || "").trim() || "Membro";
-      const username = (m.display_name || "").trim() || null;
+      const rawName = (m.name || "").trim();
+      const rawDisplayName = (m.display_name || "").trim();
       const whatsapp = formatPhoneE164BR(m.phone_e164) || "-";
+
+      const rawLastSenderName = (m.last_sender_name || "").trim();
+      const candidateLastSenderName = rawLastSenderName && !isProbablyPhone(rawLastSenderName) ? rawLastSenderName : "";
+      const candidateName = rawName && !isProbablyPhone(rawName) ? rawName : "";
+      const candidateDisplayName = rawDisplayName && !isProbablyPhone(rawDisplayName) ? rawDisplayName : "";
+
+      const fullName = candidateName || candidateLastSenderName || candidateDisplayName || whatsapp || "Membro";
+      const username = rawDisplayName && rawDisplayName !== fullName && !isProbablyPhone(rawDisplayName) ? rawDisplayName : null;
       const displayLabel = fullName || username || whatsapp || "Membro";
+
       return {
         ...m,
         roleKey,

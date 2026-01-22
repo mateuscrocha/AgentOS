@@ -19,7 +19,16 @@ type SpecialMember = {
   profile_pic_url: string | null;
   is_super_admin: boolean;
   is_admin: boolean;
+  last_sender_name?: string | null;
 };
+
+function isProbablyPhone(value?: string | null) {
+  const v = (value || "").trim();
+  if (!v) return false;
+  if (/[A-Za-zÀ-ÿ]/.test(v)) return false;
+  const digits = v.replace(/\D/g, "");
+  return digits.length >= 8;
+}
 
 function formatPhoneE164BR(input?: string | null) {
   const raw = (input || "").trim();
@@ -110,21 +119,62 @@ export function GroupPageTop({
         .is("deleted_at", null)
         .or("is_super_admin.eq.true,is_admin.eq.true");
       if (error) throw error;
-      return (data ?? []) as SpecialMember[];
+
+      const members = (data ?? []) as SpecialMember[];
+      const ids = members.map((m) => m.id).filter(Boolean);
+      if (ids.length === 0) return members;
+
+      const { data: msgs } = await supabase
+        .from("messages")
+        .select("member_id, sender_name, created_at")
+        .eq("group_id", group.groupId)
+        .in("member_id", ids)
+        .is("deleted_at", null)
+        .not("sender_name", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const latestByMemberId: Record<string, string> = {};
+      (msgs ?? []).forEach((m: any) => {
+        const memberId = String(m.member_id || "");
+        if (!memberId || latestByMemberId[memberId]) return;
+        const senderName = String(m.sender_name || "").trim();
+        if (!senderName || isProbablyPhone(senderName)) return;
+        latestByMemberId[memberId] = senderName;
+      });
+
+      return members.map((m) => ({ ...m, last_sender_name: latestByMemberId[m.id] || null }));
     },
     enabled: !!group.groupId,
   });
 
   const orderedSpecialMembers = useMemo(() => {
-    const list = (specialMembers ?? []).map((m) => ({
-      ...m,
-      roleKey: m.is_super_admin ? ("SUPERADMIN" as const) : ("ADMIN" as const),
-      fullName: (m.name || "").trim() || "Membro",
-      username: (m.display_name || "").trim() || null,
-      whatsapp: formatPhoneE164BR(m.phone_e164) || "-",
-      displayLabel: (m.name || "").trim() || (m.display_name || "").trim() || formatPhoneE164BR(m.phone_e164) || "Membro",
-      avatarFallback: getInitialsFromName(m.display_name || m.name) || getPhoneFallback(m.phone_e164) || "M",
-    }));
+    const list = (specialMembers ?? []).map((m) => {
+      const roleKey = m.is_super_admin ? ("SUPERADMIN" as const) : ("ADMIN" as const);
+      const rawName = (m.name || "").trim();
+      const rawDisplayName = (m.display_name || "").trim();
+      const whatsapp = formatPhoneE164BR(m.phone_e164) || "-";
+
+      const rawLastSenderName = (m.last_sender_name || "").trim();
+      const candidateLastSenderName = rawLastSenderName && !isProbablyPhone(rawLastSenderName) ? rawLastSenderName : "";
+      const candidateName = rawName && !isProbablyPhone(rawName) ? rawName : "";
+      const candidateDisplayName = rawDisplayName && !isProbablyPhone(rawDisplayName) ? rawDisplayName : "";
+
+      const fullName = candidateName || candidateLastSenderName || candidateDisplayName || whatsapp || "Membro";
+      const username = rawDisplayName && rawDisplayName !== fullName && !isProbablyPhone(rawDisplayName) ? rawDisplayName : null;
+      const displayLabel = fullName || username || whatsapp || "Membro";
+      const avatarFallback = getInitialsFromName(fullName) || getPhoneFallback(m.phone_e164) || "M";
+
+      return {
+        ...m,
+        roleKey,
+        fullName,
+        username,
+        whatsapp,
+        displayLabel,
+        avatarFallback,
+      };
+    });
 
     const order: Record<MemberRoleKey, number> = { SUPERADMIN: 0, ADMIN: 1 };
     return list.sort((a, b) => {
@@ -170,7 +220,7 @@ export function GroupPageTop({
               <div className="hidden sm:grid grid-cols-[1.2fr_1fr_0.9fr_auto] gap-3 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <div>Nome completo</div>
                 <div>Usuário</div>
-                <div>WhatsApp</div>
+                <div>Contato</div>
                 <div className="text-right">Papel</div>
               </div>
               {orderedSpecialMembers.map((m) => {
@@ -202,7 +252,7 @@ export function GroupPageTop({
                           </div>
 
                           <div className="min-w-0">
-                            <div className="sm:hidden text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">WhatsApp</div>
+                            <div className="sm:hidden text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Contato</div>
                             <div className="text-sm text-muted-foreground truncate">{m.whatsapp}</div>
                           </div>
                         </div>
