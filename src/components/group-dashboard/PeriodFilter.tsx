@@ -112,6 +112,7 @@ export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps
               "shrink-0",
               value === 'custom' && "border-primary text-primary"
             )}
+            aria-label="Selecionar período personalizado"
             onClick={() => setIsCustomOpen(true)}
           >
             <CalendarIcon className="h-4 w-4" />

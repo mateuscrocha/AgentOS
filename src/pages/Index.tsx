@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -6,15 +6,14 @@ import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
  
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
-import { Building2, Layers, Users as UsersIcon, MessageSquare, ArrowUpRight, ChevronRight } from "lucide-react";
-import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
+import { Activity, AlertTriangle, Building2, Clock, Layers, Users as UsersIcon, MessageSquare, ChevronRight } from "lucide-react";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { SectionHeader } from "@/components/group-dashboard/SectionHeader";
 import {
@@ -25,9 +24,9 @@ import {
   buildStoredPeriod,
 } from "@/components/group-dashboard/period-utils";
  
-import { format, addDays, subDays } from "date-fns";
+import { addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { formatDateKeySP, getHourSP, formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
+import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
 
 type RecentGroupRow = {
   id: string;
@@ -35,6 +34,13 @@ type RecentGroupRow = {
   created_at: string;
   organization_id: string;
   organizations?: { name: string } | null;
+};
+
+type NewGroup24hCard = RecentGroupRow & {
+  messages24h: number;
+  firstActivityAt: string | null;
+  createdHoursAgo: number;
+  status: "new" | "active" | "idle";
 };
 
 type SignalConcentrationTopGroup = {
@@ -96,7 +102,6 @@ const Index = () => {
     setSelectedPeriod('30d');
     setCustomRange(undefined);
   };
-  const [keywordsMode, setKeywordsMode] = useState<'themes'|'words'>('themes');
 
   const formatNumberBR = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
@@ -133,12 +138,8 @@ const Index = () => {
     } catch { void 0; }
   }, [selectedPeriod, customRange, queryClient]);
 
-  const periodMs = currentRange.to.getTime() - currentRange.from.getTime();
-  const periodDays = Math.ceil(periodMs / (1000 * 60 * 60 * 24));
-
   const computeComparisonRange = () => {
     const now = new Date();
-    const currFrom = currentRange.from;
     let currTo = currentRange.to;
     let prevFrom: Date;
     let prevTo: Date;
@@ -166,12 +167,23 @@ const Index = () => {
       prevTo = new Date(currentRange.from.getTime() - 1);
       prevFrom = new Date(prevTo.getTime() - lengthMs);
     }
-    return { currFrom, currTo, prevFrom, prevTo };
+    return { prevFrom, prevTo };
   };
 
-  const { currFrom, currTo, prevFrom, prevTo } = computeComparisonRange();
+  const { prevFrom, prevTo } = computeComparisonRange();
   const prevStartISO = prevFrom.toISOString();
   const prevEndISO = prevTo.toISOString();
+
+  const last24hTick = Math.floor(Date.now() / 300_000);
+  const { last24hStartISO, last24hEndISO, last24hNow } = useMemo(() => {
+    const end = new Date();
+    const start = new Date(end.getTime() - 86_400_000);
+    return {
+      last24hStartISO: start.toISOString(),
+      last24hEndISO: end.toISOString(),
+      last24hNow: end,
+    };
+  }, [last24hTick]);
 
   const getComparisonSuffix = () => {
     switch (selectedPeriod) {
@@ -180,26 +192,6 @@ const Index = () => {
     }
   };
   const comparisonSuffix = getComparisonSuffix();
-
-  
-
-  const fetchActiveOrganizationsCount = async () => {
-    const { count, error } = await supabase
-      .from("organizations")
-      .select("*", { count: "exact", head: true })
-      .or("status.eq.active,status.is.null");
-    if (error) throw error;
-    return count ?? 0;
-  };
-
-  const fetchTotalGroupsCount = async () => {
-    const { count, error } = await supabase
-      .from("groups")
-      .select("*", { count: "exact", head: true })
-      .or("is_archived.eq.false,is_archived.is.null");
-    if (error) throw error;
-    return count ?? 0;
-  };
 
   const fetchTotalMembersCount = async () => {
     const { count, error } = await supabase
@@ -210,41 +202,69 @@ const Index = () => {
     return count ?? 0;
   };
 
-  const fetchRecentGroups = async () => {
+  const fetchNewGroups24h = async () => {
     const { data, error } = await supabase
       .from("groups")
       .select("id, name, created_at, organization_id, organizations(name)")
       .is("deleted_at", null)
       .or("is_archived.eq.false,is_archived.is.null")
+      .gte("created_at", last24hStartISO)
+      .lte("created_at", last24hEndISO)
       .order("created_at", { ascending: false })
-      .limit(6);
+      .limit(10);
     if (error) throw error;
-    return (data ?? []) as RecentGroupRow[];
+
+    const groups = (data ?? []) as RecentGroupRow[];
+    const groupIds = groups.map((g) => g.id);
+    if (groupIds.length === 0) return [] as NewGroup24hCard[];
+
+    const { data: msgData, error: msgErr } = await supabase
+      .from("messages")
+      .select("group_id, created_at")
+      .is("deleted_at", null)
+      .in("group_id", groupIds)
+      .gte("created_at", last24hStartISO)
+      .lte("created_at", last24hEndISO);
+    if (msgErr) throw msgErr;
+
+    const metrics = new Map<string, { count: number; firstActivityAt: string | null }>();
+    groupIds.forEach((id) => metrics.set(id, { count: 0, firstActivityAt: null }));
+    (msgData ?? []).forEach((row: any) => {
+      const id = String(row.group_id || "");
+      if (!metrics.has(id)) return;
+      const entry = metrics.get(id)!;
+      entry.count += 1;
+      const ts = String(row.created_at || "");
+      if (!entry.firstActivityAt || ts < entry.firstActivityAt) entry.firstActivityAt = ts;
+    });
+
+    const recentlyIncludedHours = 3;
+
+    return groups.map((g) => {
+      const createdMs = new Date(g.created_at).getTime();
+      const createdHoursAgo = Number.isFinite(createdMs)
+        ? Math.max(0, Math.round((last24hNow.getTime() - createdMs) / 3_600_000))
+        : 0;
+      const entry = metrics.get(g.id) ?? { count: 0, firstActivityAt: null };
+      const messages24h = entry.count;
+
+      const status: NewGroup24hCard["status"] = messages24h > 0
+        ? "active"
+        : createdHoursAgo <= recentlyIncludedHours
+          ? "new"
+          : "idle";
+
+      return {
+        ...g,
+        messages24h,
+        firstActivityAt: entry.firstActivityAt,
+        createdHoursAgo,
+        status,
+      };
+    });
   };
 
   
-
-  const {
-    data: kpiOrgs,
-    isLoading: kpiOrgsLoading,
-    error: kpiOrgsError,
-  } = useQuery({
-    queryKey: ["kpi-organizations-active"],
-    queryFn: fetchActiveOrganizationsCount,
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
-  const {
-    data: kpiGroups,
-    isLoading: kpiGroupsLoading,
-    error: kpiGroupsError,
-  } = useQuery({
-    queryKey: ["kpi-groups-total"],
-    queryFn: fetchTotalGroupsCount,
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
 
   const {
     data: kpiMembers,
@@ -258,13 +278,13 @@ const Index = () => {
   });
 
   const {
-    data: recentGroups,
-    isLoading: recentGroupsLoading,
-    error: recentGroupsError,
-    refetch: refetchRecentGroups,
+    data: newGroups24h,
+    isLoading: newGroups24hLoading,
+    error: newGroups24hError,
+    refetch: refetchNewGroups24h,
   } = useQuery({
-    queryKey: ["system-recent-groups"],
-    queryFn: fetchRecentGroups,
+    queryKey: ["system-new-groups-24h", last24hStartISO, last24hEndISO, 10],
+    queryFn: fetchNewGroups24h,
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
   });
@@ -436,45 +456,11 @@ const Index = () => {
     retry: 1,
   });
 
-  const { data: newMembersPeriod } = useQuery({
-    queryKey: ["kpi-new-members-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("members")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", currentRange.from.toISOString())
-        .lte("created_at", currentRange.to.toISOString());
-      if (error) throw error;
-      return count ?? 0;
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
-  const { data: newMembersPrevPeriod } = useQuery({
-    queryKey: ["kpi-new-members-prev-period", prevStartISO, prevEndISO],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("members")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", prevStartISO)
-        .lte("created_at", prevEndISO);
-      if (error) throw error;
-      return count ?? 0;
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
   useEffect(() => {
-    if (kpiOrgsError) notify.error("Falha ao carregar Organizações", "Tente novamente.");
-    if (kpiGroupsError) notify.error("Falha ao carregar Grupos", "Tente novamente.");
     if (kpiMembersError) notify.error("Falha ao carregar Membros", "Tente novamente.");
     if (kpiMessagesError) notify.error("Falha ao carregar Mensagens do período", "Tente novamente.");
     if (kpiActiveMembersError) notify.error("Falha ao carregar Membros ativos", "Tente novamente.");
   }, [
-    kpiOrgsError,
-    kpiGroupsError,
     kpiMembersError,
     kpiMessagesError,
     kpiActiveMembersError,
@@ -482,17 +468,17 @@ const Index = () => {
 
 
   const {
-    data: signalConcentration,
-    isLoading: signalConcentrationLoading,
-    error: signalConcentrationError,
-    refetch: refetchConcentration,
+    data: pulse24h,
+    isLoading: pulse24hLoading,
+    error: pulse24hError,
+    refetch: refetchPulse24h,
   } = useQuery({
-    queryKey: ["signal-concentration", currentRange.from.toISOString(), currentRange.to.toISOString()],
+    queryKey: ["signal-concentration-24h", last24hStartISO, last24hEndISO, 10],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_system_signal_concentration", {
-        p_start: currentRange.from.toISOString(),
-        p_end: currentRange.to.toISOString(),
-        p_limit: 5,
+        p_start: last24hStartISO,
+        p_end: last24hEndISO,
+        p_limit: 10,
       });
       if (error) throw error;
       return data as unknown as SignalConcentrationPayload;
@@ -503,143 +489,10 @@ const Index = () => {
 
   
 
-  const {
-    data: signalKeywords,
-    isLoading: signalKeywordsLoading,
-    error: signalKeywordsError,
-    refetch: refetchKeywords,
-  } = useQuery({
-    queryKey: ["signal-trending-keywords", currentRange.from.toISOString(), currentRange.to.toISOString()],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("v_messages_feed")
-        .select("content_preview,message_type,created_at")
-        .eq("message_type", "text")
-        .gte("created_at", currentRange.from.toISOString())
-        .lte("created_at", currentRange.to.toISOString())
-        .limit(2000);
-      let currRows: string[] = [];
-      if (!error) {
-        currRows = (data || []).map((d: any) => d.content_preview || "");
-      } else {
-        const fb = await supabase
-          .from("messages")
-          .select("content,message_type,created_at")
-          .eq("message_type", "text")
-          .gte("created_at", currentRange.from.toISOString())
-          .lte("created_at", currentRange.to.toISOString())
-          .limit(2000);
-        if (fb.error) throw fb.error;
-        currRows = (fb.data || []).map((d: any) => d.content || "");
-      }
-
-      const prevQuery = await supabase
-        .from("v_messages_feed")
-        .select("content_preview,message_type,created_at")
-        .eq("message_type", "text")
-        .gte("created_at", prevStartISO)
-        .lte("created_at", prevEndISO)
-        .limit(2000);
-      let prevRows: string[] = [];
-      if (!prevQuery.error) {
-        prevRows = (prevQuery.data || []).map((d: any) => d.content_preview || "");
-      } else {
-        const fbPrev = await supabase
-          .from("messages")
-          .select("content,message_type,created_at")
-          .eq("message_type", "text")
-          .gte("created_at", prevStartISO)
-          .lte("created_at", prevEndISO)
-          .limit(2000);
-        if (fbPrev.error) throw fbPrev.error;
-        prevRows = (fbPrev.data || []).map((d: any) => d.content || "");
-      }
-
-      const currCounts = countWordsFromRows(currRows);
-      const prevCounts = countWordsFromRows(prevRows);
-      const prevMap: Record<string, number> = {};
-      (prevCounts || []).forEach((w) => { prevMap[w.word] = Number(w.count || 0); });
-      const words = (currCounts || [])
-        .map((w) => {
-          const prev = prevMap[w.word] || 0;
-          const delta = prev ? Math.round(((Number(w.count || 0) - prev) / prev) * 100) : (w.count ? 100 : 0);
-          return { word: w.word, count: Number(w.count || 0), delta };
-        })
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 8);
-
-      const currBigrams = extractBigramsFromRows(currRows);
-      const prevBigrams = extractBigramsFromRows(prevRows);
-      const prevBigramMap: Record<string, number> = {};
-      (prevBigrams || []).forEach((b) => { prevBigramMap[b.phrase] = Number(b.count || 0); });
-      const bigrams = (currBigrams || [])
-        .map((b) => {
-          const prev = prevBigramMap[b.phrase] || 0;
-          const delta = prev ? Math.round(((Number(b.count || 0) - prev) / prev) * 100) : (b.count ? 100 : 0);
-          return { phrase: b.phrase, count: Number(b.count || 0), delta };
-        })
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 8);
-      return { words, bigrams };
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
-  const { data: peakData, isLoading: peakLoading } = useQuery({
-    queryKey: ["system-peak-hour", currentRange.from.toISOString(), currentRange.to.toISOString(), prevStartISO, prevEndISO],
-    queryFn: async () => {
-      const { data: groups } = await supabase
-        .from("groups")
-        .select("id,is_active,is_archived")
-        .eq("is_active", true)
-        .or("is_archived.eq.false,is_archived.is.null");
-      const activeGroupIds = (groups || []).map((g: any) => g.id);
-
-      const { data: curr } = await supabase
-        .from("messages")
-        .select("created_at,group_id")
-        .is("deleted_at", null)
-        .in("group_id", activeGroupIds)
-        .gte("created_at", currentRange.from.toISOString())
-        .lte("created_at", currentRange.to.toISOString())
-        .order("created_at", { ascending: true });
-      const hourCounts: number[] = Array.from({ length: 24 }, () => 0);
-      (curr || []).forEach((m: any) => {
-        const h = getHourSP(m.created_at);
-        hourCounts[h] = (hourCounts[h] || 0) + 1;
-      });
-      const peakHour = hourCounts.reduce((maxIdx, val, idx, arr) => (val > arr[maxIdx] ? idx : maxIdx), 0);
-      const peakHourMessages = hourCounts[peakHour] || 0;
-
-      const { data: prev } = await supabase
-        .from("messages")
-        .select("created_at,group_id")
-        .is("deleted_at", null)
-        .in("group_id", activeGroupIds)
-        .gte("created_at", prevStartISO)
-        .lte("created_at", prevEndISO)
-        .order("created_at", { ascending: true });
-      const prevHourCounts: number[] = Array.from({ length: 24 }, () => 0);
-      (prev || []).forEach((m: any) => {
-        const h = getHourSP(m.created_at);
-        prevHourCounts[h] = (prevHourCounts[h] || 0) + 1;
-      });
-      const previousPeakHour = prevHourCounts.reduce((maxIdx, val, idx, arr) => (val > arr[maxIdx] ? idx : maxIdx), 0);
-      const previousPeakHourMessages = prevHourCounts[previousPeakHour] || 0;
-
-      return { peakHour, peakHourMessages, previousPeakHour, previousPeakHourMessages };
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
- 
-
   useEffect(() => {
-    if (signalConcentrationError) notify.error("Falha ao carregar sinal de concentração", "Tente novamente.");
-    if (signalKeywordsError) notify.error("Falha ao carregar palavras-chave em alta", "Tente novamente.");
-  }, [signalConcentrationError, signalKeywordsError]);
+    if (pulse24hError) notify.error("Falha ao carregar pulso (24h)", "Tente novamente.");
+    if (newGroups24hError) notify.error("Falha ao carregar novos grupos (24h)", "Tente novamente.");
+  }, [pulse24hError, newGroups24hError]);
 
  
 
@@ -737,16 +590,98 @@ const Index = () => {
 
   const periodLabel = `${formatDateSimpleBR(currentRange.from)} — ${formatDateSimpleBR(currentRange.to)}`;
 
-  const getAddedRelativeLabel = (createdAt: string) => {
-    const createdMs = new Date(createdAt).getTime();
-    if (!Number.isFinite(createdMs)) return "";
-
-    const nowMs = Date.now();
-    const diffDays = Math.max(0, Math.floor((nowMs - createdMs) / 86_400_000));
-    if (diffDays === 0) return "Adicionado hoje";
-    if (diffDays === 1) return "Adicionado ontem";
-    return `Adicionado há ${diffDays} dias`;
+  const formatHoursAgoLabel = (hours: number) => {
+    if (!Number.isFinite(hours) || hours <= 0) return "agora";
+    if (hours === 1) return "há 1h";
+    return `há ${hours}h`;
   };
+
+  const toneBadgeClassName = (tone: "warning" | "muted" | "info") => {
+    if (tone === "warning") return "border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning)/0.14)] text-[hsl(var(--warning))]";
+    if (tone === "info") return "border-[hsl(var(--info)/0.35)] bg-[hsl(var(--info)/0.12)] text-[hsl(var(--info))]";
+    return "border-border/70 bg-secondary/50 text-muted-foreground";
+  };
+
+  const pulseMeta = (() => {
+    const totalMessages = Number(pulse24h?.totalMessages || 0);
+    const activeGroups = Number(pulse24h?.activeGroups || 0);
+    const top = pulse24h?.topGroups || [];
+    const top4Messages = top.slice(0, 4).reduce((acc, g) => acc + Number(g.count || 0), 0);
+    const top4Share = totalMessages ? top4Messages / totalMessages : 0;
+    const sharePct = Math.round(top4Share * 100);
+    const concentration = sharePct >= 65 ? "alta" : sharePct >= 45 ? "média" : "baixa";
+    const concentrationTone: "warning" | "info" | "muted" = sharePct >= 65 ? "warning" : sharePct >= 45 ? "info" : "muted";
+    const insight = (() => {
+      if (totalMessages === 0 || activeGroups === 0) return "Sem atividade relevante nas últimas 24h.";
+      if (sharePct >= 65) return "A conversa está concentrada em poucos grupos.";
+      if (sharePct >= 45) return "A conversa está moderadamente concentrada.";
+      return "Atividade bem distribuída entre os grupos.";
+    })();
+    return { totalMessages, activeGroups, sharePct, concentration, concentrationTone, insight };
+  })();
+
+  const pulseRankCardClassName = (rank: 1 | 2 | 3 | 4) => {
+    if (rank === 1) return "border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.08)] hover:bg-[hsl(var(--warning)/0.10)]";
+    if (rank === 2) return "border-[hsl(var(--info)/0.26)] bg-[hsl(var(--info)/0.07)] hover:bg-[hsl(var(--info)/0.09)]";
+    if (rank === 3) return "border-border/70 bg-card/60 hover:bg-secondary/25";
+    return "border-border/60 bg-card/55 hover:bg-secondary/20";
+  };
+
+  const pulseRankBadgeClassName = (rank: 1 | 2 | 3 | 4) => {
+    if (rank === 1) return "border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning)/0.12)] text-[hsl(var(--warning))]";
+    if (rank === 2) return "border-[hsl(var(--info)/0.35)] bg-[hsl(var(--info)/0.10)] text-[hsl(var(--info))]";
+    if (rank === 3) return "border-border/70 bg-secondary/30 text-muted-foreground";
+    return "border-border/60 bg-secondary/20 text-muted-foreground/80";
+  };
+
+  const alerts24h = (() => {
+    const alerts: Array<{
+      id: string;
+      tone: "warning" | "info" | "muted";
+      title: string;
+      description: string;
+      href: string;
+    }> = [];
+
+    const idle = (newGroups24h || []).filter((g) => g.status === "idle").slice(0, 3);
+    idle.forEach((g) => {
+      alerts.push({
+        id: `idle-${g.id}`,
+        tone: "info",
+        title: "Grupo novo sem atividade",
+        description: `${g.name} entrou ${formatHoursAgoLabel(g.createdHoursAgo)} e ainda não teve mensagens.`,
+        href: `/groups/${g.id}`,
+      });
+    });
+
+    if (pulseMeta.totalMessages === 0) {
+      alerts.push({
+        id: "no-activity",
+        tone: "muted",
+        title: "Baixa atividade",
+        description: "Nenhuma mensagem registrada nas últimas 24h.",
+        href: "/system/groups",
+      });
+    } else if (pulseMeta.sharePct >= 65) {
+      alerts.push({
+        id: "high-concentration",
+        tone: "warning",
+        title: "Concentração alta",
+        description: `Top 4 grupos concentram ${pulseMeta.sharePct}% das mensagens nas últimas 24h.`,
+        href: "/system/groups",
+      });
+    }
+
+    return alerts.slice(0, 4);
+  })();
+
+  const daySummary = (() => {
+    const newGroupsCount = newGroups24h?.length || 0;
+    const totalMessages = pulseMeta.totalMessages;
+    const activeGroups = pulseMeta.activeGroups;
+    const concentration = pulseMeta.concentration;
+    return `Nas últimas 24h: ${newGroupsCount} novos grupos, ${formatNumberBR(totalMessages)} mensagens em ${formatNumberBR(activeGroups)} grupos (concentração ${concentration}).`;
+  })();
 
   return (
     <AdminLayout 
@@ -777,52 +712,51 @@ const Index = () => {
           )}
         />
 
-        <section className="rounded-xl border border-border bg-card p-5" id="recent-groups">
+        <section className="rounded-xl border border-border bg-card p-4" id="alerts-24h">
           <SectionHeader
-            title="Últimos grupos incluídos"
-            subtitle="Novos grupos adicionados recentemente"
+            title="Alertas das últimas 24h"
+            subtitle="Situações que exigem atenção imediata"
             subtitleClassName="font-normal text-muted-foreground/80"
-            linkHref="/system/groups"
-            linkLabel="Ver todos"
+            density="compact"
+            titleIcon={AlertTriangle}
           />
 
-          {recentGroupsLoading ? (
-            <div className="mt-3 space-y-2">
+          {newGroups24hLoading || pulse24hLoading ? (
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-[58px] rounded-lg border border-border bg-secondary/30" />
+                <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                  <Skeleton className="h-4 w-7/12" />
+                  <div className="mt-2 space-y-2">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-9/12" />
+                  </div>
+                </div>
               ))}
             </div>
-          ) : recentGroupsError ? (
-            <div className="mt-3">
-              <ErrorState title="Falha ao carregar" message="Não foi possível carregar os grupos recentes." retry={refetchRecentGroups} />
-            </div>
-          ) : !recentGroups || recentGroups.length === 0 ? (
-            <div className="mt-3 rounded-lg border border-border bg-secondary/20 p-4">
-              <p className="text-sm text-muted-foreground">Nenhum grupo encontrado.</p>
+          ) : alerts24h.length === 0 ? (
+            <div className="mt-2 rounded-lg border border-border bg-secondary/20 p-3">
+              <p className="text-[13px] text-muted-foreground">Sem alertas críticos nas últimas 24h.</p>
             </div>
           ) : (
-            <div className="mt-3 space-y-2">
-              {recentGroups.map((g) => (
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {alerts24h.map((a) => (
                 <button
-                  key={g.id}
-                  onClick={() => navigate(`/groups/${g.id}`)}
-                  className="group w-full text-left rounded-lg border border-border bg-card/50 px-3 py-2.5 transition-colors hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  key={a.id}
+                  type="button"
+                  onClick={() => navigate(a.href)}
+                  className="group w-full text-left rounded-lg border border-border bg-card/50 px-2.5 py-2 transition-colors hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-foreground truncate">{g.name}</div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                        <span className="truncate max-w-[40ch]">{g.organizations?.name || "—"}</span>
-                        <span className="text-muted-foreground/60">•</span>
-                        <span
-                          className="whitespace-nowrap tabular-nums text-muted-foreground/80"
-                          title={getAddedRelativeLabel(g.created_at)}
-                        >
-                          {formatDateSimpleBR(g.created_at)}
-                        </span>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={"h-5 px-2 text-[10px] font-medium " + toneBadgeClassName(a.tone)}>
+                          {a.tone === "warning" ? "Atenção" : a.tone === "info" ? "Acompanhar" : "Info"}
+                        </Badge>
+                        <div className="text-[13px] font-semibold leading-snug text-foreground truncate">{a.title}</div>
                       </div>
+                      <p className="mt-1 text-[12px] text-muted-foreground leading-snug">{a.description}</p>
                     </div>
-                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
+                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
                   </div>
                 </button>
               ))}
@@ -830,120 +764,265 @@ const Index = () => {
           )}
         </section>
 
-        <section className="rounded-xl border border-border bg-card p-5" id="keywords">
-          <SectionHeader
-            title="Grupos mais ativos"
-            subtitle="Mensagens por grupo no período selecionado"
-            subtitleClassName="font-normal text-muted-foreground/80"
-          />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <section className="rounded-xl border border-border bg-card p-4" id="new-groups-24h">
+            <SectionHeader
+              title="Novos grupos nas últimas 24h"
+              subtitle="Quem entrou e se já demanda atenção"
+              subtitleClassName="font-normal text-muted-foreground/80"
+              linkHref="/system/groups"
+              linkLabel="Ver todos"
+              density="compact"
+              titleIcon={Clock}
+            />
 
-          {signalConcentrationLoading ? (
-            <div className="mt-4 space-y-3" aria-live="polite" aria-busy="true">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="rounded-lg border border-border bg-card/50 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <Skeleton className="h-4 w-8/12" />
-                      <div className="flex flex-wrap gap-2">
-                        <Skeleton className="h-3 w-16" />
-                        <Skeleton className="h-3 w-16" />
-                        <Skeleton className="h-3 w-20" />
+            {newGroups24hLoading ? (
+              <div className="mt-2 grid grid-cols-1 gap-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Skeleton className="h-4 w-7/12" />
+                        <div className="flex flex-wrap gap-2">
+                          <Skeleton className="h-3 w-16" />
+                          <Skeleton className="h-3 w-20" />
+                          <Skeleton className="h-3 w-16" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Skeleton className="h-6 w-16" />
+                        <Skeleton className="h-3 w-10" />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Skeleton className="h-6 w-16" />
-                      <Skeleton className="h-3 w-10" />
-                    </div>
                   </div>
-                  <div className="mt-3">
-                    <Skeleton className="h-2 w-full" />
+                ))}
+              </div>
+            ) : newGroups24hError ? (
+              <div className="mt-2">
+                <ErrorState title="Falha ao carregar" message="Não foi possível carregar os novos grupos das últimas 24h." retry={refetchNewGroups24h} />
+              </div>
+            ) : !newGroups24h || newGroups24h.length === 0 ? (
+              <div className="mt-2 rounded-lg border border-border bg-secondary/20 p-3">
+                <p className="text-[13px] text-muted-foreground">Nenhum grupo novo nas últimas 24h.</p>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-2" aria-live="polite">
+                <div className="text-[11px] text-muted-foreground/80">
+                  Leia assim: grupos com mensagens já estão aquecendo; sem atividade pode exigir onboarding.
+                </div>
+
+                <ul className="space-y-2" role="list">
+                  {newGroups24h.map((g) => {
+                    const statusTone: "warning" | "info" | "muted" = g.status === "active" ? "warning" : g.status === "new" ? "info" : "muted";
+                    const statusLabel = g.status === "active" ? "Ativo" : g.status === "new" ? "Novo" : "Sem atividade";
+                    const firstActivityLabel = (() => {
+                      if (!g.firstActivityAt) return "—";
+                      const date = new Date(g.firstActivityAt);
+                      if (!Number.isFinite(date.getTime())) return "—";
+                      return formatInTimeZone(date, SAO_PAULO_TZ, "HH:mm");
+                    })();
+
+                    return (
+                      <li key={g.id} role="listitem">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/groups/${g.id}`)}
+                          className="group w-full text-left rounded-lg border border-border bg-card/50 px-2.5 py-2 transition-colors hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Badge variant="outline" className={"h-5 px-2 text-[10px] font-medium shrink-0 " + toneBadgeClassName(statusTone)}>
+                                  {statusLabel}
+                                </Badge>
+                                <div className="text-[13px] font-semibold leading-snug text-foreground truncate">{g.name}</div>
+                              </div>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                                <span className="truncate max-w-[26ch]">{g.organizations?.name || "—"}</span>
+                                <span className="text-muted-foreground/50">·</span>
+                                <span className="whitespace-nowrap tabular-nums">{formatHoursAgoLabel(g.createdHoursAgo)}</span>
+                                <span className="text-muted-foreground/50">·</span>
+                                <span className="whitespace-nowrap tabular-nums">{formatNumberBR(g.messages24h)} msg</span>
+                                <span className="text-muted-foreground/50">·</span>
+                                <span className="whitespace-nowrap tabular-nums">1ª às {firstActivityLabel}</span>
+                              </div>
+                            </div>
+
+                            <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-border bg-card p-4" id="pulse-24h">
+            <SectionHeader
+              title="Pulso das comunidades (24h)"
+              subtitle="Onde a conversa está acontecendo agora"
+              subtitleClassName="font-normal text-muted-foreground/80"
+              density="compact"
+              titleIcon={Activity}
+            />
+
+            {pulse24hLoading ? (
+              <div className="mt-2 space-y-2" aria-live="polite" aria-busy="true">
+                <div className="rounded-lg border border-border bg-card/50 p-2.5">
+                  <Skeleton className="h-4 w-6/12" />
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                        <Skeleton className="h-4 w-10/12" />
+                        <div className="mt-2 space-y-2">
+                          <Skeleton className="h-3 w-8/12" />
+                          <Skeleton className="h-3 w-7/12" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : signalConcentrationError ? (
-            <div className="mt-3">
-              <ErrorState title="Falha ao carregar" message="Não foi possível carregar os grupos mais ativos." retry={refetchConcentration} />
-            </div>
-          ) : !signalConcentration || !signalConcentration.topGroups || signalConcentration.topGroups.length === 0 ? (
-            <div className="mt-3 rounded-lg border border-border bg-secondary/20 p-4">
-              <p className="text-sm text-muted-foreground">Ainda não há atividade suficiente no período selecionado.</p>
-            </div>
-          ) : (
-            (() => {
-              const totalMessages = Number(signalConcentration.totalMessages || 0);
-              const activeGroups = Number(signalConcentration.activeGroups || 0);
-              const totalMessagesLabel = formatNumberBR(totalMessages);
-              const activeGroupsLabel = formatNumberBR(activeGroups);
-
-              return (
-                <div className="mt-4 space-y-3" aria-live="polite">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm text-card-foreground">
-                      <span className="font-semibold tabular-nums">{totalMessagesLabel}</span>{" "}
-                      <span className="text-muted-foreground">mensagens no período</span>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                      <Skeleton className="h-4 w-8/12" />
+                      <Skeleton className="mt-2 h-3 w-5/12" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : pulse24hError ? (
+              <div className="mt-2">
+                <ErrorState title="Falha ao carregar" message="Não foi possível carregar o pulso das comunidades (24h)." retry={refetchPulse24h} />
+              </div>
+            ) : !pulse24h || !pulse24h.topGroups || pulse24h.topGroups.length === 0 ? (
+              <div className="mt-2 rounded-lg border border-border bg-secondary/20 p-3">
+                <p className="text-[13px] text-muted-foreground">Ainda não há atividade suficiente nas últimas 24h.</p>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-3" aria-live="polite">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[14px] font-semibold leading-tight text-card-foreground">
+                      <span className="tabular-nums">{formatNumberBR(pulseMeta.totalMessages)}</span> mensagens
                       <span className="mx-2 text-muted-foreground/50">·</span>
-                      <span className="font-semibold tabular-nums">{activeGroupsLabel}</span>{" "}
-                      <span className="text-muted-foreground">grupos com atividade</span>
+                      <span className="tabular-nums">{formatNumberBR(pulseMeta.activeGroups)}</span> grupos ativos
                     </div>
-                    <div className="text-[11px] text-muted-foreground/80">Top 5 por volume</div>
+                    <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                      Top 4 concentram <span className="font-medium tabular-nums text-card-foreground">{pulseMeta.sharePct}%</span> da conversa
+                    </div>
+                    <div className="mt-1 text-[12px] leading-snug text-muted-foreground/80">{pulseMeta.insight}</div>
                   </div>
 
-                  <ul className="space-y-2" role="list">
-                    {signalConcentration.topGroups.map((g, i) => {
-                      const count = Number(g.count || 0);
-                      const participation = totalMessages ? Math.round((count / totalMessages) * 100) : 0;
-                      const avgPerDay = periodDays ? Math.round(count / periodDays) : 0;
-                      const metricsId = `active-group-metrics-${g.id}`;
-
-                      return (
-                        <li key={g.id} role="listitem">
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/groups/${g.id}`)}
-                            aria-label={`Abrir dashboard do grupo ${g.name}`}
-                            aria-describedby={metricsId}
-                            className="group w-full text-left rounded-lg border border-border bg-card/50 px-3 py-2.5 transition-colors hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-baseline gap-2 min-w-0">
-                                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground/80">{i + 1}.</span>
-                                  <div className="text-sm font-semibold text-foreground truncate">{g.name}</div>
-                                </div>
-                                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground" id={metricsId}>
-                                  <span className="whitespace-nowrap tabular-nums">{formatNumberBR(Number(g.activeMembers || 0))} ativos</span>
-                                  <span className="text-muted-foreground/50">·</span>
-                                  <span className="whitespace-nowrap tabular-nums">{formatNumberBR(avgPerDay)}/dia</span>
-                                  <span className="text-muted-foreground/50">·</span>
-                                  <span className="whitespace-nowrap tabular-nums">{participation}% do total</span>
-                                </div>
-                              </div>
-
-                              <div className="shrink-0 flex items-center gap-2">
-                                <div className="text-right">
-                                  <div className="text-lg font-semibold text-card-foreground tabular-nums leading-none">
-                                    {formatNumberBR(count)}
-                                  </div>
-                                  <div className="mt-1 text-[11px] text-muted-foreground/80">mensagens</div>
-                                </div>
-                                <ChevronRight className="h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
-                              </div>
-                            </div>
-
-                            <div className="mt-2.5 h-2 w-full rounded bg-muted/60" aria-hidden="true">
-                              <div className="h-2 rounded bg-primary/70" style={{ width: `${Math.max(0, Math.min(100, participation))}%` }} />
-                            </div>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <Badge
+                    variant="outline"
+                    className="h-5 shrink-0 border-border/60 bg-transparent px-2 text-[10px] font-medium text-muted-foreground"
+                  >
+                    Concentração {pulseMeta.concentration}
+                  </Badge>
                 </div>
-              );
-            })()
-          )}
 
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {pulse24h.topGroups.slice(0, 4).map((g, idx) => {
+                    const count = Number(g.count || 0);
+                    const share = pulseMeta.totalMessages ? Math.round((count / pulseMeta.totalMessages) * 100) : 0;
+                    const rank = (idx + 1) as 1 | 2 | 3 | 4;
+                    const activeMembers = Number(g.activeMembers || 0);
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => navigate(`/groups/${g.id}`)}
+                        className={
+                          "group w-full text-left rounded-lg border px-3 py-3 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background " +
+                          pulseRankCardClassName(rank)
+                        }
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={
+                              "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border text-base font-semibold tabular-nums " +
+                              pulseRankBadgeClassName(rank)
+                            }
+                            aria-hidden="true"
+                          >
+                            {rank}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[14px] font-semibold leading-snug text-card-foreground truncate">{g.name}</div>
+                            <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                              <span className="tabular-nums font-medium text-card-foreground/90">{formatNumberBR(count)}</span> mensagens
+                              <span className="mx-2 text-muted-foreground/50">·</span>
+                              <span className="tabular-nums">{formatNumberBR(activeMembers)}</span> ativos
+                            </div>
+                            <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground/90">
+                              <span className="tabular-nums">{share}%</span> da conversa total
+                            </div>
+                          </div>
+
+                          <ChevronRight
+                            className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {pulse24h.topGroups.length > 4 && (
+                  <div className="rounded-lg border border-border bg-card/30 p-2.5">
+                    <div className="text-[11px] text-muted-foreground/80">Demais grupos (5º ao 10º)</div>
+                    <ul className="mt-2 space-y-1" role="list">
+                      {pulse24h.topGroups.slice(4, 10).map((g, idx) => {
+                        const rank = idx + 5;
+                        const count = Number(g.count || 0);
+                        return (
+                          <li key={g.id} role="listitem">
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/groups/${g.id}`)}
+                              className="group w-full text-left rounded-md border border-border/70 bg-card/40 px-2.5 py-1.5 transition-colors hover:bg-secondary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex items-center gap-2">
+                                  <div className="w-6 text-[10px] font-medium tabular-nums text-muted-foreground/60" aria-hidden="true">
+                                    {rank}
+                                  </div>
+                                  <div className="min-w-0 text-[13px] font-medium leading-snug text-card-foreground truncate">{g.name}</div>
+                                </div>
+                                <div className="shrink-0 flex items-center gap-2">
+                                  <div className="text-[12px] font-semibold tabular-nums text-card-foreground">{formatNumberBR(count)}</div>
+                                  <div className="text-[10px] text-muted-foreground/70">msg</div>
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
+                                </div>
+                              </div>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <section className="rounded-xl border border-border bg-card p-4" id="day-summary">
+          <SectionHeader
+            title="Resumo do dia"
+            subtitle="Uma leitura rápida para orientar prioridades"
+            subtitleClassName="font-normal text-muted-foreground/80"
+            density="compact"
+            titleIcon={Activity}
+          />
+          <div className="mt-2 rounded-lg border border-border bg-secondary/20 p-3">
+            <p className="text-[13px] text-card-foreground">{daySummary}</p>
+          </div>
         </section>
 
       </div>
