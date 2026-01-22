@@ -1,21 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { badgeVariants } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { useUserRoles } from "@/hooks/use-user-roles";
 import { SAO_PAULO_TZ, formatDateSimpleBR, formatDateTimeBR } from "@/lib/date";
-import { Users, Shield, Phone, Mail, MessageSquare, ArrowRight } from "lucide-react";
+import { Users, Phone, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { notify } from "@/components/ui/sonner";
 
 type MemberDetailsDrawerProps = {
   open: boolean;
@@ -93,24 +88,8 @@ function formatRelativeBR(dateStr?: string | null) {
   return "agora";
 }
 
-const STOPWORDS_PT = new Set([
-  "de","da","do","das","dos","e","a","o","as","os","um","uma","uns","umas","para","por","na","no","nas","nos","em","com","sem","que","se","é","foi","vai","vou","você","vocês","ele","ela","eles","elas","tem","têm","tinha","tiveram","ser","estar","estar","ter","haver","como","mais","menos","muito","pouco","já","ainda","sobre","entre","até","desde"
-]);
-
-function tokenizePt(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .split(/\s+/)
-    .filter((t) => t && !STOPWORDS_PT.has(t) && t.length > 2);
-}
-
 export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, organizationId, variant = "sheet" }: MemberDetailsDrawerProps) {
-  const { isSystemAdmin, isOrgAdmin, isGroupManager } = useUserRoles();
-  const queryClient = useQueryClient();
-  const [updatingRole, setUpdatingRole] = useState(false);
-  const [roleOverride, setRoleOverride] = useState<MemberRoleKey | null>(null);
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
 
   const { data: member, isLoading: memberLoading, error: memberError } = useQuery({
     queryKey: ["member-details", memberId],
@@ -128,22 +107,8 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
   const ctxGroupId = groupId || member?.group_id || undefined;
 
   useEffect(() => {
-    setRoleOverride(null);
-    setUpdatingRole(false);
+    setPhotoViewerOpen(false);
   }, [memberId, open]);
-
-  const { data: group } = useQuery({
-    queryKey: ["member-group", ctxGroupId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("groups")
-        .select("id, name, organization_id")
-        .eq("id", ctxGroupId as string)
-        .maybeSingle();
-      return data as any;
-    },
-    enabled: open && !!ctxGroupId,
-  });
 
   const { data: lastMessage } = useQuery({
     queryKey: ["member-last-msg", ctxGroupId, memberId],
@@ -229,118 +194,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
     enabled: open && !!ctxGroupId && !!memberId,
   });
 
-  const last30StartISO = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString();
-  }, []);
-
-  const { data: keywords } = useQuery({
-    queryKey: ["member-keywords", ctxGroupId, memberId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("messages")
-        .select("content, text, created_at")
-        .eq("group_id", ctxGroupId as string)
-        .eq("member_id", memberId)
-        .is("deleted_at", null)
-        .gte("created_at", last30StartISO)
-        .limit(500);
-      const counts: Map<string, number> = new Map();
-      (data || []).forEach((m: any) => {
-        const src = (m.text || m.content || "").toString();
-        tokenizePt(src).forEach((t) => counts.set(t, (counts.get(t) || 0) + 1));
-      });
-      return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([term, count]) => ({ term, count }));
-    },
-    enabled: open && !!ctxGroupId && !!memberId,
-  });
-
-  const { data: memberships } = useQuery({
-    queryKey: ["member-memberships", memberId],
-    queryFn: async () => {
-      if (!member) return [] as any[];
-      const conditions: string[] = [];
-      if (member.phone_e164) conditions.push(`phone_e164.eq.${member.phone_e164}`);
-      if ((member as any).whatsapp_provider_id) conditions.push(`whatsapp_provider_id.eq.${(member as any).whatsapp_provider_id}`);
-      if (conditions.length === 0) return [];
-      const { data } = await supabase
-        .from("members")
-        .select("id, group_id, status, left_at, joined_at, groups:group_id(name, organization_id)")
-        .or(conditions.join(","));
-      const unique: Record<string, any> = {};
-      (data || []).forEach((m: any) => { unique[m.group_id] = m; });
-      const list = Object.values(unique);
-      return list.slice(0, 6);
-    },
-    enabled: open && !!member,
-  });
-
-  const memberRole = useMemo(() => {
-    if (!ctxGroupId) return null;
-    return getMemberRoleKey(member || {});
-  }, [ctxGroupId, member]);
-
-  const effectiveMemberRole = (roleOverride || memberRole) as MemberRoleKey | null;
-
-  const roleLabel = useMemo(() => {
-    if (!effectiveMemberRole) return "";
-    return getMemberRoleLabel(effectiveMemberRole);
-  }, [effectiveMemberRole]);
-
-  const roleDescription = useMemo(() => {
-    if (!effectiveMemberRole) return "";
-    return getMemberRoleDescription(effectiveMemberRole);
-  }, [effectiveMemberRole]);
-
-  const canEditMemberRole = !!ctxGroupId && (isSystemAdmin || isOrgAdmin || isGroupManager);
-
-  const roleValue = useMemo(() => {
-    if (!effectiveMemberRole) return "member" as const;
-    if (effectiveMemberRole === "SUPERADMIN") return "superadmin" as const;
-    if (effectiveMemberRole === "ADMIN") return "admin" as const;
-    return "member" as const;
-  }, [effectiveMemberRole]);
-
-  const updateMemberRole = async (next: "member" | "admin" | "superadmin") => {
-    if (!ctxGroupId || !memberId) return;
-
-    const patch =
-      next === "member"
-        ? { is_admin: false, is_super_admin: false }
-        : next === "admin"
-        ? { is_admin: true, is_super_admin: false }
-        : { is_admin: true, is_super_admin: true };
-
-    setUpdatingRole(true);
-    try {
-      const { error } = await supabase
-        .from("members")
-        .update(patch)
-        .eq("id", memberId)
-        .eq("group_id", ctxGroupId);
-
-      if (error) throw error;
-
-      const nextRoleKey: MemberRoleKey = next === "superadmin" ? "SUPERADMIN" : next === "admin" ? "ADMIN" : "MEMBRO";
-      setRoleOverride(nextRoleKey);
-
-      await queryClient.invalidateQueries({ queryKey: ["member-details", memberId] });
-      await queryClient.invalidateQueries({ queryKey: ["group-members", ctxGroupId] });
-      await queryClient.invalidateQueries({ queryKey: ["group-special-members", ctxGroupId] });
-
-      notify.success("Função atualizada", "A função do membro foi atualizada neste grupo.");
-    } catch (e: any) {
-      notify.error("Não foi possível atualizar", e?.message || "Falha ao atualizar a função do membro.");
-    } finally {
-      setUpdatingRole(false);
-    }
-  };
-
-  const idLabel = useMemo(() => {
-    if (member?.phone_e164) return member.phone_e164;
-    return "";
-  }, [member]);
+  const effectiveMemberRole = useMemo(() => getMemberRoleKey(member || {}), [member]);
 
   const statusKey = useMemo((): MemberStatusKey => {
     if (member?.left_at) return "SAIU";
@@ -352,29 +206,39 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
   const statusLabel = useMemo(() => STATUS_BADGE[statusKey].label, [statusKey]);
 
   const header = (
-    <div className="flex items-start gap-3 cursor-default" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-      <Avatar className="h-12 w-12">
-        {member?.profile_pic_url ? (
-          <AvatarImage src={member.profile_pic_url} alt="" referrerPolicy="no-referrer" />
-        ) : (
-          <AvatarFallback>
-            <Users className="h-5 w-5 text-muted-foreground" />
-          </AvatarFallback>
+    <div className="flex flex-col sm:flex-row items-start gap-4 cursor-default" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+      <button
+        type="button"
+        onClick={() => {
+          if (member?.profile_pic_url) setPhotoViewerOpen(true);
+        }}
+        className={cn(
+          "shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full",
+          member?.profile_pic_url ? "cursor-zoom-in" : "cursor-default"
         )}
-      </Avatar>
+      >
+        <Avatar className="h-24 w-24 sm:h-28 sm:w-28 ring-1 ring-border shadow-sm">
+          {member?.profile_pic_url ? (
+            <AvatarImage src={member.profile_pic_url} alt="" referrerPolicy="no-referrer" className="object-cover" />
+          ) : (
+            <AvatarFallback>
+              <Users className="h-9 w-9 text-muted-foreground" />
+            </AvatarFallback>
+          )}
+        </Avatar>
+      </button>
+
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-xl font-semibold text-card-foreground truncate">{member?.display_name || member?.name || "Membro"}</h3>
-          {effectiveMemberRole ? (
-            <span
-              className={cn(
-                "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
-                ROLE_BADGE[effectiveMemberRole].className
-              )}
-            >
-              {ROLE_BADGE[effectiveMemberRole].label}
-            </span>
-          ) : null}
+          <span
+            className={cn(
+              "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
+              ROLE_BADGE[effectiveMemberRole].className
+            )}
+          >
+            {ROLE_BADGE[effectiveMemberRole].label}
+          </span>
           <span
             className={cn(
               "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
@@ -384,15 +248,14 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
             {statusLabel}
           </span>
         </div>
-        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-          {member?.phone_e164 ? (
+
+        {member?.phone_e164 ? (
+          <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{member.phone_e164}</span>
-          ) : null}
-          {!member?.phone_e164 && (member as any)?.email ? (
-            <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{(member as any).email}</span>
-          ) : null}
-        </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          </div>
+        ) : null}
+
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             Última atividade: <span className="text-card-foreground">{formatRelativeBR(lastMessage?.created_at)}</span>
           </span>
@@ -407,7 +270,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
   );
 
   const overviewCards = ctxGroupId ? (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       <div className="p-4 rounded-xl border border-border bg-secondary/20">
         <div className="text-[11px] font-medium text-muted-foreground">Entrou no grupo em</div>
         <div className="mt-1 text-base font-semibold text-card-foreground">{member?.joined_at ? formatDateSimpleBR(member.joined_at) : "—"}</div>
@@ -419,36 +282,6 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
       <div className="p-4 rounded-xl border border-border bg-secondary/20">
         <div className="text-[11px] font-medium text-muted-foreground">Total de mensagens no grupo</div>
         <div className="mt-1 text-base font-semibold text-card-foreground tabular-nums">{totalMessages ?? 0}</div>
-      </div>
-      <div className="p-4 rounded-xl border border-border bg-secondary/20">
-        <div className="text-[11px] font-medium text-muted-foreground">Função no grupo</div>
-        <div className="mt-1">
-          {canEditMemberRole && effectiveMemberRole ? (
-            <Select
-              value={roleValue}
-              onValueChange={(v) => {
-                if (v === "member" || v === "admin" || v === "superadmin") {
-                  void updateMemberRole(v);
-                }
-              }}
-              disabled={updatingRole}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="member">Membro</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="superadmin">Super Admin</SelectItem>
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-base font-semibold text-card-foreground">{roleLabel || "—"}</div>
-          )}
-          {roleLabel ? (
-            <div className="mt-1 text-xs text-muted-foreground">{roleDescription}</div>
-          ) : null}
-        </div>
       </div>
     </div>
   ) : null;
@@ -489,112 +322,24 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
     </div>
   );
 
-  const membershipsList = (
-    <div className="space-y-2">
-      {(memberships || []).map((m: any) => (
-        <div key={m.group_id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-secondary/10">
-          <div className="min-w-0">
-            <div className="text-sm text-card-foreground truncate">{(m as any).groups?.name || "Grupo"}</div>
-            <div className="mt-1 flex items-center gap-2">
-              <span
-                className={cn(
-                  badgeVariants({ variant: m.left_at ? "secondary" : (m.status === "active" ? "default" : "destructive") }),
-                  "text-[10px] px-2 py-0.5",
-                  m.status === "active" && !m.left_at ? "bg-emerald-600 text-white hover:bg-emerald-600/90" : ""
-                )}
-              >
-                {m.left_at ? "Saiu" : (m.status === "active" ? "Ativo" : (m.status || "Inativo"))}
-              </span>
-            </div>
-          </div>
-          <a href={`/groups/${m.group_id}`} className="text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm">Abrir</a>
-        </div>
-      ))}
-      {(memberships || []).length > 5 ? (
-        <div className="flex justify-end">
-          <a href={`/groups/${group?.id || ctxGroupId || ""}/members`} className="text-xs text-muted-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm">Ver todos</a>
-        </div>
-      ) : null}
-    </div>
-  );
-
-  const keywordsList = (
-    <div className="space-y-2">
-      {(keywords || []).length ? (
-        <div className="flex flex-wrap gap-2">
-          {(keywords || []).map((k) => (
-            <a
-              key={k.term}
-              href={ctxGroupId ? `/groups/${ctxGroupId}/messages` : "#"}
-              className={cn(
-                badgeVariants({ variant: "secondary" }),
-                "rounded-lg px-2.5 py-1 text-xs",
-                ctxGroupId ? "cursor-pointer" : "pointer-events-none opacity-60"
-              )}
-            >
-              <span className="font-medium">{k.term}</span>
-              <span className="ml-1 text-muted-foreground tabular-nums">{k.count}</span>
-            </a>
-          ))}
-        </div>
-      ) : (
-        <div className="text-sm text-muted-foreground">Sem dados</div>
-      )}
-    </div>
-  );
-
-  const actions = (
-    <div className="flex flex-wrap gap-2">
-      {ctxGroupId ? (
-        <Button variant="secondary" size="sm" onClick={() => { window.location.href = `/groups/${ctxGroupId}/messages`; }}>
-          <MessageSquare className="h-4 w-4 mr-1" />
-          Ver todas as mensagens deste membro
-        </Button>
-      ) : null}
-      {(isSystemAdmin || isOrgAdmin || isGroupManager) ? (
-        <Button variant="outline" size="sm" onClick={() => { window.location.href = `/groups/${ctxGroupId || member?.group_id}/members`; }}>
-          Ver participação em outros grupos
-        </Button>
-      ) : null}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={async () => {
-          if (!ctxGroupId || !memberId) return;
-          const { data } = await supabase
-            .from("messages")
-            .select("created_at, message_type, text, content")
-            .eq("group_id", ctxGroupId as string)
-            .eq("member_id", memberId)
-            .is("deleted_at", null)
-            .order("created_at", { ascending: false })
-            .limit(1000);
-          const rows = (data || []).map((m: any) => ({
-            created_at: m.created_at,
-            type: m.message_type,
-            content: ((m.text || m.content || "").toString()).replace(/\r?\n/g, " "),
-          }));
-          const csvHeader = "created_at,type,content\n";
-          const escape = (s: string) => '"' + s.replace(/"/g, '""') + '"';
-          const csvBody = rows.map(r => [r.created_at, r.type, escape(r.content)].join(",")).join("\n");
-          const blob = new Blob([csvHeader + csvBody], { type: "text/csv;charset=utf-8;" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `mensagens_membro_${memberId}.csv`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }}
-      >
-        Exportar mensagens (CSV)
-      </Button>
-    </div>
-  );
-
   const contentBody = (
     <div className={cn("flex flex-col", variant === "dialog" ? "h-[85vh]" : "h-full")}>
+      {member?.profile_pic_url ? (
+        <Dialog open={photoViewerOpen} onOpenChange={setPhotoViewerOpen}>
+          <DialogContent className="max-w-5xl w-[95vw] p-0 overflow-hidden bg-transparent border-0 shadow-none">
+            <div className="p-4 flex items-center justify-center">
+              <img
+                src={member.profile_pic_url}
+                alt=""
+                referrerPolicy="no-referrer"
+                decoding="async"
+                className="max-h-[80vh] max-w-[92vw] w-auto object-contain rounded-xl"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
       <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur px-5 sm:px-6 py-4">
         <div className="space-y-3">
           <div className="text-base font-semibold text-card-foreground pr-10">Detalhes do membro</div>
@@ -647,53 +392,6 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
                 </Button>
               </div>
             </section>
-
-            <section className="rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3">
-              <h4 className="text-sm font-semibold text-card-foreground">Participação em grupos</h4>
-              {membershipsList}
-            </section>
-
-            <section className="rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3">
-              <h4 className="text-sm font-semibold text-card-foreground">Tags e assuntos</h4>
-              {keywordsList}
-            </section>
-
-            <section className="rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3">
-              <h4 className="text-sm font-semibold text-card-foreground">Ações</h4>
-              {actions}
-            </section>
-
-            {isSystemAdmin ? (
-              <section className="rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3">
-                <h4 className="text-sm font-semibold text-card-foreground">Avançado</h4>
-                <Tabs defaultValue="overview">
-                  <TabsList>
-                    <TabsTrigger value="overview">Visão geral</TabsTrigger>
-                    <TabsTrigger value="advanced">Dados</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="advanced" className="mt-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <div className="text-muted-foreground">member_id</div>
-                        <div className="font-mono text-xs break-all">{member?.id || ""}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">group_id</div>
-                        <div className="font-mono text-xs break-all">{ctxGroupId || ""}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">origem</div>
-                        <div className="text-card-foreground">{member?.provider || "—"}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">whatsapp_provider_id</div>
-                        <div className="font-mono text-xs break-all">{(member as any)?.whatsapp_provider_id || ""}</div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </section>
-            ) : null}
           </div>
         )}
       </div>
