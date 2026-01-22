@@ -42,7 +42,7 @@ function makeReq(body: any) {
   });
 }
 
-DenoRef.test("provision-group marca OWNER/SUPERADMIN também como is_admin ...", async () => {
+DenoRef.test("provision-group marca SUPERADMIN também como is_admin ...", async () => {
   const membersInserted: any[] = [];
 
   const payload = {
@@ -59,7 +59,6 @@ DenoRef.test("provision-group marca OWNER/SUPERADMIN também como is_admin ...",
         name: "Dono",
         is_admin: false,
         is_super_admin: true,
-        is_owner: true,
         whatsapp_provider_id: "lid-1",
       },
     ],
@@ -200,7 +199,6 @@ DenoRef.test("provision-group marca OWNER/SUPERADMIN também como is_admin ...",
   assertEquals(inserted[0]?.phone_e164, "+5511999990000");
   assertEquals(inserted[0]?.is_admin, true);
   assertEquals(inserted[0]?.is_super_admin, true);
-  assertEquals(inserted[0]?.is_owner, true);
 });
 
 DenoRef.test("provision-group deduplica participantes por whatsapp_provider_id", async () => {

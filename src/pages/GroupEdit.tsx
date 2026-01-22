@@ -142,18 +142,13 @@ type SpecialMember = {
   display_name: string | null;
   phone_e164: string | null;
   profile_pic_url: string | null;
-  is_owner: boolean;
   is_super_admin: boolean;
   is_admin: boolean;
 };
 
-type MemberRoleKey = "OWNER" | "SUPERADMIN" | "ADMIN";
+type MemberRoleKey = "SUPERADMIN" | "ADMIN";
 
 const ROLE_META: Record<MemberRoleKey, { label: string; badgeClass: string }> = {
-  OWNER: {
-    label: "Dono do grupo",
-    badgeClass: "border-orange-200/70 bg-orange-100/55 text-orange-950",
-  },
   SUPERADMIN: {
     label: "Super Admin",
     badgeClass: "border-violet-200/70 bg-violet-100/55 text-violet-950",
@@ -587,10 +582,10 @@ export default function GroupEdit() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("members")
-        .select("id, name, display_name, phone_e164, profile_pic_url, is_owner, is_super_admin, is_admin")
+        .select("id, name, display_name, phone_e164, profile_pic_url, is_super_admin, is_admin")
         .eq("group_id", groupId!)
         .is("deleted_at", null)
-        .or("is_owner.eq.true,is_super_admin.eq.true,is_admin.eq.true");
+        .or("is_super_admin.eq.true,is_admin.eq.true");
       if (error) throw error;
       return (data ?? []) as SpecialMember[];
     },
@@ -601,7 +596,7 @@ export default function GroupEdit() {
 
   const orderedSpecialMembers = useMemo(() => {
     const list = (specialMembers ?? []).map((m) => {
-      const roleKey: MemberRoleKey = m.is_owner ? "OWNER" : m.is_super_admin ? "SUPERADMIN" : "ADMIN";
+      const roleKey: MemberRoleKey = m.is_super_admin ? "SUPERADMIN" : "ADMIN";
       const fullName = (m.name || "").trim() || "Membro";
       const username = (m.display_name || "").trim() || null;
       const whatsapp = formatPhoneE164BR(m.phone_e164) || "-";
@@ -616,7 +611,7 @@ export default function GroupEdit() {
       };
     });
 
-    const order: Record<MemberRoleKey, number> = { OWNER: 0, SUPERADMIN: 1, ADMIN: 2 };
+    const order: Record<MemberRoleKey, number> = { SUPERADMIN: 0, ADMIN: 1 };
     return list.sort((a, b) => {
       const d = order[a.roleKey] - order[b.roleKey];
       if (d !== 0) return d;

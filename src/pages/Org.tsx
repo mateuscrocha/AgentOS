@@ -65,6 +65,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 
 const PAGE_SIZE = 10;
@@ -180,14 +181,8 @@ type N8nCheckGroupSuccessItem = {
   subject?: unknown;
   name?: unknown;
   description?: unknown;
-  owner?: unknown;
   creation?: unknown;
   participants?: unknown;
-  communityId?: unknown;
-  adminOnlyMessage?: unknown;
-  adminOnlySettings?: unknown;
-  requireAdminApproval?: unknown;
-  isGroupAnnouncement?: unknown;
   [key: string]: unknown;
 };
 
@@ -216,306 +211,65 @@ const toE164 = (raw: unknown): string | null => {
   return "+" + digits;
 };
 
-type NormalizedParticipant = {
-  phone_e164: string;
-  whatsapp_provider_id: string;
-  name: string;
-  display_name: string | null;
-  is_admin: boolean;
-  is_super_admin: boolean;
-  is_owner: boolean;
-  profile_pic_url: string | null;
-  raw_provider: unknown;
-};
-
-const normalizeParticipantsFromWebhook = (
-  participants: unknown,
-  opts?: {
-    groupOwner?: unknown;
-  },
-) => {
-  const invalid: Array<{ index: number; reason: string }> = [];
-  if (!Array.isArray(participants) || participants.length === 0) {
-    return { normalized: [] as NormalizedParticipant[], invalid };
+const toISOFromCreation = (raw: unknown): string | null => {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    const ms = raw < 1e12 ? raw * 1000 : raw;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
   }
-
-  const ownerE164 = toE164(opts?.groupOwner);
-  const ownerDigits = ownerE164 ? toDigits(ownerE164) : "";
-
-  const normalized: NormalizedParticipant[] = [];
-  const seen = new Set<string>();
-
-  participants.forEach((p: any, index: number) => {
-    const phoneRaw = String(p?.phone ?? p?.sender ?? p?.number ?? "").trim();
-    const providerIdRaw = String(p?.whatsapp_provider_id ?? p?.whatsappProviderId ?? p?.lid ?? p?.id ?? "").trim();
-    const providerDigits = toDigits(providerIdRaw);
-
-    const phoneE164 = toE164(phoneRaw) ?? (providerDigits.length >= 10 ? toE164(providerDigits) : null);
-    if (!phoneE164) {
-      invalid.push({ index, reason: "PHONE_INVALID" });
-      return;
-    }
-
-    const digits = toDigits(phoneE164);
-    const providerId = providerIdRaw || digits;
-    if (!providerId) {
-      invalid.push({ index, reason: "PROVIDER_ID_MISSING" });
-      return;
-    }
-
-    const rawIsSuperAdmin = p?.is_super_admin ?? p?.isSuperAdmin;
-    const rawIsAdmin = p?.is_admin ?? p?.isAdmin;
-    const isOwner =
-      !!ownerDigits &&
-      (toDigits(phoneE164) === ownerDigits || providerDigits === ownerDigits || toDigits(providerId) === ownerDigits);
-    const isSuperAdmin = !!rawIsSuperAdmin || isOwner;
-    const isAdmin = !!rawIsAdmin || isSuperAdmin;
-
-    const name = String(p?.name ?? p?.pushname ?? p?.display_name ?? p?.displayName ?? "").trim() || phoneE164;
-    const displayName = String(p?.display_name ?? p?.displayName ?? "").trim() || null;
-    const profilePicUrl = String(p?.profile_pic_url ?? p?.profilePicUrl ?? "").trim() || null;
-
-    const key = digits || toDigits(providerId) || providerId.trim() || phoneE164;
-    if (!key) {
-      invalid.push({ index, reason: "KEY_MISSING" });
-      return;
-    }
-    if (seen.has(key)) return;
-    seen.add(key);
-
-    normalized.push({
-      phone_e164: phoneE164,
-      whatsapp_provider_id: providerId,
-      name,
-      display_name: displayName,
-      is_admin: isAdmin,
-      is_super_admin: isSuperAdmin,
-      is_owner: isOwner,
-      profile_pic_url: profilePicUrl,
-      raw_provider: p,
-    });
-  });
-
-  return { normalized, invalid };
-};
-
-const isUniqueViolation = (error: unknown): boolean => {
-  const anyErr = error as any;
-  return String(anyErr?.code ?? "") === "23505";
-};
-
-const isUnknownColumnError = (error: unknown): boolean => {
-  const anyErr = error as any;
-  const code = String(anyErr?.code ?? "");
-  const msg = String(anyErr?.message ?? "").toLowerCase();
-  return (
-    code === "42703" ||
-    code === "PGRST204" ||
-    msg.includes("schema cache") ||
-    msg.includes("could not find") ||
-    (msg.includes("column") && msg.includes("does not exist"))
-  );
-};
-
-const getMembersImportErrorMessage = (error: unknown): string => {
-  const anyErr = error as any;
-  const code = String(anyErr?.code ?? "");
-  const msg = String(anyErr?.message ?? "");
-  const lower = msg.toLowerCase();
-
-  const isAccessDenied =
-    code === "PGRST301" ||
-    code === "42501" ||
-    code === "401" ||
-    code === "403" ||
-    lower.includes("permission") ||
-    lower.includes("not authorized") ||
-    lower.includes("jwt") ||
-    lower.includes("unauthorized") ||
-    lower.includes("policy");
-
-  if (isAccessDenied) {
-    return "Você não tem permissão para importar os membros deste grupo.";
+  if (typeof raw === "string") {
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
   }
-
-  const isSchema =
-    code === "42P01" ||
-    code === "42703" ||
-    code === "PGRST204" ||
-    lower.includes("does not exist") ||
-    lower.includes("relation") ||
-    lower.includes("column") ||
-    lower.includes("schema");
-
-  if (isSchema) {
-    return "O servidor ainda não está atualizado para importar membros. Tente novamente em instantes.";
-  }
-
-  const isNetwork =
-    lower.includes("failed to fetch") ||
-    lower.includes("networkerror") ||
-    lower.includes("fetch failed") ||
-    lower.includes("load failed");
-
-  if (isNetwork) {
-    return "Falha de conexão ao importar membros. Verifique sua internet e tente novamente.";
-  }
-
-  return `Falhou ao importar os membros do grupo. Tente novamente.${code ? ` (código: ${code})` : ""}`;
+  return null;
 };
 
 const upsertMembersForGroup = async (args: {
   groupId: string;
   participants: unknown;
-  groupOwner?: unknown;
 }) => {
-  const { normalized, invalid } = normalizeParticipantsFromWebhook(args.participants, {
-    groupOwner: args.groupOwner,
-  });
-  if (normalized.length === 0) {
-    return { insertedOrUpdated: 0, invalidCount: invalid.length, total: 0 };
+  if (!Array.isArray(args.participants)) {
+    throw new Error("PARTICIPANTS_INVALID");
   }
 
-  const nowIso = new Date().toISOString();
+  const rows = args.participants
+    .map((p: any) => {
+      const phoneRaw = String(p?.phone ?? "").trim();
+      const lidRaw = typeof p?.lid === "string" ? p.lid.trim() : null;
+      const phoneDigits = toDigits(phoneRaw);
+      const phoneE164 = toE164(phoneRaw);
 
-  const buildRows = (variantIndex: number) =>
-    normalized.map((p) => {
-      if (variantIndex === 0) {
-        return {
-          group_id: args.groupId,
-          name: p.name,
-          display_name: p.display_name,
-          phone_e164: p.phone_e164,
-          whatsapp_provider_id: p.whatsapp_provider_id,
-          is_admin: p.is_admin,
-          is_super_admin: p.is_super_admin,
-          is_owner: p.is_owner,
-          provider: "whatsapp",
-          joined_at: nowIso,
-          status: "active",
-          profile_pic_url: p.profile_pic_url,
-          raw_provider: p.raw_provider as any,
-        };
-      }
+      const isSuperAdmin = !!(p?.isSuperAdmin ?? p?.is_super_admin);
+      const isAdmin = !!(p?.isAdmin ?? p?.is_admin) || isSuperAdmin;
 
-      if (variantIndex === 1) {
-        return {
-          group_id: args.groupId,
-          name: p.name,
-          display_name: p.display_name,
-          phone_e164: p.phone_e164,
-          whatsapp_provider_id: p.whatsapp_provider_id,
-          is_admin: p.is_admin,
-          is_super_admin: p.is_super_admin,
-          is_owner: p.is_owner,
-          provider: "whatsapp",
-          joined_at: nowIso,
-          status: "active",
-          profile_pic_url: p.profile_pic_url,
-        };
-      }
-
-      if (variantIndex === 2) {
-        return {
-          group_id: args.groupId,
-          name: p.name,
-          display_name: p.display_name,
-          phone_e164: p.phone_e164,
-          is_admin: p.is_admin,
-          is_super_admin: p.is_super_admin,
-          is_owner: p.is_owner,
-          joined_at: nowIso,
-          status: "active",
-          profile_pic_url: p.profile_pic_url,
-        };
-      }
-
-      if (variantIndex === 3) {
-        return {
-          group_id: args.groupId,
-          name: p.name,
-          phone_e164: p.phone_e164,
-          is_admin: p.is_admin,
-          is_super_admin: p.is_super_admin,
-          is_owner: p.is_owner,
-        };
-      }
-
-      if (variantIndex === 4) {
-        return {
-          group_id: args.groupId,
-          name: p.name,
-          phone: p.phone_e164,
-          is_admin: p.is_admin,
-        };
-      }
-
-      if (variantIndex === 5) {
-        return {
-          group_id: args.groupId,
-          name: p.name,
-          phone: p.phone_e164,
-        };
-      }
+      const name = String(p?.name ?? "").trim() || phoneE164 || lidRaw || "Membro";
 
       return {
         group_id: args.groupId,
-        name: p.name,
-        phone_e164: p.phone_e164,
+        name,
+        phone_e164: phoneE164,
+        whatsapp_provider_id: phoneDigits || null,
+        lid: lidRaw,
+        is_admin: isAdmin,
+        is_super_admin: isSuperAdmin,
+        provider: "whatsapp",
+        status: "active",
+        deleted_at: null,
       };
-    });
+    })
+    .filter((r) => !!r.whatsapp_provider_id || !!r.lid);
 
-  const variantsCount = 6;
-
-  let inserted = 0;
-  let skippedUnique = 0;
-
-  let lastError: unknown = null;
-  for (let variantIndex = 0; variantIndex < variantsCount; variantIndex += 1) {
-    inserted = 0;
-    skippedUnique = 0;
-    lastError = null;
-
-    const rows = buildRows(variantIndex);
-    let hadUnknownColumn = false;
-
-    for (const row of rows) {
-      const { error } = await supabase.from("members").insert([row as any]);
-      if (!error) {
-        inserted += 1;
-        continue;
-      }
-
-      if (isUniqueViolation(error)) {
-        skippedUnique += 1;
-        continue;
-      }
-
-      if (isUnknownColumnError(error)) {
-        hadUnknownColumn = true;
-        break;
-      }
-
-      lastError = error;
-      break;
-    }
-
-    if (!hadUnknownColumn && !lastError) {
-      const insertedOrUpdated = inserted + skippedUnique;
-      return {
-        insertedOrUpdated,
-        invalidCount: invalid.length,
-        total: Array.isArray(args.participants) ? args.participants.length : rows.length,
-      };
-    }
-
-    if (lastError) {
-      throw lastError;
-    }
+  if (rows.length > 0) {
+    const { error } = await supabase
+      .from("members")
+      .upsert(rows as any, { onConflict: "group_id,provider_member_id" });
+    if (error) throw error;
   }
 
-  throw lastError || new Error("Não foi possível importar os membros.");
+  return { insertedOrUpdated: rows.length };
 };
+
+let orgGroupsSignalRpcAvailable: boolean | null = null;
 
 const Org = () => {
   const { orgId } = useParams();
@@ -857,6 +611,35 @@ const Org = () => {
   const { data: orgGroupsSignals, isLoading: signalsLoading, error: signalsError, refetch: refetchSignals } = useQuery({
     queryKey: ["org-groups-signals", orgId, decisionStartISO, decisionEndISO, decisionPrevStartISO, decisionPrevEndISO],
     queryFn: async () => {
+      const runFallback = async () => {
+        const fallback = await supabase
+          .from("v_group_overview")
+          .select("group_id, group_name, is_active, sync_status, last_sync_at, last_message_at, last_message_preview")
+          .eq("organization_id", orgId)
+          .neq("is_archived", true)
+          .range(0, 1999);
+        if (fallback.error) throw fallback.error;
+
+        return ((fallback.data ?? []) as any[])
+          .map((row) => ({
+            id: String(row.group_id),
+            name: String(row.group_name),
+            isActive: row.is_active,
+            syncStatus: row.sync_status ?? null,
+            lastSyncAt: row.last_sync_at ?? null,
+            messagesCurrent: null,
+            messagesPrevious: null,
+            lastMessageAt: row.last_message_at ?? null,
+            lastMessagePreview: row.last_message_preview ?? null,
+            lastSummaryDate: null,
+            lastSummaryText: null,
+          })) as OrgGroupSignalRow[];
+      };
+
+      if (orgGroupsSignalRpcAvailable === false) {
+        return runFallback();
+      }
+
       const { data, error } = await (supabase as any).rpc("get_org_groups_signal_overview", {
         p_organization_id: orgId,
         p_start: decisionStartISO,
@@ -866,6 +649,7 @@ const Org = () => {
       });
 
       if (!error) {
+        orgGroupsSignalRpcAvailable = true;
         const rows = Array.isArray(data) ? data : Array.isArray((data as any)?.items) ? (data as any).items : data;
         if (!Array.isArray(rows)) return [] as OrgGroupSignalRow[];
         return rows
@@ -896,28 +680,8 @@ const Org = () => {
         throw error;
       }
 
-      const fallback = await supabase
-        .from("v_group_overview")
-        .select("group_id, group_name, is_active, sync_status, last_sync_at, last_message_at, last_message_preview")
-        .eq("organization_id", orgId)
-        .neq("is_archived", true)
-        .range(0, 1999);
-      if (fallback.error) throw fallback.error;
-
-      return ((fallback.data ?? []) as any[])
-        .map((row) => ({
-          id: String(row.group_id),
-          name: String(row.group_name),
-          isActive: row.is_active,
-          syncStatus: row.sync_status ?? null,
-          lastSyncAt: row.last_sync_at ?? null,
-          messagesCurrent: null,
-          messagesPrevious: null,
-          lastMessageAt: row.last_message_at ?? null,
-          lastMessagePreview: row.last_message_preview ?? null,
-          lastSummaryDate: null,
-          lastSummaryText: null,
-        })) as OrgGroupSignalRow[];
+      orgGroupsSignalRpcAvailable = false;
+      return runFallback();
     },
     enabled: !!orgId && isAuthenticated,
   });
@@ -1261,215 +1025,155 @@ const Org = () => {
     }
 
     const rawLink = attachInviteLink.trim();
-    if (!rawLink) {
-      setAttachError("Link de convite é obrigatório.");
-      return;
-    }
-    if (!rawLink.includes("chat.whatsapp.com")) {
-      setAttachError("Informe um link de convite válido do WhatsApp (chat.whatsapp.com).");
-      return;
-    }
-
-    const url = String(import.meta.env.VITE_N8N_CHECK_GROUP_ENTRY_URL ?? "").trim();
-    if (!url) {
-      setAttachError("Configuração ausente: VITE_N8N_CHECK_GROUP_ENTRY_URL.");
+    if (!rawLink) return;
+    if (!rawLink.includes("chat.whatsapp.com/")) {
+      setAttachError("Cole um link de convite válido do WhatsApp.");
       return;
     }
 
     setAttaching(true);
     setAttachError(null);
     try {
-      const res = await fetch(url, {
+      const webhookUrl = ((import.meta as any).env.VITE_N8N_CHECK_GROUP_ENTRY_URL as string | undefined)?.trim();
+      if (!webhookUrl) {
+        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+        return;
+      }
+
+      const res = await fetch(webhookUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ invite_link: rawLink }),
       });
 
-      const rawText = await res.text().catch(() => "");
-      let payload: unknown = null;
-      try {
-        payload = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        payload = null;
-      }
-
       if (!res.ok) {
-        setAttachError("Falha ao verificar o grupo. Tente novamente.");
+        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
         return;
       }
+
+      const payload = (await res.json().catch(() => null)) as unknown;
+
+      const scenarioBMessage =
+        "Não foi possível adicionar esse grupo. O Bóris não está no grupo ou o link está inválido. Inclua o Bóris no grupo e tente novamente.";
 
       if (isBotNotEnabledResponse(payload)) {
-        setAttachError(
-          "Não foi possível verificar o grupo. Você precisa incluir o Bóris no grupo antes de continuar.",
-        );
-        notify.warning("Ação necessária", "Inclua o Bóris no grupo antes de continuar.");
+        setAttachError(scenarioBMessage);
         return;
       }
 
-      if (!Array.isArray(payload) || payload.length === 0) {
-        setAttachError("Não foi possível identificar o grupo a partir desse link.");
-        return;
-      }
-
-      const first = payload[0] as N8nCheckGroupSuccessItem;
-      const whatsappProviderId = String(first?.phone ?? "").trim();
-      const groupName = String(first?.subject ?? first?.name ?? "").trim();
-      if (!whatsappProviderId || !groupName) {
-        setAttachError("Não foi possível identificar o grupo a partir desse link.");
-        return;
-      }
-
-      const participantsRaw = first?.participants;
-      const { normalized: normalizedParticipants } = normalizeParticipantsFromWebhook(participantsRaw, {
-        groupOwner: first?.owner,
-      });
-      if (normalizedParticipants.length === 0) {
-        setAttachError("Não foi possível identificar os membros do grupo a partir desse link.");
-        return;
-      }
-      if (!normalizedParticipants.some((p) => p.is_super_admin)) {
-        notify.warning(
-          "Aviso",
-          "Não foi possível validar os níveis de permissão do grupo a partir do link. Vou importar os membros mesmo assim.",
-        );
-      }
-      if (String(first?.owner ?? "").trim() && !normalizedParticipants.some((p) => p.is_owner)) {
-        notify.warning(
-          "Aviso",
-          "Não foi possível validar o dono do grupo a partir do link. Vou importar os membros mesmo assim.",
-        );
-      }
-
-      const { data: existing, error: existingError } = await supabase
-        .from("groups")
-        .select("id, name, organization_id, is_archived, deleted_at, organizations(name)")
-        .eq("whatsapp_provider_id", whatsappProviderId)
-        .maybeSingle();
-
-      if (existingError) {
-        setAttachError("Não foi possível verificar se o grupo já existe. Tente novamente.");
-        return;
-      }
-
-      if (existing) {
-        if (existing.organization_id === orgId) {
-          if (existing.is_archived || existing.deleted_at) {
-            const { error: reviveError } = await supabase
-              .from("groups")
-              .update({
-                is_archived: false,
-                deleted_at: null,
-                invite_link: rawLink,
-                invite_link_status: "valid",
-                name: groupName,
-                raw_provider: first as any,
-              })
-              .eq("id", existing.id);
-            if (reviveError) {
-              setAttachError("Não foi possível reativar o grupo. Tente novamente.");
-              return;
-            }
-
-            try {
-              const membersResult = await upsertMembersForGroup({
-                groupId: existing.id,
-                participants: participantsRaw,
-                groupOwner: first?.owner,
-              });
-              if (membersResult.invalidCount > 0) {
-                notify.warning(
-                  "Membros importados com avisos",
-                  `${membersResult.invalidCount} participante(s) foram ignorados por dados inválidos.`,
-                );
-              }
-            } catch (err) {
-              setAttachError(`Grupo reativado, mas ${getMembersImportErrorMessage(err).toLowerCase()}`);
-              return;
-            }
-
-            notify.success("Grupo atrelado com sucesso.", "");
-            setAttachGroupOpen(false);
-            setAttachInviteLink("");
-            await queryClient.invalidateQueries({ queryKey: ["org-groups", orgId] });
-            await queryClient.invalidateQueries({ queryKey: ["org-group-ids", orgId] });
-            await queryClient.invalidateQueries({ queryKey: ["org-active-groups-count", orgId] });
-            await queryClient.invalidateQueries({ queryKey: ["org-total-members", orgId] });
-            await queryClient.invalidateQueries({ queryKey: ["org-messages-7d", orgId] });
-            return;
-          }
-
-          notify.warning("Nada a fazer", "Este grupo já está atrelado a esta organização.");
-          setAttachGroupOpen(false);
-          setAttachInviteLink("");
-          return;
+      const groupsArray = (() => {
+        if (Array.isArray(payload)) return payload;
+        if (payload && typeof payload === "object") {
+          const obj = payload as any;
+          if (Array.isArray(obj?.data)) return obj.data;
+          if (Array.isArray(obj?.groups)) return obj.groups;
+          if (Array.isArray(obj?.items)) return obj.items;
+          if (Array.isArray(obj?.result)) return obj.result;
+          if (Array.isArray(obj?.participants)) return [payload];
         }
+        return null;
+      })();
 
-        const otherOrgName = (existing as any)?.organizations?.name as string | undefined;
-        setAttachError(
-          `Este grupo já está atrelado a outra organização${otherOrgName ? ` (${otherOrgName})` : ""}. Não é possível mover automaticamente.`,
-        );
-        notify.warning("Grupo já atrelado", "Este grupo já está em outra organização.");
+      if (Array.isArray(groupsArray) && groupsArray.length === 0) {
+        setAttachError(scenarioBMessage);
         return;
       }
 
-      const { data: insertedGroup, error: insertError } = await supabase
+      if (!Array.isArray(groupsArray) || groupsArray.length < 1) {
+        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+        return;
+      }
+
+      const item = (groupsArray.find((g) => !!g && typeof g === "object" && Array.isArray((g as any).participants)) ??
+        null) as N8nCheckGroupSuccessItem | null;
+
+      if (!item) {
+        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+        return;
+      }
+
+      const groupPhone = String(item?.phone ?? "").trim();
+      const groupName = String(item?.subject ?? item?.name ?? "").trim();
+      const groupDescription = String(item?.description ?? "").trim();
+      const createdAtProvider = toISOFromCreation(item?.creation);
+      const participants = (item as any)?.participants;
+
+      if (!groupPhone) {
+        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+        return;
+      }
+
+      if (!Array.isArray(participants)) {
+        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+        return;
+      }
+
+      const groupPayload = {
+        organization_id: orgId,
+        provider: "whatsapp",
+        whatsapp_provider_id: groupPhone,
+        provider_phone: groupPhone,
+        name: groupName || groupPhone,
+        description: groupDescription || null,
+        created_at_provider: createdAtProvider,
+        invite_link: rawLink,
+        invite_link_status: "valid",
+        status: "active",
+        is_active: true,
+        is_archived: false,
+        deleted_at: null,
+        raw_provider: item as any,
+      } as any;
+
+      let groupIdToUse: string | null = null;
+
+      const { data: inserted, error: insertError } = await supabase
         .from("groups")
-        .insert({
-          name: groupName,
-          organization_id: orgId,
-          provider: "whatsapp",
-          whatsapp_provider_id: whatsappProviderId,
-          invite_link: rawLink,
-          invite_link_status: "valid",
-          status: "active",
-          is_active: true,
-          is_archived: false,
-          raw_provider: first as any,
-        })
+        .insert(groupPayload)
         .select("id")
         .single();
 
-      if (insertError) {
-        if (String((insertError as any)?.code || "") === "23505") {
-          setAttachError("Este grupo já existe no sistema. Atualize a página e tente novamente.");
-        } else if (String((insertError as any)?.code || "") === "42501" || String(insertError.message || "").includes("policy")) {
-          setAttachError("Você não tem permissão para atrelar grupos a esta organização.");
-        } else {
-          setAttachError("Não foi possível atrelar o grupo. Tente novamente.");
+      if (!insertError && inserted?.id) {
+        groupIdToUse = inserted.id;
+      } else {
+        const insertCode = String((insertError as any)?.code ?? "");
+        if (insertCode !== "23505") {
+          setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+          return;
         }
-        return;
-      }
 
-      if (!insertedGroup?.id) {
-        setAttachError("Não foi possível atrelar o grupo. Tente novamente.");
-        return;
-      }
-
-      try {
-        const membersResult = await upsertMembersForGroup({
-          groupId: insertedGroup.id,
-          participants: participantsRaw,
-          groupOwner: first?.owner,
-        });
-        if (membersResult.invalidCount > 0) {
-          notify.warning(
-            "Membros importados com avisos",
-            `${membersResult.invalidCount} participante(s) foram ignorados por dados inválidos.`,
-          );
-        }
-      } catch (err) {
-        await supabase
+        const { data: existing, error: existingError } = await supabase
           .from("groups")
-          .update({ is_archived: true })
-          .eq("id", insertedGroup.id);
+          .select("id")
+          .eq("whatsapp_provider_id", groupPhone)
+          .maybeSingle();
 
-        setAttachError(getMembersImportErrorMessage(err));
+        if (existingError || !existing?.id) {
+          setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+          return;
+        }
+
+        const { error: updateError } = await supabase
+          .from("groups")
+          .update(groupPayload)
+          .eq("id", existing.id);
+
+        if (updateError) {
+          setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+          return;
+        }
+
+        groupIdToUse = existing.id;
+      }
+
+      if (!groupIdToUse) {
+        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
         return;
       }
 
-      notify.success("Grupo atrelado com sucesso.", "");
+      await upsertMembersForGroup({ groupId: groupIdToUse, participants });
+
+      notify.success("Grupo adicionado com sucesso e membros sincronizados.", "");
       setAttachGroupOpen(false);
       setAttachInviteLink("");
       await queryClient.invalidateQueries({ queryKey: ["org-groups", orgId] });
@@ -1478,7 +1182,7 @@ const Org = () => {
       await queryClient.invalidateQueries({ queryKey: ["org-total-members", orgId] });
       await queryClient.invalidateQueries({ queryKey: ["org-messages-7d", orgId] });
     } catch {
-      setAttachError("Falha ao verificar o grupo. Tente novamente.");
+      setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
     } finally {
       setAttaching(false);
     }
@@ -1901,7 +1605,7 @@ const Org = () => {
                 size="sm"
                 onClick={() => { setAttachError(null); setAttachGroupOpen(true); }}
               >
-                Atrelar grupo
+                Adicionar grupo
               </Button>
             )}
           </div>
@@ -1974,7 +1678,8 @@ const Org = () => {
       >
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">Atrelar grupo por convite</DialogTitle>
+            <DialogTitle className="text-card-foreground">Adicionar grupo</DialogTitle>
+            <DialogDescription>Cole aqui o link de convite do grupo</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
@@ -1998,19 +1703,24 @@ const Org = () => {
             >
               Cancelar
             </Button>
-            <Button onClick={handleAttachGroup} disabled={attaching}>
+            <Button
+              onClick={handleAttachGroup}
+              disabled={attaching || !attachInviteLink.trim()}
+            >
               {attaching ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Verificando...
                 </span>
               ) : (
-                "Verificar e atrelar"
+                "Verificar e adicionar"
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Remove group confirmation */}
 
       {/* Remove group confirmation */}
       <AlertDialog open={!!removeGroup} onOpenChange={(open) => !open && setRemoveGroup(null)}>

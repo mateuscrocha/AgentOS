@@ -170,7 +170,7 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
       if (!message?.member_id) return null;
       const { data } = await supabase
         .from("members")
-        .select("id, name, profile_pic_url, is_admin, is_owner, is_super_admin")
+        .select("id, name, profile_pic_url, is_admin, is_super_admin")
         .eq("group_id", groupId)
         .eq("id", message.member_id)
         .maybeSingle();
@@ -227,13 +227,13 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
   const roleLabel = useMemo(() => {
     if (!message) return "";
     if (!message.member_id) return "Sistema";
-    const isAdmin = author?.is_admin || author?.is_owner || author?.is_super_admin;
+    const isAdmin = author?.is_admin || author?.is_super_admin;
     return isAdmin ? "Admin" : "Membro";
   }, [message, author]);
 
   const RoleIcon = useMemo(() => {
     if (!message?.member_id) return Database;
-    const isAdmin = author?.is_admin || author?.is_owner || author?.is_super_admin;
+    const isAdmin = author?.is_admin || author?.is_super_admin;
     return isAdmin ? Shield : User;
   }, [message, author]);
 

@@ -60,9 +60,9 @@ function makeValidGroupPayload() {
   return {
     phone: "5511999990000-group",
     description: "Grupo de testes",
-    owner: "5511999990000",
     subject: "Assunto",
     name: "Nome do grupo",
+    owner: "5511999990000",
     creation: 1730000000,
     participants: [
       { phone: "5511999990000", lid: "lid-1", isAdmin: false, isSuperAdmin: true },
@@ -72,15 +72,19 @@ function makeValidGroupPayload() {
     communityId: "comm-1",
     adminOnlyMessage: true,
     subjectTime: 1730000001,
-    subjectOwner: "5511999990000",
   };
 }
 
 DenoRef.test("validateWebhookGroupPayload aceita payload válido", () => {
   const out = validateWebhookGroupPayload(makeValidGroupPayload());
   assertEquals(out.phone, "5511999990000-group");
-  assertEquals(out.owner, "5511999990000");
   assertEquals(out.participants.length, 2);
+});
+
+DenoRef.test("validateWebhookGroupPayload exige owner corresponder a um participante", () => {
+  const payload: any = makeValidGroupPayload();
+  payload.owner = "5511777776666";
+  assertThrowsMessage(() => validateWebhookGroupPayload(payload), "group.owner");
 });
 
 DenoRef.test("validateWebhookGroupPayload exige group.phone terminar com -group", () => {
@@ -99,24 +103,6 @@ DenoRef.test("validateWebhookGroupPayload exige booleanos corretos em participan
   const payload = makeValidGroupPayload();
   (payload.participants as any)[0].isAdmin = "true";
   assertThrowsMessage(() => validateWebhookGroupPayload(payload), "participants[0].isAdmin");
-});
-
-DenoRef.test("validateWebhookGroupPayload exige ao menos 1 isSuperAdmin=true", () => {
-  const payload = makeValidGroupPayload();
-  (payload.participants as any)[0].isSuperAdmin = false;
-  assertThrowsMessage(() => validateWebhookGroupPayload(payload), "deve conter ao menos 1 participante com isSuperAdmin=true");
-});
-
-DenoRef.test("validateWebhookGroupPayload exige owner corresponder ao super admin", () => {
-  const payload = makeValidGroupPayload();
-  payload.owner = "5511000000000";
-  assertThrowsMessage(() => validateWebhookGroupPayload(payload), "group.owner");
-});
-
-DenoRef.test("validateWebhookGroupPayload exige subjectOwner igual a owner quando presente", () => {
-  const payload = makeValidGroupPayload();
-  payload.subjectOwner = "5511988887777";
-  assertThrowsMessage(() => validateWebhookGroupPayload(payload), "group.subjectOwner");
 });
 
 DenoRef.test("validateWebhookGroupPayload exige timestamps numéricos válidos", () => {
@@ -148,11 +134,123 @@ DenoRef.test("handler normaliza e retorna participantes no formato esperado", as
   assertEquals(body.is_boris_in_group, true);
   assertEquals(body.whatsapp_provider_id, "5511999990000-group");
   assertEquals(body.group_name, "Nome do grupo");
+  assertEquals(body.owner_phone_e164, "+5511999990000");
   assertEquals(body.participants_count, 2);
   assertEquals(Array.isArray(body.participants), true);
-  assertEquals(body.participants[0].is_owner, true);
   assertEquals(body.participants[0].is_super_admin, true);
-  assertEquals(body.participants[0].is_admin, false);
+  assertEquals(body.participants[0].is_admin, true);
+  assertEquals(body.participants[1].is_super_admin, false);
+  assertEquals(body.participants[1].is_admin, true);
+});
+
+DenoRef.test("handler retorna OWNER_MISMATCH quando owner não está em participantes", async () => {
+  const invalid = makeValidGroupPayload();
+  (invalid as any).owner = "5511777776666";
+
+  const handler = createValidateWhatsAppGroupHandler({
+    env: { get: (k: string) => (k === "VITE_N8N_CHECK_GROUP_ENTRY_URL" ? testWebhookUrl : undefined) },
+    fetchImpl: async () => {
+      return new Response(JSON.stringify([invalid]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  });
+
+  const res = await handler(makeReq({ invite_link: "https://chat.whatsapp.com/abc" }));
+  assertEquals(res.status, 422);
+  const body: any = await readJson(res);
+  assertEquals(body.success, false);
+  assertEquals(body.code, "OWNER_MISMATCH");
+});
+
+DenoRef.test("handler usa cache para repetição do mesmo invite_link", async () => {
+  let calls = 0;
+  const handler = createValidateWhatsAppGroupHandler({
+    env: {
+      get: (k: string) => {
+        if (k === "VITE_N8N_CHECK_GROUP_ENTRY_URL") return testWebhookUrl;
+        if (k === "VALIDATE_WHATSAPP_GROUP_CACHE_TTL_MS") return "60000";
+        return undefined;
+      },
+    },
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response(JSON.stringify([makeValidGroupPayload()]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  });
+
+  const req = makeReq({ invite_link: "https://chat.whatsapp.com/abc" });
+  const res1 = await handler(req);
+  assertEquals(res1.status, 200);
+  const body1: any = await readJson(res1);
+  assertEquals(body1.success, true);
+  assertEquals(calls, 1);
+
+  const res2 = await handler(makeReq({ invite_link: "https://chat.whatsapp.com/abc" }));
+  assertEquals(res2.status, 200);
+  const body2: any = await readJson(res2);
+  assertEquals(body2.success, true);
+  assertEquals(body2.cached, true);
+  assertEquals(calls, 1);
+});
+
+DenoRef.test("handler respeita timeout do upstream", async () => {
+  const handler = createValidateWhatsAppGroupHandler({
+    env: {
+      get: (k: string) => {
+        if (k === "VITE_N8N_CHECK_GROUP_ENTRY_URL") return testWebhookUrl;
+        if (k === "VALIDATE_WHATSAPP_GROUP_UPSTREAM_TIMEOUT_MS") return "50";
+        if (k === "VALIDATE_WHATSAPP_GROUP_CACHE_MAX_ENTRIES") return "0";
+        return undefined;
+      },
+    },
+    fetchImpl: async (_url: any, init?: any) => {
+      return await new Promise<Response>((resolve, reject) => {
+        const signal = init?.signal as AbortSignal | undefined;
+
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        if (signal?.aborted) {
+          const err = new Error("Aborted") as any;
+          err.name = "AbortError";
+          reject(err);
+          return;
+        }
+
+        const onAbort = () => {
+          if (timeoutId !== null) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          const err = new Error("Aborted") as any;
+          err.name = "AbortError";
+          reject(err);
+        };
+
+        signal?.addEventListener("abort", onAbort, { once: true });
+
+        timeoutId = setTimeout(() => {
+          signal?.removeEventListener("abort", onAbort);
+          resolve(
+            new Response(JSON.stringify([makeValidGroupPayload()]), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            })
+          );
+        }, 200);
+      });
+    },
+  });
+
+  const res = await handler(makeReq({ invite_link: "https://chat.whatsapp.com/abc" }));
+  assertEquals(res.status, 504);
+  const body: any = await readJson(res);
+  assertEquals(body.success, false);
+  assertEquals(body.code, "VALIDATION_TIMEOUT");
 });
 
 DenoRef.test("handler retorna erro claro quando payload do webhook é inválido", async () => {

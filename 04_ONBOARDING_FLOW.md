@@ -27,11 +27,16 @@
 - Validação do grupo via Edge Function `validate-whatsapp-group` com n8n.
 - Provisionamento inicial via `provision-onboarding` (service role).
 - Criação automática de `Organization` e `Group`.
-- Inserção automática obrigatória de `Members` baseada nos participantes retornados, com deduplicação e hierarquia consistente (`OWNER`/`SUPERADMIN`/`ADMIN`), onde `is_admin` é sempre `true` para `OWNER` e `SUPERADMIN`.
+- Inserção automática obrigatória de `Members` baseada nos participantes retornados, com deduplicação e hierarquia consistente (`SUPERADMIN`/`ADMIN`), onde `is_admin` é sempre `true` para `SUPERADMIN`.
 - Upsert de `profiles` com nome do lead.
 - Atribuição de papel `ORG_ADMIN` ao usuário criado para a nova organização.
 - Registro do evento `ONBOARDING_COMPLETED` em `events`.
 - Redirecionamento direto para `/group/{group_id}` após sucesso.
+
+## Regra de validação do owner do grupo
+- Quando o webhook retornar `group.owner`, o valor precisa representar um telefone válido e corresponder a um item em `group.participants` (match por telefone normalizado em E.164).
+- A validação ocorre no backend (Edge Function `validate-whatsapp-group`) e é repetida no frontend para garantir consistência.
+- Em caso de divergência, a função retorna `code = OWNER_MISMATCH` e o fluxo deve bloquear a continuação.
 
 ## O que não é responsabilidade deste escopo
 - Desenhar UI ou microinterações do onboarding.

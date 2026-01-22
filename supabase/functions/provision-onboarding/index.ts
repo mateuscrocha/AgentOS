@@ -47,7 +47,6 @@ interface ProvisionPayload {
     name: string;
     is_admin: boolean;
     is_super_admin?: boolean;
-    is_owner?: boolean;
     whatsapp_provider_id: string;
   }>;
 }

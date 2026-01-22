@@ -224,7 +224,7 @@ DenoRef.test("provision-onboarding retorna erro quando participants está vazio"
   assertEquals(body.code, "WEBHOOK_CONTRACT_INVALID");
 });
 
-DenoRef.test("provision-onboarding cria org+grupo, insere members e marca OWNER/SUPERADMIN como admin", async () => {
+DenoRef.test("provision-onboarding cria org+grupo, insere members e marca SUPERADMIN como admin", async () => {
   const { supabase, membersInserted } = createMockSupabase();
   const fetchCalls: Array<{ url: string; init: any }> = [];
 
@@ -254,7 +254,6 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e marca OWNER/
       name: "Dono",
       is_admin: false,
       is_super_admin: true,
-      is_owner: true,
       whatsapp_provider_id: "lid-1",
     },
     {
@@ -262,7 +261,6 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e marca OWNER/
       name: "Admin",
       is_admin: true,
       is_super_admin: false,
-      is_owner: false,
       whatsapp_provider_id: "lid-2",
     },
   ];
@@ -278,7 +276,6 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e marca OWNER/
   assertEquals(membersInserted[0]?.phone_e164, "+5511999990000");
   assertEquals(membersInserted[0]?.is_admin, true);
   assertEquals(membersInserted[0]?.is_super_admin, true);
-  assertEquals(membersInserted[0]?.is_owner, true);
 
   assertEquals(fetchCalls.length, 1);
   assertEquals(fetchCalls[0].url, testWebhookUrl);
@@ -315,7 +312,6 @@ DenoRef.test("provision-onboarding ignora duplicidade ao inserir Members", async
       name: "A",
       is_admin: true,
       is_super_admin: false,
-      is_owner: false,
       whatsapp_provider_id: "lid-1",
     },
     {
@@ -323,7 +319,6 @@ DenoRef.test("provision-onboarding ignora duplicidade ao inserir Members", async
       name: "B",
       is_admin: true,
       is_super_admin: false,
-      is_owner: false,
       whatsapp_provider_id: "lid-2",
     },
   ];

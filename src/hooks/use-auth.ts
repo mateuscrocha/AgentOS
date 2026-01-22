@@ -56,7 +56,20 @@ export function useAuth() {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      const msg = String((error as any)?.message ?? "");
+      if (error && /invalid refresh token/i.test(msg)) {
+        try {
+          clearClientSideSessionData();
+        } catch {
+          void 0;
+        }
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);

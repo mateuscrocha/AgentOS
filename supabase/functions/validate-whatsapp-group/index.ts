@@ -15,7 +15,6 @@ export type NormalizedParticipant = {
   name: string;
   is_admin: boolean;
   is_super_admin: boolean;
-  is_owner: boolean;
   whatsapp_provider_id: string;
 };
 
@@ -29,9 +28,9 @@ type WebhookParticipant = {
 type WebhookGroup = {
   phone: string;
   description: string;
-  owner: string;
   subject: string;
   name: string;
+  owner?: string;
   creation: number;
   participants: WebhookParticipant[];
   invitationLink?: string;
@@ -42,7 +41,6 @@ type WebhookGroup = {
   requireAdminApproval?: boolean;
   isGroupAnnouncement?: boolean;
   subjectTime?: number;
-  subjectOwner?: string;
 };
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -92,6 +90,26 @@ const readOptionalNumber = (obj: Record<string, unknown>, key: string, path: str
   return v;
 };
 
+const toDigits = (raw: unknown): string => String(raw ?? '').replace(/\D/g, '');
+
+const toE164 = (raw: unknown): string | null => {
+  const s = String(raw ?? '').trim();
+  if (!s) return null;
+
+  if (s.startsWith('+')) {
+    const digits = toDigits(s);
+    if (!digits) return null;
+    if (digits.startsWith('55') && digits.length >= 10) return '+' + digits;
+    return '+55' + digits;
+  }
+
+  const digits = toDigits(s);
+  if (!digits) return null;
+  if (digits.startsWith('55') && digits.length >= 10) return '+' + digits;
+  if (digits.length === 10 || digits.length === 11) return '+55' + digits;
+  return '+' + digits;
+};
+
 const validateWebhookParticipant = (raw: unknown, index: number): WebhookParticipant => {
   const pathBase = `participants[${index}]`;
   if (!isRecord(raw)) fail(pathBase, 'esperado objeto');
@@ -115,15 +133,30 @@ export const validateWebhookGroupPayload = (raw: unknown): WebhookGroup => {
   if (!phone.endsWith('-group')) fail('group.phone', 'deve terminar com "-group"');
 
   const description = readString(obj, 'description', 'group.description');
-  const owner = readString(obj, 'owner', 'group.owner');
   const subject = readString(obj, 'subject', 'group.subject');
   const name = readString(obj, 'name', 'group.name');
+  const owner = readOptionalString(obj, 'owner', 'group.owner');
   const creation = readNumber(obj, 'creation', 'group.creation');
 
   const participantsRaw = obj['participants'];
   if (!Array.isArray(participantsRaw)) fail('group.participants', 'esperado array');
   const participants = (participantsRaw as unknown[]).map((p, idx) => validateWebhookParticipant(p, idx));
   if (participants.length === 0) fail('group.participants', 'deve conter ao menos 1 participante');
+
+  if (owner !== undefined) {
+    if (owner.trim() === '') fail('group.owner', 'esperado string não vazia');
+
+    const ownerE164 = toE164(owner);
+    if (!ownerE164) fail('group.owner', 'esperado telefone válido');
+
+    const ownerKey = toDigits(ownerE164);
+    const matches = participants.some((p) => {
+      const pE164 = toE164(p.phone);
+      if (!pE164) return false;
+      return toDigits(pE164) === ownerKey;
+    });
+    if (!matches) fail('group.owner', 'deve corresponder ao phone de um participante');
+  }
 
   const invitationLink = readOptionalString(obj, 'invitationLink', 'group.invitationLink');
   const invitationLinkError = readOptionalString(obj, 'invitationLinkError', 'group.invitationLinkError');
@@ -133,25 +166,13 @@ export const validateWebhookGroupPayload = (raw: unknown): WebhookGroup => {
   const requireAdminApproval = readOptionalBoolean(obj, 'requireAdminApproval', 'group.requireAdminApproval');
   const isGroupAnnouncement = readOptionalBoolean(obj, 'isGroupAnnouncement', 'group.isGroupAnnouncement');
   const subjectTime = readOptionalNumber(obj, 'subjectTime', 'group.subjectTime');
-  const subjectOwner = readOptionalString(obj, 'subjectOwner', 'group.subjectOwner');
-
-  const superAdminPhones = participants.filter((p) => p.isSuperAdmin).map((p) => p.phone);
-  if (superAdminPhones.length === 0) {
-    fail('participants', 'deve conter ao menos 1 participante com isSuperAdmin=true');
-  }
-  if (!superAdminPhones.includes(owner)) {
-    fail('group.owner', 'deve corresponder ao phone de um participante com isSuperAdmin=true');
-  }
-  if (subjectOwner !== undefined && subjectOwner !== owner) {
-    fail('group.subjectOwner', 'deve ser igual a group.owner');
-  }
 
   return {
     phone,
     description,
-    owner,
     subject,
     name,
+    owner,
     creation,
     participants,
     invitationLink,
@@ -162,23 +183,18 @@ export const validateWebhookGroupPayload = (raw: unknown): WebhookGroup => {
     requireAdminApproval,
     isGroupAnnouncement,
     subjectTime,
-    subjectOwner,
   };
 };
 
-const normalizeWebhookParticipants = (args: {
-  groupOwner: string;
-  participants: WebhookParticipant[];
-}): NormalizedParticipant[] => {
-  const { groupOwner, participants } = args;
+const normalizeWebhookParticipants = (participants: WebhookParticipant[]): NormalizedParticipant[] => {
   return participants.map((p) => {
-    const isOwner = p.phone === groupOwner;
+    const isSuperAdmin = !!p.isSuperAdmin;
+    const isAdmin = !!p.isAdmin || isSuperAdmin;
     return {
       phone: p.phone,
       name: p.phone,
-      is_admin: !!p.isAdmin,
-      is_super_admin: !!p.isSuperAdmin,
-      is_owner: isOwner,
+      is_admin: isAdmin,
+      is_super_admin: isSuperAdmin,
       whatsapp_provider_id: p.lid || p.phone,
     };
   });
@@ -195,6 +211,54 @@ export const createValidateWhatsAppGroupHandler = (args?: {
   const envImpl = args?.env?.get ?? env;
   const fetchImpl = args?.fetchImpl ?? fetch;
 
+  const cache = new Map<string, { expiresAt: number; value: Record<string, unknown> }>();
+
+  const readInt = (key: string, fallback: number) => {
+    const raw = envImpl(key);
+    if (raw === undefined) return fallback;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
+  };
+
+  const cacheMaxEntries = readInt('VALIDATE_WHATSAPP_GROUP_CACHE_MAX_ENTRIES', 200);
+  const cacheTtlMs = readInt('VALIDATE_WHATSAPP_GROUP_CACHE_TTL_MS', 60_000);
+  const negativeCacheTtlMs = readInt('VALIDATE_WHATSAPP_GROUP_NEGATIVE_CACHE_TTL_MS', 10_000);
+  const upstreamTimeoutMs = readInt('VALIDATE_WHATSAPP_GROUP_UPSTREAM_TIMEOUT_MS', 4_500);
+  const slowThresholdMs = readInt('VALIDATE_WHATSAPP_GROUP_SLOW_THRESHOLD_MS', 5_000);
+
+  const cacheGet = (key: string, now: number) => {
+    const hit = cache.get(key);
+    if (!hit) return null;
+    if (hit.expiresAt <= now) {
+      cache.delete(key);
+      return null;
+    }
+    cache.delete(key);
+    cache.set(key, hit);
+    return hit.value;
+  };
+
+  const cacheSet = (key: string, now: number, ttlMs: number, value: Record<string, unknown>) => {
+    if (cacheMaxEntries <= 0 || ttlMs <= 0) return;
+    cache.delete(key);
+    cache.set(key, { expiresAt: now + ttlMs, value });
+    while (cache.size > cacheMaxEntries) {
+      const firstKey = cache.keys().next().value as string | undefined;
+      if (!firstKey) break;
+      cache.delete(firstKey);
+    }
+  };
+
+  const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: number) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetchImpl(url, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
   return async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -202,6 +266,7 @@ export const createValidateWhatsAppGroupHandler = (args?: {
   }
 
   const correlationId = req.headers.get('x-correlation-id') ?? crypto.randomUUID();
+  const requestStartedAt = Date.now();
   const json = (body: Record<string, unknown>, status = 200) =>
     new Response(JSON.stringify({ correlation_id: correlationId, ...body }), {
       status,
@@ -233,15 +298,15 @@ export const createValidateWhatsAppGroupHandler = (args?: {
       );
     }
 
-    const n8nWebhookUrl = envImpl('VITE_N8N_CHECK_GROUP_ENTRY_URL');
+    const n8nWebhookUrl = envImpl('N8N_CHECK_GROUP_ENTRY_URL') ?? envImpl('VITE_N8N_CHECK_GROUP_ENTRY_URL');
     
     if (!n8nWebhookUrl) {
-      console.error('VITE_N8N_CHECK_GROUP_ENTRY_URL not configured', JSON.stringify({ correlation_id: correlationId }));
+      console.error('N8N_CHECK_GROUP_ENTRY_URL not configured', JSON.stringify({ correlation_id: correlationId }));
       return json(
         {
           success: false,
           code: 'WEBHOOK_NOT_CONFIGURED',
-          message: 'Webhook URL not configured',
+          message: 'URL do webhook não configurada',
           is_valid: false,
           is_boris_in_group: false,
           provider: 'whatsapp',
@@ -259,17 +324,54 @@ export const createValidateWhatsAppGroupHandler = (args?: {
       return raw.length <= 12 ? raw : `${raw.slice(0, 6)}…${raw.slice(-4)}`;
     })();
 
+    const cacheKey = String(invite_link).trim();
+    const now = Date.now();
+    const cached = cacheGet(cacheKey, now);
+    if (cached) {
+      const totalMs = Date.now() - requestStartedAt;
+      if (totalMs > slowThresholdMs) {
+        console.warn('SLOW_VALIDATE_WHATSAPP_GROUP', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, cached: true }));
+      }
+      return json({ ...cached, cached: true });
+    }
+
     console.log('Validating WhatsApp group', JSON.stringify({ correlation_id: correlationId, invite_link: inviteLinkHash }));
 
-    // Call n8n webhook to validate the group
-    const response = await fetchImpl(n8nWebhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-correlation-id': correlationId,
-      },
-      body: JSON.stringify({ invite_link }),
-    });
+    const upstreamStartedAt = Date.now();
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(
+        n8nWebhookUrl,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-correlation-id': correlationId,
+          },
+          body: JSON.stringify({ invite_link }),
+        },
+        upstreamTimeoutMs
+      );
+    } catch (e: any) {
+      const isTimeout = e?.name === 'AbortError';
+      const totalMs = Date.now() - requestStartedAt;
+      console.error('n8n webhook timeout', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: Date.now() - upstreamStartedAt }));
+      return json(
+        {
+          success: false,
+          code: isTimeout ? 'VALIDATION_TIMEOUT' : 'VALIDATION_UPSTREAM_FAILED',
+          message: isTimeout ? 'Validation timed out' : 'Failed to validate group',
+          is_valid: false,
+          is_boris_in_group: false,
+          provider: 'whatsapp',
+          whatsapp_provider_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+        },
+        isTimeout ? 504 : 502
+      );
+    }
 
     if (!response.ok) {
       console.error('n8n webhook error', JSON.stringify({
@@ -303,7 +405,7 @@ export const createValidateWhatsAppGroupHandler = (args?: {
     // Check if Bóris is NOT in the group (returns { checkBotEnabled: false })
     if (data && typeof data === 'object' && !Array.isArray(data) && data.checkBotEnabled === false) {
       console.log('Bóris is NOT in the group');
-      return json({
+      const body = {
         success: true,
         is_valid: true,
         is_boris_in_group: false,
@@ -312,7 +414,17 @@ export const createValidateWhatsAppGroupHandler = (args?: {
         group_name: '',
         participants_count: 0,
         participants: [],
-      });
+      } as const;
+      cacheSet(cacheKey, Date.now(), negativeCacheTtlMs, body as unknown as Record<string, unknown>);
+
+      const totalMs = Date.now() - requestStartedAt;
+      const upstreamMs = Date.now() - upstreamStartedAt;
+      console.log('validate-whatsapp-group timing', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: upstreamMs, cached: false }));
+      if (totalMs > slowThresholdMs) {
+        console.warn('SLOW_VALIDATE_WHATSAPP_GROUP', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: upstreamMs, cached: false }));
+      }
+
+      return json(body as unknown as Record<string, unknown>);
     }
 
     // Check if response is an array (Bóris IS in the group)
@@ -324,12 +436,31 @@ export const createValidateWhatsAppGroupHandler = (args?: {
         validatedGroup = validateWebhookGroupPayload(groupData);
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
-        console.error('Invalid group payload from n8n', JSON.stringify({ correlation_id: correlationId, message }));
+
+        const ownerMismatch = /^group\.owner:\s*/.test(message) && message.includes('deve corresponder ao phone de um participante');
+        const code = ownerMismatch ? 'OWNER_MISMATCH' : 'INVALID_WEBHOOK_PAYLOAD';
+        const status = ownerMismatch ? 422 : 502;
+
+        const ownerRaw = isRecord(groupData) ? (groupData as any).owner : undefined;
+        const ownerE164 = ownerRaw ? toE164(ownerRaw) : null;
+        const ownerDigits = ownerE164 ? toDigits(ownerE164) : null;
+        const maskedOwner = ownerDigits ? `${ownerDigits.slice(0, 4)}…${ownerDigits.slice(-4)}` : null;
+
+        console.error('Invalid group payload from n8n', JSON.stringify({
+          correlation_id: correlationId,
+          code,
+          message,
+          owner: maskedOwner,
+          participants_count: Array.isArray((groupData as any)?.participants) ? (groupData as any).participants.length : null,
+        }));
+
         return json(
           {
             success: false,
-            code: 'INVALID_WEBHOOK_PAYLOAD',
-            message,
+            code,
+            message: ownerMismatch
+              ? 'Não foi possível validar: o dono do grupo não está na lista de participantes.'
+              : message,
             is_valid: false,
             is_boris_in_group: false,
             provider: 'whatsapp',
@@ -338,7 +469,7 @@ export const createValidateWhatsAppGroupHandler = (args?: {
             participants_count: 0,
             participants: [],
           },
-          502
+          status
         );
       }
 
@@ -350,22 +481,42 @@ export const createValidateWhatsAppGroupHandler = (args?: {
         group_name: groupName,
       }));
 
-      const participants = normalizeWebhookParticipants({ groupOwner: validatedGroup.owner, participants: validatedGroup.participants });
+      const participants = normalizeWebhookParticipants(validatedGroup.participants);
 
-      return json({
+      const ownerPhoneE164 = validatedGroup.owner ? toE164(validatedGroup.owner) : null;
+
+      const body = {
         success: true,
         is_valid: true,
         is_boris_in_group: true,
         provider: 'whatsapp',
         whatsapp_provider_id: providerId,
         group_name: groupName,
+        owner_phone_e164: ownerPhoneE164,
         participants_count: participants.length,
         participants,
-      });
+      } as const;
+
+      cacheSet(cacheKey, Date.now(), cacheTtlMs, body as unknown as Record<string, unknown>);
+
+      const totalMs = Date.now() - requestStartedAt;
+      const upstreamMs = Date.now() - upstreamStartedAt;
+      console.log('validate-whatsapp-group timing', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: upstreamMs, cached: false }));
+      if (totalMs > slowThresholdMs) {
+        console.warn('SLOW_VALIDATE_WHATSAPP_GROUP', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: upstreamMs, cached: false }));
+      }
+
+      return json(body as unknown as Record<string, unknown>);
     }
 
     // Unknown response format
     console.error('Unknown n8n response format', JSON.stringify({ correlation_id: correlationId }));
+    const totalMs = Date.now() - requestStartedAt;
+    const upstreamMs = Date.now() - upstreamStartedAt;
+    console.log('validate-whatsapp-group timing', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: upstreamMs, cached: false }));
+    if (totalMs > slowThresholdMs) {
+      console.warn('SLOW_VALIDATE_WHATSAPP_GROUP', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: upstreamMs, cached: false }));
+    }
     return json(
       {
         success: false,
@@ -388,6 +539,10 @@ export const createValidateWhatsAppGroupHandler = (args?: {
       message: error instanceof Error ? error.message : String(error),
     }));
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const totalMs = Date.now() - requestStartedAt;
+    if (totalMs > slowThresholdMs) {
+      console.warn('SLOW_VALIDATE_WHATSAPP_GROUP', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, cached: false }));
+    }
     return json(
       {
         success: false,

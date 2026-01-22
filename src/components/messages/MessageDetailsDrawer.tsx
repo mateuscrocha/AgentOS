@@ -144,7 +144,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
       if (!message?.member_id) return null;
       const { data } = await supabase
         .from("members")
-        .select("id,name,display_name,profile_pic_url,is_admin,is_owner,is_super_admin,last_seen_message_at")
+        .select("id,name,display_name,profile_pic_url,is_admin,is_super_admin,last_seen_message_at")
         .eq("group_id", groupId)
         .eq("id", message.member_id)
         .maybeSingle();
@@ -247,7 +247,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
   const roleLabel = useMemo(() => {
     if (!message) return "";
     if (!message.member_id) return "Sistema";
-    const isAdmin = author?.is_admin || author?.is_owner || author?.is_super_admin;
+    const isAdmin = author?.is_admin || author?.is_super_admin;
     return isAdmin ? "Administrador do grupo" : "Membro";
   }, [message, author]);
 

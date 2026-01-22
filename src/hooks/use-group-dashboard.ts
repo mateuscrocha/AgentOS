@@ -520,10 +520,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data: admins } = await supabase
         .from('members')
-        .select('id, name, is_admin, is_owner, is_super_admin, phone_e164')
+        .select('id, name, is_admin, is_super_admin, phone_e164')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .or('is_admin.eq.true,is_owner.eq.true,is_super_admin.eq.true');
+        .or('is_admin.eq.true,is_super_admin.eq.true');
 
       if (!admins || admins.length === 0) return null;
 
@@ -993,10 +993,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data: admins } = await supabase
         .from('members')
-        .select('id, name, display_name, profile_pic_url, is_admin, is_owner, is_super_admin, phone_e164')
+        .select('id, name, display_name, profile_pic_url, is_admin, is_super_admin, phone_e164')
         .eq('group_id', groupId!)
         .is('deleted_at', null)
-        .or('is_admin.eq.true,is_owner.eq.true,is_super_admin.eq.true');
+        .or('is_admin.eq.true,is_super_admin.eq.true');
 
       if (!admins || admins.length === 0) return null;
 

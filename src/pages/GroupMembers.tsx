@@ -7,7 +7,7 @@ import { Users, Search, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn, getMemberAccessLevel } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,7 +25,6 @@ interface Member {
   lid: string | null;
   is_admin: boolean;
   is_super_admin: boolean;
-  is_owner: boolean;
   created_at: string;
   updated_at: string;
   provider: string;
@@ -40,20 +39,16 @@ interface Member {
   raw_provider: Record<string, any> | null;
 }
 
-type MemberRoleKey = "OWNER" | "SUPERADMIN" | "ADMIN" | "MEMBRO";
+type MemberRoleKey = "SUPERADMIN" | "ADMIN" | "MEMBRO";
 
-const getMemberRoleKey = (m: Pick<Member, "is_owner" | "is_super_admin" | "is_admin">): MemberRoleKey => {
-  if (m.is_owner) return "OWNER";
-  if (m.is_super_admin) return "SUPERADMIN";
-  if (m.is_admin) return "ADMIN";
+const getMemberRoleKey = (m: Pick<Member, "is_super_admin" | "is_admin">): MemberRoleKey => {
+  const level = getMemberAccessLevel(m);
+  if (level === "superadmin") return "SUPERADMIN";
+  if (level === "admin") return "ADMIN";
   return "MEMBRO";
 };
 
 const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = {
-  OWNER: {
-    label: "Dono",
-    className: "border-orange-200/70 bg-orange-100/55 text-orange-950",
-  },
   SUPERADMIN: {
     label: "Super Admin",
     className: "border-violet-200/70 bg-violet-100/55 text-violet-950",
@@ -130,15 +125,15 @@ const GroupMembers = () => {
         .order('created_at', { ascending: false });
 
       if (roleFilter === 'superadmin') {
-        query = query.or('is_owner.eq.true,is_super_admin.eq.true');
+        query = query.eq('is_super_admin', true);
       }
 
       if (roleFilter === 'admin') {
-        query = query.eq('is_admin', true).eq('is_super_admin', false).eq('is_owner', false);
+        query = query.eq('is_admin', true).eq('is_super_admin', false);
       }
 
       if (roleFilter === 'member') {
-        query = query.eq('is_admin', false).eq('is_super_admin', false).eq('is_owner', false);
+        query = query.eq('is_admin', false).eq('is_super_admin', false);
       }
       
       if (search) {

@@ -27,8 +27,6 @@ import Auth from "./pages/Auth";
 import NoAccess from "./pages/NoAccess";
 import NotFound from "./pages/NotFound";
 import DevTestUsers from "./pages/DevTestUsers";
-import Onboarding from "./pages/Onboarding";
-import OnboardingError from "./pages/OnboardingError";
 import Users from "./pages/Users";
 
 const originalConsoleError = console.error;
@@ -54,10 +52,6 @@ const App = () => (
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthGuard>
           <Routes>
-            {/* Public onboarding routes */}
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/onboarding/error" element={<OnboardingError />} />
-            
             {/* Auth and protected routes */}
             <Route path="/" element={<Index />} />
             {/* Legacy redirects */}

@@ -5,7 +5,6 @@ type ParticipantLike = {
   name?: unknown;
   is_admin?: unknown;
   is_super_admin?: unknown;
-  is_owner?: unknown;
   whatsapp_provider_id?: unknown;
 };
 
@@ -98,16 +97,14 @@ const normalizeParticipants = (participants: unknown) => {
     if (seen.has(key)) return;
     seen.add(key);
 
-    const isOwner = !!p?.is_owner;
     const isSuperAdmin = !!p?.is_super_admin;
-    const isAdmin = !!p?.is_admin || isOwner || isSuperAdmin;
+    const isAdmin = !!p?.is_admin || isSuperAdmin;
 
     normalized.push({
       phone: phoneE164,
       name: String(p?.name ?? '').trim() || null,
       is_admin: isAdmin,
       is_super_admin: isSuperAdmin,
-      is_owner: isOwner,
       whatsapp_provider_id: providerId,
     });
   });

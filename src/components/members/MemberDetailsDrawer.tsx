@@ -26,20 +26,15 @@ type MemberDetailsDrawerProps = {
   variant?: "sheet" | "dialog";
 };
 
-type MemberRoleKey = "OWNER" | "SUPERADMIN" | "ADMIN" | "MEMBRO";
+type MemberRoleKey = "SUPERADMIN" | "ADMIN" | "MEMBRO";
 
-const getMemberRoleKey = (m: { is_owner?: boolean | null; is_super_admin?: boolean | null; is_admin?: boolean | null }): MemberRoleKey => {
-  if (m.is_owner) return "OWNER";
+const getMemberRoleKey = (m: { is_super_admin?: boolean | null; is_admin?: boolean | null }): MemberRoleKey => {
   if (m.is_super_admin) return "SUPERADMIN";
   if (m.is_admin) return "ADMIN";
   return "MEMBRO";
 };
 
 const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = {
-  OWNER: {
-    label: "Dono",
-    className: "border-orange-200/70 bg-orange-100/55 text-orange-950",
-  },
   SUPERADMIN: {
     label: "Super Admin",
     className: "border-violet-200/70 bg-violet-100/55 text-violet-950",
@@ -72,14 +67,12 @@ const STATUS_BADGE: Record<MemberStatusKey, { label: string; className: string }
 };
 
 const getMemberRoleLabel = (role: MemberRoleKey) => {
-  if (role === "OWNER") return "Dono do grupo";
   if (role === "SUPERADMIN") return "Super Admin";
   if (role === "ADMIN") return "Admin";
   return "Membro";
 };
 
 const getMemberRoleDescription = (role: MemberRoleKey) => {
-  if (role === "OWNER") return "Criou o grupo ou possui controle total.";
   if (role === "SUPERADMIN") return "Admin com permissões ampliadas.";
   if (role === "ADMIN") return "Pode gerenciar membros e configurar o grupo.";
   return "Participante comum do grupo.";
@@ -124,7 +117,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
     queryFn: async () => {
       const { data } = await supabase
         .from("members")
-        .select("id, name, display_name, phone_e164, profile_pic_url, is_admin, is_super_admin, is_owner, joined_at, left_at, last_seen_message_at, status, provider, whatsapp_provider_id, metadata, group_id")
+        .select("id, name, display_name, phone_e164, profile_pic_url, is_admin, is_super_admin, joined_at, left_at, last_seen_message_at, status, provider, whatsapp_provider_id, metadata, group_id")
         .eq("id", memberId)
         .maybeSingle();
       return data as any;
@@ -306,16 +299,11 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
     if (!effectiveMemberRole) return "member" as const;
     if (effectiveMemberRole === "SUPERADMIN") return "superadmin" as const;
     if (effectiveMemberRole === "ADMIN") return "admin" as const;
-    if (effectiveMemberRole === "OWNER") return "owner" as const;
     return "member" as const;
   }, [effectiveMemberRole]);
 
   const updateMemberRole = async (next: "member" | "admin" | "superadmin") => {
     if (!ctxGroupId || !memberId) return;
-    if (effectiveMemberRole === "OWNER") {
-      notify.warning("Ação não permitida", "Não é possível alterar o dono do grupo.");
-      return;
-    }
 
     const patch =
       next === "member"
@@ -435,7 +423,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
       <div className="p-4 rounded-xl border border-border bg-secondary/20">
         <div className="text-[11px] font-medium text-muted-foreground">Função no grupo</div>
         <div className="mt-1">
-          {canEditMemberRole && effectiveMemberRole && effectiveMemberRole !== "OWNER" ? (
+          {canEditMemberRole && effectiveMemberRole ? (
             <Select
               value={roleValue}
               onValueChange={(v) => {

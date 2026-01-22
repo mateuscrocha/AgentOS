@@ -3,7 +3,6 @@ type ParticipantLike = {
   name?: unknown;
   is_admin?: unknown;
   is_super_admin?: unknown;
-  is_owner?: unknown;
   whatsapp_provider_id?: unknown;
 };
 
@@ -14,7 +13,6 @@ type NormalizedParticipant = {
   name: string | null;
   is_admin: boolean;
   is_super_admin: boolean;
-  is_owner: boolean;
 };
 
 const isUnknownColumnError = (err: any): boolean => {
@@ -70,9 +68,8 @@ const normalizeParticipants = (participants: unknown): NormalizedParticipant[] =
       const providerId = providerIdRaw || digits;
       if (!providerId) return null;
 
-      const isOwner = !!p?.is_owner;
       const isSuperAdmin = !!p?.is_super_admin;
-      const isAdmin = !!p?.is_admin || isOwner || isSuperAdmin;
+      const isAdmin = !!p?.is_admin || isSuperAdmin;
       const nameRaw = String(p?.name ?? '').trim();
       const name = nameRaw || null;
 
@@ -83,7 +80,6 @@ const normalizeParticipants = (participants: unknown): NormalizedParticipant[] =
         name,
         is_admin: isAdmin,
         is_super_admin: isSuperAdmin,
-        is_owner: isOwner,
       } satisfies NormalizedParticipant;
     })
     .filter(Boolean) as NormalizedParticipant[];
@@ -107,7 +103,6 @@ const buildRows = (args: {
   participants: NormalizedParticipant[];
   nowIso: string;
   phoneColumn: 'phone_e164' | 'phone';
-  includeOwner: boolean;
   includeSuperAdmin: boolean;
   includeProvider: boolean;
   includeProviderMemberId: boolean;
@@ -119,7 +114,6 @@ const buildRows = (args: {
     participants,
     nowIso,
     phoneColumn,
-    includeOwner,
     includeSuperAdmin,
     includeProvider,
     includeProviderMemberId,
@@ -137,7 +131,6 @@ const buildRows = (args: {
     base[phoneColumn] = p.phone_e164;
 
     if (includeSuperAdmin) base.is_super_admin = p.is_super_admin;
-    if (includeOwner) base.is_owner = p.is_owner;
     if (includeProviderMemberId) base.whatsapp_provider_id = p.whatsapp_provider_id;
     if (includeProvider) base.provider = 'whatsapp';
     if (includeTiming) {
@@ -175,7 +168,6 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       participants,
       nowIso,
       phoneColumn: 'phone_e164',
-      includeOwner: true,
       includeSuperAdmin: true,
       includeProvider: true,
       includeProviderMemberId: true,
@@ -187,7 +179,6 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       participants,
       nowIso,
       phoneColumn: 'phone_e164',
-      includeOwner: false,
       includeSuperAdmin: true,
       includeProvider: true,
       includeProviderMemberId: true,
@@ -199,7 +190,6 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       participants,
       nowIso,
       phoneColumn: 'phone_e164',
-      includeOwner: false,
       includeSuperAdmin: false,
       includeProvider: true,
       includeProviderMemberId: true,
@@ -211,7 +201,6 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       participants,
       nowIso,
       phoneColumn: 'phone_e164',
-      includeOwner: false,
       includeSuperAdmin: false,
       includeProvider: false,
       includeProviderMemberId: true,
@@ -223,7 +212,6 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       participants,
       nowIso,
       phoneColumn: 'phone_e164',
-      includeOwner: false,
       includeSuperAdmin: false,
       includeProvider: false,
       includeProviderMemberId: false,
@@ -235,7 +223,6 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       participants,
       nowIso,
       phoneColumn: 'phone',
-      includeOwner: false,
       includeSuperAdmin: false,
       includeProvider: false,
       includeProviderMemberId: false,
