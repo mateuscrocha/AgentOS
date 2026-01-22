@@ -40,9 +40,28 @@ const bottomNavItems: NavItem[] = [
   { icon: UserCircle, label: "Minha Conta", href: "/account" },
 ];
 
+const ONBOARDING_GROUPS_HINT_KEY = "boris_onboarding_groups_hint_done";
+
 export function AdminSidebar() {
   const location = useLocation();
   const { isSystemAdmin, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
+
+  const [showGroupsHint, setShowGroupsHint] = useState(() => {
+    try {
+      const done = globalThis.localStorage?.getItem(ONBOARDING_GROUPS_HINT_KEY);
+      return !done || done === "false";
+    } catch {
+      return false;
+    }
+  });
+  const [groupsHintPulse, setGroupsHintPulse] = useState(false);
+
+  useEffect(() => {
+    if (!showGroupsHint) return;
+    setGroupsHintPulse(true);
+    const timeoutId = globalThis.setTimeout(() => setGroupsHintPulse(false), 2500);
+    return () => globalThis.clearTimeout(timeoutId);
+  }, [showGroupsHint]);
 
   const isActive = useCallback(
     (href: string) => {
@@ -132,8 +151,19 @@ export function AdminSidebar() {
     if (adminHasActiveItem) setAdminOpen(true);
   }, [adminHasActiveItem]);
 
+  const handleGroupsNavClick = useCallback(() => {
+    try {
+      globalThis.localStorage?.setItem(ONBOARDING_GROUPS_HINT_KEY, "true");
+    } catch {
+      void 0;
+    }
+    setShowGroupsHint(false);
+  }, []);
+
   const renderNavItem = (item: NavItem) => {
     const active = isActive(item.href);
+    const isGroupsItem = item.label === "Grupos";
+    const showThisHint = showGroupsHint && isGroupsItem;
     return (
       <SidebarMenuItem key={`${item.href}:${item.label}`}>
         <SidebarMenuButton
@@ -143,15 +173,27 @@ export function AdminSidebar() {
           className={cn(
             "relative",
             "before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-transparent",
+            showThisHint && "before:bg-primary/40",
             "data-[active=true]:before:bg-primary",
+            showThisHint && "bg-primary/5 ring-1 ring-primary/20",
+            showThisHint && groupsHintPulse && "animate-pulse",
           )}
         >
-          <NavLink to={item.href}>
+          <NavLink to={item.href} onClick={isGroupsItem ? handleGroupsNavClick : undefined}>
             <item.icon className={cn(active && "text-primary")} />
             <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-            {item.badge ? (
-              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground group-data-[collapsible=icon]:hidden">
-                {item.badge}
+            {showThisHint || item.badge ? (
+              <span className="ml-auto flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+                {showThisHint ? (
+                  <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                    Comece por aqui
+                  </span>
+                ) : null}
+                {item.badge ? (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+                    {item.badge}
+                  </span>
+                ) : null}
               </span>
             ) : null}
           </NavLink>

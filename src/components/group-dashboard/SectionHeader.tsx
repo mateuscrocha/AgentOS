@@ -1,4 +1,4 @@
-import type { ElementType } from "react";
+import type { ElementType, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -6,6 +6,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 
 interface SectionHeaderProps {
   title: string;
+  titleAddon?: ReactNode;
   subtitle?: string;
   subtitleIcon?: ElementType;
   subtitleClassName?: string;
@@ -18,6 +19,7 @@ interface SectionHeaderProps {
 
 export function SectionHeader({ 
   title, 
+  titleAddon,
   subtitle,
   subtitleIcon: SubtitleIcon,
   subtitleClassName,
@@ -32,6 +34,7 @@ export function SectionHeader({
       <div>
         <h3 className="text-base font-semibold text-card-foreground flex items-center gap-1.5">
           {title}
+          {titleAddon}
           {helpText && (
             <Tooltip>
               <TooltipTrigger asChild>

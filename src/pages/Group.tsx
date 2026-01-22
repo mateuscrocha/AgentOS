@@ -330,6 +330,7 @@ const Group = () => {
                 recurringPercent={recurringPercent}
                 activeDaysPercent={activeDaysPercent}
                 lowEffortPercent={lowEffortPercent}
+                disabled
                 isLoading={isLoading}
                 hasIkigai={hasIkigai}
                 periodLabel={getPeriodLabel()}

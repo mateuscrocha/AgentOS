@@ -13,6 +13,7 @@ interface PurposeAlignmentSectionProps {
   recurringPercent: number;
   activeDaysPercent: number;
   lowEffortPercent: number;
+  disabled?: boolean;
   isLoading?: boolean;
   hasIkigai?: boolean;
   periodLabel?: string;
@@ -25,6 +26,7 @@ export function PurposeAlignmentSection({
   recurringPercent,
   activeDaysPercent,
   lowEffortPercent,
+  disabled = false,
   isLoading,
   hasIkigai = false,
   periodLabel = "período",
@@ -120,6 +122,38 @@ export function PurposeAlignmentSection({
   const chartConfig = {
     valor: { label: "Percentual" },
   };
+
+  if (disabled) {
+    return (
+      <section className="rounded-xl border border-border bg-card p-5">
+        <SectionHeader
+          title="Alinhamento com o Propósito"
+          titleAddon={
+            <Badge className="ml-2 border-border bg-muted/50 text-muted-foreground text-[10px] font-semibold tracking-wide">
+              EM BREVE
+            </Badge>
+          }
+          subtitle={`Diagnóstico das conversas — ${periodText}`}
+          helpText={helpText}
+        />
+
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6">
+          <div className="text-sm font-medium text-muted-foreground">Essa seção está sendo preparada.</div>
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4 opacity-70">
+            <div className="lg:col-span-2 space-y-3">
+              <Skeleton className="h-5 w-7/12" />
+              <Skeleton className="h-4 w-11/12" />
+              <Skeleton className="h-4 w-9/12" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+            <div className="lg:col-span-1">
+              <Skeleton className="h-[220px] w-full" />
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
