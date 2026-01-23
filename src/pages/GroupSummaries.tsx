@@ -15,7 +15,6 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { StatusTag } from "@/components/ui/status-tag";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateDescriptiveBR } from "@/lib/date";
@@ -274,7 +273,7 @@ function topicKindMeta(kind: TopicKind): {
 
   if (kind === "desejo") {
     return {
-      label: "Desejo",
+      label: "Oportunidade",
       tagVariant: "success",
       cardClassName: "border-success/20 bg-success/5",
       accentClassName: "border-l-success/35",
@@ -301,7 +300,15 @@ function SectionDivider({ title, subtitle }: { title: string; subtitle?: string 
   );
 }
 
-function TopicCard({ topic, kind }: { topic: GroupDailyTopicRow; kind: TopicKind }) {
+function TopicCard({
+  topic,
+  kind,
+  emphasis,
+}: {
+  topic: GroupDailyTopicRow;
+  kind: TopicKind;
+  emphasis?: "top" | "default";
+}) {
   const meta = topicKindMeta(kind);
   const title = cleanInlineLabel(topic.title || "") || "Assunto";
 
@@ -309,11 +316,12 @@ function TopicCard({ topic, kind }: { topic: GroupDailyTopicRow; kind: TopicKind
     <Collapsible
       defaultOpen={false}
       className={cn(
-        "rounded-xl border p-4 sm:p-5",
+        "rounded-2xl border p-4 sm:p-5",
         "transition-colors duration-200",
         meta.cardClassName,
         meta.accentClassName,
         "border-l-2",
+        emphasis === "top" && "shadow-sm",
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -329,7 +337,10 @@ function TopicCard({ topic, kind }: { topic: GroupDailyTopicRow; kind: TopicKind
               <StatusTag variant={meta.tagVariant}>{meta.label}</StatusTag>
               <Badge
                 variant="secondary"
-                className="h-5 px-2 text-[11px] font-medium text-muted-foreground bg-muted/40 hover:bg-muted/40"
+                className={cn(
+                  "h-5 px-2 text-[11px] font-medium text-muted-foreground bg-muted/40 hover:bg-muted/40",
+                  emphasis === "top" && "text-foreground/80",
+                )}
               >
                 Top {topic.rank}
               </Badge>
@@ -337,7 +348,12 @@ function TopicCard({ topic, kind }: { topic: GroupDailyTopicRow; kind: TopicKind
 
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-foreground leading-snug line-clamp-2 max-w-[92ch]">
+                <div
+                  className={cn(
+                    "font-semibold text-foreground leading-snug line-clamp-2 max-w-[92ch]",
+                    emphasis === "top" ? "text-base sm:text-[15px]" : "text-sm",
+                  )}
+                >
                   {title}
                 </div>
               </div>
@@ -586,7 +602,7 @@ const GroupSummaries = () => {
       title="Diário"
       subtitle="Resumo, tópicos e palavras-chave por dia"
     >
-      <div className="space-y-6 animate-fade-in">
+      <div className="animate-fade-in -mx-6 -mt-6 px-6 pt-6 pb-10 bg-[#FBFAF6] space-y-6">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
@@ -665,16 +681,22 @@ const GroupSummaries = () => {
               const painTopics = topicsWithKind.filter((t) => t.kind === "dor");
               const nonPainTopics = topicsWithKind.filter((t) => t.kind !== "dor");
 
-              const topicsVisible = nonPainTopics.slice(0, showAllTopics ? 50 : 3);
-              const topicsExtra = Math.max(0, nonPainTopics.length - 3);
+              const nonPainSorted = nonPainTopics
+                .slice()
+                .sort((a, b) => (a.topic.rank ?? 999) - (b.topic.rank ?? 999));
+              const topNonPain = nonPainSorted[0] ?? null;
+              const otherNonPain = nonPainSorted.slice(1);
 
               const painCount = painTopics.length;
+              const topPain = painTopics
+                .slice()
+                .sort((a, b) => (a.topic.rank ?? 999) - (b.topic.rank ?? 999))[0]?.topic;
 
               return (
                 <AccordionItem key={s.id} value={s.id} className="border-0">
                   <Card
                     className={cn(
-                      "rounded-xl border border-border bg-card",
+                      "rounded-2xl border border-border/60 bg-card/70",
                       "focus-within:ring-1 focus-within:ring-ring/15",
                       isOpen ? "shadow-card" : ""
                     )}
@@ -682,7 +704,7 @@ const GroupSummaries = () => {
                     <AccordionTrigger className="px-4 py-4 sm:px-5 sm:py-5 hover:no-underline justify-start items-start gap-2 font-normal focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/20">
                       <div className="min-w-0 flex-1 text-left space-y-2">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="text-base sm:text-lg font-semibold text-foreground">
+                          <div className="text-sm sm:text-base font-semibold text-foreground">
                             {formatDateDescriptiveBR(s.dateLabel)}
                           </div>
 
@@ -710,81 +732,186 @@ const GroupSummaries = () => {
                           </div>
                         </div>
 
-                        <p className="max-w-[96ch] text-sm sm:text-[15px] leading-relaxed font-semibold text-foreground line-clamp-2">
+                        <p className="max-w-[96ch] text-sm sm:text-[15px] leading-relaxed font-medium text-foreground/90 line-clamp-2">
                           {pickHumanDaySummary(s.topics, s.keywords)}
                         </p>
                       </div>
                     </AccordionTrigger>
 
                     <AccordionContent className="px-4 pb-4 sm:px-5 sm:pb-5 transition-all duration-200">
-                      <div className="space-y-8">
-                        <Card className="rounded-2xl border border-primary/15 bg-primary/5 shadow-sm">
-                          <div className="p-4 sm:p-5">
-                            <div className="space-y-2">
-                              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                Resumo do dia
-                              </div>
-                              <p className="max-w-[92ch] text-[15px] sm:text-base leading-relaxed font-semibold text-foreground line-clamp-2">
-                                {s.preview || "Resumo disponível para este dia."}
-                              </p>
-                            </div>
+                      <div className="space-y-10">
+                        <div className="space-y-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {formatDateDescriptiveBR(s.dateLabel)}
                           </div>
-                        </Card>
-
-                        {painTopics.length > 0 ? (
-                          <div className="space-y-3">
-                            <SectionDivider title="Dores / alertas" subtitle="O que gerou fricção ou reclamação" />
-                            <Alert className="border-destructive/20 bg-destructive/5">
-                              <AlertTriangle className="h-4 w-4 text-destructive" />
-                              <AlertTitle className="text-foreground">Atenção</AlertTitle>
-                              <AlertDescription className="text-muted-foreground">
-                                {painTopics.length === 1
-                                  ? "Encontramos 1 dor que merece atenção neste dia."
-                                  : `Encontramos ${painTopics.length} dores que merecem atenção neste dia.`}
-                              </AlertDescription>
-                            </Alert>
-
-                            <div className="space-y-2">
-                              {painTopics.map(({ topic, kind }) => (
-                                <TopicCard key={topic.id} topic={topic} kind={kind} />
-                              ))}
+                          <div className="rounded-2xl bg-card/70 px-4 py-4 sm:px-5 sm:py-5">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              Resumo executivo
                             </div>
+                            <p className="mt-2 max-w-[92ch] text-[18px] sm:text-[22px] leading-snug font-semibold text-foreground">
+                              {pickHumanDaySummary(s.topics, s.keywords)}
+                            </p>
                           </div>
-                        ) : null}
-
-                        <div className="space-y-3">
-                          <SectionDivider title="Assuntos mais relevantes" subtitle="O que movimentou o grupo" />
-
-                          {topicsVisible.length > 0 ? (
-                            <div className="space-y-2">
-                              {topicsVisible.map(({ topic, kind }) => (
-                                <TopicCard key={topic.id} topic={topic} kind={kind} />
-                              ))}
-
-                              {topicsExtra > 0 ? (
-                                <div className="pt-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setShowAllTopicsByDay((curr) => ({ ...curr, [s.id]: !showAllTopics }));
-                                    }}
-                                  >
-                                    {showAllTopics ? "Ver menos assuntos" : "Ver mais assuntos"}
-                                  </Button>
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground">Nenhum assunto disponível para este dia.</div>
-                          )}
                         </div>
 
+                        {painTopics.length > 0 ? (
+                          <Collapsible defaultOpen={false} className="rounded-2xl border border-destructive/20 bg-destructive/5">
+                            <div className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                                  <div className="text-sm font-semibold text-foreground">Precisa de atenção</div>
+                                  <Badge variant="secondary" className="h-5 px-2 text-[11px] bg-card/60">
+                                    {painCount} dor{painCount === 1 ? "" : "es"}
+                                  </Badge>
+                                </div>
+                                {topPain ? (
+                                  <p className="mt-2 text-sm text-foreground/90 line-clamp-2 max-w-[92ch]">
+                                    {cleanInlineLabel(topPain.title || "")}
+                                  </p>
+                                ) : (
+                                  <p className="mt-2 text-sm text-foreground/90">Há pontos de fricção neste dia.</p>
+                                )}
+                              </div>
+
+                              <CollapsibleTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
+                                >
+                                  Ver detalhes
+                                </Button>
+                              </CollapsibleTrigger>
+                            </div>
+
+                            <CollapsibleContent className="px-4 pb-4 sm:px-5 sm:pb-5">
+                              <div className="space-y-2">
+                                {painTopics.map(({ topic, kind }) => (
+                                  <TopicCard key={topic.id} topic={topic} kind={kind} emphasis="default" />
+                                ))}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        ) : (
+                          <div className="rounded-2xl border border-success/15 bg-success/5 px-4 py-3 sm:px-5 sm:py-4">
+                            <div className="flex items-center gap-2">
+                              <StatusTag variant="success">Ok</StatusTag>
+                              <p className="text-sm text-foreground/90">Nenhum alerta relevante neste dia.</p>
+                            </div>
+                          </div>
+                        )}
+
+                        <Collapsible defaultOpen={false} className="rounded-2xl bg-card/70">
+                          <div className="px-4 py-4 sm:px-5 sm:py-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Resumo do dia
+                                </div>
+                                <p className="mt-2 max-w-[92ch] text-sm sm:text-[15px] leading-relaxed text-foreground/90 line-clamp-3">
+                                  {s.preview || "Resumo disponível para este dia."}
+                                </p>
+                              </div>
+
+                              <CollapsibleTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
+                                >
+                                  Ler resumo completo
+                                </Button>
+                              </CollapsibleTrigger>
+                            </div>
+                            <CollapsibleContent>
+                              <p className="mt-3 max-w-[92ch] text-sm sm:text-[15px] leading-relaxed text-foreground whitespace-pre-wrap break-words">
+                                {s.preview || "Resumo disponível para este dia."}
+                              </p>
+                            </CollapsibleContent>
+                          </div>
+                        </Collapsible>
+
+                        <Collapsible defaultOpen={false} className="rounded-2xl bg-card/70">
+                          <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
+                            <CollapsibleTrigger asChild>
+                              <button
+                                type="button"
+                                className={cn(
+                                  "group flex min-w-0 items-center gap-2 text-left",
+                                  "text-sm font-semibold text-foreground",
+                                  "hover:text-foreground/90",
+                                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/20"
+                                )}
+                              >
+                                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                                <span className="truncate">O que moveu o grupo</span>
+                              </button>
+                            </CollapsibleTrigger>
+
+                            {topNonPain ? (
+                              <div className="hidden sm:flex items-center gap-2 min-w-0">
+                                <Badge variant="secondary" className="h-5 px-2 text-[11px] bg-muted/40 text-muted-foreground">
+                                  Top 1
+                                </Badge>
+                                <div className="text-xs text-muted-foreground truncate max-w-[520px]">
+                                  {cleanInlineLabel(topNonPain.topic.title || "")}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground">Sem tópicos neste dia</div>
+                            )}
+                          </div>
+
+                          <CollapsibleContent className="px-4 pb-4 sm:px-5 sm:pb-5">
+                            {nonPainSorted.length > 0 ? (
+                              <div className="space-y-2">
+                                {topNonPain ? (
+                                  <TopicCard
+                                    key={topNonPain.topic.id}
+                                    topic={topNonPain.topic}
+                                    kind={topNonPain.kind}
+                                    emphasis="top"
+                                  />
+                                ) : null}
+
+                                {(showAllTopics ? otherNonPain : otherNonPain.slice(0, 2)).map(({ topic, kind }) => (
+                                  <TopicCard key={topic.id} topic={topic} kind={kind} emphasis="default" />
+                                ))}
+
+                                {Math.max(0, otherNonPain.length - 2) > 0 ? (
+                                  <div className="pt-1">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setShowAllTopicsByDay((curr) => ({ ...curr, [s.id]: !showAllTopics }));
+                                      }}
+                                    >
+                                      {showAllTopics ? "Ver menos" : `Ver mais (${Math.max(0, otherNonPain.length - 2)})`}
+                                    </Button>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-muted-foreground">Nenhum tópico disponível para este dia.</div>
+                            )}
+                          </CollapsibleContent>
+                        </Collapsible>
+
                         <div className="space-y-3">
-                          <SectionDivider title="Palavras-chave" subtitle="Apoio para bater o olho e filtrar" />
+                          <SectionDivider title="Palavras-chave" subtitle="Apoio visual e filtro" />
                           {s.keywords.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5">
                               {s.keywords.map((kw) => {
@@ -799,10 +926,8 @@ const GroupSummaries = () => {
                                     variant="ghost"
                                     className={cn(
                                       "h-7 rounded-full px-3 text-[12px] font-medium whitespace-nowrap",
-                                      "bg-warning/10 text-warning hover:bg-warning/15 hover:text-warning",
-                                      isSelected
-                                        ? "bg-warning/20 ring-1 ring-warning/25"
-                                        : "",
+                                      "bg-muted/30 text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                                      isSelected ? "bg-muted ring-1 ring-border text-foreground" : "",
                                     )}
                                     aria-pressed={isSelected}
                                     onClick={(e) => {
@@ -826,7 +951,7 @@ const GroupSummaries = () => {
                           )}
                         </div>
 
-                        <Collapsible className="rounded-xl border border-border bg-card">
+                        <Collapsible className="rounded-2xl border border-border/60 bg-card/60">
                           <div className="flex items-center justify-between gap-3 px-4 py-3">
                             <CollapsibleTrigger asChild>
                               <button
@@ -846,8 +971,8 @@ const GroupSummaries = () => {
                             <div className="flex items-center gap-2">
                               <Button
                                 size="sm"
-                                variant="secondary"
-                                className="h-8 hover:bg-primary/10"
+                                variant="outline"
+                                className="h-8 bg-transparent"
                                 onClick={async (e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -865,8 +990,8 @@ const GroupSummaries = () => {
                               </Button>
                               <Button
                                 size="sm"
-                                variant="secondary"
-                                className="h-8 hover:bg-primary/10"
+                                variant="outline"
+                                className="h-8 bg-transparent"
                                 onClick={async (e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -886,7 +1011,7 @@ const GroupSummaries = () => {
                           </div>
 
                           <CollapsibleContent className="px-4 pb-4">
-                            <section className="rounded-xl border border-border bg-muted/10 p-4 sm:p-5">
+                            <section className="rounded-xl bg-muted/10 p-4 sm:p-5">
                               <ScrollArea className="max-h-[460px] pr-3">
                                 <div className="text-[13px] leading-relaxed font-mono text-card-foreground break-words">
                                   {renderWhatsappToReact(s.summary_text)}

@@ -188,8 +188,8 @@ export function GroupPageTop({
     const total = orderedSpecialMembers.length;
     if (total === 0) {
       return (
-        <div className="space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Administração do grupo</div>
+        <div className="space-y-1.5">
+          <div className="text-[11px] font-semibold tracking-wide text-muted-foreground">Administração do grupo</div>
           <div className="text-sm text-muted-foreground">Sem funções especiais configuradas.</div>
         </div>
       );
@@ -197,8 +197,8 @@ export function GroupPageTop({
 
     return (
       <>
-        <div className="space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Administração do grupo</div>
+        <div className="space-y-1.5">
+          <div className="text-[11px] font-semibold tracking-wide text-muted-foreground">Administração do grupo</div>
           <Button
             type="button"
             variant="link"
@@ -280,7 +280,7 @@ export function GroupPageTop({
 
   return (
     <section className={cn("space-y-4 mb-6", className)}>
-      <div className="sticky top-16 z-20 -mx-6 px-6 py-3 bg-background/80 backdrop-blur border-b border-border">
+      <div className="sticky top-16 z-20 -mx-6 px-6 py-3 bg-[#FBFAF6]/80 backdrop-blur border-b border-border/60">
         <Breadcrumbs items={breadcrumbItems} />
       </div>
       <div className="space-y-0">
@@ -296,7 +296,7 @@ export function GroupPageTop({
       </div>
 
       {filters && (
-        <div className="rounded-lg border border-border bg-card p-3">
+        <div className="rounded-xl border border-border/60 bg-card/70 p-3">
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div className="flex flex-wrap items-center gap-3">{filters}</div>
             <div className="flex items-center gap-2">

@@ -125,7 +125,7 @@ export function PurposeAlignmentSection({
 
   if (disabled) {
     return (
-      <section className="rounded-xl border border-border bg-card p-5">
+      <section className="rounded-2xl border border-border/60 bg-card/60 p-5">
         <SectionHeader
           title="Alinhamento com o Propósito"
           titleAddon={
@@ -137,17 +137,17 @@ export function PurposeAlignmentSection({
           helpText={helpText}
         />
 
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6">
+        <div className="rounded-xl border border-dashed border-border/70 bg-muted/15 p-6">
           <div className="text-sm font-medium text-muted-foreground">Essa seção está sendo preparada.</div>
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4 opacity-70">
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4 opacity-60">
             <div className="lg:col-span-2 space-y-3">
-              <Skeleton className="h-5 w-7/12" />
+              <Skeleton className="h-4 w-6/12" />
               <Skeleton className="h-4 w-11/12" />
               <Skeleton className="h-4 w-9/12" />
-              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-16 w-full" />
             </div>
             <div className="lg:col-span-1">
-              <Skeleton className="h-[220px] w-full" />
+              <Skeleton className="h-[180px] w-full" />
             </div>
           </div>
         </div>

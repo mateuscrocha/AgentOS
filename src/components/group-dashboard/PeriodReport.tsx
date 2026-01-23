@@ -32,18 +32,18 @@ export function PeriodReport(props: PeriodReportProps) {
   const format = (n: number) => n.toLocaleString("pt-BR");
 
   const insight = activeMembers > 0
-    ? `A conversa foi sustentada por uma base ativa de ${format(activeMembers)} pessoas (${activePercent}% do grupo), enquanto ${format(observers)} acompanharam como observadores — algo comum em grupos de WhatsApp.`
-    : "Neste período, ninguém enviou mensagens. O grupo ficou mais em modo observação — algo comum em alguns momentos.";
+    ? `Nos últimos ${periodDays} dias, ${format(activeMembers)} pessoas sustentaram a conversa (${activePercent}% do grupo).`
+    : `Nos últimos ${periodDays} dias, ninguém enviou mensagens.`;
 
   const conclusion = activeMembers > 0
-    ? "Existe uma comunidade ativa pequena, porém consistente."
+    ? `${format(observers)} pessoas acompanharam sem enviar mensagens.`
     : "O grupo ficou mais em modo observação neste período.";
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border/60 bg-card/70 p-5">
       <SectionHeader 
-        title="Visão geral do período" 
-        subtitle={`Leitura da base ativa do período — últimos ${periodDays} dias`}
+        title="Resumo do período" 
+        subtitle={`Leitura rápida da base ativa — últimos ${periodDays} dias`}
         subtitleIcon={Clock}
         subtitleClassName="text-primary/80"
       />
@@ -60,7 +60,7 @@ export function PeriodReport(props: PeriodReportProps) {
           <KpiCard
             title="Participação entre os ativos"
             value={`${participationAmongActives}%`}
-            subtitle="dos membros ativos participaram"
+            subtitle="dos ativos são recorrentes"
             help={{
               whatIs: "A parte da base ativa que aparece de forma recorrente ao longo do período.",
               howToInterpret:
@@ -69,7 +69,7 @@ export function PeriodReport(props: PeriodReportProps) {
                 "Se o volume de mensagens cresce, mas este número cai, a conversa pode estar acontecendo em poucos momentos concentrados.",
             }}
             valueClassName="text-primary/80"
-            className="shadow-sm"
+            className="shadow-none bg-card/60 border-border/60"
           />
           <KpiCard
             title="Base ativa no período"
@@ -83,12 +83,12 @@ export function PeriodReport(props: PeriodReportProps) {
                 "Compare com ‘Observadores’. Quando a base ativa encolhe e os observadores crescem, o grupo tende a ficar mais em modo leitura.",
             }}
             valueClassName="text-card-foreground"
-            className="shadow-sm"
+            className="shadow-none bg-card/60 border-border/60"
           />
           <KpiCard
             title="Observadores"
             value={`${format(observers)} pessoa${observers === 1 ? "" : "s"}`}
-            subtitle="acompanharam sem enviar mensagens"
+            subtitle="acompanharam sem falar"
             help={{
               whatIs: "Pessoas que permaneceram no grupo, mas não enviaram mensagens no período.",
               howToInterpret:
@@ -97,16 +97,16 @@ export function PeriodReport(props: PeriodReportProps) {
                 "Se os observadores aumentam por vários períodos seguidos, pode valer testar perguntas simples ou convites à participação.",
             }}
             valueClassName="text-muted-foreground"
-            className="shadow-sm"
+            className="shadow-none bg-card/60 border-border/60"
           />
         </div>
 
-        <div className="rounded-lg bg-muted/30 p-3">
+        <div className="rounded-lg bg-muted/25 p-3">
           <p className="text-sm text-muted-foreground max-w-[70ch]">{conclusion}</p>
         </div>
 
         <p className="text-xs text-muted-foreground/80 max-w-[70ch]">
-          Os KPIs do topo mostram o total do grupo; aqui a leitura foca na base ativa e nos observadores.
+          No topo: pulso geral. Aqui: base ativa e observadores.
         </p>
       </div>
     </section>

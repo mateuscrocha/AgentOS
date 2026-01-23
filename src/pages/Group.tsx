@@ -200,7 +200,7 @@ const Group = () => {
       title="Dashboard do Grupo" 
       subtitle={group?.name || "Grupo"}
     >
-      <div className="space-y-8 animate-fade-in">
+      <div className="animate-fade-in -mx-6 -mt-6 px-6 pt-6 pb-10 bg-[#FBFAF6] space-y-8">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
@@ -302,8 +302,8 @@ const Group = () => {
 
           <section className="space-y-6">
             <header className="space-y-1">
-              <h2 className="text-lg font-semibold text-foreground">Crescimento do grupo</h2>
-              <p className="text-sm text-muted-foreground">Entradas e saídas, crescimento líquido e evolução</p>
+              <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Crescimento do grupo</h2>
+              <p className="text-sm text-muted-foreground">Entradas, saídas e saldo do período</p>
             </header>
 
             <div className="space-y-8">

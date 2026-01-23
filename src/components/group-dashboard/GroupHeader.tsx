@@ -49,25 +49,23 @@ export function GroupHeader({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 border-b border-border">
+    <div className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 border-b border-border/60">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <h2 className="text-lg font-semibold text-card-foreground truncate min-w-0">{name}</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-muted-foreground">
+          <div className="flex items-start gap-3 min-w-0">
+            <h2 className="text-xl sm:text-2xl font-semibold text-card-foreground truncate min-w-0">{name}</h2>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium",
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold leading-none shrink-0",
                     groupStatus.color === 'success' && "bg-success/10 text-success",
                     groupStatus.color === 'warning' && "bg-warning/10 text-warning",
                     groupStatus.color === 'destructive' && "bg-destructive/10 text-destructive",
                     groupStatus.color === 'muted' && "bg-muted text-muted-foreground",
                   )}
                 >
-                  <groupStatus.icon className="h-3 w-3" />
+                  <groupStatus.icon className="h-3.5 w-3.5" />
                   {groupStatus.label}
                 </span>
               </TooltipTrigger>

@@ -166,7 +166,7 @@ export function PeakMomentSection({
   }, [data, messagesPerDay, windowMinutes]);
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5 border-l-4 border-l-primary/30">
+    <section className="rounded-2xl border border-[#F5D7A7] bg-[#FFF7E9] p-5 border-l-4 border-l-primary/40">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -198,7 +198,7 @@ export function PeakMomentSection({
             </button>
           </TooltipTrigger>
           <TooltipContent side="top" align="end" className="max-w-[280px]">
-            Período em que o grupo teve atividade muito acima do padrão normal.
+            Janela de 1h com maior concentração de mensagens.
           </TooltipContent>
         </Tooltip>
       </div>
@@ -216,16 +216,16 @@ export function PeakMomentSection({
         ) : noRelevantPeak ? (
           <div className="rounded-lg border border-border bg-secondary/30 p-4">
             <p className="text-sm text-muted-foreground">
-              Sem pico relevante neste período. Ajuste o período para ver momentos mais movimentados.
+              Sem pico relevante neste período.
             </p>
           </div>
         ) : (
           <div className="space-y-5">
             <div className="space-y-1">
-              <p className="text-2xl sm:text-3xl font-semibold text-primary/80 tabular-nums">
+              <p className="text-3xl sm:text-4xl font-semibold text-card-foreground tabular-nums">
                 {intensityRead.peakTotal.toLocaleString("pt-BR")} mensagens em 1 hora
               </p>
-              <p className="text-sm text-muted-foreground">Pico de atividade do grupo</p>
+              <p className="text-sm text-muted-foreground">Maior concentração de mensagens do período</p>
 
               {intensityRead.ratioRead || intensityRead.participantsRead ? (
                 <p className="text-sm text-muted-foreground">

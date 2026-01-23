@@ -42,21 +42,43 @@ export function ConversationRhythmSection({
     return formatDateTickBR(dateStr);
   };
 
-  
   const chartData = messagesPerDay.map(d => {
     const activesCount = activeMembersPerDay?.find(a => a.date === d.date)?.count ?? undefined;
     return { date: d.date, count: d.count, actives: activesCount };
   });
 
+  const trendSummary = (() => {
+    if (isLoading) return null;
+    const counts = (messagesPerDay || []).map((d) => Number(d.count) || 0);
+    const nonZeroDays = counts.filter((n) => n > 0).length;
+    if (counts.length < 2 || nonZeroDays === 0) return "Sem tendência clara neste período.";
+
+    const window = Math.min(3, counts.length);
+    const firstAvg = counts.slice(0, window).reduce((a, b) => a + b, 0) / window;
+    const lastAvg = counts.slice(-window).reduce((a, b) => a + b, 0) / window;
+    const delta = lastAvg - firstAvg;
+    const threshold = Math.max(1, firstAvg * 0.08);
+
+    if (delta > threshold) return "Tendência: o ritmo ficou mais forte nos últimos dias.";
+    if (delta < -threshold) return "Tendência: o ritmo perdeu força nos últimos dias.";
+    return "Tendência: ritmo estável ao longo do período.";
+  })();
+
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border/60 bg-card/70 p-5">
       <SectionHeader 
         title="Ritmo da Conversa" 
-        subtitle={`Padrões de atividade (${periodLabel})`}
-        helpText="Evolução das mensagens por dia no período. Útil para perceber picos, não para avaliar qualidade."
+        subtitle={`Mensagens por dia (${periodLabel})`}
+        helpText="Use para ver tendência e picos de atividade."
       />
       
-      <div className="mt-4">
+      <div className="mt-4 space-y-3">
+        {trendSummary ? (
+          <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+            <p className="text-sm text-card-foreground/90">{trendSummary}</p>
+          </div>
+        ) : null}
+
         {isLoading ? (
           <Skeleton className="h-[220px] w-full" />
         ) : messagesPerDay.length === 0 ? (
@@ -66,7 +88,7 @@ export function ConversationRhythmSection({
         ) : (
           <ChartContainer config={chartConfig} className="h-[220px] w-full">
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+              <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.25} vertical={false} />
               <XAxis 
                 dataKey="date" 
                 tickFormatter={formatDate}
@@ -93,18 +115,19 @@ export function ConversationRhythmSection({
                 type="monotone" 
                 dataKey="count" 
                 stroke="hsl(var(--primary))" 
-                strokeWidth={3}
-                dot={{ r: 2 }}
-                activeDot={{ r: 3 }}
+                strokeWidth={2.75}
+                dot={false}
+                activeDot={{ r: 4 }}
               />
               {activeMembersPerDay && activeMembersPerDay.length > 0 && (
                 <Line 
                   type="monotone"
                   dataKey="actives"
                   stroke="hsl(var(--muted-foreground))"
-                  strokeWidth={1.5}
+                  strokeWidth={1.25}
                   strokeDasharray="4 4"
                   dot={false}
+                  strokeOpacity={0.55}
                 />
               )}
             </LineChart>

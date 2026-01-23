@@ -68,20 +68,20 @@ export function GroupGrowthSection({
     membersAtPeriodStart !== undefined ? Math.max(0, membersAtPeriodStart + netGrowth) : currentMembers;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border/60 bg-card/70 p-5">
       <SectionHeader
         title="Evolução do grupo"
-        subtitle={`Como o grupo mudou nos últimos dias (${periodLabel})`}
-        className="mb-3"
+        subtitle={`Mudanças de entrada/saída (${periodLabel})`}
+        density="compact"
       />
 
       <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 auto-rows-fr">
-          <div className="rounded-xl border border-border border-l-4 border-l-primary bg-card/50 p-5 min-h-[120px] flex flex-col justify-between col-span-2 md:col-span-1">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 auto-rows-fr">
+          <div className="rounded-xl border border-border/60 bg-card/60 p-4 min-h-[96px] flex flex-col justify-between">
             {isLoading ? (
               <Skeleton className="h-10 w-28" />
             ) : (
-              <p className="text-3xl font-semibold text-card-foreground tabular-nums">
+              <p className="text-2xl font-semibold text-card-foreground tabular-nums">
                 {displayedCurrentMembers.toLocaleString("pt-BR")} <span className="text-base font-medium text-muted-foreground">membros</span>
               </p>
             )}
@@ -90,7 +90,7 @@ export function GroupGrowthSection({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4 min-h-[110px] flex flex-col justify-between col-span-2 md:col-span-1">
+          <div className="rounded-xl border border-border/60 bg-card/60 p-4 min-h-[96px] flex flex-col justify-between">
             {isLoading ? (
               <Skeleton className="h-9 w-20" />
             ) : (
@@ -103,7 +103,7 @@ export function GroupGrowthSection({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-secondary/20 p-4 min-h-[110px] flex flex-col justify-between">
+          <div className="rounded-xl border border-border/60 bg-card/60 p-4 min-h-[96px] flex flex-col justify-between">
             {isLoading ? (
               <Skeleton className="h-9 w-20" />
             ) : (
@@ -114,7 +114,7 @@ export function GroupGrowthSection({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-secondary/20 p-4 min-h-[110px] flex flex-col justify-between">
+          <div className="rounded-xl border border-border/60 bg-card/60 p-4 min-h-[96px] flex flex-col justify-between">
             {isLoading ? (
               <Skeleton className="h-9 w-20" />
             ) : (
@@ -130,7 +130,7 @@ export function GroupGrowthSection({
           <div className="flex items-center justify-between gap-3">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-card-foreground">Histórico de eventos</p>
-              <p className="text-xs text-muted-foreground">últimas mudanças no grupo</p>
+              <p className="text-xs text-muted-foreground">últimas mudanças</p>
             </div>
             {hasMoreEvents && eventsHref ? (
               <Link

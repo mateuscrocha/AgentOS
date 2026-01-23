@@ -49,7 +49,7 @@ export function SummarySection({
 
   return (
     <section>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {(() => {
           const curr = stats.totalMessages || 0;
           const prev = previousStats?.totalMessages ?? null;
@@ -71,12 +71,15 @@ export function SummarySection({
           })();
           return (
             <StatsCard 
-              title="Mensagens no período"
+              title="Mensagens (7 dias)"
               value={isLoading ? '—' : curr.toLocaleString('pt-BR')}
               change={isLoading ? undefined : changeLabel}
               changeType={changeType}
               icon={MessageSquare}
               variant="kpi"
+              className="col-span-2 md:col-span-2 rounded-xl border-primary/15 bg-[#FFF7E9] p-6 h-[128px]"
+              titleClassName="text-[11px] font-semibold text-foreground/80"
+              valueClassName="text-5xl sm:text-6xl text-card-foreground"
             />
           );
         })()}
@@ -102,13 +105,15 @@ export function SummarySection({
           })();
           return (
             <StatsCard 
-              title="Membros ativos"
-              value={isLoading ? '—' : String(curr)}
+              title="Ativos"
+              value={isLoading ? '—' : curr.toLocaleString('pt-BR')}
               change={isLoading ? undefined : changeLabel}
               changeType={changeType}
               icon={Users}
               variant="kpi"
-              description={`${activePercent}% do total de membros`}
+              description={`${activePercent}% do grupo`}
+              className="rounded-xl border-border/60 bg-card/70 p-4 h-[104px]"
+              valueClassName="text-3xl"
             />
           );
         })()}
@@ -136,12 +141,14 @@ export function SummarySection({
           })();
           return (
             <StatsCard 
-              title="Participação dos membros"
+              title="Participação"
               value={isLoading ? '—' : `${Math.round(currPct)}%`}
               change={isLoading ? undefined : changeLabel}
               changeType={changeType}
               icon={TrendingUp}
               variant="kpi"
+              className="rounded-xl border-border/60 bg-card/70 p-4 h-[104px]"
+              valueClassName="text-3xl"
             />
           );
         })()}
@@ -164,12 +171,14 @@ export function SummarySection({
           const icon = netGrowth >= 0 ? ArrowUpRight : ArrowDownRight;
           return (
             <StatsCard 
-              title="Crescimento líquido"
+              title="Crescimento"
               value={isLoading ? '—' : (netGrowth >= 0 ? `+${netGrowth}` : String(netGrowth))}
               change={isLoading ? undefined : changeLabel}
               changeType={changeType}
               icon={icon}
               variant="kpi"
+              className="rounded-xl border-border/60 bg-card/70 p-4 h-[104px]"
+              valueClassName="text-3xl"
             />
           );
         })()}

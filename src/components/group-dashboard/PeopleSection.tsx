@@ -41,7 +41,6 @@ export function PeopleSection({
   isLoading,
   periodLabel = "período",
 }: PeopleSectionProps) {
-  // UX: padroniza o texto do período para dar contexto imediato às métricas (ex.: "nos últimos 7 dias").
   const formatPeriodSuffix = (label: string) => {
     if (!label || label === "período") return "no período";
     if (/^últimos\s+/i.test(label)) return `nos ${label}`;
@@ -54,7 +53,6 @@ export function PeopleSection({
     return `no período (${label})`;
   };
 
-  // UX: mantém consistência de leitura em subtítulos ("Baseado nos últimos 7 dias" etc.).
   const formatBasedOnPeriod = (label: string) => {
     if (!label || label === "período") return "Baseado no período";
     if (/^últimos\s+/i.test(label)) return `Baseado nos ${label}`;
@@ -93,7 +91,7 @@ export function PeopleSection({
   const periodSuffix = formatPeriodSuffix(periodLabel);
   const basedOnText = formatBasedOnPeriod(periodLabel);
   const highlightPeriodLabel = useMemo(() => {
-    if (!periodLabel || periodLabel === "período") return "Últimos 14 dias";
+    if (!periodLabel || periodLabel === "período") return "Período selecionado";
     if (/^últimos\s+/i.test(periodLabel)) return periodLabel.replace(/^últimos\s+/i, "Últimos ");
     if (/^\d+\s+dias$/i.test(periodLabel)) return `Últimos ${periodLabel}`;
     return periodLabel;
@@ -115,17 +113,17 @@ export function PeopleSection({
   }, [memberEngagement, previousMemberEngagement]);
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border/60 bg-card/70 p-5">
       <SectionHeader 
         title="Pessoas do Grupo" 
-        subtitle="Dinâmica social do grupo"
+        subtitle="Quem sustenta a conversa"
         linkHref={`/groups/${groupId}/members`}
         linkLabel="Ver todos"
         linkClassName="text-muted-foreground hover:text-foreground"
       />
 
       <div className="space-y-6">
-        <div className="rounded-xl border border-border border-l-4 border-l-primary bg-card/50 p-6 transition-colors hover:bg-card hover:shadow-sm">
+        <div className="rounded-2xl border border-[#F5D7A7] bg-[#FFF7E9] p-6 border-l-4 border-l-primary/40">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-card-foreground">Quem sustentou a conversa</p>
@@ -153,7 +151,7 @@ export function PeopleSection({
                         if (canOpenTopMember) setTopMemberOpen(true);
                       }}
                     >
-                      <Avatar className="h-14 w-14 ring-1 ring-primary/15">
+                      <Avatar className="h-14 w-14 ring-1 ring-primary/20">
                         {topParticipant.avatarUrl ? (
                           <AvatarImage src={topParticipant.avatarUrl || undefined} alt={topParticipant.name || "Membro mais ativo"} referrerPolicy="no-referrer" />
                         ) : null}
@@ -187,9 +185,7 @@ export function PeopleSection({
                   </span>
                 </div>
 
-                <p className="mt-4 text-sm text-muted-foreground">
-                  Sustentou a conversa do grupo ao longo dos últimos dias.
-                </p>
+                <p className="mt-4 text-sm text-muted-foreground">Principal força de participação no período.</p>
 
                 {topParticipant.id ? (
                   <MemberDetailsDrawer
@@ -209,8 +205,8 @@ export function PeopleSection({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-xl border border-border bg-secondary/20 p-5 transition-colors hover:bg-secondary/30 hover:shadow-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-border/60 bg-card/60 p-5">
             <div className="mb-4">
               <p className="text-sm font-medium text-card-foreground">Top participantes</p>
               <p className="text-xs text-muted-foreground mt-0.5">{basedOnText}</p>
@@ -231,7 +227,7 @@ export function PeopleSection({
                   return (
                     <div
                       key={participant.id}
-                      className="flex items-center justify-between gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-card/60"
+                      className="flex items-center justify-between gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {isMedal ? (
@@ -258,7 +254,7 @@ export function PeopleSection({
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-secondary/20 p-5 transition-colors hover:bg-secondary/30 hover:shadow-sm">
+          <div className="rounded-2xl border border-border/60 bg-card/60 p-5">
             <div className="flex items-start justify-between gap-2 mb-4">
               <div>
                 <p className="text-sm font-medium text-card-foreground">Distribuição de engajamento</p>
@@ -332,7 +328,7 @@ export function PeopleSection({
                             </TooltipContent>
                           </Tooltip>
                         </div>
-                        <span className="text-muted-foreground tabular-nums">{memberEngagement.recorrentes}</span>
+                        <span className="text-card-foreground/90 font-medium tabular-nums">{memberEngagement.recorrentes}</span>
                       </div>
 
                       <div className="flex items-center justify-between gap-2">
@@ -349,7 +345,7 @@ export function PeopleSection({
                             </TooltipContent>
                           </Tooltip>
                         </div>
-                        <span className="text-muted-foreground tabular-nums">{memberEngagement.esporadicos}</span>
+                        <span className="text-card-foreground/90 font-medium tabular-nums">{memberEngagement.esporadicos}</span>
                       </div>
 
                       <div className="flex items-center justify-between gap-2">
@@ -357,7 +353,7 @@ export function PeopleSection({
                           <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/30" />
                           <span className="text-muted-foreground">Inativos</span>
                         </div>
-                        <span className="text-muted-foreground tabular-nums">{memberEngagement.inativos}</span>
+                        <span className="text-card-foreground/90 font-medium tabular-nums">{memberEngagement.inativos}</span>
                       </div>
                     </div>
 
