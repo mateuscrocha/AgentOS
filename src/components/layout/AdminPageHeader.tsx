@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 interface AdminPageHeaderProps {
   breadcrumbItems: BreadcrumbItem[];
-  title: string;
+  title: ReactNode;
   description?: string;
   actions?: ReactNode;
   generalKpis?: ReactNode;

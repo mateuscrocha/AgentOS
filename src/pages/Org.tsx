@@ -888,7 +888,7 @@ const Org = () => {
       header: "Grupo",
       render: (g: any) => (
         <div className="min-w-0">
-          <div className="font-medium text-card-foreground truncate">{g.row.name}</div>
+          <div className="font-semibold text-card-foreground truncate">{g.row.name}</div>
           {g.row.lastSummaryText ? (
             <div className="text-xs text-muted-foreground truncate">{toPreview(g.row.lastSummaryText, 120)}</div>
           ) : g.row.lastMessagePreview ? (
@@ -954,7 +954,7 @@ const Org = () => {
         }
         const count = panoramaRecentMessages?.[g.row.id];
         if (typeof count !== "number") return <span className="text-sm text-muted-foreground">—</span>;
-        return <span className="text-sm tabular-nums">{formatNumberBR(count)}</span>;
+        return <span className="text-sm font-semibold tabular-nums">{formatNumberBR(count)}</span>;
       },
     },
     {
@@ -1252,7 +1252,7 @@ const Org = () => {
                     notify.error('Não foi possível abrir', 'Algo deu errado. Tente novamente.');
                   }
                 }}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
               >
                 <Edit className="h-4 w-4" />
               </Button>
@@ -1291,25 +1291,35 @@ const Org = () => {
     },
   ];
 
+  const orgStatusLabel = org.status === "active" ? "Ativo" : org.status === "inactive" ? "Inativo" : "Suspenso";
+  const orgStatusClassName =
+    org.status === "active"
+      ? "bg-success/10 text-success"
+      : org.status === "inactive"
+        ? "bg-muted text-muted-foreground"
+        : "bg-destructive/10 text-destructive";
+
   return (
     <AdminLayout 
       title="Organização" 
       subtitle={org?.name || "Organização"}
     >
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={breadcrumbItems}
-          title={org?.name || "Organização"}
+          title={
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <span className="truncate">{org?.name || "Organização"}</span>
+              <span className={
+                `px-2.5 py-0.5 rounded-full text-xs font-medium ${orgStatusClassName}`
+              }>
+                {orgStatusLabel}
+              </span>
+            </div>
+          }
           description={`Criada em ${formatDateSimpleBR(org.created_at)}`}
           actions={(
-            <div className="flex items-center gap-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                org.status === 'active' ? 'bg-success/10 text-success' :
-                org.status === 'inactive' ? 'bg-muted text-muted-foreground' :
-                'bg-destructive/10 text-destructive'
-              }`}>
-                {org.status === 'active' ? 'Ativo' : org.status === 'inactive' ? 'Inativo' : 'Suspenso'}
-              </span>
+            <div className="flex items-center gap-2">
               {userCanEditOrg && (
                 <Button
                   variant="outline"
@@ -1342,11 +1352,11 @@ const Org = () => {
 
         {(isDashboardRoute || isDefaultOrgHome) && (
           <div id="org-dashboard" className="space-y-6">
-            <Card>
+            <Card className="border-0 shadow-none">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-sm font-semibold text-card-foreground">Estado geral</div>
+                    <div className="text-sm font-semibold text-card-foreground">Saúde da organização</div>
                     <div className="text-xs text-muted-foreground">Últimos 7 dias</div>
                   </div>
                   {signalsError ? (
@@ -1357,44 +1367,65 @@ const Org = () => {
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <Card className="shadow-none">
-                    <CardContent className="p-4">
-                      <div className="text-xs text-muted-foreground">Grupos</div>
-                      <div className="text-2xl font-semibold tabular-nums">{formatNumberBR(totalGroupsCount ?? 0)}</div>
-                      <div className="text-xs text-muted-foreground">Total na organização</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="shadow-none">
-                    <CardContent className="p-4">
-                      <div className="text-xs text-muted-foreground">Ativos</div>
-                      <div className="text-2xl font-semibold tabular-nums">{formatNumberBR(activeGroupsValue ?? 0)}</div>
-                      <div className="text-xs text-muted-foreground">Em operação</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="shadow-none">
-                    <CardContent className="p-4">
-                      <div className="text-xs text-muted-foreground">Em silêncio</div>
-                      <div className="text-2xl font-semibold tabular-nums">{formatNumberBR(silentGroupsCount ?? 0)}</div>
-                      <div className="text-xs text-muted-foreground">Sem mensagens recentes</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="shadow-none">
-                    <CardContent className="p-4">
-                      <div className="text-xs text-muted-foreground">Com alerta</div>
-                      <div className="text-2xl font-semibold tabular-nums">{formatNumberBR(alertGroupsCount ?? 0)}</div>
-                      <div className="text-xs text-muted-foreground">Precisa de atenção</div>
-                    </CardContent>
-                  </Card>
+                  <div className="rounded-xl bg-secondary/30 p-4">
+                    <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-card-foreground">
+                      {formatNumberBR(totalGroupsCount ?? 0)}
+                    </div>
+                    <div className="mt-1 text-sm font-medium text-card-foreground">Grupos ativos</div>
+                    <div className="text-xs text-muted-foreground">Total na organização</div>
+                  </div>
+
+                  <div className="rounded-xl bg-secondary/30 p-4">
+                    <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-success">
+                      {formatNumberBR(activeGroupsValue ?? 0)}
+                    </div>
+                    <div className="mt-1 text-sm font-medium text-card-foreground">Em operação</div>
+                    <div className="text-xs text-muted-foreground">Em operação</div>
+                  </div>
+
+                  <div className="rounded-xl bg-secondary/30 p-4">
+                    <div
+                      className={
+                        `text-2xl sm:text-3xl font-semibold tabular-nums ${
+                          (silentGroupsCount ?? 0) === 0 ? "text-success" : "text-warning"
+                        }`
+                      }
+                    >
+                      {formatNumberBR(silentGroupsCount ?? 0)}
+                    </div>
+                    <div className="mt-1 text-sm font-medium text-card-foreground">Sem atividade</div>
+                    <div className="text-xs text-muted-foreground">Sem mensagens recentes</div>
+                  </div>
+
+                  <div
+                    className={
+                      `rounded-xl bg-secondary/30 p-4 ${
+                        (alertGroupsCount ?? 0) > 0 ? "ring-1 ring-warning/25" : "ring-1 ring-success/10"
+                      }`
+                    }
+                  >
+                    <div
+                      className={
+                        `text-2xl sm:text-3xl font-semibold tabular-nums ${
+                          (alertGroupsCount ?? 0) === 0 ? "text-success" : "text-warning"
+                        }`
+                      }
+                    >
+                      {formatNumberBR(alertGroupsCount ?? 0)}
+                    </div>
+                    <div className="mt-1 text-sm font-medium text-card-foreground">Precisam de atenção</div>
+                    <div className="text-xs text-muted-foreground">Com alerta</div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-0 shadow-none">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-sm font-semibold text-card-foreground">Panorama geral</div>
-                    <div className="text-xs text-muted-foreground">Atividade, tendência e último sinal</div>
+                    <div className="text-sm font-semibold text-card-foreground">Atividade dos grupos</div>
+                    <div className="text-xs text-muted-foreground">Últimas {RECENT_MESSAGES_HOURS} horas</div>
                   </div>
                 </div>
 
@@ -1410,16 +1441,98 @@ const Org = () => {
                   <div className="mt-4 text-sm text-muted-foreground">Sem dados suficientes para montar o panorama.</div>
                 ) : (
                   <div className="mt-4">
-                    <BorisTable
-                      columns={panoramaColumns as any}
-                      data={panoramaItems as any}
-                      keyExtractor={(g: any) => g.row.id}
-                      onRowClick={(g: any) => navigate(`/groups/${g.row.id}`)}
-                      page={panoramaPage}
-                      pageSize={PANORAMA_PAGE_SIZE}
-                      totalCount={panoramaTotal}
-                      onPageChange={setPanoramaPage}
-                    />
+                    <div className="space-y-3 md:hidden">
+                      {panoramaItems.map((g: any) => {
+                        const activityVariant = g.activity === "silencio" ? "error" : g.activity === "alto" ? "success" : "neutral";
+                        const activityLabel =
+                          g.activity === "silencio" ? "Silêncio" : g.activity === "baixo" ? "Baixa" : g.activity === "medio" ? "Média" : "Alta";
+                        const recentCount = panoramaRecentMessagesLoading ? null : panoramaRecentMessages?.[g.row.id];
+                        const contextText = g.row.lastSummaryText
+                          ? toPreview(g.row.lastSummaryText, 120)
+                          : g.row.lastMessagePreview
+                            ? toPreview(g.row.lastMessagePreview, 120)
+                            : g.row.lastMessageAt
+                              ? `Última mensagem em ${formatDateSimpleBR(g.row.lastMessageAt)}`
+                              : "Sem histórico recente";
+
+                        return (
+                          <div
+                            key={g.row.id}
+                            className="rounded-2xl bg-secondary/30 p-4 transition-colors cursor-pointer hover:bg-secondary/40"
+                            onClick={() => navigate(`/groups/${g.row.id}`)}
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <div className="font-semibold text-card-foreground truncate">{g.row.name}</div>
+                                <div className="mt-1 text-xs text-muted-foreground truncate">{contextText}</div>
+                              </div>
+
+                              <div className="shrink-0 flex flex-col items-end gap-2">
+                                <StatusTag variant={activityVariant}>{activityLabel}</StatusTag>
+                                <div className="text-right">
+                                  <div className="text-lg font-semibold tabular-nums text-card-foreground">
+                                    {panoramaRecentMessagesLoading ? "…" : typeof recentCount === "number" ? formatNumberBR(recentCount) : "—"}
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground">Msgs (24h)</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 flex items-center justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/groups/${g.row.id}`);
+                                }}
+                              >
+                                Abrir
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {panoramaTotal > PANORAMA_PAGE_SIZE && (
+                        <div className="flex items-center justify-between rounded-xl bg-secondary/20 px-4 py-3">
+                          <p className="text-xs text-muted-foreground">
+                            Página {panoramaPage} de {Math.ceil(panoramaTotal / PANORAMA_PAGE_SIZE)} • {panoramaTotal} grupos
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setPanoramaPage(Math.max(1, panoramaPage - 1))}
+                              disabled={panoramaPage <= 1}
+                            >
+                              Anterior
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setPanoramaPage(Math.min(Math.ceil(panoramaTotal / PANORAMA_PAGE_SIZE), panoramaPage + 1))}
+                              disabled={panoramaPage >= Math.ceil(panoramaTotal / PANORAMA_PAGE_SIZE)}
+                            >
+                              Próxima
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="hidden md:block">
+                      <BorisTable
+                        columns={panoramaColumns as any}
+                        data={panoramaItems as any}
+                        keyExtractor={(g: any) => g.row.id}
+                        onRowClick={(g: any) => navigate(`/groups/${g.row.id}`)}
+                        page={panoramaPage}
+                        pageSize={PANORAMA_PAGE_SIZE}
+                        totalCount={panoramaTotal}
+                        onPageChange={setPanoramaPage}
+                      />
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -1431,9 +1544,9 @@ const Org = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Section: Contato da Organização */}
           {(isDashboardRoute || isDefaultOrgHome) && (
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-2xl bg-secondary/20 p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <h3 className="text-xs font-medium text-muted-foreground flex items-center gap-2">
                 <Mail className="h-4 w-4" />
                 Contato da Organização
               </h3>
@@ -1481,8 +1594,8 @@ const Org = () => {
 
           {/* Section: Plano / Billing */}
           {(isDashboardRoute || isDefaultOrgHome) && (
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          <div className="rounded-2xl bg-secondary/20 p-5 space-y-4">
+            <h3 className="text-xs font-medium text-muted-foreground flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
               Plano / Billing
             </h3>
@@ -1594,16 +1707,21 @@ const Org = () => {
 
         {(isGroupsRoute || isDefaultOrgHome) && (
         <div id="org-groups">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Grupos ({groupsData?.count ?? 0})
-            </h3>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Grupos desta organização
+                <span className="text-sm font-normal text-muted-foreground">({groupsData?.count ?? 0})</span>
+              </h3>
+              <p className="text-xs text-muted-foreground">Gerencie os grupos conectados ao Bóris</p>
+            </div>
             {userCanEditOrg && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => { setAttachError(null); setAttachGroupOpen(true); }}
+                className="sm:self-center"
               >
                 Adicionar grupo
               </Button>
@@ -1624,16 +1742,149 @@ const Org = () => {
               message="Esta organização ainda não possui grupos cadastrados."
             />
           ) : (
-            <BorisTable
-              columns={groupColumns as any}
-              data={groupsData?.items ?? []}
-              keyExtractor={(group) => group.id}
-              onRowClick={(group) => navigate(`/groups/${group.id}`)}
-              page={page}
-              pageSize={PAGE_SIZE}
-              totalCount={groupsData?.count}
-              onPageChange={setPage}
-            />
+            <>
+              <div className="space-y-3 md:hidden">
+                {(groupsData?.items ?? []).map((group) => {
+                  const canEdit = canEditGroup(group.id, orgId);
+                  const canRemove = userCanEditOrg;
+                  const canCascade = isSystemAdmin;
+
+                  return (
+                    <div
+                      key={group.id}
+                      className="rounded-2xl bg-secondary/30 p-4 transition-colors cursor-pointer hover:bg-secondary/40"
+                      onClick={() => navigate(`/groups/${group.id}`)}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-card-foreground truncate">{group.name}</div>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span
+                              className={
+                                `px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  group.is_active === true
+                                    ? "bg-success/10 text-success"
+                                    : group.is_active === false
+                                      ? "bg-muted text-muted-foreground"
+                                      : "bg-muted text-muted-foreground"
+                                }`
+                              }
+                            >
+                              {group.is_active === true ? "Ativo" : group.is_active === false ? "Inativo" : "—"}
+                            </span>
+
+                            <span className="text-xs text-muted-foreground">
+                              Criado em {formatDateSimpleBR(group.created_at)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {(canEdit || canRemove || canCascade) && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            {canEdit && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    const { data, error } = await supabase
+                                      .from("groups")
+                                      .select("id, name, organization_id, provider, whatsapp_provider_id")
+                                      .eq("id", group.id)
+                                      .maybeSingle();
+                                    if (error) throw error;
+                                    if (!data) throw new Error("Grupo não encontrado");
+                                    setEditGroup(data as GroupDetails);
+                                  } catch {
+                                    notify.error("Não foi possível abrir", "Algo deu errado. Tente novamente.");
+                                  }
+                                }}
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canRemove && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRemoveGroup(group);
+                                }}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                title="Remover grupo da organização"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canCascade && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCascadeGroup(group);
+                                }}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                title="Excluir grupo"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+                        <span className="tabular-nums">Membros: {typeof group.members_count === "number" ? group.members_count.toLocaleString("pt-BR") : "—"}</span>
+                        <span className="tabular-nums">Último acesso: {group.last_access_at ? formatDateSimpleBR(group.last_access_at) : "—"}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {(groupsData?.count ?? 0) > PAGE_SIZE && (
+                  <div className="flex items-center justify-between rounded-xl bg-secondary/20 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">
+                      Página {page} de {Math.ceil((groupsData?.count ?? 0) / PAGE_SIZE)} • {groupsData?.count ?? 0} grupos
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPage(Math.max(1, page - 1))}
+                        disabled={page <= 1}
+                      >
+                        Anterior
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPage(Math.min(Math.ceil((groupsData?.count ?? 0) / PAGE_SIZE), page + 1))}
+                        disabled={page >= Math.ceil((groupsData?.count ?? 0) / PAGE_SIZE)}
+                      >
+                        Próxima
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="hidden md:block">
+                <BorisTable
+                  columns={groupColumns as any}
+                  data={groupsData?.items ?? []}
+                  keyExtractor={(group) => group.id}
+                  onRowClick={(group) => navigate(`/groups/${group.id}`)}
+                  page={page}
+                  pageSize={PAGE_SIZE}
+                  totalCount={groupsData?.count}
+                  onPageChange={setPage}
+                />
+              </div>
+            </>
           )}
         </div>
         )}

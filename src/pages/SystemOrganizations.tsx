@@ -3,8 +3,11 @@ import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { Building2, Trash2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Building2, ChevronLeft, ChevronRight, Plus, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,6 +86,7 @@ export default function SystemOrganizations() {
   const [cascadeOrg, setCascadeOrg] = useState<Organization | null>(null);
   const [confirmCascadeName, setConfirmCascadeName] = useState("");
   const [deletingCascade, setDeletingCascade] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
@@ -155,7 +159,7 @@ export default function SystemOrganizations() {
 
   if (authLoading || rolesLoading) {
     return (
-      <AdminLayout title="Gerenciar organizações" subtitle="Carregando...">
+      <AdminLayout title="Organizações" subtitle="Carregando...">
         <LoadingState message="Verificando permissões..." />
       </AdminLayout>
     );
@@ -173,36 +177,52 @@ export default function SystemOrganizations() {
     return status;
   };
 
+  const renderStatusChip = (status: Organization["status"]) => (
+    <span
+      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+        status === "active"
+          ? "bg-success/10 text-success"
+          : status === "inactive"
+            ? "bg-muted text-muted-foreground"
+            : "bg-destructive/10 text-destructive"
+      }`}
+    >
+      {getStatusLabel(status)}
+    </span>
+  );
+
   const columns = [
-    { key: "name", header: "Nome" },
+    {
+      key: "name",
+      header: "Organização",
+      render: (org: Organization) => (
+        <div className="min-w-0">
+          <div className="font-semibold text-card-foreground truncate">{org.name}</div>
+        </div>
+      ),
+    },
     {
       key: "status",
       header: "Status",
-      render: (org: Organization) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          org.status === "active"
-            ? "bg-success/10 text-success"
-            : org.status === "inactive"
-              ? "bg-muted text-muted-foreground"
-              : "bg-destructive/10 text-destructive"
-        }`}>
-          {getStatusLabel(org.status)}
-        </span>
-      ),
+      render: (org: Organization) => renderStatusChip(org.status),
     },
     {
       key: "groups_count",
       header: "Grupos",
       hideOn: "sm",
       render: (org: Organization) => (
-        <span className="text-sm text-muted-foreground">{orgGroupCounts?.[org.id] ?? 0}</span>
+        <Badge variant="secondary" className="tabular-nums">
+          {orgGroupCounts?.[org.id] ?? 0}
+        </Badge>
       ),
     },
     {
       key: "created_at",
-      header: "Criado em",
+      header: "Criada em",
       hideOn: "md",
-      render: (org: Organization) => formatDateSimpleBR(org.created_at),
+      render: (org: Organization) => (
+        <span className="text-xs text-muted-foreground tabular-nums">{formatDateSimpleBR(org.created_at)}</span>
+      ),
     },
     {
       key: "actions",
@@ -210,117 +230,338 @@ export default function SystemOrganizations() {
       className: "text-right w-0",
       render: (org: Organization) => (
         <RowActions>
-          <button
-            onClick={(e) => { e.stopPropagation(); navigate(`/org/${org.id}`); }}
-            className="w-full text-left px-2 py-1.5 text-sm"
+          <DropdownMenuItem
+            onSelect={() => {
+              navigate(`/org/${org.id}`);
+            }}
           >
-            Abrir organização
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: org.id, status: org.status === "active" ? "inactive" : "active" }); }}
-            className="w-full text-left px-2 py-1.5 text-sm"
+            Abrir
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() =>
+              updateStatusMutation.mutate({
+                id: org.id,
+                status: org.status === "active" ? "inactive" : "active",
+              })
+            }
           >
             {org.status === "active" ? "Desativar" : "Reativar"}
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setRemoveOrg(org); }}
-            className="w-full text-left px-2 py-1.5 text-sm"
-          >
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => setRemoveOrg(org)} className="text-destructive focus:text-destructive">
             Excluir
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setCascadeOrg(org); setConfirmCascadeName(""); }}
-            className="w-full text-left px-2 py-1.5 text-sm text-destructive"
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              setCascadeOrg(org);
+              setConfirmCascadeName("");
+            }}
+            className="text-destructive focus:text-destructive"
           >
-            Excluir em cascata
-          </button>
+            Excluir com tudo
+          </DropdownMenuItem>
         </RowActions>
       ),
     },
   ];
 
+  const hasActiveFilters = !!search || statusFilter !== "all" || orderBy !== "name" || orderDir !== "asc";
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setOrderBy("name");
+    setOrderDir("asc");
+    setPage(1);
+  };
+
+  const filterControlBase =
+    "h-9 px-3 rounded-lg border border-border bg-background/60 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background";
+  const filterSelectBase =
+    "h-9 px-3 pr-8 rounded-lg border border-border bg-background/60 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background";
+
+  const filtersForm = (
+    <>
+      <input
+        type="text"
+        placeholder="Buscar organização"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
+        className={`${filterControlBase} w-full md:w-72`}
+      />
+      <select
+        value={statusFilter}
+        onChange={(e) => {
+          setStatusFilter(e.target.value as any);
+          setPage(1);
+        }}
+        className={`${filterSelectBase} w-full sm:w-auto min-w-[12rem]`}
+        aria-label="Status"
+      >
+        <option value="all">Status: todos</option>
+        <option value="active">Status: ativos</option>
+        <option value="inactive">Status: inativos</option>
+      </select>
+      <select
+        value={orderBy}
+        onChange={(e) => setOrderBy(e.target.value as any)}
+        className={`${filterSelectBase} w-full sm:w-auto min-w-[12rem]`}
+        aria-label="Ordenar por"
+      >
+        <option value="name">Ordenar: nome</option>
+        <option value="created_at">Ordenar: data</option>
+      </select>
+      <select
+        value={orderDir}
+        onChange={(e) => setOrderDir(e.target.value as any)}
+        className={`${filterSelectBase} w-full sm:w-auto min-w-[12rem]`}
+        aria-label="Direção"
+      >
+        <option value="asc">Direção: asc</option>
+        <option value="desc">Direção: desc</option>
+      </select>
+    </>
+  );
+
   return (
-    <AdminLayout title="Gerenciar organizações" subtitle="Central de Comando › Organizações">
-      <div className="space-y-6 animate-fade-in">
-        <AdminPageHeader
-          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Organizações" }]}
-          title="Organizações"
-          description="Gerenciar organizações do sistema"
-          actions={(
-            <Button onClick={() => setCreateOrgOpen(true)}>
+    <AdminLayout title="Organizações">
+      <div className="space-y-8 animate-fade-in">
+        <div className="space-y-3">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">Organizações</h2>
+              <p className="text-sm text-muted-foreground">Gerencie quem usa o Bóris e seus grupos</p>
+              <Breadcrumbs
+                items={[{ label: "Central de Comando", href: "/" }, { label: "Organizações" }]}
+                className="text-xs text-muted-foreground/80 [&_a]:text-muted-foreground/80 [&_a:hover]:text-foreground [&_span]:text-muted-foreground/80 [&_span]:font-normal"
+              />
+            </div>
+
+            <Button onClick={() => setCreateOrgOpen(true)} size="lg" className="w-full sm:w-auto">
+              <Plus className="h-4 w-4" />
               Nova organização
             </Button>
-          )}
-          filters={(
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                placeholder="Buscar por nome"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-64 px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1); }}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              >
-                <option value="all">Todos</option>
-                <option value="active">Ativos</option>
-                <option value="inactive">Inativos</option>
-              </select>
-              <select
-                value={orderBy}
-                onChange={(e) => setOrderBy(e.target.value as any)}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              >
-                <option value="created_at">Ordenar por Data</option>
-                <option value="name">Ordenar por Nome</option>
-              </select>
-              <select
-                value={orderDir}
-                onChange={(e) => setOrderDir(e.target.value as any)}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              >
-                <option value="asc">Asc</option>
-                <option value="desc">Desc</option>
-              </select>
-            </div>
-          )}
-          showClearFilters={!!search || statusFilter !== 'all' || orderBy !== 'name' || orderDir !== 'asc'}
-          onClearFilters={() => { setSearch(""); setStatusFilter('all'); setOrderBy('name'); setOrderDir('asc'); setPage(1); }}
-        />
+          </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Total de organizações</span>
-          <Badge variant="secondary" className="tabular-nums">
-            {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Total</span>
+            <Badge variant="secondary" className="tabular-nums">
+              {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
+            </Badge>
+          </div>
         </div>
 
-        <BorisTable
-          columns={columns as any}
-          data={orgsData?.items ?? []}
-          keyExtractor={(org) => org.id}
-          onRowClick={(org) => navigate(`/org/${org.id}`)}
-          page={page}
-          pageSize={PAGE_SIZE}
-          totalCount={orgsData?.count}
-          onPageChange={setPage}
-          loading={orgsLoading}
-          error={!!orgsError}
-          onRetry={() => refetchOrgs()}
-          emptyIcon={Building2}
-          emptyMessage="Não há organizações cadastradas."
-        />
+        <div className="rounded-xl border border-border bg-card/60 p-3 sm:p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="hidden md:flex flex-wrap items-center gap-2">{filtersForm}</div>
+
+            <div className="md:hidden w-full">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full justify-between bg-background/60"
+                onClick={() => setFiltersOpen(true)}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filtrar
+                </span>
+                {hasActiveFilters && (
+                  <Badge variant="secondary" className="h-6 px-2 text-[11px]">
+                    Ativo
+                  </Badge>
+                )}
+              </Button>
+            </div>
+
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="hidden md:inline-flex">
+                Limpar filtros
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
+          <DrawerContent className="bg-card border-border">
+            <DrawerHeader className="text-left">
+              <DrawerTitle>Filtrar organizações</DrawerTitle>
+              <DrawerDescription>Encontre mais rápido usando busca, status e ordenação.</DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-2">
+              <div className="grid gap-3">{filtersForm}</div>
+            </div>
+            <DrawerFooter>
+              {hasActiveFilters && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    clearFilters();
+                    setFiltersOpen(false);
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+              <DrawerClose asChild>
+                <Button type="button">Ver resultados</Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+
+        <div className="md:hidden">
+          {orgsLoading ? (
+            <div className="space-y-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-2">
+                      <Skeleton className="h-5 w-48" />
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-56" />
+                    </div>
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : orgsError ? (
+            <ErrorState
+              title="Não foi possível carregar as organizações"
+              message="Tente novamente em alguns instantes."
+              retry={() => refetchOrgs()}
+            />
+          ) : !orgsData?.items?.length ? (
+            <EmptyState
+              icon={Building2}
+              title="Nenhuma organização por aqui"
+              message="Quando você criar a primeira, ela vai aparecer nesta lista."
+              action={{ label: "Nova organização", onClick: () => setCreateOrgOpen(true) }}
+            />
+          ) : (
+            <div className="space-y-3">
+              <ul className="space-y-3" role="list">
+                {(orgsData?.items ?? []).map((org) => {
+                  const groupsCount = orgGroupCounts?.[org.id] ?? 0;
+                  return (
+                    <li
+                      key={org.id}
+                      className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/30 transition-colors cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/org/${org.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          navigate(`/org/${org.id}`);
+                        }
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-base font-semibold text-card-foreground truncate">{org.name}</div>
+                          <div className="mt-1">{renderStatusChip(org.status)}</div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {groupsCount} grupos · Criada em {formatDateSimpleBR(org.created_at)}
+                          </div>
+                        </div>
+
+                        <div className="shrink-0">
+                          <RowActions>
+                            <DropdownMenuItem onSelect={() => navigate(`/org/${org.id}`)}>Abrir</DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                updateStatusMutation.mutate({
+                                  id: org.id,
+                                  status: org.status === "active" ? "inactive" : "active",
+                                })
+                              }
+                            >
+                              {org.status === "active" ? "Desativar" : "Reativar"}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onSelect={() => setRemoveOrg(org)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              Excluir
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setCascadeOrg(org);
+                                setConfirmCascadeName("");
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              Excluir com tudo
+                            </DropdownMenuItem>
+                          </RowActions>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {typeof orgsData?.count === "number" && orgsData.count > PAGE_SIZE && (
+                <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card">
+                  <p className="text-xs text-muted-foreground">
+                    Página {page} de {Math.max(1, Math.ceil(orgsData.count / PAGE_SIZE))}
+                  </p>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Página anterior"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setPage((p) => p + 1)}
+                      disabled={page >= Math.ceil(orgsData.count / PAGE_SIZE)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Próxima página"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="hidden md:block">
+          <BorisTable
+            columns={columns as any}
+            data={orgsData?.items ?? []}
+            keyExtractor={(org) => org.id}
+            onRowClick={(org) => navigate(`/org/${org.id}`)}
+            page={page}
+            pageSize={PAGE_SIZE}
+            totalCount={orgsData?.count}
+            onPageChange={setPage}
+            loading={orgsLoading}
+            error={!!orgsError}
+            onRetry={() => refetchOrgs()}
+            emptyIcon={Building2}
+            emptyMessage="Ainda não há organizações por aqui."
+          />
+        </div>
 
         <AlertDialog open={!!removeOrg} onOpenChange={(open) => !open && setRemoveOrg(null)}>
           <AlertDialogContent className="bg-card border-border">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Excluir organização</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
-                Esta ação é irreversível e removerá a organização do sistema. Se houver grupos associados,
-                a exclusão será bloqueada.
+                Esta ação é definitiva. Se existirem grupos ligados a esta organização, a exclusão será bloqueada.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -351,7 +592,7 @@ export default function SystemOrganizations() {
                 }}
                 disabled={removingOrg}
               >
-                Confirmar exclusão
+                Excluir
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -360,10 +601,10 @@ export default function SystemOrganizations() {
         <AlertDialog open={!!cascadeOrg} onOpenChange={(open) => !open && setCascadeOrg(null)}>
           <AlertDialogContent className="bg-card border-border">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-card-foreground">Excluir organização em cascata</AlertDialogTitle>
+              <AlertDialogTitle className="text-card-foreground">Excluir com tudo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
-                Esta ação é irreversível e removerá a organização e todos os seus grupos e dados associados.
-                Digite o nome da organização para confirmar.
+                Isso remove a organização, seus grupos e dados associados.
+                Para confirmar, digite o nome da organização.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-3">
@@ -405,7 +646,7 @@ export default function SystemOrganizations() {
                       return;
                     }
                     if (parsed.code === "FORBIDDEN" || /forbidden/i.test(parsed.message)) {
-                      notify.error("Acesso negado", "Apenas admins do sistema podem excluir organizações em cascata.");
+                      notify.error("Acesso negado", "Apenas admins do sistema podem excluir com tudo.");
                       return;
                     }
                     if (parsed.code === "UNAUTHORIZED" || /unauthorized/i.test(parsed.message)) {
@@ -419,7 +660,7 @@ export default function SystemOrganizations() {
                 }}
                 disabled={deletingCascade || confirmCascadeName !== cascadeOrg?.name}
               >
-                Confirmar exclusão
+                Excluir com tudo
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
