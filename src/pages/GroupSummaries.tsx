@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronDown, Copy, FileText } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Copy, FileText } from "lucide-react";
 
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +15,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { StatusTag } from "@/components/ui/status-tag";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateDescriptiveBR } from "@/lib/date";
 import { renderWhatsappToReact } from "@/lib/whatsapp-format";
@@ -234,6 +237,125 @@ function countLinks(text: string): number {
   const raw = (text || "").toString();
   const matches = raw.match(/https?:\/\/[^\s)\]}>,]+/gi);
   return matches?.length ?? 0;
+}
+
+type TopicKind = "dor" | "desejo" | "tema";
+
+function classifyTopic(topic: Pick<GroupDailyTopicRow, "title" | "content">): TopicKind {
+  const hay = `${topic.title || ""} ${topic.content || ""}`.toLowerCase();
+
+  const isPain = /\b(dor|dores|problema|problemas|reclama|reclamação|reclamações|dificuldade|dificuldades|bug|erro|erros|falha|falhas)\b/i.test(
+    hay,
+  );
+  if (isPain) return "dor";
+
+  const isDesire = /\b(desejo|quer|querem|queria|queriam|gostaria|gostariam|oportunidade|oportunidades|melhoria|melhorias)\b/i.test(
+    hay,
+  );
+  if (isDesire) return "desejo";
+
+  return "tema";
+}
+
+function topicKindMeta(kind: TopicKind): {
+  label: string;
+  tagVariant: "success" | "warning" | "error" | "neutral";
+  cardClassName: string;
+  accentClassName: string;
+} {
+  if (kind === "dor") {
+    return {
+      label: "Dor",
+      tagVariant: "error",
+      cardClassName: "border-destructive/20 bg-destructive/5",
+      accentClassName: "border-l-destructive/35",
+    };
+  }
+
+  if (kind === "desejo") {
+    return {
+      label: "Desejo",
+      tagVariant: "success",
+      cardClassName: "border-success/20 bg-success/5",
+      accentClassName: "border-l-success/35",
+    };
+  }
+
+  return {
+    label: "Tema",
+    tagVariant: "neutral",
+    cardClassName: "border-border bg-card",
+    accentClassName: "border-l-muted-foreground/15",
+  };
+}
+
+function SectionDivider({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="min-w-0">
+        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</div>
+        {subtitle ? <div className="text-xs text-muted-foreground/80">{subtitle}</div> : null}
+      </div>
+      <Separator className="flex-1 bg-border/60" />
+    </div>
+  );
+}
+
+function TopicCard({ topic, kind }: { topic: GroupDailyTopicRow; kind: TopicKind }) {
+  const meta = topicKindMeta(kind);
+  const title = cleanInlineLabel(topic.title || "") || "Assunto";
+
+  return (
+    <Collapsible
+      defaultOpen={false}
+      className={cn(
+        "rounded-xl border p-4 sm:p-5",
+        "transition-colors duration-200",
+        meta.cardClassName,
+        meta.accentClassName,
+        "border-l-2",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "group flex min-w-0 flex-1 flex-col gap-2 text-left",
+              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/20 rounded-lg",
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusTag variant={meta.tagVariant}>{meta.label}</StatusTag>
+              <Badge
+                variant="secondary"
+                className="h-5 px-2 text-[11px] font-medium text-muted-foreground bg-muted/40 hover:bg-muted/40"
+              >
+                Top {topic.rank}
+              </Badge>
+            </div>
+
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground leading-snug line-clamp-2 max-w-[92ch]">
+                  {title}
+                </div>
+              </div>
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </div>
+          </button>
+        </CollapsibleTrigger>
+      </div>
+
+      <CollapsibleContent className="pt-3">
+        <div className="rounded-lg bg-muted/30 px-3 py-2.5">
+          <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap break-words max-w-[92ch]">
+            {topic.content || "Sem detalhes adicionais para este assunto."}
+          </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -509,7 +631,7 @@ const GroupSummaries = () => {
             message="Nenhuma conversa registrada ainda. Quando o Bóris gerar resumos, eles aparecerão aqui."
           />
         ) : (
-          <div className="space-y-4 w-full max-w-[1100px] mx-auto">
+          <div className="space-y-4 w-full">
             {selectedKeyword ? (
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm text-muted-foreground">
@@ -539,92 +661,105 @@ const GroupSummaries = () => {
             {filteredConversationsView.map((s) => {
               const isOpen = openSummaryId === s.id;
               const showAllTopics = !!showAllTopicsByDay[s.id];
-              const topicsVisible = s.topics.slice(0, showAllTopics ? 50 : 3);
-              const topicsExtra = Math.max(0, s.topics.length - 3);
+              const topicsWithKind = (s.topics || []).map((t) => ({ topic: t, kind: classifyTopic(t) }));
+              const painTopics = topicsWithKind.filter((t) => t.kind === "dor");
+              const nonPainTopics = topicsWithKind.filter((t) => t.kind !== "dor");
 
-              const countsLine = [
-                s.topics.length > 0 ? `${s.topics.length} tópico${s.topics.length === 1 ? "" : "s"}` : "",
-                s.keywords.length > 0 ? `${s.keywords.length} palavra${s.keywords.length === 1 ? "" : "s"}-chave` : "",
-                s.linksCount > 0 ? `${s.linksCount} link${s.linksCount === 1 ? "" : "s"}` : "",
-              ]
-                .filter(Boolean)
-                .join(" • ");
+              const topicsVisible = nonPainTopics.slice(0, showAllTopics ? 50 : 3);
+              const topicsExtra = Math.max(0, nonPainTopics.length - 3);
+
+              const painCount = painTopics.length;
 
               return (
                 <AccordionItem key={s.id} value={s.id} className="border-0">
                   <Card
                     className={cn(
-                      "group rounded-xl border border-border bg-card transition-colors",
-                      "hover:bg-secondary/10 focus-within:ring-1 focus-within:ring-ring/15",
+                      "rounded-xl border border-border bg-card",
+                      "focus-within:ring-1 focus-within:ring-ring/15",
                       isOpen ? "shadow-card" : ""
                     )}
                   >
                     <AccordionTrigger className="px-4 py-4 sm:px-5 sm:py-5 hover:no-underline justify-start items-start gap-2 font-normal focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/20">
-                      <div className="min-w-0 flex-1 text-left space-y-3">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <div className="text-sm font-semibold text-foreground">
+                      <div className="min-w-0 flex-1 text-left space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="text-base sm:text-lg font-semibold text-foreground">
                             {formatDateDescriptiveBR(s.dateLabel)}
                           </div>
-                          <div className="rounded-full bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                            Resumo do dia
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {s.topics.length > 0 ? (
+                              <StatusTag variant="success" className="h-6 px-2.5 text-[12px]">
+                                {s.topics.length} tópico{s.topics.length === 1 ? "" : "s"}
+                              </StatusTag>
+                            ) : null}
+                            {painCount > 0 ? (
+                              <StatusTag variant="error" className="h-6 px-2.5 text-[12px]">
+                                {painCount} dor{painCount === 1 ? "" : "es"}
+                              </StatusTag>
+                            ) : null}
+                            {s.keywords.length > 0 ? (
+                              <StatusTag variant="success" className="h-6 px-2.5 text-[12px]">
+                                {s.keywords.length} palavra{s.keywords.length === 1 ? "" : "s"}-chave
+                              </StatusTag>
+                            ) : null}
+                            {s.linksCount > 0 ? (
+                              <StatusTag variant="neutral" className="h-6 px-2.5 text-[12px]">
+                                {s.linksCount} link{s.linksCount === 1 ? "" : "s"}
+                              </StatusTag>
+                            ) : null}
                           </div>
                         </div>
 
-                        {countsLine ? (
-                          <div className="text-xs text-muted-foreground/80">{countsLine}</div>
-                        ) : null}
-
-                        <div
-                          className={cn(
-                            "rounded-xl border border-border bg-card px-4 py-3 shadow-sm",
-                            "border-l-2 border-l-primary/20",
-                            "group-hover:border-l-primary/30",
-                          )}
-                        >
-                          <p className="max-w-[86ch] text-[15px] leading-relaxed font-semibold text-foreground line-clamp-3">
-                            {pickHumanDaySummary(s.topics, s.keywords)}
-                          </p>
-                        </div>
-
-                        {!isOpen ? (
-                          <p className="text-xs text-muted-foreground line-clamp-1 max-w-[96ch]">
-                            {s.preview || "Resumo disponível para este dia."}
-                          </p>
-                        ) : null}
-                      </div>
-
-                      <div className="shrink-0 mt-0.5 flex items-center gap-2 text-xs font-medium text-muted-foreground/80">
-                        <span>Ver detalhes</span>
+                        <p className="max-w-[96ch] text-sm sm:text-[15px] leading-relaxed font-semibold text-foreground line-clamp-2">
+                          {pickHumanDaySummary(s.topics, s.keywords)}
+                        </p>
                       </div>
                     </AccordionTrigger>
 
                     <AccordionContent className="px-4 pb-4 sm:px-5 sm:pb-5 transition-all duration-200">
-                      <div className="space-y-6">
+                      <div className="space-y-8">
+                        <Card className="rounded-2xl border border-primary/15 bg-primary/5 shadow-sm">
+                          <div className="p-4 sm:p-5">
+                            <div className="space-y-2">
+                              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Resumo do dia
+                              </div>
+                              <p className="max-w-[92ch] text-[15px] sm:text-base leading-relaxed font-semibold text-foreground line-clamp-2">
+                                {s.preview || "Resumo disponível para este dia."}
+                              </p>
+                            </div>
+                          </div>
+                        </Card>
+
+                        {painTopics.length > 0 ? (
+                          <div className="space-y-3">
+                            <SectionDivider title="Dores / alertas" subtitle="O que gerou fricção ou reclamação" />
+                            <Alert className="border-destructive/20 bg-destructive/5">
+                              <AlertTriangle className="h-4 w-4 text-destructive" />
+                              <AlertTitle className="text-foreground">Atenção</AlertTitle>
+                              <AlertDescription className="text-muted-foreground">
+                                {painTopics.length === 1
+                                  ? "Encontramos 1 dor que merece atenção neste dia."
+                                  : `Encontramos ${painTopics.length} dores que merecem atenção neste dia.`}
+                              </AlertDescription>
+                            </Alert>
+
+                            <div className="space-y-2">
+                              {painTopics.map(({ topic, kind }) => (
+                                <TopicCard key={topic.id} topic={topic} kind={kind} />
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
                         <div className="space-y-3">
-                          <div className="text-sm font-semibold text-foreground">Assuntos que mais movimentaram o dia</div>
+                          <SectionDivider title="Assuntos mais relevantes" subtitle="O que movimentou o grupo" />
+
                           {topicsVisible.length > 0 ? (
                             <div className="space-y-2">
-                              {topicsVisible.map((t) => {
-                                const title = cleanInlineLabel(t.title || "");
-                                const preview = pickTopicPreview(t.content || "");
-
-                                return (
-                                  <div
-                                    key={t.id}
-                                    className={cn(
-                                      "rounded-xl border border-border bg-card p-4 sm:p-5",
-                                      "border-l-2 border-l-transparent",
-                                      "transition-colors duration-200",
-                                      "hover:bg-secondary/20 hover:border-l-primary/30",
-                                    )}
-                                  >
-                                    <div className="text-sm font-medium text-foreground">{title || "Tópico"}</div>
-                                    <p className="mt-1 max-w-[86ch] text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                                      {preview || "Sem detalhes adicionais para este tópico."}
-                                    </p>
-                                  </div>
-                                );
-                              })}
+                              {topicsVisible.map(({ topic, kind }) => (
+                                <TopicCard key={topic.id} topic={topic} kind={kind} />
+                              ))}
 
                               {topicsExtra > 0 ? (
                                 <div className="pt-1">
@@ -638,23 +773,18 @@ const GroupSummaries = () => {
                                       setShowAllTopicsByDay((curr) => ({ ...curr, [s.id]: !showAllTopics }));
                                     }}
                                   >
-                                    {showAllTopics ? "Ver menos tópicos" : "Ver mais tópicos"}
+                                    {showAllTopics ? "Ver menos assuntos" : "Ver mais assuntos"}
                                   </Button>
                                 </div>
                               ) : null}
                             </div>
                           ) : (
-                            <div className="text-sm text-muted-foreground">Nenhum tópico disponível para este dia.</div>
+                            <div className="text-sm text-muted-foreground">Nenhum assunto disponível para este dia.</div>
                           )}
                         </div>
 
-                        <Separator className="bg-border/60" />
-
                         <div className="space-y-3">
-                          <div className="space-y-1">
-                            <div className="text-sm font-semibold text-foreground">Palavras-chave</div>
-                            <div className="text-xs text-muted-foreground">Linguagem mais usada no dia</div>
-                          </div>
+                          <SectionDivider title="Palavras-chave" subtitle="Apoio para bater o olho e filtrar" />
                           {s.keywords.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5">
                               {s.keywords.map((kw) => {
@@ -668,11 +798,11 @@ const GroupSummaries = () => {
                                     size="sm"
                                     variant="ghost"
                                     className={cn(
-                                      "h-6 rounded-full px-2.5 text-[11px] font-medium whitespace-nowrap",
-                                      "bg-muted/30 hover:bg-muted/50",
+                                      "h-7 rounded-full px-3 text-[12px] font-medium whitespace-nowrap",
+                                      "bg-warning/10 text-warning hover:bg-warning/15 hover:text-warning",
                                       isSelected
-                                        ? "text-foreground bg-secondary hover:bg-secondary/80 ring-1 ring-primary/20"
-                                        : "text-muted-foreground hover:text-foreground"
+                                        ? "bg-warning/20 ring-1 ring-warning/25"
+                                        : "",
                                     )}
                                     aria-pressed={isSelected}
                                     onClick={(e) => {
@@ -695,8 +825,6 @@ const GroupSummaries = () => {
                             <div className="text-sm text-muted-foreground">Nenhuma palavra-chave disponível para este dia.</div>
                           )}
                         </div>
-
-                        <Separator className="bg-border/60" />
 
                         <Collapsible className="rounded-xl border border-border bg-card">
                           <div className="flex items-center justify-between gap-3 px-4 py-3">
