@@ -3,8 +3,9 @@ import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { Users } from "lucide-react";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Button } from "@/components/ui/button";
+import { SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +14,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
 import { Badge } from "@/components/ui/badge";
+import { StatusTag } from "@/components/ui/status-tag";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { notify } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
-import { formatDateSimpleBR } from "@/lib/date";
+import { formatDateSimpleBR, formatDateTickBR } from "@/lib/date";
 
 interface GroupRow {
   id: string;
@@ -93,6 +96,7 @@ export default function SystemGroups() {
   const [inviteLinkInput, setInviteLinkInput] = useState("");
   const [cascadeGroup, setCascadeGroup] = useState<GroupRow | null>(null);
   const [deletingCascade, setDeletingCascade] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
@@ -212,6 +216,17 @@ export default function SystemGroups() {
     return <AccessDenied />;
   }
 
+  const hasActiveFilters = !!search || !!orgFilter || statusFilter !== "all" || orderBy !== "created_at" || orderDir !== "desc";
+
+  const handleClearFilters = () => {
+    setSearch("");
+    setOrgFilter("");
+    setStatusFilter("all");
+    setOrderBy("created_at");
+    setOrderDir("desc");
+    setPage(1);
+  };
+
   const getStatusLabel = (status: GroupRow["status"]) => {
     if (!status) return "Indefinido";
     if (status === "active") return "Ativo";
@@ -220,29 +235,81 @@ export default function SystemGroups() {
     return status;
   };
 
+  const getStatusVariant = (status: GroupRow["status"]) => {
+    if (status === "active") return "success" as const;
+    if (status === "suspended") return "error" as const;
+    if (status === "inactive") return "neutral" as const;
+    return "neutral" as const;
+  };
+
+  const getLastActivityTone = (value?: string | null): "quiet" | "attention" => {
+    if (!value) return "attention";
+    const t = new Date(value).getTime();
+    if (!Number.isFinite(t)) return "attention";
+    const days = (Date.now() - t) / (1000 * 60 * 60 * 24);
+    return days >= 30 ? "attention" : "quiet";
+  };
+
+  const renderGroupActions = (g: GroupRow) => (
+    <RowActions>
+      <button
+        onClick={(e) => { e.stopPropagation(); navigate(`/groups/${g.id}`); }}
+        className="w-full text-left px-2 py-1.5 text-sm"
+      >
+        Abrir grupo
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: g.id, status: g.status === "active" ? "inactive" : "active" }); }}
+        className="w-full text-left px-2 py-1.5 text-sm"
+      >
+        {g.status === "active" ? "Desativar" : "Reativar"}
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); setEditInviteGroup(g); setInviteLinkInput(g.invite_link || ""); }}
+        className="w-full text-left px-2 py-1.5 text-sm"
+      >
+        Editar convite
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); setRemoveGroup(g); }}
+        className="w-full text-left px-2 py-1.5 text-sm"
+      >
+        Arquivar
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); setCascadeGroup(g); }}
+        className="w-full text-left px-2 py-1.5 text-sm text-destructive"
+      >
+        Excluir grupo
+      </button>
+    </RowActions>
+  );
+
   const columns = [
-    { key: "name", header: "Nome" },
+    {
+      key: "name",
+      header: "Grupo",
+      render: (g: GroupRow) => (
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-foreground">{g.name || "—"}</div>
+        </div>
+      ),
+    },
     {
       key: "organizations",
       header: "Organização",
       hideOn: "sm",
       render: (g: GroupRow) => (
-        <span className="text-sm text-muted-foreground">{g.organizations?.name || "-"}</span>
+        <span className="text-sm text-muted-foreground">{g.organizations?.name || "—"}</span>
       ),
     },
     {
       key: "status",
       header: "Status",
       render: (g: GroupRow) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          g.status === "active"
-            ? "bg-success/10 text-success"
-            : g.status === "suspended"
-              ? "bg-destructive/10 text-destructive"
-              : "bg-muted text-muted-foreground"
-        }`}>
+        <StatusTag variant={getStatusVariant(g.status)}>
           {getStatusLabel(g.status)}
-        </span>
+        </StatusTag>
       ),
     },
     {
@@ -250,145 +317,296 @@ export default function SystemGroups() {
       header: "Membros",
       hideOn: "sm",
       render: (g: GroupRow) => (
-        <span className="text-sm tabular-nums">{typeof g.members_count === "number" ? g.members_count.toLocaleString("pt-BR") : "—"}</span>
+        <span className="tabular-nums text-sm font-semibold text-foreground">{typeof g.members_count === "number" ? g.members_count.toLocaleString("pt-BR") : "—"}</span>
       ),
     },
     {
       key: "created_at",
-      header: "Criado em",
+      header: "Criado",
       hideOn: "sm",
       render: (g: GroupRow) => (
-        <span className="text-sm text-muted-foreground">{g.created_at ? formatDateSimpleBR(g.created_at) : "—"}</span>
+        <span className="text-xs text-muted-foreground">{g.created_at ? formatDateSimpleBR(g.created_at) : "—"}</span>
       ),
     },
     {
       key: "last_access_at",
-      header: "Último acesso",
+      header: "Última atividade",
       hideOn: "sm",
-      render: (g: GroupRow) => (
-        <span className="text-sm text-muted-foreground">{g.last_access_at ? formatDateSimpleBR(g.last_access_at) : "—"}</span>
-      ),
+      render: (g: GroupRow) => {
+        const tone = getLastActivityTone(g.last_access_at);
+        const label = g.last_access_at ? formatDateSimpleBR(g.last_access_at) : "Sem atividade";
+        return (
+          <span className={tone === "attention" ? "text-sm font-medium text-warning" : "text-sm text-muted-foreground"}>
+            {label}
+          </span>
+        );
+      },
     },
     {
       key: "actions",
       header: "",
       className: "text-right w-0",
-      render: (g: GroupRow) => (
-        <RowActions>
-          <button
-            onClick={(e) => { e.stopPropagation(); navigate(`/groups/${g.id}`); }}
-            className="w-full text-left px-2 py-1.5 text-sm"
-          >
-            Abrir grupo
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: g.id, status: g.status === "active" ? "inactive" : "active" }); }}
-            className="w-full text-left px-2 py-1.5 text-sm"
-          >
-            {g.status === "active" ? "Desativar" : "Reativar"}
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setEditInviteGroup(g); setInviteLinkInput(g.invite_link || ""); }}
-            className="w-full text-left px-2 py-1.5 text-sm"
-          >
-            Editar convite
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setRemoveGroup(g); }}
-            className="w-full text-left px-2 py-1.5 text-sm"
-          >
-            Arquivar
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setCascadeGroup(g); }}
-            className="w-full text-left px-2 py-1.5 text-sm text-destructive"
-          >
-            Excluir grupo
-          </button>
-        </RowActions>
-      ),
+      render: (g: GroupRow) => renderGroupActions(g),
     },
   ];
 
   return (
-    <AdminLayout title="Gerenciar grupos" subtitle="Central de Comando › Grupos">
+    <AdminLayout title="Grupos" subtitle="Todos os grupos conectados ao Bóris">
       <div className="space-y-6 animate-fade-in">
-        <AdminPageHeader
-          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
-          title="Grupos"
-          description="Gerenciar grupos do sistema"
-          filters={(
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                placeholder="Buscar por nome"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-64 px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              />
-              <select
-                value={orgFilter}
-                onChange={(e) => { setOrgFilter(e.target.value); setPage(1); }}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
+        <section className="space-y-4">
+          <Breadcrumbs
+            items={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
+            className="text-xs text-muted-foreground [&_span]:font-normal [&_span]:text-muted-foreground"
+          />
+
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">Grupos</h1>
+              <p className="text-sm text-muted-foreground">Todos os grupos conectados ao Bóris</p>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-2">
+              <span className="hidden sm:inline text-xs text-muted-foreground">Grupos conectados</span>
+              <Badge variant="secondary" className="tabular-nums">
+                {typeof groupsData?.count === "number" ? groupsData.count.toLocaleString("pt-BR") : "—"}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-secondary/20 p-3 sm:p-4">
+            <div className="md:hidden flex items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={() => setFiltersOpen(true)}
               >
-                <option value="">Todas as organizações</option>
-                {(organizations ?? []).map((org) => (
-                  <option key={org.id} value={org.id}>{org.name}</option>
-                ))}
-              </select>
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1); }}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              >
-                <option value="all">Todos</option>
-                <option value="active">Ativos</option>
-                <option value="inactive">Inativos</option>
-              </select>
-              <select
-                value={orderBy}
-                onChange={(e) => setOrderBy(e.target.value as any)}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              >
-                <option value="created_at">Ordenar por Data</option>
-                <option value="name">Ordenar por Nome</option>
-              </select>
-              <select
-                value={orderDir}
-                onChange={(e) => setOrderDir(e.target.value as any)}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-              >
-                <option value="asc">Asc</option>
-                <option value="desc">Desc</option>
-              </select>
+                <SlidersHorizontal className="h-4 w-4 mr-2" />
+                Filtrar
+              </Button>
+
+              {hasActiveFilters ? (
+                <Button type="button" variant="ghost" size="sm" className="h-9" onClick={handleClearFilters}>
+                  Limpar
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground">Refine para encontrar um grupo.</span>
+              )}
+            </div>
+
+            <div className="hidden md:flex flex-wrap items-center gap-2 justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Buscar por nome"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  className="h-9 w-72 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                />
+                <select
+                  value={orgFilter}
+                  onChange={(e) => { setOrgFilter(e.target.value); setPage(1); }}
+                  className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                >
+                  <option value="">Organização</option>
+                  {(organizations ?? []).map((org) => (
+                    <option key={org.id} value={org.id}>{org.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1); }}
+                  className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                >
+                  <option value="all">Status</option>
+                  <option value="active">Ativos</option>
+                  <option value="inactive">Inativos</option>
+                </select>
+                <select
+                  value={orderBy}
+                  onChange={(e) => setOrderBy(e.target.value as any)}
+                  className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                >
+                  <option value="created_at">Criado</option>
+                  <option value="name">Nome</option>
+                </select>
+                <select
+                  value={orderDir}
+                  onChange={(e) => setOrderDir(e.target.value as any)}
+                  className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                >
+                  <option value="asc">Crescente</option>
+                  <option value="desc">Decrescente</option>
+                </select>
+              </div>
+
+              {hasActiveFilters && (
+                <Button type="button" variant="ghost" size="sm" className="h-9" onClick={handleClearFilters}>
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+          <SheetContent side="bottom" className="bg-card border-border">
+            <SheetHeader className="text-left">
+              <SheetTitle>Filtrar grupos</SheetTitle>
+            </SheetHeader>
+
+            <div className="mt-4 space-y-3">
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-muted-foreground">Buscar por nome</div>
+                <input
+                  type="text"
+                  placeholder="Ex: Comercial, Operações, Suporte…"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-muted-foreground">Organização</div>
+                <select
+                  value={orgFilter}
+                  onChange={(e) => { setOrgFilter(e.target.value); setPage(1); }}
+                  className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
+                >
+                  <option value="">Todas</option>
+                  {(organizations ?? []).map((org) => (
+                    <option key={org.id} value={org.id}>{org.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">Status</div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1); }}
+                    className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
+                  >
+                    <option value="all">Todos</option>
+                    <option value="active">Ativos</option>
+                    <option value="inactive">Inativos</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">Direção</div>
+                  <select
+                    value={orderDir}
+                    onChange={(e) => setOrderDir(e.target.value as any)}
+                    className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
+                  >
+                    <option value="desc">Decrescente</option>
+                    <option value="asc">Crescente</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-muted-foreground">Ordenar por</div>
+                <select
+                  value={orderBy}
+                  onChange={(e) => setOrderBy(e.target.value as any)}
+                  className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
+                >
+                  <option value="created_at">Criado</option>
+                  <option value="name">Nome</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <Button type="button" variant="ghost" onClick={handleClearFilters} disabled={!hasActiveFilters}>
+                  Limpar
+                </Button>
+                <Button type="button" onClick={() => setFiltersOpen(false)}>
+                  Ver resultados
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        <div className="md:hidden">
+          {isLoading ? (
+            <LoadingState message="Carregando grupos..." />
+          ) : error ? (
+            <ErrorState message="Falha ao carregar grupos" retry={() => refetch()} />
+          ) : (groupsData?.items ?? []).length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="Nenhum grupo encontrado"
+              message={hasActiveFilters ? "Ajuste a busca ou os filtros para ver resultados." : "Ainda não há grupos cadastrados."}
+            />
+          ) : (
+            <div className="space-y-3">
+              {(groupsData?.items ?? []).map((g) => {
+                const membersLabel = typeof g.members_count === "number" ? g.members_count.toLocaleString("pt-BR") : "—";
+                const lastActivityTone = getLastActivityTone(g.last_access_at);
+                const lastActivityLabel = g.last_access_at ? `Última atividade em ${formatDateTickBR(g.last_access_at)}` : "Sem atividade registrada";
+
+                return (
+                  <div
+                    key={g.id}
+                    className="rounded-2xl bg-secondary/20 p-4 transition-colors cursor-pointer hover:bg-secondary/30"
+                    onClick={() => navigate(`/groups/${g.id}`)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-base font-semibold text-foreground">{g.name || "—"}</div>
+                        <div className="mt-0.5 truncate text-sm text-muted-foreground">{g.organizations?.name || "—"}</div>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <StatusTag variant={getStatusVariant(g.status)} className="hidden sm:inline-flex">
+                          {getStatusLabel(g.status)}
+                        </StatusTag>
+                        {renderGroupActions(g)}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground tabular-nums">{membersLabel}</span>
+                        <span> membros · </span>
+                        <span className={lastActivityTone === "attention" ? "text-warning font-medium" : undefined}>
+                          {lastActivityLabel}
+                        </span>
+                      </div>
+
+                      <StatusTag variant={getStatusVariant(g.status)} className="sm:hidden">
+                        {getStatusLabel(g.status)}
+                      </StatusTag>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-          showClearFilters={!!search || !!orgFilter || statusFilter !== 'all'}
-          onClearFilters={() => { setSearch(""); setOrgFilter(""); setStatusFilter('all'); setOrderBy('created_at'); setOrderDir('desc'); setPage(1); }}
-        />
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Total de grupos</span>
-          <Badge variant="secondary" className="tabular-nums">
-            {typeof groupsData?.count === "number" ? groupsData.count.toLocaleString("pt-BR") : "—"}
-          </Badge>
         </div>
 
-        <BorisTable
-          columns={columns as any}
-          data={groupsData?.items ?? []}
-          keyExtractor={(g) => g.id}
-          onRowClick={(g) => navigate(`/groups/${g.id}`)}
-          page={page}
-          pageSize={PAGE_SIZE}
-          totalCount={groupsData?.count}
-          onPageChange={setPage}
-          loading={isLoading}
-          error={!!error}
-          onRetry={() => refetch()}
-          emptyIcon={Users}
-          emptyMessage="Não há grupos cadastrados."
-        />
+        <div className="hidden md:block">
+          <BorisTable
+            columns={columns as any}
+            data={groupsData?.items ?? []}
+            keyExtractor={(g) => g.id}
+            onRowClick={(g) => navigate(`/groups/${g.id}`)}
+            page={page}
+            pageSize={PAGE_SIZE}
+            totalCount={groupsData?.count}
+            onPageChange={setPage}
+            loading={isLoading}
+            error={!!error}
+            onRetry={() => refetch()}
+            emptyIcon={Users}
+            emptyMessage={hasActiveFilters ? "Nenhum grupo com esses filtros." : "Ainda não há grupos cadastrados."}
+          />
+        </div>
 
         <AlertDialog open={!!removeGroup} onOpenChange={(open) => !open && setRemoveGroup(null)}>
           <AlertDialogContent className="bg-card border-border">
