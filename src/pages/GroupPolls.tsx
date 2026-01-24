@@ -14,10 +14,12 @@ import { ChevronLeft, ChevronRight, ListChecks } from "lucide-react";
  
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { computePollPercent } from "@/lib/polls";
+import { Badge } from "@/components/ui/badge";
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink } from "@/components/ui/pagination";
+import { formatDateSimpleBR } from "@/lib/date";
 
 interface PollItem {
   id: string;
@@ -43,6 +45,36 @@ type PollOptionResult = {
 
 const PAGE_SIZE = 10;
 
+function buildPagination(current: number, total: number): Array<number | "ellipsis"> {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = new Set<number>();
+  pages.add(1);
+  pages.add(total);
+  for (let p = current - 1; p <= current + 1; p++) {
+    if (p >= 1 && p <= total) pages.add(p);
+  }
+  if (current <= 3) {
+    pages.add(2);
+    pages.add(3);
+    pages.add(4);
+  }
+  if (current >= total - 2) {
+    pages.add(total - 1);
+    pages.add(total - 2);
+    pages.add(total - 3);
+  }
+
+  const sorted = Array.from(pages).filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out: Array<number | "ellipsis"> = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const p = sorted[i] as number;
+    const prev = sorted[i - 1];
+    if (i > 0 && prev && p - prev > 1) out.push("ellipsis");
+    out.push(p);
+  }
+  return out;
+}
+
 export default function GroupPolls() {
   const { groupId } = useParams();
   const navigate = useNavigate();
@@ -51,6 +83,7 @@ export default function GroupPolls() {
   const [page, setPage] = useState(1);
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
+  const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
   const currentRange = getDateRange(selectedPeriod, customRange);
   const hasActiveFilters = selectedPeriod !== '7d' || !!customRange;
 
@@ -192,7 +225,7 @@ export default function GroupPolls() {
 
   return (
     <AdminLayout title="Enquetes" subtitle={`${groupInfo?.groupName ? `${groupInfo.groupName} — ` : ""}${pollsData?.count ?? 0} no período selecionado`}>
-      <div className="space-y-6 animate-fade-in">
+      <div className="animate-fade-in -mx-6 -mt-6 px-6 pt-6 pb-10 bg-[#FBFAF6] space-y-6">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
@@ -210,11 +243,14 @@ export default function GroupPolls() {
             syncStatus: groupInfo?.syncStatus || null,
           }}
           filters={(
-            <PeriodFilter
-              value={selectedPeriod}
-              customRange={customRange}
-              onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
-            />
+            <div className="flex items-center gap-3">
+              <PeriodFilter
+                value={selectedPeriod}
+                customRange={customRange}
+                onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
+              />
+              <span className="hidden sm:inline text-xs text-muted-foreground">Período</span>
+            </div>
           )}
           showClearFilters={hasActiveFilters}
           onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setPage(1); }}
@@ -248,55 +284,100 @@ export default function GroupPolls() {
               const totalVotes = options.reduce((sum, o) => sum + o.votesCount, 0);
               const maxVotes = options.reduce((m, o) => Math.max(m, o.votesCount), 0);
               const summary = summaryMap?.[p.id];
-              const votersCount = summary?.votersCount ?? 0;
               const voteEventsCount = summary?.voteEventsCount ?? 0;
               const selectionsCount = summary?.selectionsCount ?? 0;
               const percentBase = selectionsCount > 0 ? selectionsCount : totalVotes;
-              const createdAtLabel = new Date(p.created_at).toLocaleString("pt-BR");
+              const createdAtLabel = formatDateSimpleBR(p.created_at);
+              const winner = options.length ? options.reduce((best, cur) => (cur.votesCount > best.votesCount ? cur : best), options[0] as PollOptionResult) : null;
+              const showQuestionToggle = (p.question || "").length >= 130 || /\n/.test(p.question || "");
+              const isQuestionExpanded = !!expandedQuestions[p.id];
 
               return (
-                <section key={p.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                  <div className="p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-border">
-                    <div className="min-w-0">
-                      <h3 className="text-base font-semibold text-card-foreground leading-snug">{p.question || "Enquete"}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">Criada em {createdAtLabel} • {votersCount} votante(s) • {voteEventsCount} voto(s)</p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/groups/${groupId}/polls/${p.id}`)}
-                      className="shrink-0"
-                    >
-                      Ver detalhes
-                    </Button>
-                  </div>
+                <section key={p.id} className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
+                  <div className="p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className={cn("text-[16px] sm:text-[18px] font-semibold text-foreground leading-snug", !isQuestionExpanded && "line-clamp-3")}>{p.question || "Enquete"}</h3>
 
-                  <div className="p-4 space-y-3">
+                        {showQuestionToggle ? (
+                          <button
+                            type="button"
+                            className="mt-2 text-xs font-medium text-primary hover:underline underline-offset-2"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setExpandedQuestions((prev) => ({ ...prev, [p.id]: !prev[p.id] }));
+                            }}
+                          >
+                            {isQuestionExpanded ? "Recolher pergunta" : "Ler pergunta completa"}
+                          </button>
+                        ) : null}
+
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          <span className="tabular-nums">Criada em {createdAtLabel}</span> • <span className="tabular-nums">{voteEventsCount}</span> votos
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigate(`/groups/${groupId}/polls/${p.id}`)}
+                        className="shrink-0 text-primary hover:bg-primary/10"
+                      >
+                        Entender respostas
+                      </Button>
+                    </div>
+
                     {options.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Ainda não há resultados para esta enquete.</p>
+                      <div className="mt-4">
+                        <p className="text-sm text-muted-foreground">Ainda não há respostas registradas para esta enquete.</p>
+                      </div>
                     ) : (
-                      options.map((opt) => {
-                        const pct = computePollPercent(opt.votesCount, percentBase, 0);
-                        const isWinner = maxVotes > 0 && opt.votesCount === maxVotes;
-                        return (
-                          <div key={`${p.id}-${opt.optionIndex}`} className={cn("space-y-1", isWinner && "rounded-lg bg-primary/5 p-2")}> 
-                            <div className="flex items-start justify-between gap-3">
+                      <div className="mt-4 space-y-3">
+                        {winner ? (
+                          <div className="rounded-2xl border border-primary/20 bg-primary/10 px-3.5 py-3">
+                            <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className={cn("text-sm", isWinner ? "text-primary font-medium" : "text-card-foreground")}>{opt.optionText}</span>
-                                  {isWinner ? (
-                                    <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                      Mais votada
-                                    </span>
-                                  ) : null}
+                                <div className="text-xs font-semibold uppercase tracking-wide text-primary">Resultado principal</div>
+                                <div className="mt-1 flex items-center gap-2">
+                                  <div className="text-sm font-semibold text-foreground break-words">{winner.optionText}</div>
+                                  <Badge variant="secondary" className="h-6 px-2 text-[11px] bg-primary text-primary-foreground">
+                                    Mais votada
+                                  </Badge>
                                 </div>
                               </div>
-                              <span className="shrink-0 text-xs text-muted-foreground">{opt.votesCount} voto(s) • {pct}%</span>
+                              <div className="shrink-0 text-xs text-primary tabular-nums font-medium">
+                                {winner.votesCount} voto(s)
+                              </div>
                             </div>
-                            <Progress value={pct} />
                           </div>
-                        );
-                      })
+                        ) : null}
+
+                        <div className="space-y-2">
+                          {options.map((opt) => {
+                            const pct = computePollPercent(opt.votesCount, percentBase, 0);
+                            const isWinner = maxVotes > 0 && opt.votesCount === maxVotes;
+                            return (
+                              <div key={`${p.id}-${opt.optionIndex}`} className={cn("rounded-xl px-2 py-2", isWinner ? "bg-primary/5" : "bg-transparent")}>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className={cn("text-sm", isWinner ? "text-primary font-medium" : "text-foreground")}>{opt.optionText}</span>
+                                    </div>
+                                  </div>
+                                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{opt.votesCount} • {pct}%</span>
+                                </div>
+
+                                <div className="mt-2 h-2 rounded-full bg-muted/60 overflow-hidden">
+                                  <div
+                                    className={cn("h-full rounded-full", isWinner ? "bg-primary" : "bg-foreground/20")}
+                                    style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </section>
@@ -304,28 +385,78 @@ export default function GroupPolls() {
             })}
 
             {(pollsData.count ?? 0) > PAGE_SIZE ? (
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-secondary/20">
-                  <p className="text-xs text-muted-foreground">Página {page} de {Math.ceil((pollsData.count ?? 0) / PAGE_SIZE)} • {pollsData.count ?? 0} itens</p>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setPage(page - 1)}
-                      disabled={page <= 1}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <span className="sr-only">Página anterior</span>
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setPage(page + 1)}
-                      disabled={page >= Math.ceil((pollsData.count ?? 0) / PAGE_SIZE)}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <span className="sr-only">Próxima página</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+              <div className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3">
+                {(() => {
+                  const totalPages = Math.max(1, Math.ceil((pollsData.count ?? 0) / PAGE_SIZE));
+                  const items = buildPagination(page, totalPages);
+                  return (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="text-sm text-muted-foreground">
+                        Página <span className="font-medium text-foreground tabular-nums">{page}</span> de{" "}
+                        <span className="font-medium text-foreground tabular-nums">{totalPages}</span>
+                      </div>
+
+                      <Pagination className="sm:justify-end">
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationLink
+                              href="#"
+                              size="default"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (page <= 1) return;
+                                setPage(page - 1);
+                              }}
+                              className={cn("gap-1 pl-2.5", page <= 1 && "pointer-events-none opacity-50")}
+                              aria-label="Página anterior"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                              <span>Anterior</span>
+                            </PaginationLink>
+                          </PaginationItem>
+
+                          <div className="hidden sm:flex items-center gap-1">
+                            {items.map((it, idx) => (
+                              <PaginationItem key={`${it}-${idx}`}>
+                                {it === "ellipsis" ? (
+                                  <PaginationEllipsis />
+                                ) : (
+                                  <PaginationLink
+                                    href="#"
+                                    isActive={it === page}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setPage(it);
+                                    }}
+                                  >
+                                    {it}
+                                  </PaginationLink>
+                                )}
+                              </PaginationItem>
+                            ))}
+                          </div>
+
+                          <PaginationItem>
+                            <PaginationLink
+                              href="#"
+                              size="default"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (page >= totalPages) return;
+                                setPage(page + 1);
+                              }}
+                              className={cn("gap-1 pr-2.5", page >= totalPages && "pointer-events-none opacity-50")}
+                              aria-label="Próxima página"
+                            >
+                              <span>Próxima</span>
+                              <ChevronRight className="h-4 w-4" />
+                            </PaginationLink>
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  );
+                })()}
               </div>
             ) : null}
           </div>

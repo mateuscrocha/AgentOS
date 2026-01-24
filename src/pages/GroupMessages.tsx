@@ -1,5 +1,4 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { BorisTable } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -7,7 +6,7 @@ import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { 
   MessageSquare, Filter, Eye, Activity,
-  Image, Mic, Video, FileText, MapPin, Smile, Search, X 
+  Image, Mic, Video, FileText, MapPin, Smile, Search, X, ChevronLeft, ChevronRight 
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +21,12 @@ import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { ImportMessagesModal } from "@/components/modals/ImportMessagesModal";
-import { formatWhatsAppStyles } from "@/lib/whatsapp-format";
+import { formatWhatsAppRichText, formatWhatsAppStyles } from "@/lib/whatsapp-format";
+import { formatDateTimeBR } from "@/lib/date";
+import { Badge } from "@/components/ui/badge";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink } from "@/components/ui/pagination";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
  
  
 
@@ -151,6 +155,65 @@ const PollInlineSummary = ({ groupId, providerMessageId }: { groupId: string; pr
   );
 };
 
+function getInitials(name: string): string {
+  const parts = (name || "").trim().split(/\s+/g).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return (parts[0] || "?").slice(0, 2).toUpperCase();
+  return `${(parts[0] || "?")[0] || "?"}${(parts[parts.length - 1] || "?")[0] || "?"}`.toUpperCase();
+}
+
+function extractLinkDomains(text: string): string[] {
+  const raw = (text || "").toString();
+  const rx = /(https?:\/\/[^\s)\]}>,]+)/gi;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = rx.exec(raw)) !== null) {
+    const candidate = (match[1] || "").replace(/[),.;:]+$/g, "");
+    try {
+      const hostname = new URL(candidate).hostname.replace(/^www\./i, "");
+      if (!hostname) continue;
+      if (seen.has(hostname)) continue;
+      seen.add(hostname);
+      out.push(hostname);
+      if (out.length >= 2) break;
+    } catch {
+      continue;
+    }
+  }
+  return out;
+}
+
+function buildPagination(current: number, total: number): Array<number | "ellipsis"> {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = new Set<number>();
+  pages.add(1);
+  pages.add(total);
+  for (let p = current - 1; p <= current + 1; p++) {
+    if (p >= 1 && p <= total) pages.add(p);
+  }
+  if (current <= 3) {
+    pages.add(2);
+    pages.add(3);
+    pages.add(4);
+  }
+  if (current >= total - 2) {
+    pages.add(total - 1);
+    pages.add(total - 2);
+    pages.add(total - 3);
+  }
+
+  const sorted = Array.from(pages).filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out: Array<number | "ellipsis"> = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const p = sorted[i] as number;
+    const prev = sorted[i - 1];
+    if (i > 0 && prev && p - prev > 1) out.push("ellipsis");
+    out.push(p);
+  }
+  return out;
+}
+
 // Preview component for table cell
 const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
   switch (message.message_type) {
@@ -192,7 +255,7 @@ const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
               <Smile className="h-5 w-5 text-muted-foreground" />
             </div>
           )}
-          <span className="text-muted-foreground text-sm">[Sticker]</span>
+          <span className="text-muted-foreground text-sm">[Figurinha]</span>
         </div>
       );
 
@@ -258,7 +321,7 @@ const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
             <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
               <Activity className="h-5 w-5 text-primary" />
             </div>
-            <span className="text-sm line-clamp-1 max-w-[200px]">
+            <span className="text-sm line-clamp-1">
               {message.content_preview || '[Enquete]'}
             </span>
           </div>
@@ -280,7 +343,7 @@ const MessageContentPreview = ({ message }: { message: MessageFeed }) => {
 
     default:
       return (
-        <span className="text-sm line-clamp-1 max-w-[200px]">
+        <span className="text-sm line-clamp-2">
           {message.message_type === "system"
             ? formatWhatsAppStyles(message.content_preview || `[${translateMessageType(message.message_type)}]`)
             : (message.content_preview || `[${translateMessageType(message.message_type)}]`)}
@@ -308,6 +371,8 @@ const GroupMessages = () => {
   const queryFrom = searchParams.get("from") || "";
   const queryTo = searchParams.get("to") || "";
   const [search, setSearch] = useState(querySearch);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setSearch(querySearch);
@@ -557,6 +622,8 @@ const GroupMessages = () => {
     setSelectedMessageId(m.message_id);
   };
 
+  const hasActiveFilters = !!typeFilter || !!search.trim();
+
   // Loading state
   if (authLoading || rolesLoading) {
     return (
@@ -576,78 +643,12 @@ const GroupMessages = () => {
     );
   }
 
-  const columns = [
-    { 
-      key: 'created_at', 
-      header: 'Data',
-      render: (m: MessageFeed) => (
-        <span className="text-xs">
-          {new Date(m.created_at).toLocaleString('pt-BR')}
-        </span>
-      )
-    },
-    { 
-      key: 'member_name', 
-      header: 'Membro',
-      render: (m: MessageFeed) => (
-        m.member_id ? (
-          <MemberInlineTrigger memberId={m.member_id} groupId={groupId} name={m.member_name} avatarUrl={m.member_avatar} />
-        ) : (
-          <span className="text-sm text-muted-foreground">Sistema</span>
-        )
-      )
-    },
-    { 
-      key: 'message_type', 
-      header: 'Tipo',
-      render: (m: MessageFeed) => {
-        const Icon = getMessageTypeIcon(m.message_type);
-        return (
-          <div className="flex items-center gap-1.5">
-            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium">
-              {translateMessageType(m.message_type)}
-            </span>
-          </div>
-        );
-      }
-    },
-    { 
-      key: 'content_preview', 
-      header: 'Conteúdo',
-      render: (m: MessageFeed) => (
-        <div>
-          <MessageContentPreview message={m} />
-          <ReactionBadges 
-            reactions={(reactionsMap[m.message_id] || []).map(r => ({ emoji: r.emoji, count: r.count }))} 
-          />
-        </div>
-      )
-    },
-    {
-      key: 'actions',
-      header: '',
-      className: 'w-10',
-      render: (m: MessageFeed) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleViewDetail(m);
-          }}
-          className="p-1.5 rounded-lg hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <Eye className="h-4 w-4 text-muted-foreground" />
-        </button>
-      )
-    },
-  ];
-
   return (
     <AdminLayout 
       title="Mensagens" 
       subtitle={`${messagesData?.count ?? 0} mensagens`}
     >
-      <div className="space-y-6 animate-fade-in">
+      <div className="animate-fade-in -mx-6 -mt-6 px-6 pt-6 pb-10 bg-[#FBFAF6] space-y-6">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
@@ -665,83 +666,177 @@ const GroupMessages = () => {
             syncStatus: groupInfo?.syncStatus || null,
           }}
           filters={(
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
-              <div className="relative w-full sm:max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Buscar por conteúdo..."
-                  value={search}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setSearch(next);
-                    setPage(1);
-                    const sp = new URLSearchParams(searchParams);
-                    const trimmed = next.trim();
-                    if (trimmed) sp.set('q', trimmed);
-                    else sp.delete('q');
-                    setSearchParams(sp, { replace: true });
-                  }}
-                  className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-                {search ? (
-                  <button
-                    onClick={() => {
-                      setSearch('');
+            <div className="w-full space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Buscar no conteúdo..."
+                    value={search}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setSearch(next);
                       setPage(1);
                       const sp = new URLSearchParams(searchParams);
-                      sp.delete('q');
+                      const trimmed = next.trim();
+                      if (trimmed) sp.set('q', trimmed);
+                      else sp.delete('q');
                       setSearchParams(sp, { replace: true });
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    aria-label="Limpar busca"
+                    className="w-full pl-10 pr-10 h-11 rounded-xl border border-border/60 bg-card/70 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
+                  {search ? (
+                    <button
+                      onClick={() => {
+                        setSearch('');
+                        setPage(1);
+                        const sp = new URLSearchParams(searchParams);
+                        sp.delete('q');
+                        setSearchParams(sp, { replace: true });
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      aria-label="Limpar busca"
+                      type="button"
+                    >
+                      <X className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="sm:hidden">
+                  <Button
                     type="button"
+                    variant="outline"
+                    className="h-11 rounded-xl bg-card/70"
+                    onClick={() => setFiltersOpen(true)}
                   >
-                    <X className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                ) : null}
+                    <span className="inline-flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      Filtrar
+                    </span>
+                    {hasActiveFilters ? (
+                      <Badge variant="secondary" className="ml-2 h-6 px-2 text-[11px]">
+                        Ativo
+                      </Badge>
+                    ) : null}
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Tipo:</span>
-              </div>
-              <div className="flex gap-1 flex-wrap">
-                <button
-                  onClick={() => {
-                    setTypeFilter("");
-                    setPage(1);
-                  }}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                    !typeFilter 
-                      ? "bg-primary text-primary-foreground" 
-                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                  )}
-                >
-                  Todos
-                </button>
-                {MESSAGE_TYPES.map((type) => (
+              <div className="hidden sm:flex items-center gap-2">
+                <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                  <Filter className="h-4 w-4" />
+                  Tipo
+                </span>
+                <div className="flex flex-wrap gap-1.5">
                   <button
-                    key={type}
                     onClick={() => {
-                      setTypeFilter(type);
+                      setTypeFilter("");
                       setPage(1);
                     }}
                     className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                      typeFilter === type 
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                      "px-3 py-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                      !typeFilter
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary/70 text-secondary-foreground hover:bg-secondary"
                     )}
+                    type="button"
                   >
-                    {translateMessageType(type)}
+                    Todos
                   </button>
-                ))}
+                  {MESSAGE_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setTypeFilter(type);
+                        setPage(1);
+                      }}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                        typeFilter === type
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary/70 text-secondary-foreground hover:bg-secondary"
+                      )}
+                      type="button"
+                    >
+                      {translateMessageType(type)}
+                    </button>
+                  ))}
+                </div>
               </div>
+              <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
+                <DrawerContent className="bg-card border-border">
+                  <DrawerHeader className="text-left">
+                    <DrawerTitle>Filtrar mensagens</DrawerTitle>
+                    <DrawerDescription>Escolha o tipo para encontrar mais rápido.</DrawerDescription>
+                  </DrawerHeader>
+                  <div className="px-4 pb-2">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => {
+                          setTypeFilter("");
+                          setPage(1);
+                          setFiltersOpen(false);
+                        }}
+                        className={cn(
+                          "px-3 py-2 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                          !typeFilter
+                            ? "bg-primary text-primary-foreground border-transparent"
+                            : "bg-background/60 border-border text-foreground"
+                        )}
+                        type="button"
+                      >
+                        Todos
+                      </button>
+                      {MESSAGE_TYPES.map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => {
+                            setTypeFilter(type);
+                            setPage(1);
+                            setFiltersOpen(false);
+                          }}
+                          className={cn(
+                            "px-3 py-2 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                            typeFilter === type
+                              ? "bg-primary text-primary-foreground border-transparent"
+                              : "bg-background/60 border-border text-foreground"
+                          )}
+                          type="button"
+                        >
+                          {translateMessageType(type)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <DrawerFooter>
+                    {hasActiveFilters ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          setTypeFilter("");
+                          setPage(1);
+                          setSearch('');
+                          const sp = new URLSearchParams(searchParams);
+                          sp.delete('q');
+                          setSearchParams(sp, { replace: true });
+                          setFiltersOpen(false);
+                        }}
+                      >
+                        Limpar filtros
+                      </Button>
+                    ) : null}
+                    <DrawerClose asChild>
+                      <Button type="button">Ver resultados</Button>
+                    </DrawerClose>
+                  </DrawerFooter>
+                </DrawerContent>
+              </Drawer>
             </div>
           )}
-          showClearFilters={!!typeFilter || !!search.trim()}
+          showClearFilters={hasActiveFilters}
           onClearFilters={() => {
             setTypeFilter("");
             setPage(1);
@@ -758,7 +853,7 @@ const GroupMessages = () => {
           ) : null}
         />
 
-        {/* Table */}
+        {/* Feed */}
         {isLoading ? (
           <LoadingState message="Carregando mensagens..." />
         ) : error ? (
@@ -777,16 +872,216 @@ const GroupMessages = () => {
             }
           />
         ) : (
-          <BorisTable
-            columns={columns as any}
-            data={messagesData?.items ?? []}
-            keyExtractor={(m) => m.message_id}
-            onRowClick={(m) => handleViewDetail(m)}
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalCount={messagesData?.count}
-            onPageChange={setPage}
-          />
+          <div className="space-y-4">
+            <div className="space-y-3">
+              {(messagesData?.items ?? []).map((m) => {
+                const Icon = getMessageTypeIcon(m.message_type);
+                const isExpanded = !!expandedIds[m.message_id];
+                const text = (m.content_preview || "").toString();
+                const canExpand = m.message_type === "text" && (text.length >= 160 || /\n/.test(text));
+                const domains = m.message_type === "text" ? extractLinkDomains(text) : [];
+                return (
+                  <article
+                    key={m.message_id}
+                    className="group rounded-2xl border border-border/60 bg-card/70 px-4 py-4 sm:px-5"
+                    onClick={() => handleViewDetail(m)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleViewDetail(m);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2.5">
+                          {m.member_id ? (
+                            <div
+                              className="min-w-0"
+                              onClickCapture={(e) => e.stopPropagation()}
+                              onKeyDownCapture={(e) => {
+                                if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+                              }}
+                            >
+                              <MemberInlineTrigger
+                                memberId={m.member_id}
+                                groupId={groupId}
+                                name={m.member_name}
+                                avatarUrl={m.member_avatar}
+                                size="md"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2.5">
+                              <Avatar className="h-9 w-9 ring-1 ring-border/60">
+                                <AvatarFallback className="text-[11px] bg-muted/40">{getInitials("Sistema")}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm font-medium text-foreground">Sistema</span>
+                            </div>
+                          )}
+
+                          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                            <Icon className="h-3.5 w-3.5" />
+                            {translateMessageType(m.message_type)}
+                          </span>
+                        </div>
+
+                        <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <span className="tabular-nums">{formatDateTimeBR(m.created_at)}</span>
+                          <span className="sm:hidden inline-flex items-center gap-1.5">
+                            <Icon className="h-3.5 w-3.5" />
+                            {translateMessageType(m.message_type)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetail(m);
+                        }}
+                        className="h-9 w-9 rounded-xl border border-border/60 bg-background/70 hover:bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        aria-label="Ver detalhes"
+                        type="button"
+                      >
+                        <Eye className="mx-auto h-4 w-4 text-primary" />
+                      </button>
+                    </div>
+
+                    <div className="mt-3 rounded-2xl bg-background/70 border border-border/50 px-3.5 py-3">
+                      {m.message_type === "text" ? (
+                        <div>
+                          {isExpanded ? (
+                            <div className="text-sm text-foreground/90">
+                              {formatWhatsAppRichText(text)}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-foreground/90 leading-relaxed line-clamp-2 break-words">
+                              {formatWhatsAppStyles(text || "")}
+                            </p>
+                          )}
+
+                          {domains.length ? (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {domains.map((d) => (
+                                <span
+                                  key={d}
+                                  className="inline-flex items-center rounded-full bg-secondary/70 px-2 py-0.5 text-[11px] text-secondary-foreground"
+                                >
+                                  {d}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          {canExpand ? (
+                            <button
+                              type="button"
+                              className="mt-2 text-xs font-medium text-primary hover:underline underline-offset-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedIds((prev) => ({ ...prev, [m.message_id]: !prev[m.message_id] }));
+                              }}
+                            >
+                              {isExpanded ? "Recolher" : "Ler mensagem completa"}
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <MessageContentPreview message={m} />
+                        </div>
+                      )}
+
+                      <div className="mt-2">
+                        <ReactionBadges
+                          reactions={(reactionsMap[m.message_id] || []).map(r => ({ emoji: r.emoji, count: r.count }))}
+                        />
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {(() => {
+              const totalCount = Number(messagesData?.count ?? 0);
+              const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+              if (totalPages <= 1) return null;
+              const items = buildPagination(page, totalPages);
+              return (
+                <div className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="text-sm text-muted-foreground">
+                      Página <span className="font-medium text-foreground tabular-nums">{page}</span> de{" "}
+                      <span className="font-medium text-foreground tabular-nums">{totalPages}</span>
+                    </div>
+
+                    <Pagination className="sm:justify-end">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationLink
+                            href="#"
+                            size="default"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (page <= 1) return;
+                              setPage(page - 1);
+                            }}
+                            className={cn("gap-1 pl-2.5", page <= 1 && "pointer-events-none opacity-50")}
+                            aria-label="Página anterior"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span>Anterior</span>
+                          </PaginationLink>
+                        </PaginationItem>
+
+                        <div className="hidden sm:flex items-center gap-1">
+                          {items.map((it, idx) => (
+                            <PaginationItem key={`${it}-${idx}`}>
+                              {it === "ellipsis" ? (
+                                <PaginationEllipsis />
+                              ) : (
+                                <PaginationLink
+                                  href="#"
+                                  isActive={it === page}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setPage(it);
+                                  }}
+                                >
+                                  {it}
+                                </PaginationLink>
+                              )}
+                            </PaginationItem>
+                          ))}
+                        </div>
+
+                        <PaginationItem>
+                          <PaginationLink
+                            href="#"
+                            size="default"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (page >= totalPages) return;
+                              setPage(page + 1);
+                            }}
+                            className={cn("gap-1 pr-2.5", page >= totalPages && "pointer-events-none opacity-50")}
+                            aria-label="Próxima página"
+                          >
+                            <span>Próxima</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </PaginationLink>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         )}
 
         <MessageDetailsDrawer 

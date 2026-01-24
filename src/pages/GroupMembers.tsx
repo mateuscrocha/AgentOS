@@ -1,9 +1,11 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { BorisTable, RowActions } from "@/components/ui/boris-table";
+import { RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { useParams } from "react-router-dom";
-import { Users, Search, X } from "lucide-react";
+import { Users, Search, X, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -11,6 +13,10 @@ import { cn, getMemberAccessLevel } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink } from "@/components/ui/pagination";
  
 import AccessDenied from "./AccessDenied";
 import { MemberDetailsDrawer } from "@/components/members/MemberDetailsDrawer";
@@ -51,11 +57,11 @@ const getMemberRoleKey = (m: Pick<Member, "is_super_admin" | "is_admin">): Membe
 const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = {
   SUPERADMIN: {
     label: "Super Admin",
-    className: "border-violet-200/70 bg-violet-100/55 text-violet-950",
+    className: "border-primary/20 bg-primary/10 text-primary",
   },
   ADMIN: {
     label: "Admin",
-    className: "border-sky-200/70 bg-sky-100/55 text-sky-950",
+    className: "border-primary/20 bg-primary/10 text-primary",
   },
   MEMBRO: {
     label: "Membro",
@@ -68,7 +74,7 @@ const MemberRoleBadge = ({ role }: { role: MemberRoleKey }) => {
   return (
     <span
       className={cn(
-        "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
+        "inline-flex items-center h-6 px-2.5 rounded-full border text-[11px] font-semibold leading-none",
         cfg.className
       )}
     >
@@ -77,6 +83,36 @@ const MemberRoleBadge = ({ role }: { role: MemberRoleKey }) => {
   );
 };
 
+function buildPagination(current: number, total: number): Array<number | "ellipsis"> {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = new Set<number>();
+  pages.add(1);
+  pages.add(total);
+  for (let p = current - 1; p <= current + 1; p++) {
+    if (p >= 1 && p <= total) pages.add(p);
+  }
+  if (current <= 3) {
+    pages.add(2);
+    pages.add(3);
+    pages.add(4);
+  }
+  if (current >= total - 2) {
+    pages.add(total - 1);
+    pages.add(total - 2);
+    pages.add(total - 3);
+  }
+
+  const sorted = Array.from(pages).filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out: Array<number | "ellipsis"> = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const p = sorted[i] as number;
+    const prev = sorted[i - 1];
+    if (i > 0 && prev && p - prev > 1) out.push("ellipsis");
+    out.push(p);
+  }
+  return out;
+}
+
 const GroupMembers = () => {
   const { groupId } = useParams();
   const [page, setPage] = useState(1);
@@ -84,6 +120,7 @@ const GroupMembers = () => {
   const [roleFilter, setRoleFilter] = useState<"all" | "superadmin" | "admin" | "member">("all");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const [filtersOpen, setFiltersOpen] = useState(false);
   
 
 
@@ -198,78 +235,14 @@ const GroupMembers = () => {
     );
   }
 
-  const columns = [
-    {
-      key: 'name',
-      header: 'Nome',
-      render: (m: Member) => {
-        const role = getMemberRoleKey(m);
-        const displayName = m.display_name || m.name;
-        return (
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                type="button"
-                className="flex items-center gap-2 min-w-0 text-left"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedMemberId(m.id);
-                }}
-              >
-                <Avatar className="h-6 w-6">
-                  {m.profile_pic_url ? (
-                    <AvatarImage src={m.profile_pic_url} alt="" referrerPolicy="no-referrer" />
-                  ) : (
-                    <AvatarFallback>{displayName?.[0]?.toUpperCase() || ""}</AvatarFallback>
-                  )}
-                </Avatar>
-                <span className="min-w-0 truncate text-sm font-medium text-card-foreground">{displayName}</span>
-              </button>
-              <MemberRoleBadge role={role} />
-            </div>
-            {m.phone_e164 ? (
-              <div className="mt-0.5 text-xs text-muted-foreground tabular-nums truncate">{m.phone_e164}</div>
-            ) : null}
-          </div>
-        );
-      },
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      hideOn: 'md',
-      render: (m: Member) => (
-        <span className={cn(
-          'inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium',
-          m.left_at ? 'bg-destructive/10 text-destructive' : m.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
-        )}>
-          {m.left_at ? 'Saiu' : m.status === 'active' ? 'Ativo' : (m.status || '—')}
-        </span>
-      ),
-    },
-    {
-      key: 'actions',
-      header: '',
-      className: 'w-10 text-right',
-      render: (m: Member) => (
-        <RowActions>
-          <button
-            onClick={(e) => { e.stopPropagation(); setSelectedMemberId(m.id); }}
-            className="w-full text-left px-2 py-1.5 text-sm"
-          >
-            Ver detalhes
-          </button>
-        </RowActions>
-      ),
-    },
-  ];
+  const hasActiveFilters = !!search.trim() || roleFilter !== "all";
 
   return (
     <AdminLayout 
       title="Membros" 
-      subtitle={`${(totalMembersCount ?? 0)} cadastrados${search ? ` • ${(membersData?.count ?? 0)} resultados da busca` : ""}`}
+      subtitle={`${(totalMembersCount ?? 0).toLocaleString("pt-BR")} membros${search.trim() ? ` • ${(membersData?.count ?? 0).toLocaleString("pt-BR")} encontrados` : ""}`}
     >
-      <div className="space-y-6 animate-fade-in">
+      <div className="animate-fade-in -mx-6 -mt-6 px-6 pt-6 pb-10 bg-[#FBFAF6] space-y-6">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
@@ -287,76 +260,318 @@ const GroupMembers = () => {
             syncStatus: groupInfo?.syncStatus || null,
           }}
           filters={(
-            <div className="flex flex-col sm:flex-row gap-2 w-full max-w-2xl">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Buscar por nome ou telefone..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                {search && (
-                  <button
-                    onClick={() => {
-                      setSearch("");
+            <div className="w-full space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Buscar pessoas..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
                       setPage(1);
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-secondary"
+                    className="w-full pl-10 pr-10 h-11 rounded-xl border border-border/60 bg-card/70 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
+                  {search ? (
+                    <button
+                      onClick={() => {
+                        setSearch("");
+                        setPage(1);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      aria-label="Limpar busca"
+                      type="button"
+                    >
+                      <X className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="sm:hidden">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 rounded-xl bg-card/70"
+                    onClick={() => setFiltersOpen(true)}
                   >
-                    <X className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                )}
+                    <span className="inline-flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      Filtrar
+                    </span>
+                    {hasActiveFilters ? (
+                      <Badge variant="secondary" className="ml-2 h-6 px-2 text-[11px]">
+                        Ativo
+                      </Badge>
+                    ) : null}
+                  </Button>
+                </div>
               </div>
 
-              <Select
-                value={roleFilter}
-                onValueChange={(v) => {
-                  if (v === 'all' || v === 'superadmin' || v === 'admin' || v === 'member') {
-                    setRoleFilter(v);
-                    setPage(1);
-                  }
-                }}
-              >
-                <SelectTrigger className="h-10 sm:w-[200px]">
-                  <SelectValue placeholder="Função" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="superadmin">Superadmins</SelectItem>
-                  <SelectItem value="admin">Admins</SelectItem>
-                  <SelectItem value="member">Membros</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="hidden sm:flex items-center gap-2 max-w-2xl">
+                <Select
+                  value={roleFilter}
+                  onValueChange={(v) => {
+                    if (v === 'all' || v === 'superadmin' || v === 'admin' || v === 'member') {
+                      setRoleFilter(v);
+                      setPage(1);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-11 w-[220px] rounded-xl bg-card/70">
+                    <SelectValue placeholder="Função" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="superadmin">Superadmins</SelectItem>
+                    <SelectItem value="admin">Admins</SelectItem>
+                    <SelectItem value="member">Membros</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
+                <DrawerContent className="bg-card border-border">
+                  <DrawerHeader className="text-left">
+                    <DrawerTitle>Filtrar membros</DrawerTitle>
+                    <DrawerDescription>Refine por função para navegar mais rápido.</DrawerDescription>
+                  </DrawerHeader>
+                  <div className="px-4 pb-2">
+                    <div className="space-y-3">
+                      <div className="text-sm font-medium text-foreground">Função</div>
+                      <div className="flex flex-wrap gap-2">
+                        {(
+                          [
+                            { key: "all", label: "Todos" },
+                            { key: "superadmin", label: "Superadmins" },
+                            { key: "admin", label: "Admins" },
+                            { key: "member", label: "Membros" },
+                          ] as const
+                        ).map((opt) => (
+                          <button
+                            key={opt.key}
+                            type="button"
+                            className={cn(
+                              "px-3 py-2 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                              roleFilter === opt.key
+                                ? "bg-primary text-primary-foreground border-transparent"
+                                : "bg-background/60 border-border text-foreground"
+                            )}
+                            onClick={() => {
+                              setRoleFilter(opt.key);
+                              setPage(1);
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <DrawerFooter>
+                    {hasActiveFilters ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          setSearch("");
+                          setRoleFilter("all");
+                          setPage(1);
+                          setFiltersOpen(false);
+                        }}
+                      >
+                        Limpar filtros
+                      </Button>
+                    ) : null}
+                    <DrawerClose asChild>
+                      <Button type="button">Ver resultados</Button>
+                    </DrawerClose>
+                  </DrawerFooter>
+                </DrawerContent>
+              </Drawer>
             </div>
           )}
-          showClearFilters={!!search || roleFilter !== 'all'}
+          showClearFilters={hasActiveFilters}
           onClearFilters={() => { setSearch(""); setRoleFilter('all'); setPage(1); }}
         />
 
-        {/* KPIs removidos: mantemos apenas descrição textual no header */}
+        {isLoading ? (
+          <LoadingState message="Carregando membros..." />
+        ) : error ? (
+          <ErrorState title="Não foi possível carregar os membros" message="Tente novamente em alguns instantes." retry={() => refetch()} />
+        ) : (membersData?.items ?? []).length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title={search.trim() || roleFilter !== "all" ? "Nenhum resultado" : "Nenhum membro"}
+            message={search.trim() || roleFilter !== "all" ? "Não encontramos ninguém com esses filtros." : "Este grupo ainda não possui membros."}
+          />
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-3">
+              {(membersData?.items ?? []).map((m) => {
+                const role = getMemberRoleKey(m);
+                const displayName = (m.display_name || m.name || "").toString();
+                const isActive = !m.left_at && m.status === "active";
+                const statusLabel = m.left_at ? "Saiu" : isActive ? "Ativo" : (m.status || "—");
+                return (
+                  <article
+                    key={m.id}
+                    className="rounded-2xl border border-border/60 bg-card/70 px-4 py-4 sm:px-5"
+                    onClick={() => setSelectedMemberId(m.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedMemberId(m.id);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <Avatar className="h-11 w-11 ring-1 ring-border/60">
+                          {m.profile_pic_url ? (
+                            <AvatarImage src={m.profile_pic_url} alt="" referrerPolicy="no-referrer" />
+                          ) : (
+                            <AvatarFallback className="bg-muted/40 text-[12px]">{displayName?.[0]?.toUpperCase() || ""}</AvatarFallback>
+                          )}
+                        </Avatar>
 
-        <BorisTable
-          columns={columns as any}
-          data={membersData?.items ?? []}
-          keyExtractor={(m) => m.id}
-          onRowClick={(m) => setSelectedMemberId(m.id)}
-          page={page}
-          pageSize={PAGE_SIZE}
-          totalCount={membersData?.count}
-          onPageChange={setPage}
-          loading={isLoading}
-          error={!!error}
-          onRetry={() => refetch()}
-          emptyIcon={Users}
-          emptyMessage={search ? "Nenhum resultado encontrado." : "Este grupo ainda não possui membros."}
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="min-w-0">
+                              <div className="text-[15px] sm:text-[16px] font-semibold text-foreground truncate">{displayName}</div>
+                            </div>
+                            <MemberRoleBadge role={role} />
+                          </div>
+
+                          {m.phone_e164 ? (
+                            <div className="mt-1 text-xs text-muted-foreground tabular-nums truncate">{m.phone_e164}</div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full border text-[11px] font-medium",
+                            isActive
+                              ? "border-success/20 bg-success/10 text-success"
+                              : m.left_at
+                                ? "border-destructive/20 bg-destructive/10 text-destructive"
+                                : "border-border bg-background/60 text-muted-foreground"
+                          )}
+                        >
+                          <span className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-success" : m.left_at ? "bg-destructive" : "bg-muted-foreground")} />
+                          {statusLabel}
+                        </span>
+
+                        <RowActions>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMemberId(m.id);
+                            }}
+                            className="w-full text-left px-2 py-1.5 text-sm"
+                            type="button"
+                          >
+                            Ver detalhes
+                          </button>
+                        </RowActions>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {(() => {
+              const totalCount = Number(membersData?.count ?? 0);
+              const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+              if (totalPages <= 1) return null;
+              const items = buildPagination(page, totalPages);
+              return (
+                <div className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="text-sm text-muted-foreground">
+                      Página <span className="font-medium text-foreground tabular-nums">{page}</span> de{" "}
+                      <span className="font-medium text-foreground tabular-nums">{totalPages}</span>
+                    </div>
+
+                    <Pagination className="sm:justify-end">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationLink
+                            href="#"
+                            size="default"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (page <= 1) return;
+                              setPage(page - 1);
+                            }}
+                            className={cn("gap-1 pl-2.5", page <= 1 && "pointer-events-none opacity-50")}
+                            aria-label="Página anterior"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span>Anterior</span>
+                          </PaginationLink>
+                        </PaginationItem>
+
+                        <div className="hidden sm:flex items-center gap-1">
+                          {items.map((it, idx) => (
+                            <PaginationItem key={`${it}-${idx}`}>
+                              {it === "ellipsis" ? (
+                                <PaginationEllipsis />
+                              ) : (
+                                <PaginationLink
+                                  href="#"
+                                  isActive={it === page}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setPage(it);
+                                  }}
+                                >
+                                  {it}
+                                </PaginationLink>
+                              )}
+                            </PaginationItem>
+                          ))}
+                        </div>
+
+                        <PaginationItem>
+                          <PaginationLink
+                            href="#"
+                            size="default"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (page >= totalPages) return;
+                              setPage(page + 1);
+                            }}
+                            className={cn("gap-1 pr-2.5", page >= totalPages && "pointer-events-none opacity-50")}
+                            aria-label="Próxima página"
+                          >
+                            <span>Próxima</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </PaginationLink>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        <MemberDetailsDrawer
+          open={!!selectedMemberId}
+          onOpenChange={(open) => {
+            if (!open) setSelectedMemberId(null);
+          }}
+          memberId={selectedMemberId || ""}
+          groupId={groupId}
         />
-
-        <MemberDetailsDrawer open={!!selectedMemberId} onOpenChange={() => setSelectedMemberId(null)} memberId={selectedMemberId || ""} groupId={groupId} />
       </div>
     </AdminLayout>
   );
