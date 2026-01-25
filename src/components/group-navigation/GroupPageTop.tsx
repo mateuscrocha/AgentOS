@@ -280,7 +280,7 @@ export function GroupPageTop({
 
   return (
     <section className={cn("space-y-4 mb-6", className)}>
-      <div className="sticky top-16 z-20 -mx-6 px-6 py-3 bg-[#FBFAF6]/80 backdrop-blur border-b border-border/60">
+      <div className="static sm:sticky sm:top-16 z-20 -mx-4 px-4 py-3 bg-[#FBFAF6]/80 backdrop-blur border-b border-border/60 sm:-mx-6 sm:px-6">
         <Breadcrumbs items={breadcrumbItems} />
       </div>
       <div className="space-y-0">

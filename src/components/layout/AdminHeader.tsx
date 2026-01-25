@@ -67,18 +67,18 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-6">
-      <div className="flex items-start gap-3">
-        <SidebarTrigger variant="ghost" size="icon" className="md:hidden mt-1" />
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+    <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-sm sm:h-16 sm:flex-nowrap sm:px-6 sm:py-0">
+      <div className="flex min-w-0 items-start gap-3">
+        <SidebarTrigger variant="ghost" size="icon" className="mt-1 md:hidden" />
+        <div className="min-w-0">
+          <h1 className="text-base font-semibold text-foreground sm:text-lg truncate">{title}</h1>
           {subtitle && (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <p className="text-xs text-muted-foreground sm:text-sm truncate">{subtitle}</p>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         {actions && (
           <div className="hidden sm:block">
             {actions}
@@ -88,7 +88,7 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
         {isAuthenticated ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary transition-colors">
+              <button className="flex items-center gap-3 rounded-lg p-2 hover:bg-secondary transition-colors">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-primary">
                   <User className="h-4 w-4 text-primary-foreground" />
                 </div>

@@ -16,7 +16,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
       <AdminSidebar />
       <SidebarInset>
         <AdminHeader title={title} subtitle={subtitle} actions={actions} />
-        <main className="p-6">{children}</main>
+        <main className="w-full min-w-0 p-4 sm:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

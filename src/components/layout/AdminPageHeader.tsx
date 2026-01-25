@@ -32,19 +32,19 @@ export function AdminPageHeader({
 }: AdminPageHeaderProps) {
   return (
     <section className={cn("space-y-4 mb-6", className)}>
-      <div className="sticky top-16 z-20 -mx-6 px-6 py-3 bg-background/80 backdrop-blur border-b border-border">
+      <div className="static sm:sticky sm:top-16 z-20 -mx-4 px-4 py-3 bg-background/80 backdrop-blur border-b border-border sm:-mx-6 sm:px-6">
         <Breadcrumbs items={breadcrumbItems} />
       </div>
 
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold text-foreground sm:text-2xl">{title}</h2>
           {description && (
             <p className="text-sm text-muted-foreground">{description}</p>
           )}
         </div>
         {actions && (
-          <div className="flex items-center gap-2">{actions}</div>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>
         )}
       </div>
 

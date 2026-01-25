@@ -10,7 +10,7 @@ export function PageSkeleton({ className, variant = "cards" }: PageSkeletonProps
     return (
       <div className={cn("space-y-4 animate-pulse", className)}>
         {/* Header skeleton */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="h-8 w-48 bg-muted rounded-lg" />
           <div className="h-10 w-32 bg-muted rounded-lg" />
         </div>
@@ -59,7 +59,7 @@ export function PageSkeleton({ className, variant = "cards" }: PageSkeletonProps
         </div>
         
         {/* Stats skeleton */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="rounded-xl border border-border bg-card p-4">
               <div className="h-4 w-20 bg-muted/50 rounded mb-2" />

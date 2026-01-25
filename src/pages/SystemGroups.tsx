@@ -359,13 +359,13 @@ export default function SystemGroups() {
             className="text-xs text-muted-foreground [&_span]:font-normal [&_span]:text-muted-foreground"
           />
 
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 space-y-1">
               <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">Grupos</h1>
               <p className="text-sm text-muted-foreground">Todos os grupos conectados ao Bóris</p>
             </div>
 
-            <div className="shrink-0 flex items-center gap-2">
+            <div className="shrink-0 flex items-center gap-2 sm:mt-1">
               <span className="hidden sm:inline text-xs text-muted-foreground">Grupos conectados</span>
               <Badge variant="secondary" className="tabular-nums">
                 {typeof groupsData?.count === "number" ? groupsData.count.toLocaleString("pt-BR") : "—"}
