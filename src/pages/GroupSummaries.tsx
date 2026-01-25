@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Check, ChevronDown, Copy, FileText } from "lucide-react";
+import { Check, Copy, FileText } from "lucide-react";
 
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
@@ -13,8 +13,6 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StatusTag } from "@/components/ui/status-tag";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateDescriptiveBR } from "@/lib/date";
@@ -288,6 +286,23 @@ function topicKindMeta(kind: TopicKind): {
   };
 }
 
+function isObjectionTopic(topic: Pick<GroupDailyTopicRow, "title" | "content">): boolean {
+  const hay = `${topic.title || ""} ${topic.content || ""}`.toLowerCase();
+  return /\b(objeção|objeções|resistência|resistências|discorda|discordam|discordância|contra|contrário|não quero|não queremos|não gostei|não gostam)\b/i.test(
+    hay,
+  );
+}
+
+function formatCount(value: number, singular: string, plural: string): string {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function getIntensityLevel(total: number): { level: 1 | 2 | 3; label: string } {
+  if (total >= 12) return { level: 3, label: "Alta" };
+  if (total >= 6) return { level: 2, label: "Média" };
+  return { level: 1, label: "Baixa" };
+}
+
 function SectionDivider({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="flex items-center gap-3">
@@ -313,8 +328,7 @@ function TopicCard({
   const title = cleanInlineLabel(topic.title || "") || "Assunto";
 
   return (
-    <Collapsible
-      defaultOpen={false}
+    <div
       className={cn(
         "rounded-2xl border p-4 sm:p-5",
         "transition-colors duration-200",
@@ -324,53 +338,36 @@ function TopicCard({
         emphasis === "top" && "shadow-sm",
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusTag variant={meta.tagVariant}>{meta.label}</StatusTag>
+          <Badge
+            variant="secondary"
             className={cn(
-              "group flex min-w-0 flex-1 flex-col gap-2 text-left",
-              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/20 rounded-lg",
+              "h-5 px-2 text-[11px] font-medium text-muted-foreground bg-muted/40 hover:bg-muted/40",
+              emphasis === "top" && "text-foreground/80",
             )}
           >
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusTag variant={meta.tagVariant}>{meta.label}</StatusTag>
-              <Badge
-                variant="secondary"
-                className={cn(
-                  "h-5 px-2 text-[11px] font-medium text-muted-foreground bg-muted/40 hover:bg-muted/40",
-                  emphasis === "top" && "text-foreground/80",
-                )}
-              >
-                Top {topic.rank}
-              </Badge>
-            </div>
+            Top {topic.rank}
+          </Badge>
+        </div>
 
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div
-                  className={cn(
-                    "font-semibold text-foreground leading-snug line-clamp-2 max-w-[92ch]",
-                    emphasis === "top" ? "text-base sm:text-[15px]" : "text-sm",
-                  )}
-                >
-                  {title}
-                </div>
-              </div>
-              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-            </div>
-          </button>
-        </CollapsibleTrigger>
-      </div>
+        <div
+          className={cn(
+            "font-semibold text-foreground leading-snug max-w-[92ch]",
+            emphasis === "top" ? "text-base sm:text-[15px]" : "text-sm",
+          )}
+        >
+          {title}
+        </div>
 
-      <CollapsibleContent className="pt-3">
         <div className="rounded-lg bg-muted/30 px-3 py-2.5">
           <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap break-words max-w-[92ch]">
             {topic.content || "Sem detalhes adicionais para este assunto."}
           </div>
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      </div>
+    </div>
   );
 }
 
@@ -569,6 +566,13 @@ const GroupSummaries = () => {
     );
   }, [conversationsView, selectedKeyword]);
 
+  useEffect(() => {
+    if (filteredConversationsView.length === 0) return;
+    if (!openSummaryId || !filteredConversationsView.some((s) => s.id === openSummaryId)) {
+      setOpenSummaryId(filteredConversationsView[0].id);
+    }
+  }, [filteredConversationsView, openSummaryId]);
+
   if (authLoading) {
     return (
       <AdminLayout title="Diário" subtitle="Verificando acesso...">
@@ -667,367 +671,288 @@ const GroupSummaries = () => {
               />
             ) : null}
 
-            <Accordion
-              type="single"
-              collapsible
-              value={openSummaryId}
-              onValueChange={(v) => setOpenSummaryId(v)}
-              className="space-y-4"
-            >
-            {filteredConversationsView.map((s) => {
-              const isOpen = openSummaryId === s.id;
-              const showAllTopics = !!showAllTopicsByDay[s.id];
-              const topicsWithKind = (s.topics || []).map((t) => ({ topic: t, kind: classifyTopic(t) }));
-              const painTopics = topicsWithKind.filter((t) => t.kind === "dor");
-              const nonPainTopics = topicsWithKind.filter((t) => t.kind !== "dor");
-
-              const nonPainSorted = nonPainTopics
+            {filteredConversationsView.length > 0 ? (() => {
+              const selectedSummary =
+                filteredConversationsView.find((s) => s.id === openSummaryId) ?? filteredConversationsView[0];
+              const selectedTopicsWithKind = (selectedSummary?.topics || []).map((t) => ({
+                topic: t,
+                kind: classifyTopic(t),
+              }));
+              const selectedPainTopics = selectedTopicsWithKind.filter((t) => t.kind === "dor");
+              const selectedDesireTopics = selectedTopicsWithKind.filter((t) => t.kind === "desejo");
+              const selectedObjectionTopics = selectedTopicsWithKind.filter(
+                (t) => t.kind === "tema" && isObjectionTopic(t.topic),
+              );
+              const selectedTopicsSorted = selectedTopicsWithKind
                 .slice()
                 .sort((a, b) => (a.topic.rank ?? 999) - (b.topic.rank ?? 999));
-              const topNonPain = nonPainSorted[0] ?? null;
-              const otherNonPain = nonPainSorted.slice(1);
-
-              const painCount = painTopics.length;
-              const topPain = painTopics
-                .slice()
-                .sort((a, b) => (a.topic.rank ?? 999) - (b.topic.rank ?? 999))[0]?.topic;
-
+              const showAllTopics = !!showAllTopicsByDay[selectedSummary?.id || ""];
+              const visibleTopics = showAllTopics ? selectedTopicsSorted : selectedTopicsSorted.slice(0, 4);
               return (
-                <AccordionItem key={s.id} value={s.id} className="border-0">
-                  <Card
-                    className={cn(
-                      "rounded-2xl border border-border/60 bg-card/70",
-                      "focus-within:ring-1 focus-within:ring-ring/15",
-                      isOpen ? "shadow-card" : ""
-                    )}
-                  >
-                    <AccordionTrigger className="px-4 py-4 sm:px-5 sm:py-5 hover:no-underline justify-start items-start gap-2 font-normal focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/20">
-                      <div className="min-w-0 flex-1 text-left space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="text-sm sm:text-base font-semibold text-foreground">
-                            {formatDateDescriptiveBR(s.dateLabel)}
-                          </div>
+                <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-7">
+                  <div className="order-2 lg:order-1">
+                    <Card className="rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dias</div>
+                        <div className="text-xs text-muted-foreground">Navegação rápida</div>
+                      </div>
 
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {s.topics.length > 0 ? (
-                              <StatusTag variant="success" className="h-6 px-2.5 text-[12px]">
-                                {s.topics.length} tópico{s.topics.length === 1 ? "" : "s"}
-                              </StatusTag>
-                            ) : null}
-                            {painCount > 0 ? (
-                              <StatusTag variant="error" className="h-6 px-2.5 text-[12px]">
-                                {painCount} dor{painCount === 1 ? "" : "es"}
-                              </StatusTag>
-                            ) : null}
-                            {s.keywords.length > 0 ? (
-                              <StatusTag variant="success" className="h-6 px-2.5 text-[12px]">
-                                {s.keywords.length} palavra{s.keywords.length === 1 ? "" : "s"}-chave
-                              </StatusTag>
-                            ) : null}
-                            {s.linksCount > 0 ? (
-                              <StatusTag variant="neutral" className="h-6 px-2.5 text-[12px]">
-                                {s.linksCount} link{s.linksCount === 1 ? "" : "s"}
-                              </StatusTag>
-                            ) : null}
-                          </div>
+                      <ScrollArea className="mt-4 h-[420px] sm:h-[520px] lg:h-[calc(100vh-360px)] pr-2">
+                        <div className="space-y-2">
+                          {filteredConversationsView.map((s) => {
+                            const topicsWithKind = (s.topics || []).map((t) => ({ topic: t, kind: classifyTopic(t) }));
+                            const pains = topicsWithKind.filter((t) => t.kind === "dor").length;
+                            const desires = topicsWithKind.filter((t) => t.kind === "desejo").length;
+                            const objections = topicsWithKind.filter(
+                              (t) => t.kind === "tema" && isObjectionTopic(t.topic),
+                            ).length;
+                            const total = (s.topics?.length ?? 0) + (s.keywords?.length ?? 0) + (s.linksCount ?? 0);
+                            const intensity = getIntensityLevel(total);
+                            const isSelected = s.id === selectedSummary?.id;
+                            const microSummary = `${formatCount(pains, "dor", "dores")} • ${formatCount(
+                              desires,
+                              "desejo",
+                              "desejos",
+                            )} • ${formatCount(objections, "objeção", "objeções")}`;
+
+                            return (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => setOpenSummaryId(s.id)}
+                                className={cn(
+                                  "w-full text-left rounded-xl border px-3 py-3 transition",
+                                  "hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/30",
+                                  isSelected
+                                    ? "border-primary/60 bg-primary/10 ring-1 ring-primary/15 shadow-sm"
+                                    : "border-border/50 bg-card/50",
+                                )}
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className={cn("text-sm font-semibold", isSelected ? "text-foreground" : "text-foreground/80")}>
+                                    {formatDateDescriptiveBR(s.dateLabel)}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    {[1, 2, 3].map((level) => (
+                                      <span
+                                        key={level}
+                                        className={cn(
+                                          "h-1.5 w-5 rounded-full",
+                                          intensity.level >= level ? "bg-primary" : "bg-muted",
+                                        )}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className={cn("mt-2 text-xs", isSelected ? "text-muted-foreground" : "text-muted-foreground/80")}>
+                                  {microSummary}
+                                </div>
+                                <div className={cn("mt-1 text-[11px]", isSelected ? "text-muted-foreground" : "text-muted-foreground/70")}>
+                                  Intensidade {intensity.label}
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
+                      </ScrollArea>
+                    </Card>
+                  </div>
 
-                        <p className="max-w-[96ch] text-sm sm:text-[15px] leading-relaxed font-medium text-foreground/90 line-clamp-2">
-                          {pickHumanDaySummary(s.topics, s.keywords)}
+                  <div className="order-1 lg:order-2 space-y-7">
+                    <section className="rounded-3xl border border-primary/30 bg-primary/10 px-7 py-8 sm:px-10 sm:py-10 shadow-[0_10px_28px_rgba(0,0,0,0.08)] ring-1 ring-primary/20">
+                      <div className="space-y-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
+                          Resumo do dia
+                        </div>
+                        <div className="text-[24px] sm:text-[30px] leading-snug font-semibold text-foreground">
+                          {pickHumanDaySummary(selectedSummary?.topics || [], selectedSummary?.keywords || [])}
+                        </div>
+                        <p className="text-sm sm:text-[15px] leading-relaxed text-foreground/70 max-w-[92ch]">
+                          {selectedSummary?.preview || "Resumo disponível para este dia."}
                         </p>
                       </div>
-                    </AccordionTrigger>
+                    </section>
 
-                    <AccordionContent className="px-4 pb-4 sm:px-5 sm:pb-5 transition-all duration-200">
-                      <div className="space-y-10">
+                    <section className="space-y-2.5">
+                      <SectionDivider title="Principais temas do dia" subtitle="Peso relativo e classificação" />
+                      {visibleTopics.length > 0 ? (
                         <div className="space-y-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            {formatDateDescriptiveBR(s.dateLabel)}
-                          </div>
-                          <div className="rounded-2xl bg-card/70 px-4 py-4 sm:px-5 sm:py-5">
-                            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                              Resumo executivo
-                            </div>
-                            <p className="mt-2 max-w-[92ch] text-[18px] sm:text-[22px] leading-snug font-semibold text-foreground">
-                              {pickHumanDaySummary(s.topics, s.keywords)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {painTopics.length > 0 ? (
-                          <Collapsible defaultOpen={false} className="rounded-2xl border border-destructive/20 bg-destructive/5">
-                            <div className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                                  <div className="text-sm font-semibold text-foreground">Precisa de atenção</div>
-                                  <Badge variant="secondary" className="h-5 px-2 text-[11px] bg-card/60">
-                                    {painCount} dor{painCount === 1 ? "" : "es"}
-                                  </Badge>
-                                </div>
-                                {topPain ? (
-                                  <p className="mt-2 text-sm text-foreground/90 line-clamp-2 max-w-[92ch]">
-                                    {cleanInlineLabel(topPain.title || "")}
-                                  </p>
-                                ) : (
-                                  <p className="mt-2 text-sm text-foreground/90">Há pontos de fricção neste dia.</p>
-                                )}
-                              </div>
-
-                              <CollapsibleTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                  }}
-                                >
-                                  Ver detalhes
-                                </Button>
-                              </CollapsibleTrigger>
-                            </div>
-
-                            <CollapsibleContent className="px-4 pb-4 sm:px-5 sm:pb-5">
-                              <div className="space-y-2">
-                                {painTopics.map(({ topic, kind }) => (
-                                  <TopicCard key={topic.id} topic={topic} kind={kind} emphasis="default" />
-                                ))}
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        ) : (
-                          <div className="rounded-2xl border border-success/15 bg-success/5 px-4 py-3 sm:px-5 sm:py-4">
-                            <div className="flex items-center gap-2">
-                              <StatusTag variant="success">Ok</StatusTag>
-                              <p className="text-sm text-foreground/90">Nenhum alerta relevante neste dia.</p>
-                            </div>
-                          </div>
-                        )}
-
-                        <Collapsible defaultOpen={false} className="rounded-2xl bg-card/70">
-                          <div className="px-4 py-4 sm:px-5 sm:py-5">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                  Resumo do dia
-                                </div>
-                                <p className="mt-2 max-w-[92ch] text-sm sm:text-[15px] leading-relaxed text-foreground/90 line-clamp-3">
-                                  {s.preview || "Resumo disponível para este dia."}
-                                </p>
-                              </div>
-
-                              <CollapsibleTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                  }}
-                                >
-                                  Ler resumo completo
-                                </Button>
-                              </CollapsibleTrigger>
-                            </div>
-                            <CollapsibleContent>
-                              <p className="mt-3 max-w-[92ch] text-sm sm:text-[15px] leading-relaxed text-foreground whitespace-pre-wrap break-words">
-                                {s.preview || "Resumo disponível para este dia."}
-                              </p>
-                            </CollapsibleContent>
-                          </div>
-                        </Collapsible>
-
-                        <Collapsible defaultOpen={false} className="rounded-2xl bg-card/70">
-                          <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
-                            <CollapsibleTrigger asChild>
-                              <button
-                                type="button"
-                                className={cn(
-                                  "group flex min-w-0 items-center gap-2 text-left",
-                                  "text-sm font-semibold text-foreground",
-                                  "hover:text-foreground/90",
-                                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/20"
-                                )}
-                              >
-                                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                                <span className="truncate">O que moveu o grupo</span>
-                              </button>
-                            </CollapsibleTrigger>
-
-                            {topNonPain ? (
-                              <div className="hidden sm:flex items-center gap-2 min-w-0">
-                                <Badge variant="secondary" className="h-5 px-2 text-[11px] bg-muted/40 text-muted-foreground">
-                                  Top 1
-                                </Badge>
-                                <div className="text-xs text-muted-foreground truncate max-w-[520px]">
-                                  {cleanInlineLabel(topNonPain.topic.title || "")}
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="text-xs text-muted-foreground">Sem tópicos neste dia</div>
-                            )}
-                          </div>
-
-                          <CollapsibleContent className="px-4 pb-4 sm:px-5 sm:pb-5">
-                            {nonPainSorted.length > 0 ? (
-                              <div className="space-y-2">
-                                {topNonPain ? (
-                                  <TopicCard
-                                    key={topNonPain.topic.id}
-                                    topic={topNonPain.topic}
-                                    kind={topNonPain.kind}
-                                    emphasis="top"
-                                  />
-                                ) : null}
-
-                                {(showAllTopics ? otherNonPain : otherNonPain.slice(0, 2)).map(({ topic, kind }) => (
-                                  <TopicCard key={topic.id} topic={topic} kind={kind} emphasis="default" />
-                                ))}
-
-                                {Math.max(0, otherNonPain.length - 2) > 0 ? (
-                                  <div className="pt-1">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setShowAllTopicsByDay((curr) => ({ ...curr, [s.id]: !showAllTopics }));
-                                      }}
-                                    >
-                                      {showAllTopics ? "Ver menos" : `Ver mais (${Math.max(0, otherNonPain.length - 2)})`}
-                                    </Button>
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : (
-                              <div className="text-sm text-muted-foreground">Nenhum tópico disponível para este dia.</div>
-                            )}
-                          </CollapsibleContent>
-                        </Collapsible>
-
-                        <div className="space-y-3">
-                          <SectionDivider title="Palavras-chave" subtitle="Apoio visual e filtro" />
-                          {s.keywords.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {s.keywords.map((kw) => {
-                                const isSelected =
-                                  normalizeWhitespace(selectedKeyword || "").toLowerCase() ===
-                                  normalizeWhitespace(kw.keyword || "").toLowerCase();
-
-                                return (
-                                  <Button
-                                    key={kw.id}
-                                    size="sm"
-                                    variant="ghost"
-                                    className={cn(
-                                      "h-7 rounded-full px-3 text-[12px] font-medium whitespace-nowrap",
-                                      "bg-muted/30 text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-                                      isSelected ? "bg-muted ring-1 ring-border text-foreground" : "",
-                                    )}
-                                    aria-pressed={isSelected}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setSelectedKeyword((curr) => {
-                                        const next = normalizeWhitespace(kw.keyword || "");
-                                        if (!next) return curr;
-                                        if (normalizeWhitespace(curr || "").toLowerCase() === next.toLowerCase()) return null;
-                                        return next;
-                                      });
-                                    }}
-                                  >
-                                    {kw.keyword}
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground">Nenhuma palavra-chave disponível para este dia.</div>
-                          )}
-                        </div>
-
-                        <Collapsible className="rounded-2xl border border-border/60 bg-card/60">
-                          <div className="flex items-center justify-between gap-3 px-4 py-3">
-                            <CollapsibleTrigger asChild>
-                              <button
-                                type="button"
-                                className={cn(
-                                  "group flex min-w-0 items-center gap-2 text-left",
-                                  "text-sm font-semibold text-foreground",
-                                  "hover:text-foreground/90",
-                                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/20"
-                                )}
-                              >
-                                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                                <span className="truncate">Resumo completo do WhatsApp</span>
-                              </button>
-                            </CollapsibleTrigger>
-
-                            <div className="flex items-center gap-2">
+                          {visibleTopics.map(({ topic, kind }, idx) => (
+                            <TopicCard key={topic.id} topic={topic} kind={kind} emphasis={idx === 0 ? "top" : "default"} />
+                          ))}
+                          {Math.max(0, selectedTopicsSorted.length - 4) > 0 ? (
+                            <div className="pt-1">
                               <Button
                                 size="sm"
-                                variant="outline"
-                                className="h-8 bg-transparent"
-                                onClick={async (e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  await copyToClipboard(s.summary_text || "");
-                                  setCopiedRawId(s.id);
-                                  window.setTimeout(() => setCopiedRawId((curr) => (curr === s.id ? null : curr)), 1400);
-                                }}
+                                variant="ghost"
+                                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={() =>
+                                  setShowAllTopicsByDay((curr) => ({
+                                    ...curr,
+                                    [selectedSummary?.id || ""]: !showAllTopics,
+                                  }))
+                                }
                               >
-                                {copiedRawId === s.id ? (
-                                  <Check className="mr-2 h-4 w-4" />
-                                ) : (
-                                  <Copy className="mr-2 h-4 w-4" />
-                                )}
-                                Copiar resumo
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 bg-transparent"
-                                onClick={async (e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  await copyToClipboard(toPlainText(s.summary_text || ""));
-                                  setCopiedPlainId(s.id);
-                                  window.setTimeout(() => setCopiedPlainId((curr) => (curr === s.id ? null : curr)), 1400);
-                                }}
-                              >
-                                {copiedPlainId === s.id ? (
-                                  <Check className="mr-2 h-4 w-4" />
-                                ) : (
-                                  <Copy className="mr-2 h-4 w-4" />
-                                )}
-                                Copiar versão limpa
+                                {showAllTopics ? "Ver menos" : `Ver mais (${Math.max(0, selectedTopicsSorted.length - 4)})`}
                               </Button>
                             </div>
-                          </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">Nenhum tópico disponível para este dia.</div>
+                      )}
+                    </section>
 
-                          <CollapsibleContent className="px-4 pb-4">
-                            <section className="rounded-xl bg-muted/10 p-4 sm:p-5">
-                              <ScrollArea className="max-h-[460px] pr-3">
-                                <div className="text-[13px] leading-relaxed font-mono text-card-foreground break-words">
-                                  {renderWhatsappToReact(s.summary_text)}
-                                </div>
-                              </ScrollArea>
-                            </section>
-                          </CollapsibleContent>
-                        </Collapsible>
+                    <section className="space-y-2.5">
+                      <SectionDivider title="Dores, desejos e objeções" subtitle="Resumo executivo" />
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                        <div className="rounded-xl border border-destructive/15 bg-destructive/5 p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Dores</div>
+                          <div className="mt-2 divide-y divide-border/30">
+                            {selectedPainTopics.slice(0, 3).map(({ topic }) => (
+                              <div key={topic.id} className="text-[11px] text-foreground/85 line-clamp-1 pt-1.5 first:pt-0">
+                                {cleanInlineLabel(topic.title || "Assunto")}
+                              </div>
+                            ))}
+                            {selectedPainTopics.length === 0 ? (
+                              <div className="text-[11px] text-muted-foreground">Nenhuma dor explícita.</div>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-success/15 bg-success/5 p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Desejos</div>
+                          <div className="mt-2 divide-y divide-border/30">
+                            {selectedDesireTopics.slice(0, 3).map(({ topic }) => (
+                              <div key={topic.id} className="text-[11px] text-foreground/85 line-clamp-1 pt-1.5 first:pt-0">
+                                {cleanInlineLabel(topic.title || "Assunto")}
+                              </div>
+                            ))}
+                            {selectedDesireTopics.length === 0 ? (
+                              <div className="text-[11px] text-muted-foreground">Nenhum desejo explícito.</div>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-border/50 bg-card/60 p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Objeções</div>
+                          <div className="mt-2 divide-y divide-border/30">
+                            {selectedObjectionTopics.slice(0, 3).map(({ topic }) => (
+                              <div key={topic.id} className="text-[11px] text-foreground/85 line-clamp-1 pt-1.5 first:pt-0">
+                                {cleanInlineLabel(topic.title || "Assunto")}
+                              </div>
+                            ))}
+                            {selectedObjectionTopics.length === 0 ? (
+                              <div className="text-[11px] text-muted-foreground">Nenhuma objeção explícita.</div>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
-                    </AccordionContent>
-                  </Card>
-                </AccordionItem>
-              );
-            })}
+                    </section>
 
-            </Accordion>
+                    <section className="space-y-2">
+                      <SectionDivider title="Palavras-chave" subtitle="Apoio visual e filtro" />
+                      {selectedSummary?.keywords?.length ? (
+                        <div className="flex flex-wrap gap-1">
+                          {selectedSummary.keywords.map((kw) => {
+                            const isSelected =
+                              normalizeWhitespace(selectedKeyword || "").toLowerCase() ===
+                              normalizeWhitespace(kw.keyword || "").toLowerCase();
+
+                            return (
+                              <Button
+                                key={kw.id}
+                                size="sm"
+                                variant="ghost"
+                                className={cn(
+                                  "h-7 rounded-full px-3 text-[11px] sm:text-[12px] font-semibold whitespace-nowrap",
+                                  "bg-gradient-to-r from-primary/20 via-primary/15 to-primary/10 text-foreground/90",
+                                  "border border-primary/20 shadow-sm transition",
+                                  "hover:shadow-md hover:scale-[1.02] hover:bg-gradient-to-r hover:from-primary/25 hover:via-primary/20 hover:to-primary/15",
+                                  "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                                  isSelected ? "bg-primary/25 text-foreground border-primary/40 ring-1 ring-primary/30" : "",
+                                )}
+                                aria-pressed={isSelected}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setSelectedKeyword((curr) => {
+                                    const next = normalizeWhitespace(kw.keyword || "");
+                                    if (!next) return curr;
+                                    if (normalizeWhitespace(curr || "").toLowerCase() === next.toLowerCase()) return null;
+                                    return next;
+                                  });
+                                }}
+                              >
+                                {kw.keyword}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">Nenhuma palavra-chave disponível para este dia.</div>
+                      )}
+                    </section>
+
+                    <section className="rounded-2xl border border-dashed border-border/60 bg-muted/10">
+                      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                        <div className="space-y-1">
+                          <div className="text-sm font-semibold text-muted-foreground">Resumo completo do WhatsApp</div>
+                          <div className="text-[11px] text-muted-foreground/80">Leitura profunda</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 bg-transparent text-muted-foreground hover:text-foreground"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              await copyToClipboard(selectedSummary?.summary_text || "");
+                              setCopiedRawId(selectedSummary?.id || null);
+                              window.setTimeout(() =>
+                                setCopiedRawId((curr) => (curr === selectedSummary?.id ? null : curr)),
+                              1400);
+                            }}
+                          >
+                            {copiedRawId === selectedSummary?.id ? (
+                              <Check className="mr-2 h-4 w-4" />
+                            ) : (
+                              <Copy className="mr-2 h-4 w-4" />
+                            )}
+                            Copiar resumo
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 bg-transparent text-muted-foreground hover:text-foreground"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              await copyToClipboard(toPlainText(selectedSummary?.summary_text || ""));
+                              setCopiedPlainId(selectedSummary?.id || null);
+                              window.setTimeout(() =>
+                                setCopiedPlainId((curr) => (curr === selectedSummary?.id ? null : curr)),
+                              1400);
+                            }}
+                          >
+                            {copiedPlainId === selectedSummary?.id ? (
+                              <Check className="mr-2 h-4 w-4" />
+                            ) : (
+                              <Copy className="mr-2 h-4 w-4" />
+                            )}
+                            Copiar versão limpa
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="px-4 pb-4">
+                        <section className="rounded-xl bg-card/60 p-4 sm:p-5">
+                          <div className="text-[12px] leading-relaxed font-mono text-muted-foreground break-words whitespace-pre-wrap">
+                            {renderWhatsappToReact(selectedSummary?.summary_text || "")}
+                          </div>
+                        </section>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              );
+            })() : null}
 
             {conversationsView.length >= daysLimit ? (
               <div className="pt-2">

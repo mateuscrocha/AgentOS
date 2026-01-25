@@ -1674,11 +1674,16 @@ const Org = () => {
                   <p className="text-xs text-muted-foreground">Palavras mais presentes</p>
                   <div className="flex flex-wrap gap-2">
                     {(orgKeywords.words || []).map((w: any) => (
-                      <span key={w.word} className="px-2 py-1 rounded-md bg-secondary text-secondary-foreground text-xs">
-                        {w.word}
-                        <span className="ml-2 text-muted-foreground">{w.count}</span>
+                      <span
+                        key={w.word}
+                        className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-secondary/60 text-foreground text-[12px] font-semibold border border-border/60"
+                      >
+                        <span className="text-[13px] font-semibold tracking-tight">{w.word}</span>
+                        <span className="text-[11px] text-muted-foreground tabular-nums">{w.count}</span>
                         {typeof w.delta === 'number' && (
-                          <span className={`ml-2 ${w.delta > 0 ? 'text-success' : w.delta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{w.delta > 0 ? `+${w.delta}%` : w.delta < 0 ? `${w.delta}%` : '0%'}</span>
+                          <span className={`text-[11px] tabular-nums ${w.delta > 0 ? 'text-success' : w.delta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            {w.delta > 0 ? `+${w.delta}%` : w.delta < 0 ? `${w.delta}%` : '0%'}
+                          </span>
                         )}
                       </span>
                     ))}
@@ -1688,11 +1693,16 @@ const Org = () => {
                   <p className="text-xs text-muted-foreground">Temas recorrentes (bigramas)</p>
                   <div className="flex flex-wrap gap-2">
                     {(orgKeywords.bigrams || []).map((b: any) => (
-                      <span key={b.phrase} className="px-2 py-1 rounded-md bg-secondary text-secondary-foreground text-xs">
-                        {b.phrase}
-                        <span className="ml-2 text-muted-foreground">{b.count}</span>
+                      <span
+                        key={b.phrase}
+                        className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-secondary/60 text-foreground text-[12px] font-semibold border border-border/60"
+                      >
+                        <span className="text-[13px] font-semibold italic tracking-tight">{b.phrase}</span>
+                        <span className="text-[11px] text-muted-foreground tabular-nums">{b.count}</span>
                         {typeof b.delta === 'number' && (
-                          <span className={`ml-2 ${b.delta > 0 ? 'text-success' : b.delta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{b.delta > 0 ? `+${b.delta}%` : b.delta < 0 ? `${b.delta}%` : '0%'}</span>
+                          <span className={`text-[11px] tabular-nums ${b.delta > 0 ? 'text-success' : b.delta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            {b.delta > 0 ? `+${b.delta}%` : b.delta < 0 ? `${b.delta}%` : '0%'}
+                          </span>
                         )}
                       </span>
                     ))}

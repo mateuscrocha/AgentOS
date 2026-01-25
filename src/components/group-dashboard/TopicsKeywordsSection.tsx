@@ -100,17 +100,23 @@ export function TopicsKeywordsSection({
             const width = maxCount > 0 ? Math.round((b.count / maxCount) * 100) : 0;
             return (
               <li key={b.key} className="rounded-lg border border-border bg-card/50 p-3 hover:bg-secondary/40 transition-colors cursor-pointer" role="listitem" aria-label={b.label}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-card-foreground">{b.label}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[13px] font-semibold text-card-foreground truncate">{b.label}</span>
                     <TrendChip label={trend.label} type={trend.type} />
                   </div>
-                  <span className="text-xs text-muted-foreground tabular-nums">{b.count} menções</span>
+                  <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">{b.count} menções</span>
                 </div>
                 {b.terms && b.terms.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {b.terms.slice(0, 6).map((t) => (
-                      <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>
+                      <Badge
+                        key={t}
+                        variant="secondary"
+                        className="text-[12px] font-semibold tracking-tight px-2.5 py-1 bg-secondary/60 text-foreground border border-border/60"
+                      >
+                        {t}
+                      </Badge>
                     ))}
                   </div>
                 )}
