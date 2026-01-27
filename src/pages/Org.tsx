@@ -148,6 +148,21 @@ interface GroupListItem {
   last_access_at?: string | null;
 }
 
+interface OrgProfileMetadata {
+  cnpj?: string;
+  address?: string;
+  founded_at?: string;
+  area?: string;
+  website?: string;
+  logo_url?: string;
+  cover_url?: string;
+  socials?: {
+    facebook?: string;
+    instagram?: string;
+    linkedin?: string;
+  };
+}
+
 type OrgGroupSignalRow = {
   id: string;
   name: string;
@@ -294,6 +309,12 @@ const Org = () => {
   const [attachInviteLink, setAttachInviteLink] = useState("");
   const [attachError, setAttachError] = useState<string | null>(null);
   const [attaching, setAttaching] = useState(false);
+
+  const [profileSearch, setProfileSearch] = useState("");
+  const [profileStatusFilter, setProfileStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [profileLeaderFilter, setProfileLeaderFilter] = useState<string>("");
+  const [profileOrderBy, setProfileOrderBy] = useState<"name" | "members" | "status">("name");
+  const [profileOrderDir, setProfileOrderDir] = useState<"asc" | "desc">("asc");
 
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
@@ -498,6 +519,7 @@ const Org = () => {
   const isDashboardRoute = /^\/(?:org|organization)\/[^/]+\/dashboard$/.test(path);
   const isKeywordsRoute = /^\/(?:org|organization)\/[^/]+\/keywords$/.test(path);
   const isBaseOrg = /^\/(?:org|organization)\/[^/]+\/?$/.test(path);
+  const isProfileRoute = /^\/(?:org|organization)\/[^/]+\/profile$/.test(path);
   const isDefaultOrgHome = isBaseOrg && !isGroupsRoute && !isDashboardRoute && !isKeywordsRoute;
 
   const breadcrumbItems = (() => {
@@ -508,8 +530,48 @@ const Org = () => {
     if (isGroupsRoute) items.push({ label: "Grupos" });
     if (isDashboardRoute) items.push({ label: "Painéis e métricas" });
     if (isKeywordsRoute) items.push({ label: "Palavras-chave" });
+    if (isProfileRoute) items.push({ label: "Perfil" });
     return items;
   })();
+
+  const { data: profileGroupsOverview, isLoading: profileGroupsLoading, error: profileGroupsError } = useQuery({
+    queryKey: ["org-profile-groups", orgId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("v_group_overview")
+        .select("group_id,group_name,description,members_count,is_active,organization_id")
+        .eq("organization_id", orgId!);
+      return (data || []).map((g: any) => ({
+        id: g.group_id as string,
+        name: g.group_name as string,
+        description: (g as any).description || null,
+        members: typeof g.members_count === "number" ? g.members_count : null,
+        status: g.is_active ? "Ativo" : "Inativo",
+      }));
+    },
+    enabled: !!orgId && isAuthenticated && isProfileRoute,
+  });
+
+  const { data: profileLeaders } = useQuery({
+    queryKey: ["org-profile-leaders", orgId, orgGroupIds?.join(",")],
+    queryFn: async () => {
+      if (!orgGroupIds || orgGroupIds.length === 0) return {} as Record<string, string>;
+      const { data } = await supabase
+        .from("members")
+        .select("group_id,name,is_super_admin,is_admin")
+        .in("group_id", orgGroupIds)
+        .or("is_super_admin.eq.true,is_admin.eq.true");
+      const map: Record<string, string> = {};
+      (data || []).forEach((m: any) => {
+        const gid = m.group_id as string;
+        const name = String(m.name || "");
+        if (!map[gid]) map[gid] = name;
+        if (m.is_super_admin) map[gid] = name;
+      });
+      return map;
+    },
+    enabled: !!orgId && isAuthenticated && Array.isArray(orgGroupIds) && isProfileRoute,
+  });
 
   const currentRange = getDateRange(selectedPeriod, customRange);
   const lengthMs = Math.max(0, currentRange.to.getTime() - currentRange.from.getTime());
@@ -542,6 +604,21 @@ const Org = () => {
     if (text.length <= max) return text;
     const sliced = text.slice(0, max);
     return sliced.replace(/\s+\S*$/, "").trimEnd() + "…";
+  };
+
+  const buildOrgGroupsCsv = (rows: Array<{ id: string; name: string; description: string | null; leader: string | null; members: number | null; status: string }>): string => {
+    const headers = ["Grupo","Descrição","Líder","Integrantes","Status"]; 
+    const escape = (v: any) => {
+      const s = String(v ?? "");
+      const needs = /[",\n]/.test(s);
+      const escaped = s.replace(/"/g, '""');
+      return needs ? `"${escaped}"` : escaped;
+    };
+    const lines = [headers.join(",")];
+    for (const r of rows) {
+      lines.push([escape(r.name), escape(r.description ?? ""), escape(r.leader ?? ""), String(r.members ?? 0), r.status].join(","));
+    }
+    return lines.join("\n");
   };
 
   const safeRatio = (curr: number, prev: number): number | null => {
@@ -1279,6 +1356,253 @@ const Org = () => {
           onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); }}
         />
 
+        {isProfileRoute && (
+          <div id="org-profile" className="space-y-8">
+            {(() => {
+              const md = (org?.metadata || {}) as OrgProfileMetadata;
+              const cover = md.cover_url || "/org-cover-placeholder.jpg";
+              const logo = md.logo_url || "/org-logo-placeholder.png";
+              return (
+                <section className="rounded-2xl overflow-hidden border border-border bg-card">
+                  <div className="h-32 sm:h-44 w-full bg-center bg-cover" style={{ backgroundImage: `url(${cover})` }} />
+                  <div className="p-4 sm:p-6 flex items-start gap-4">
+                    <img src={logo} alt="Logo" className="h-16 w-16 rounded-lg border border-border bg-background object-cover" />
+                    <div className="min-w-0">
+                      <h3 className="text-lg sm:text-xl font-semibold text-card-foreground">{org?.name}</h3>
+                      <p className="text-sm text-muted-foreground truncate">{md?.area || ""}</p>
+                      {md?.area && md?.founded_at && (
+                        <p className="text-xs text-muted-foreground">Fundada em {formatDateSimpleBR(md.founded_at)}</p>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              );
+            })()}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
+                <h4 className="text-sm font-semibold text-foreground">Dados da Organização</h4>
+                {(() => {
+                  const md = (org?.metadata || {}) as OrgProfileMetadata;
+                  const stats = [
+                    { label: "Grupos ativos", value: activeGroupsCount },
+                    { label: "Membros", value: totalMembersCount },
+                    { label: "Mensagens (7d)", value: messagesLast7dCount },
+                  ];
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">CNPJ</span>
+                          <p className="font-medium text-card-foreground">{md?.cnpj || "-"}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Área de atuação</span>
+                          <p className="font-medium text-card-foreground">{md?.area || "-"}</p>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <span className="text-muted-foreground">Endereço</span>
+                          <p className="font-medium text-card-foreground">{md?.address || "-"}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Fundação</span>
+                          <p className="font-medium text-card-foreground">{md?.founded_at ? formatDateSimpleBR(md.founded_at) : "-"}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        {stats.map((s) => (
+                          <div key={s.label} className="rounded-xl bg-secondary/30 p-4">
+                            <div className="text-xl font-semibold tabular-nums text-card-foreground">{typeof s.value === "number" ? s.value.toLocaleString("pt-BR") : "-"}</div>
+                            <div className="text-xs text-muted-foreground">{s.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </section>
+
+              <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-foreground">Contato</h4>
+                  {userCanEditOrg && (
+                    <Button variant="outline" size="sm" onClick={() => setEditContactOpen(true)}>Editar contato</Button>
+                  )}
+                </div>
+                {(() => {
+                  const md = (org?.metadata || {}) as OrgProfileMetadata;
+                  return (
+                    <div className="space-y-3 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-muted-foreground">Telefone</span>
+                          <p className="font-medium text-card-foreground">{contactPhone || "-"}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">E-mail</span>
+                          <p className="font-medium text-card-foreground">{contactEmail || "-"}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Site</span>
+                          <p className="font-medium text-card-foreground">{md?.website || "-"}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {md?.socials?.facebook && (
+                          <a href={md.socials.facebook} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-md bg-secondary/50 text-xs">Facebook</a>
+                        )}
+                        {md?.socials?.instagram && (
+                          <a href={md.socials.instagram} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-md bg-secondary/50 text-xs">Instagram</a>
+                        )}
+                        {md?.socials?.linkedin && (
+                          <a href={md.socials.linkedin} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-md bg-secondary/50 text-xs">LinkedIn</a>
+                        )}
+                      </div>
+                      <div>
+                        <a href={contactEmail ? `mailto:${contactEmail}` : undefined} className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm disabled:opacity-50" aria-disabled={!contactEmail}>
+                          Enviar mensagem
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </section>
+            </div>
+
+            {(() => {
+              const groupsOverview = profileGroupsOverview;
+              const groupsLoading = profileGroupsLoading;
+              const groupsError = profileGroupsError;
+              const leaders = profileLeaders;
+
+              const list = (groupsOverview || []).map((g: any) => ({ ...g, leader: leaders?.[g.id] || null }));
+              const filtered = list.filter((g: any) => {
+                const s = profileSearch.trim().toLowerCase();
+                if (s && !(`${g.name}`.toLowerCase().includes(s) || `${g.description || ""}`.toLowerCase().includes(s))) return false;
+                if (profileStatusFilter !== "all") {
+                  if (profileStatusFilter === "active" && g.status !== "Ativo") return false;
+                  if (profileStatusFilter === "inactive" && g.status !== "Inativo") return false;
+                }
+                if (profileLeaderFilter.trim()) {
+                  const l = profileLeaderFilter.trim().toLowerCase();
+                  if (!(`${g.leader || ""}`.toLowerCase().includes(l))) return false;
+                }
+                return true;
+              });
+              const sorted = filtered.sort((a: any, b: any) => {
+                const dir = profileOrderDir === "asc" ? 1 : -1;
+                if (profileOrderBy === "name") return a.name.localeCompare(b.name, "pt-BR") * dir;
+                if (profileOrderBy === "members") return ((a.members || 0) - (b.members || 0)) * dir;
+                if (profileOrderBy === "status") return a.status.localeCompare(b.status, "pt-BR") * dir;
+                return 0;
+              });
+
+              const handleExportCsv = () => {
+                const csv = buildOrgGroupsCsv(sorted.map((g: any) => ({ id: g.id, name: g.name, description: g.description, leader: g.leader, members: g.members, status: g.status })));
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${org?.name || "organizacao"}-grupos.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              };
+
+              return (
+                <section className="space-y-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 space-y-1">
+                      <h4 className="text-sm font-semibold text-foreground">Grupos da organização</h4>
+                      <p className="text-xs text-muted-foreground">Lista interativa com filtros e exportação</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleExportCsv}>Exportar CSV</Button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Buscar por nome ou descrição"
+                        value={profileSearch}
+                        onChange={(e) => setProfileSearch(e.target.value)}
+                        className="h-9 w-full px-3 rounded-lg border border-border/60 bg-background text-sm"
+                      />
+                      <select
+                        value={profileStatusFilter}
+                        onChange={(e) => setProfileStatusFilter(e.target.value as any)}
+                        className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                      >
+                        <option value="all">Status</option>
+                        <option value="active">Ativos</option>
+                        <option value="inactive">Inativos</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Filtrar por líder"
+                        value={profileLeaderFilter}
+                        onChange={(e) => setProfileLeaderFilter(e.target.value)}
+                        className="h-9 w-full px-3 rounded-lg border border-border/60 bg-background text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <select
+                          value={profileOrderBy}
+                          onChange={(e) => setProfileOrderBy(e.target.value as any)}
+                          className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                        >
+                          <option value="name">Ordenar: nome</option>
+                          <option value="members">Ordenar: integrantes</option>
+                          <option value="status">Ordenar: status</option>
+                        </select>
+                        <select
+                          value={profileOrderDir}
+                          onChange={(e) => setProfileOrderDir(e.target.value as any)}
+                          className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                        >
+                          <option value="asc">Asc</option>
+                          <option value="desc">Desc</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {groupsLoading ? (
+                      <div className="mt-4"><LoadingState message="Carregando grupos..." /></div>
+                    ) : groupsError ? (
+                      <div className="mt-4"><ErrorState message="Falha ao carregar grupos" /></div>
+                    ) : sorted.length === 0 ? (
+                      <div className="mt-2"><EmptyState title="Nenhum grupo" message="Nada por aqui." /></div>
+                    ) : (
+                      <div className="mt-4">
+                        <div className="space-y-3">
+                          {sorted.map((g: any) => (
+                            <div key={g.id} className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => navigate(`/groups/${g.id}`)}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-card-foreground truncate">{g.name}</div>
+                                  <div className="mt-1 text-xs text-muted-foreground truncate">{g.description || ""}</div>
+                                  <div className="mt-2 text-xs text-muted-foreground">Líder: {g.leader || "-"}</div>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <div className="text-sm font-semibold tabular-nums text-card-foreground">{typeof g.members === "number" ? g.members.toLocaleString("pt-BR") : "-"}</div>
+                                  <div className="text-[11px] text-muted-foreground">Integrantes</div>
+                                  <div className="mt-1 text-[11px]">{g.status}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            })()}
+          </div>
+        )}
+
         
 
         {(isDashboardRoute || isDefaultOrgHome) && (
@@ -1724,7 +2048,14 @@ const Org = () => {
         group={editGroup}
         open={!!editGroup}
         onOpenChange={(open) => !open && setEditGroup(null)}
-        onSuccess={() => refetchGroups()}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["org-groups-signals", orgId] });
+          queryClient.invalidateQueries({ queryKey: ["org-profile-groups", orgId] });
+          queryClient.invalidateQueries({ queryKey: ["org-group-ids", orgId] });
+          queryClient.invalidateQueries({ queryKey: ["org-active-groups-count", orgId] });
+          queryClient.invalidateQueries({ queryKey: ["org-total-members", orgId] });
+          queryClient.invalidateQueries({ queryKey: ["org-messages-7d", orgId] });
+        }}
       />
 
       <Dialog
@@ -1808,7 +2139,12 @@ const Org = () => {
                   if (error) throw error;
                   notify.success('Grupo removido', 'Dados salvos com sucesso.');
                   setRemoveGroup(null);
-                  refetchGroups();
+                  queryClient.invalidateQueries({ queryKey: ["org-profile-groups", orgId] });
+                  queryClient.invalidateQueries({ queryKey: ["org-group-ids", orgId] });
+                  queryClient.invalidateQueries({ queryKey: ["org-active-groups-count", orgId] });
+                  queryClient.invalidateQueries({ queryKey: ["org-total-members", orgId] });
+                  queryClient.invalidateQueries({ queryKey: ["org-messages-7d", orgId] });
+                  queryClient.invalidateQueries({ queryKey: ["org-groups-signals", orgId] });
                 } catch (err: any) {
                   notify.error('Não foi possível concluir', 'Algo deu errado. Tente novamente.');
                 } finally {
@@ -1852,7 +2188,8 @@ const Org = () => {
                   if (error) throw error;
                   notify.success("Grupo excluído", "Tudo certo.");
                   setCascadeGroup(null);
-                  refetchGroups();
+                  queryClient.invalidateQueries({ queryKey: ["org-profile-groups", orgId] });
+                  queryClient.invalidateQueries({ queryKey: ["org-groups-signals", orgId] });
                   queryClient.invalidateQueries({ queryKey: ["org-group-ids", orgId] });
                   queryClient.invalidateQueries({ queryKey: ["org-active-groups-count", orgId] });
                   queryClient.invalidateQueries({ queryKey: ["org-total-members", orgId] });
