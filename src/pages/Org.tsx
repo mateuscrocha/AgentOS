@@ -8,6 +8,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
   Edit,
+  FolderOpen,
   ChevronDown,
   CreditCard,
   Mail,
@@ -17,6 +18,7 @@ import {
   TrendingDown,
   TrendingUp,
   Minus,
+  Plus,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,8 +70,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-const PAGE_SIZE = 10;
-const PANORAMA_PAGE_SIZE = 8;
+const PANORAMA_PAGE_SIZE = 20;
 const RECENT_MESSAGES_HOURS = 24;
 
 function formatCounts(counts?: Record<string, number>): string {
@@ -276,7 +277,6 @@ const Org = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
   const [panoramaPage, setPanoramaPage] = useState(1);
   const [recentMessagesStartISO] = useState(
     () => new Date(Date.now() - RECENT_MESSAGES_HOURS * 60 * 60 * 1000).toISOString(),
@@ -687,36 +687,6 @@ const Org = () => {
   });
 
   // Fetch groups for this organization
-  const { data: groupsData, isLoading: groupsLoading, error: groupsError, refetch: refetchGroups } = useQuery({
-    queryKey: ['org-groups', orgId, page],
-    queryFn: async () => {
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      
-      const { data, error, count } = await supabase
-        .from('v_group_overview')
-        .select('group_id, group_name, created_at, organization_id, is_active, members_count, last_access_at', { count: 'exact' })
-        .eq('organization_id', orgId)
-        .neq('is_archived', true)
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (error) throw error;
-      const items = ((data ?? []) as any[]).map((row) => ({
-        id: row.group_id,
-        name: row.group_name,
-        created_at: row.created_at,
-        organization_id: row.organization_id,
-        whatsapp_provider_id: null,
-        is_active: row.is_active,
-        members_count: typeof row.members_count === 'number' ? row.members_count : Number(row.members_count ?? 0),
-        last_access_at: row.last_access_at,
-      })) as GroupListItem[];
-      return { items, count: count ?? 0 };
-    },
-    enabled: !!orgId && isAuthenticated,
-  });
-
   
 
   const { data: orgKeywords, isLoading: keywordsLoading, error: keywordsError, refetch: refetchKeywords } = useQuery({
@@ -795,7 +765,7 @@ const Org = () => {
     return { row, activity, trend, attention };
   });
 
-  const totalGroupsCount = typeof groupsData?.count === "number" ? groupsData.count : signals.length;
+  const totalGroupsCount = typeof orgGroupIds?.length === "number" ? orgGroupIds.length : signals.length;
   const activeGroupsValue =
     typeof activeGroupsCount === "number" ? activeGroupsCount : signals.filter((g) => g.isActive === true).length;
   const silentGroupsCount = signalsWithMetrics.filter((g) => g.activity === "silencio").length;
@@ -829,17 +799,13 @@ const Org = () => {
   };
 
   const panoramaSorted = [...signalsWithMetrics].sort((a, b) => {
-    const ap = a.attention?.priority ?? 999;
-    const bp = b.attention?.priority ?? 999;
-    if (ap !== bp) return ap - bp;
-
     const ar = activityRank[a.activity];
     const br = activityRank[b.activity];
     if (ar !== br) return br - ar;
 
-    const trA = trendRank[a.trend];
-    const trB = trendRank[b.trend];
-    if (trA !== trB) return trB - trA;
+    const aCount = typeof a.row.messagesCurrent === "number" ? a.row.messagesCurrent : -1;
+    const bCount = typeof b.row.messagesCurrent === "number" ? b.row.messagesCurrent : -1;
+    if (aCount !== bCount) return bCount - aCount;
 
     const aAt = a.row.lastMessageAt ? new Date(a.row.lastMessageAt).getTime() : 0;
     const bAt = b.row.lastMessageAt ? new Date(b.row.lastMessageAt).getTime() : 0;
@@ -961,18 +927,76 @@ const Org = () => {
       key: "actions",
       header: "",
       className: "w-10",
-      render: (g: any) => (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/groups/${g.row.id}`);
-          }}
-        >
-          Abrir
-        </Button>
-      ),
+      render: (g: any) => {
+        const canEdit = canEditGroup(g.row.id, orgId);
+        const canRemove = userCanEditOrg;
+        const canCascade = isSystemAdmin;
+        return (
+          <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(`/groups/${g.row.id}`)}
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              title="Abrir grupo"
+              aria-label="Abrir grupo"
+            >
+              <FolderOpen className="h-4 w-4" />
+            </Button>
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const { data, error } = await supabase
+                      .from("groups")
+                      .select("id, name, organization_id, provider, whatsapp_provider_id")
+                      .eq("id", g.row.id)
+                      .maybeSingle();
+                    if (error) throw error;
+                    if (!data) throw new Error("Grupo não encontrado");
+                    setEditGroup(data as GroupDetails);
+                  } catch {
+                    notify.error("Não foi possível abrir", "Algo deu errado. Tente novamente.");
+                  }
+                }}
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                title="Editar grupo"
+                aria-label="Editar grupo"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+            {(canCascade || canRemove) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const payload: GroupListItem = {
+                    id: g.row.id,
+                    name: g.row.name,
+                    created_at: g.row.created_at ?? "",
+                    organization_id: orgId ?? "",
+                    whatsapp_provider_id: null,
+                    is_active: g.row.isActive ?? null,
+                  };
+                  if (canCascade) {
+                    setCascadeGroup(payload);
+                    return;
+                  }
+                  setRemoveGroup(payload);
+                }}
+                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                title={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
+                aria-label={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -1188,109 +1212,6 @@ const Org = () => {
     }
   };
 
-  const groupColumns = [
-    { key: 'name', header: 'Nome' },
-    {
-      key: 'members_count',
-      header: 'Membros',
-      hideOn: 'sm',
-      render: (group: GroupListItem) => (
-        <span className="tabular-nums">{typeof group.members_count === 'number' ? group.members_count.toLocaleString('pt-BR') : '—'}</span>
-      ),
-    },
-    { 
-      key: 'is_active', 
-      header: 'Status',
-      render: (group: GroupListItem) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-          group.is_active === true ? 'bg-success/10 text-success' :
-          group.is_active === false ? 'bg-muted text-muted-foreground' :
-          'bg-muted text-muted-foreground'
-        }`}>
-          {group.is_active === true ? 'Ativo' : group.is_active === false ? 'Inativo' : '—'}
-        </span>
-      )
-    },
-    { 
-      key: 'created_at', 
-      header: 'Criado em',
-      render: (group: GroupListItem) => formatDateSimpleBR(group.created_at)
-    },
-    { 
-      key: 'last_access_at', 
-      header: 'Último acesso',
-      hideOn: 'sm',
-      render: (group: GroupListItem) => group.last_access_at ? formatDateSimpleBR(group.last_access_at) : '—'
-    },
-    {
-      key: 'actions',
-      header: '',
-      className: 'w-10',
-      render: (group: GroupListItem) => {
-        const canEdit = canEditGroup(group.id, orgId);
-        const canRemove = userCanEditOrg;
-        const canCascade = isSystemAdmin;
-        if (!canEdit && !canRemove && !canCascade) return null;
-        return (
-          <div className="flex items-center gap-1">
-            {canEdit && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  try {
-                    const { data, error } = await supabase
-                      .from('groups')
-                      .select('id, name, organization_id, provider, whatsapp_provider_id')
-                      .eq('id', group.id)
-                      .maybeSingle();
-                    if (error) throw error;
-                    if (!data) throw new Error('Grupo não encontrado');
-                    setEditGroup(data as GroupDetails);
-                  } catch {
-                    notify.error('Não foi possível abrir', 'Algo deu errado. Tente novamente.');
-                  }
-                }}
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            )}
-            {canRemove && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setRemoveGroup(group);
-                }}
-                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                title="Remover grupo da organização"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-            {canCascade && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCascadeGroup(group);
-                }}
-                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                title="Excluir grupo"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        );
-      }
-    },
-  ];
-
   const orgStatusLabel = org.status === "active" ? "Ativo" : org.status === "inactive" ? "Inativo" : "Suspenso";
   const orgStatusClassName =
     org.status === "active"
@@ -1320,6 +1241,16 @@ const Org = () => {
           description={`Criada em ${formatDateSimpleBR(org.created_at)}`}
           actions={(
             <div className="flex items-center gap-2">
+              {userCanEditOrg && (
+                <Button
+                  size="sm"
+                  onClick={() => setAttachGroupOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Adicionar grupo
+                </Button>
+              )}
               {userCanEditOrg && (
                 <Button
                   variant="outline"
@@ -1447,6 +1378,9 @@ const Org = () => {
                         const activityLabel =
                           g.activity === "silencio" ? "Silêncio" : g.activity === "baixo" ? "Baixa" : g.activity === "medio" ? "Média" : "Alta";
                         const recentCount = panoramaRecentMessagesLoading ? null : panoramaRecentMessages?.[g.row.id];
+                        const canEdit = canEditGroup(g.row.id, orgId);
+                        const canRemove = userCanEditOrg;
+                        const canCascade = isSystemAdmin;
                         const contextText = g.row.lastSummaryText
                           ? toPreview(g.row.lastSummaryText, 120)
                           : g.row.lastMessagePreview
@@ -1478,17 +1412,68 @@ const Org = () => {
                               </div>
                             </div>
 
-                            <div className="mt-3 flex items-center justify-end">
+                            <div className="mt-3 flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/groups/${g.row.id}`);
-                                }}
+                                onClick={() => navigate(`/groups/${g.row.id}`)}
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                title="Abrir grupo"
+                                aria-label="Abrir grupo"
                               >
-                                Abrir
+                                <FolderOpen className="h-4 w-4" />
                               </Button>
+                              {canEdit && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={async () => {
+                                    try {
+                                      const { data, error } = await supabase
+                                        .from("groups")
+                                        .select("id, name, organization_id, provider, whatsapp_provider_id")
+                                        .eq("id", g.row.id)
+                                        .maybeSingle();
+                                      if (error) throw error;
+                                      if (!data) throw new Error("Grupo não encontrado");
+                                      setEditGroup(data as GroupDetails);
+                                    } catch {
+                                      notify.error("Não foi possível abrir", "Algo deu errado. Tente novamente.");
+                                    }
+                                  }}
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                  title="Editar grupo"
+                                  aria-label="Editar grupo"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {(canCascade || canRemove) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const payload: GroupListItem = {
+                                      id: g.row.id,
+                                      name: g.row.name,
+                                      created_at: g.row.created_at ?? "",
+                                      organization_id: orgId ?? "",
+                                      whatsapp_provider_id: null,
+                                      is_active: g.row.isActive ?? null,
+                                    };
+                                    if (canCascade) {
+                                      setCascadeGroup(payload);
+                                      return;
+                                    }
+                                    setRemoveGroup(payload);
+                                  }}
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  title={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
+                                  aria-label={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                         );
@@ -1714,190 +1699,6 @@ const Org = () => {
         )}
 
         
-
-        {(isGroupsRoute || isDefaultOrgHome) && (
-        <div id="org-groups">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
-            <div>
-              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Grupos desta organização
-                <span className="text-sm font-normal text-muted-foreground">({groupsData?.count ?? 0})</span>
-              </h3>
-              <p className="text-xs text-muted-foreground">Gerencie os grupos conectados ao Bóris</p>
-            </div>
-            {userCanEditOrg && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setAttachError(null); setAttachGroupOpen(true); }}
-                className="sm:self-center"
-              >
-                Adicionar grupo
-              </Button>
-            )}
-          </div>
-          
-          {groupsLoading ? (
-            <LoadingState message="Carregando grupos..." />
-          ) : groupsError ? (
-            <ErrorState 
-              message="Falha ao carregar grupos"
-              retry={() => refetchGroups()}
-            />
-          ) : groupsData?.items.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title="Nenhum grupo"
-              message="Esta organização ainda não possui grupos cadastrados."
-            />
-          ) : (
-            <>
-              <div className="space-y-3 md:hidden">
-                {(groupsData?.items ?? []).map((group) => {
-                  const canEdit = canEditGroup(group.id, orgId);
-                  const canRemove = userCanEditOrg;
-                  const canCascade = isSystemAdmin;
-
-                  return (
-                    <div
-                      key={group.id}
-                      className="rounded-2xl bg-secondary/30 p-4 transition-colors cursor-pointer hover:bg-secondary/40"
-                      onClick={() => navigate(`/groups/${group.id}`)}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="font-semibold text-card-foreground truncate">{group.name}</div>
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <span
-                              className={
-                                `px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  group.is_active === true
-                                    ? "bg-success/10 text-success"
-                                    : group.is_active === false
-                                      ? "bg-muted text-muted-foreground"
-                                      : "bg-muted text-muted-foreground"
-                                }`
-                              }
-                            >
-                              {group.is_active === true ? "Ativo" : group.is_active === false ? "Inativo" : "—"}
-                            </span>
-
-                            <span className="text-xs text-muted-foreground">
-                              Criado em {formatDateSimpleBR(group.created_at)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {(canEdit || canRemove || canCascade) && (
-                          <div className="flex items-center gap-1 shrink-0">
-                            {canEdit && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    const { data, error } = await supabase
-                                      .from("groups")
-                                      .select("id, name, organization_id, provider, whatsapp_provider_id")
-                                      .eq("id", group.id)
-                                      .maybeSingle();
-                                    if (error) throw error;
-                                    if (!data) throw new Error("Grupo não encontrado");
-                                    setEditGroup(data as GroupDetails);
-                                  } catch {
-                                    notify.error("Não foi possível abrir", "Algo deu errado. Tente novamente.");
-                                  }
-                                }}
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {canRemove && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setRemoveGroup(group);
-                                }}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                title="Remover grupo da organização"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {canCascade && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCascadeGroup(group);
-                                }}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                title="Excluir grupo"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-                        <span className="tabular-nums">Membros: {typeof group.members_count === "number" ? group.members_count.toLocaleString("pt-BR") : "—"}</span>
-                        <span className="tabular-nums">Último acesso: {group.last_access_at ? formatDateSimpleBR(group.last_access_at) : "—"}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {(groupsData?.count ?? 0) > PAGE_SIZE && (
-                  <div className="flex items-center justify-between rounded-xl bg-secondary/20 px-4 py-3">
-                    <p className="text-xs text-muted-foreground">
-                      Página {page} de {Math.ceil((groupsData?.count ?? 0) / PAGE_SIZE)} • {groupsData?.count ?? 0} grupos
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPage(Math.max(1, page - 1))}
-                        disabled={page <= 1}
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPage(Math.min(Math.ceil((groupsData?.count ?? 0) / PAGE_SIZE), page + 1))}
-                        disabled={page >= Math.ceil((groupsData?.count ?? 0) / PAGE_SIZE)}
-                      >
-                        Próxima
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="hidden md:block">
-                <BorisTable
-                  columns={groupColumns as any}
-                  data={groupsData?.items ?? []}
-                  keyExtractor={(group) => group.id}
-                  onRowClick={(group) => navigate(`/groups/${group.id}`)}
-                  page={page}
-                  pageSize={PAGE_SIZE}
-                  totalCount={groupsData?.count}
-                  onPageChange={setPage}
-                />
-              </div>
-            </>
-          )}
-        </div>
-        )}
 
         
       </div>
