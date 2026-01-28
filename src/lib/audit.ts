@@ -6,7 +6,10 @@ export type EventType =
   | 'MEMBER_UPDATED' 
   | 'ORG_CREATED' 
   | 'GROUP_CREATED'
-  | 'ORG_ADMIN_ASSIGNED';
+  | 'ORG_ADMIN_ASSIGNED'
+  | 'ORG_ACCESS_GRANTED'
+  | 'ORG_ACCESS_DENIED'
+  | 'ORG_DASHBOARD_LOAD_FAILED';
 
 export type EntityType = 'organization' | 'group' | 'member' | 'message';
 

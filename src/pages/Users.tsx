@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -153,6 +153,8 @@ export default function Users() {
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<UserRole | null>(null);
   const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
+  const [userToEdit, setUserToEdit] = useState<Profile | null>(null);
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
@@ -163,6 +165,9 @@ export default function Users() {
   const [selectedScopeOrgId, setSelectedScopeOrgId] = useState<string>('');
   const [selectedScopeGroupId, setSelectedScopeGroupId] = useState<string>('');
   const [assignOrgAdmin, setAssignOrgAdmin] = useState(false);
+  const [editUserName, setEditUserName] = useState("");
+  const [editUserPhone, setEditUserPhone] = useState("");
+  const [editUserStatus, setEditUserStatus] = useState<'active' | 'inactive' | 'unknown'>('active');
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>("all");
@@ -247,6 +252,48 @@ export default function Users() {
     },
     enabled: isAuthenticated && isSystemAdmin,
   });
+
+  const { data: userEmail, isLoading: userEmailLoading, error: userEmailError } = useQuery({
+    queryKey: ['admin-user-email', userToEdit?.id],
+    queryFn: async () => {
+      if (!userToEdit?.id) return null;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const { data, error } = await supabase.functions.invoke('admin-get-user-email', {
+        body: { user_id: userToEdit.id },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
+
+      if (!error && data?.success) return (data.email as string | null) ?? null;
+
+      let message = error?.message || data?.message || 'Falha ao buscar email';
+      let status: number | undefined = undefined;
+      let code: string | undefined = data?.code;
+
+      if (error instanceof FunctionsHttpError && (error as any).context) {
+        try {
+          const body = await (error as any).context.json();
+          if (body?.message) message = body.message;
+          if (typeof body?.status === 'number') status = body.status;
+          if (typeof body?.code === 'string') code = body.code;
+        } catch (_e) {
+          void 0;
+        }
+      }
+
+      const err: any = new Error(message);
+      err.status = status;
+      err.code = code;
+      throw err;
+    },
+    enabled: isEditUserOpen && !!userToEdit?.id && isSystemAdmin,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (!isEditUserOpen || !userToEdit?.id) return;
+    queryClient.invalidateQueries({ queryKey: ['admin-user-email', userToEdit.id] });
+  }, [isEditUserOpen, userToEdit?.id, queryClient]);
 
   // Add role mutation
   const addRoleMutation = useMutation({
@@ -376,6 +423,31 @@ export default function Users() {
     },
   });
 
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ userId, name, phone_e164, status }: { userId: string; name: string; phone_e164: string | null; status: string | null; }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name,
+          phone_e164,
+          status,
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
+      notify.success("Usuário atualizado", "Dados salvos com sucesso.");
+      setIsEditUserOpen(false);
+      setUserToEdit(null);
+      markRecentlyChanged(variables.userId);
+    },
+    onError: () => {
+      notify.error("Não foi possível salvar", "Algo deu errado. Tente novamente.");
+    },
+  });
+
   const deleteUserMutation = useMutation({
     mutationFn: async ({ userId }: { userId: string }) => {
       const { data, error } = await supabase.functions.invoke("admin-delete-user", {
@@ -489,6 +561,20 @@ export default function Users() {
       organizationId,
       groupId,
     });
+  };
+
+  const openEditUser = (profile: Profile) => {
+    setUserToEdit(profile);
+    setEditUserName(profile.name || "");
+    setEditUserPhone(profile.phone_e164 || "");
+    if (profile.status === 'inactive') {
+      setEditUserStatus('inactive');
+    } else if (profile.status === 'active') {
+      setEditUserStatus('active');
+    } else {
+      setEditUserStatus('unknown');
+    }
+    setIsEditUserOpen(true);
   };
 
   const getUserRoles = (userId: string): UserRole[] => {
@@ -677,6 +763,15 @@ export default function Users() {
 
   const renderActions = (profile: Profile) => (
     <RowActions>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          openEditUser(profile);
+        }}
+        className="w-full text-left px-2 py-1.5 text-sm"
+      >
+        Ver e editar
+      </button>
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -1114,6 +1209,102 @@ export default function Users() {
             >
               <Plus className="h-4 w-4 mr-1" />
               Criar Usuário
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Dados do Usuário</DialogTitle>
+            <DialogDescription>
+              {userToEdit?.name || 'Usuário'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <div className="text-xs text-muted-foreground">ID</div>
+                <div className="text-sm text-card-foreground break-all">{userToEdit?.id || '-'}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Email</div>
+                <div className="text-sm text-card-foreground break-all">
+                  {userEmailLoading ? 'Carregando...' : userEmailError ? 'Não disponível' : userEmail || '-'}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Criado em</div>
+                <div className="text-sm text-card-foreground">
+                  {userToEdit?.created_at ? format(new Date(userToEdit.created_at), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Papéis</div>
+                <div className="mt-1">
+                  {userToEdit ? renderRolesBadges(getUserRoles(userToEdit.id)) : null}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3 pt-2 border-t border-border">
+              <div>
+                <Input
+                  placeholder="Nome"
+                  value={editUserName}
+                  onChange={(e) => setEditUserName(e.target.value)}
+                />
+              </div>
+              <div>
+                <Input
+                  placeholder="WhatsApp"
+                  value={editUserPhone}
+                  onChange={(e) => setEditUserPhone(e.target.value)}
+                />
+              </div>
+              <div>
+                <Select value={editUserStatus} onValueChange={(v) => setEditUserStatus(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Ativo</SelectItem>
+                    <SelectItem value="inactive">Inativo</SelectItem>
+                    <SelectItem value="unknown">Desconhecido</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditUserOpen(false)}>Fechar</Button>
+            <Button
+              onClick={() => {
+                if (!userToEdit) return;
+                const name = editUserName.trim();
+                if (!name) {
+                  notify.warning('Atenção', 'O nome é obrigatório.');
+                  return;
+                }
+                const phone = normalizePhoneE164(editUserPhone);
+                const status = editUserStatus === 'unknown' ? null : editUserStatus;
+                updateUserMutation.mutate({
+                  userId: userToEdit.id,
+                  name,
+                  phone_e164: phone || null,
+                  status,
+                });
+              }}
+              disabled={updateUserMutation.isPending}
+            >
+              {updateUserMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Salvando</span>
+                </>
+              ) : (
+                <span>Salvar</span>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -19,11 +19,12 @@ import {
   TrendingUp,
   Minus,
   Plus,
+  HelpCircle,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { FunctionsFetchError, FunctionsHttpError } from "@supabase/supabase-js";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
@@ -69,6 +70,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { logEvent } from "@/lib/audit";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const PANORAMA_PAGE_SIZE = 20;
 const RECENT_MESSAGES_HOURS = 24;
@@ -296,8 +299,8 @@ const Org = () => {
   const [recentMessagesStartISO] = useState(
     () => new Date(Date.now() - RECENT_MESSAGES_HOURS * 60 * 60 * 1000).toISOString(),
   );
-  const { isAuthenticated, loading: authLoading } = useAuth();
-  const { canEditOrg, canEditGroup, isLoading: rolesLoading, isSystemAdmin } = useUserRoles();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const { canEditOrg, canEditGroup, hasOrgAccess, isLoading: rolesLoading, isSystemAdmin } = useUserRoles();
   const [editOrgOpen, setEditOrgOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<GroupDetails | null>(null);
   const [removeGroup, setRemoveGroup] = useState<GroupListItem | null>(null);
@@ -318,6 +321,12 @@ const Org = () => {
 
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
+
+  const accessGrantedLoggedRef = useRef(false);
+  const accessDeniedLoggedRef = useRef(false);
+  const loadFailedLoggedRef = useRef(false);
+
+  const hasAccess = !!orgId && (isSystemAdmin || hasOrgAccess(orgId));
 
   useEffect(() => {
     try {
@@ -384,6 +393,34 @@ const Org = () => {
     };
   }, [orgId, isAuthenticated, queryClient]);
 
+  useEffect(() => {
+    if (authLoading || rolesLoading) return;
+    if (!isAuthenticated || !orgId || !user?.id) return;
+
+    if (hasAccess) {
+      if (accessGrantedLoggedRef.current) return;
+      accessGrantedLoggedRef.current = true;
+      logEvent({
+        eventType: "ORG_ACCESS_GRANTED",
+        entityType: "organization",
+        entityId: orgId,
+        userId: user.id,
+        metadata: { path: typeof window !== "undefined" ? window.location.pathname : null },
+      });
+      return;
+    }
+
+    if (accessDeniedLoggedRef.current) return;
+    accessDeniedLoggedRef.current = true;
+    logEvent({
+      eventType: "ORG_ACCESS_DENIED",
+      entityType: "organization",
+      entityId: orgId,
+      userId: user.id,
+      metadata: { path: typeof window !== "undefined" ? window.location.pathname : null },
+    });
+  }, [authLoading, rolesLoading, isAuthenticated, hasAccess, orgId, user?.id]);
+
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
     setSelectedPeriod(period);
     setCustomRange(period === 'custom' ? range : undefined);
@@ -402,7 +439,7 @@ const Org = () => {
       if (error) throw error;
       return data as OrganizationDetail;
     },
-    enabled: !!orgId && isAuthenticated,
+    enabled: !!orgId && isAuthenticated && hasAccess,
   });
 
   // Fetch owner profile if exists
@@ -416,7 +453,7 @@ const Org = () => {
         .maybeSingle();
       return data;
     },
-    enabled: !!org?.owner_user_id,
+    enabled: !!org?.owner_user_id && hasAccess,
   });
 
   const { data: primaryContact, isLoading: contactLoading, error: contactError, refetch: refetchPrimaryContact } = useQuery({
@@ -441,7 +478,7 @@ const Org = () => {
         updated_at: string;
       };
     },
-    enabled: !!orgId && isAuthenticated,
+    enabled: !!orgId && isAuthenticated && hasAccess,
   });
 
   const contactName = primaryContact?.name || org?.contact_name || undefined;
@@ -460,7 +497,7 @@ const Org = () => {
         .neq('is_archived', true);
       return (data ?? []).map((g: { id: string }) => g.id);
     },
-    enabled: !!orgId && isAuthenticated,
+    enabled: !!orgId && isAuthenticated && hasAccess,
   });
 
   const { data: totalMembersCount, isLoading: membersCountLoading } = useQuery({
@@ -474,7 +511,7 @@ const Org = () => {
         .is('deleted_at', null);
       return count ?? 0;
     },
-    enabled: !!orgId && isAuthenticated && Array.isArray(orgGroupIds),
+    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds),
   });
 
   const { data: messagesLast7dCount, isLoading: messagesCountLoading } = useQuery({
@@ -492,7 +529,7 @@ const Org = () => {
         .lte('created_at', toISO);
       return count ?? 0;
     },
-    enabled: !!orgId && isAuthenticated && Array.isArray(orgGroupIds),
+    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds),
   });
 
   const { data: activeGroupsCount, isLoading: activeGroupsLoading } = useQuery({
@@ -507,7 +544,7 @@ const Org = () => {
         .eq('is_active', true);
       return count ?? 0;
     },
-    enabled: !!orgId && isAuthenticated,
+    enabled: !!orgId && isAuthenticated && hasAccess,
   });
 
   
@@ -549,7 +586,7 @@ const Org = () => {
         status: g.is_active ? "Ativo" : "Inativo",
       }));
     },
-    enabled: !!orgId && isAuthenticated && isProfileRoute,
+    enabled: !!orgId && isAuthenticated && hasAccess && isProfileRoute,
   });
 
   const { data: profileLeaders } = useQuery({
@@ -570,7 +607,7 @@ const Org = () => {
       });
       return map;
     },
-    enabled: !!orgId && isAuthenticated && Array.isArray(orgGroupIds) && isProfileRoute,
+    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds) && isProfileRoute,
   });
 
   const currentRange = getDateRange(selectedPeriod, customRange);
@@ -760,7 +797,7 @@ const Org = () => {
       orgGroupsSignalRpcAvailable = false;
       return runFallback();
     },
-    enabled: !!orgId && isAuthenticated,
+    enabled: !!orgId && isAuthenticated && hasAccess,
   });
 
   // Fetch groups for this organization
@@ -831,7 +868,7 @@ const Org = () => {
 
       return { words, bigrams } as any;
     },
-    enabled: !!orgId && isAuthenticated && Array.isArray(orgGroupIds),
+    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds),
   });
 
   const signals = Array.isArray(orgGroupsSignals) ? orgGroupsSignals : [];
@@ -922,7 +959,7 @@ const Org = () => {
       }
       return map;
     },
-    enabled: !!orgId && isAuthenticated && panoramaGroupIds.length > 0,
+    enabled: !!orgId && isAuthenticated && hasAccess && panoramaGroupIds.length > 0,
   });
 
   const panoramaColumns = [
@@ -1086,6 +1123,14 @@ const Org = () => {
     );
   }
 
+  if (!hasAccess) {
+    return (
+      <AccessDenied
+        message="Você não tem permissão para acessar esta organização."
+      />
+    );
+  }
+
   if (orgLoading) {
     return (
       <AdminLayout title="Organização" subtitle="Carregando...">
@@ -1096,6 +1141,20 @@ const Org = () => {
 
   // Check access - RLS will return null if no access
   if (orgError || !org) {
+    if (orgError && !loadFailedLoggedRef.current && user?.id && orgId) {
+      loadFailedLoggedRef.current = true;
+      logEvent({
+        eventType: "ORG_DASHBOARD_LOAD_FAILED",
+        entityType: "organization",
+        entityId: orgId,
+        userId: user.id,
+        metadata: {
+          path: typeof window !== "undefined" ? window.location.pathname : null,
+          error: String((orgError as any)?.message ?? "unknown"),
+          code: (orgError as any)?.code ?? null,
+        },
+      });
+    }
     // Distinguish between "not found" and "no access"
     const errorCode = (orgError as any)?.code;
     if (orgError?.message?.includes('permission') || errorCode === 'PGRST301') {
@@ -1385,9 +1444,21 @@ const Org = () => {
                 {(() => {
                   const md = (org?.metadata || {}) as OrgProfileMetadata;
                   const stats = [
-                    { label: "Grupos ativos", value: activeGroupsCount },
-                    { label: "Membros", value: totalMembersCount },
-                    { label: "Mensagens (7d)", value: messagesLast7dCount },
+                    {
+                      label: "Grupos ativos",
+                      value: activeGroupsCount,
+                      help: "Quantidade de grupos ativos vinculados à organização.",
+                    },
+                    {
+                      label: "Membros",
+                      value: totalMembersCount,
+                      help: "Total de membros únicos somando todos os grupos da organização.",
+                    },
+                    {
+                      label: "Mensagens (7d)",
+                      value: messagesLast7dCount,
+                      help: "Mensagens enviadas nos últimos 7 dias em todos os grupos da organização.",
+                    },
                   ];
                   return (
                     <div className="space-y-4">
@@ -1412,8 +1483,22 @@ const Org = () => {
                       <div className="grid grid-cols-3 gap-3">
                         {stats.map((s) => (
                           <div key={s.label} className="rounded-xl bg-secondary/30 p-4">
-                            <div className="text-xl font-semibold tabular-nums text-card-foreground">{typeof s.value === "number" ? s.value.toLocaleString("pt-BR") : "-"}</div>
-                            <div className="text-xs text-muted-foreground">{s.label}</div>
+                            <div className="text-xl font-semibold tabular-nums text-card-foreground">
+                              {typeof s.value === "number" ? s.value.toLocaleString("pt-BR") : "-"}
+                            </div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <span>{s.label}</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
+                                    <HelpCircle className="h-3.5 w-3.5" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  {s.help}
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1626,7 +1711,19 @@ const Org = () => {
                     <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-card-foreground">
                       {formatNumberBR(totalGroupsCount ?? 0)}
                     </div>
-                    <div className="mt-1 text-sm font-medium text-card-foreground">Grupos ativos</div>
+                    <div className="mt-1 text-sm font-medium text-card-foreground flex items-center gap-1">
+                      <span>Grupos ativos</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
+                            <HelpCircle className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          Total de grupos com status ativo na organização.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <div className="text-xs text-muted-foreground">Total na organização</div>
                   </div>
 
@@ -1634,7 +1731,19 @@ const Org = () => {
                     <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-success">
                       {formatNumberBR(activeGroupsValue ?? 0)}
                     </div>
-                    <div className="mt-1 text-sm font-medium text-card-foreground">Em operação</div>
+                    <div className="mt-1 text-sm font-medium text-card-foreground flex items-center gap-1">
+                      <span>Em operação</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
+                            <HelpCircle className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          Grupos ativos com sinais de atividade no período analisado.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <div className="text-xs text-muted-foreground">Em operação</div>
                   </div>
 
@@ -1648,7 +1757,19 @@ const Org = () => {
                     >
                       {formatNumberBR(silentGroupsCount ?? 0)}
                     </div>
-                    <div className="mt-1 text-sm font-medium text-card-foreground">Sem atividade</div>
+                    <div className="mt-1 text-sm font-medium text-card-foreground flex items-center gap-1">
+                      <span>Sem atividade</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
+                            <HelpCircle className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          Grupos sem mensagens recentes no período analisado.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <div className="text-xs text-muted-foreground">Sem mensagens recentes</div>
                   </div>
 
@@ -1668,7 +1789,19 @@ const Org = () => {
                     >
                       {formatNumberBR(alertGroupsCount ?? 0)}
                     </div>
-                    <div className="mt-1 text-sm font-medium text-card-foreground">Precisam de atenção</div>
+                    <div className="mt-1 text-sm font-medium text-card-foreground flex items-center gap-1">
+                      <span>Precisam de atenção</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
+                            <HelpCircle className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          Grupos com alertas de queda ou ausência de atividade relevante.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <div className="text-xs text-muted-foreground">Com alerta</div>
                   </div>
                 </div>
