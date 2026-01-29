@@ -164,6 +164,9 @@ export function AdminSidebar() {
     const active = isActive(item.href);
     const isGroupsItem = item.label === "Grupos";
     const showThisHint = showGroupsHint && isGroupsItem;
+    const handleNavClick = () => {
+      if (isGroupsItem) handleGroupsNavClick();
+    };
     return (
       <SidebarMenuItem key={`${item.href}:${item.label}`}>
         <SidebarMenuButton
@@ -179,7 +182,7 @@ export function AdminSidebar() {
             showThisHint && groupsHintPulse && "animate-pulse",
           )}
         >
-          <NavLink to={item.href} onClick={isGroupsItem ? handleGroupsNavClick : undefined}>
+          <NavLink to={item.href} onClick={handleNavClick}>
             <item.icon className={cn(active && "text-primary")} />
             <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
             {showThisHint || item.badge ? (

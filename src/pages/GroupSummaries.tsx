@@ -657,7 +657,13 @@ const GroupSummaries = () => {
                 <div className="text-sm text-muted-foreground">
                   Filtrando por: <span className="font-medium text-foreground">{selectedKeyword}</span>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => setSelectedKeyword(null)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setSelectedKeyword(null);
+                  }}
+                >
                   Limpar filtro
                 </Button>
               </div>
@@ -719,7 +725,9 @@ const GroupSummaries = () => {
                               <button
                                 key={s.id}
                                 type="button"
-                                onClick={() => setOpenSummaryId(s.id)}
+                                onClick={() => {
+                                  setOpenSummaryId(s.id);
+                                }}
                                 className={cn(
                                   "w-full text-left rounded-xl border px-3 py-3 transition",
                                   "hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/30",
@@ -786,12 +794,12 @@ const GroupSummaries = () => {
                                 size="sm"
                                 variant="ghost"
                                 className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                onClick={() =>
+                                onClick={() => {
                                   setShowAllTopicsByDay((curr) => ({
                                     ...curr,
                                     [selectedSummary?.id || ""]: !showAllTopics,
-                                  }))
-                                }
+                                  }));
+                                }}
                               >
                                 {showAllTopics ? "Ver menos" : `Ver mais (${Math.max(0, selectedTopicsSorted.length - 4)})`}
                               </Button>
@@ -959,7 +967,9 @@ const GroupSummaries = () => {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => setDaysLimit((curr) => curr + 30)}
+                  onClick={() => {
+                    setDaysLimit((curr) => curr + 30);
+                  }}
                 >
                   Carregar mais
                 </Button>
