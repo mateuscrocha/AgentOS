@@ -10,7 +10,7 @@ import { notify } from "@/components/ui/sonner";
 
 const TEST_USERS = [
   {
-    email: "sysadmin@test.boris",
+    email: "sysadmin+boris-admin@gmail.com",
     password: "12345678",
     role: "SYSTEM_ADMIN",
     description: "Acesso total ao sistema. Vê todas as orgs e groups.",
@@ -18,7 +18,7 @@ const TEST_USERS = [
     color: "text-destructive",
   },
   {
-    email: "orgadmin@test.boris",
+    email: "orgadmin+boris-admin@gmail.com",
     password: "12345678",
     role: "ORG_ADMIN",
     description: "Admin da 'Org Teste'. Pode editar org e grupos da org.",
@@ -26,7 +26,7 @@ const TEST_USERS = [
     color: "text-warning",
   },
   {
-    email: "manager@test.boris",
+    email: "manager+boris-admin@gmail.com",
     password: "12345678",
     role: "GROUP_MANAGER",
     description: "Gerente do 'Grupo Teste'. Pode editar o grupo.",
@@ -34,7 +34,7 @@ const TEST_USERS = [
     color: "text-primary",
   },
   {
-    email: "viewer@test.boris",
+    email: "viewer+boris-admin@gmail.com",
     password: "12345678",
     role: "USER",
     description: "Viewer do 'Grupo Teste'. Apenas visualização.",
@@ -132,22 +132,22 @@ ON CONFLICT (id) DO NOTHING;
 -- criados no Supabase Auth
 -- ============================================
 
--- SYSTEM_ADMIN (sysadmin@test.boris)
+-- SYSTEM_ADMIN (sysadmin+boris-admin@gmail.com)
 INSERT INTO user_roles (user_id, role)
 VALUES ('SUBSTITUIR_PELO_USER_ID_SYSADMIN', 'SYSTEM_ADMIN')
 ON CONFLICT DO NOTHING;
 
--- ORG_ADMIN (orgadmin@test.boris)
+-- ORG_ADMIN (orgadmin+boris-admin@gmail.com)
 INSERT INTO user_roles (user_id, role, organization_id)
 VALUES ('SUBSTITUIR_PELO_USER_ID_ORGADMIN', 'ORG_ADMIN', '11111111-1111-1111-1111-111111111111')
 ON CONFLICT DO NOTHING;
 
--- GROUP_MANAGER (manager@test.boris)
+-- GROUP_MANAGER (manager+boris-admin@gmail.com)
 INSERT INTO user_roles (user_id, role, organization_id, group_id)
 VALUES ('SUBSTITUIR_PELO_USER_ID_MANAGER', 'GROUP_MANAGER', '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')
 ON CONFLICT DO NOTHING;
 
--- VIEWER/USER (viewer@test.boris)
+-- VIEWER/USER (viewer+boris-admin@gmail.com)
 INSERT INTO user_roles (user_id, role, organization_id, group_id)
 VALUES ('SUBSTITUIR_PELO_USER_ID_VIEWER', 'USER', '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')
 ON CONFLICT DO NOTHING;

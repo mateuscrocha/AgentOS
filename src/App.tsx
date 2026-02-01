@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import SystemEvents from "./pages/SystemEvents";
 import SystemOrganizations from "./pages/SystemOrganizations";
 import SystemGroups from "./pages/SystemGroups";
+import SystemActivity from "./pages/SystemActivity";
 import Org from "./pages/Org";
 import Group from "./pages/Group";
 import GroupMembers from "./pages/GroupMembers";
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="/system/groups" element={<SystemGroups />} />
             <Route path="/system/users" element={<Users />} />
             <Route path="/system/events" element={<SystemEvents />} />
+            <Route path="/system/activity" element={<SystemActivity />} />
             <Route path="/system/settings" element={<Settings />} />
             <Route path="/org/:orgId" element={<Org />} />
             <Route path="/organization/:orgId" element={<Org />} />

@@ -1309,6 +1309,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity_log: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          org_id: string
+          page: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          org_id: string
+          page?: string | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          org_id?: string
+          page?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_log_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_activity_log_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -2834,6 +2879,79 @@ export type Database = {
       }
     }
     Functions: {
+      activity_daily_org_admins: {
+        Args: { _end: string; _start: string }
+        Returns: { day: string; org_admins: number }[]
+      }
+      activity_org_admins: {
+        Args: {
+          _end: string
+          _limit?: number
+          _offset?: number
+          _order_by?: string
+          _order_dir?: string
+          _org_id?: string
+          _search?: string
+          _start: string
+        }
+        Returns: {
+          active_days: number
+          last_activity_at: string | null
+          last_login_at: string | null
+          org_id: string
+          org_name: string
+          top_pages: string[]
+          total_count: number
+          user_id: string
+          user_name: string | null
+        }[]
+      }
+      activity_orgs: {
+        Args: {
+          _end: string
+          _limit?: number
+          _min_active_days: number
+          _offset?: number
+          _order_by?: string
+          _order_dir?: string
+          _recent_days: number
+          _search?: string
+          _start: string
+          _status?: string
+        }
+        Returns: {
+          active_days: number
+          admins_active: number
+          last_activity_at: string | null
+          last_login_at: string | null
+          org_id: string
+          org_name: string
+          status: string
+          total_count: number
+        }[]
+      }
+      activity_overview: {
+        Args: {
+          _end: string
+          _min_active_days: number
+          _recent_days: number
+          _start: string
+        }
+        Returns: {
+          logins: number
+          org_admins_active: number
+          orgs_active: number
+          orgs_inactive: number
+          orgs_total: number
+          orgs_warm: number
+          orgs_with_activity: number
+          page_views: number
+        }[]
+      }
+      activity_top_pages: {
+        Args: { _end: string; _limit?: number; _start: string }
+        Returns: { admins: number; page: string; page_views: number }[]
+      }
       can_create_group: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
