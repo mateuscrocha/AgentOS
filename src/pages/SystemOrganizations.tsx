@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Building2, ChevronLeft, ChevronRight, Plus, SlidersHorizontal } from "lucide-react";
+import { ArrowUpRight, Building2, CheckCircle, ChevronLeft, ChevronRight, Loader2, Plus, SlidersHorizontal, Users, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
 import { formatDateSimpleBR } from "@/lib/date";
 import { Button } from "@/components/ui/button";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,7 +95,13 @@ export default function SystemOrganizations() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: orgsData, isLoading: orgsLoading, error: orgsError, refetch: refetchOrgs } = useQuery({
+  const {
+    data: orgsData,
+    isLoading: orgsLoading,
+    isFetching: orgsFetching,
+    error: orgsError,
+    refetch: refetchOrgs,
+  } = useQuery({
     queryKey: ["system-organizations", page, debouncedSearch, statusFilter, orderBy, orderDir],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
@@ -116,6 +123,29 @@ export default function SystemOrganizations() {
       const { data, error, count } = await query.range(from, to);
       if (error) throw error;
       return { items: (data ?? []) as Organization[], count: count ?? 0 };
+    },
+    enabled: isAuthenticated,
+  });
+
+  const { data: overview, isLoading: overviewLoading } = useQuery({
+    queryKey: ["system-organizations-overview"],
+    queryFn: async () => {
+      const [orgsTotal, orgsActive, orgsInactive, groupsTotal] = await Promise.all([
+        supabase.from("organizations").select("id", { count: "exact", head: true }),
+        supabase.from("organizations").select("id", { count: "exact", head: true }).eq("status", "active"),
+        supabase.from("organizations").select("id", { count: "exact", head: true }).eq("status", "inactive"),
+        supabase.from("groups").select("id", { count: "exact", head: true }),
+      ]);
+
+      const err = orgsTotal.error || orgsActive.error || orgsInactive.error || groupsTotal.error;
+      if (err) throw err;
+
+      return {
+        orgsTotal: orgsTotal.count ?? 0,
+        orgsActive: orgsActive.count ?? 0,
+        orgsInactive: orgsInactive.count ?? 0,
+        groupsTotal: groupsTotal.count ?? 0,
+      };
     },
     enabled: isAuthenticated,
   });
@@ -192,6 +222,26 @@ export default function SystemOrganizations() {
   );
 
   const columns = [
+    {
+      key: "open",
+      header: "",
+      className: "w-0",
+      render: (org: Organization) => (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          aria-label={`Abrir ${org.name}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/org/${org.id}`);
+          }}
+        >
+          <ArrowUpRight className="h-4 w-4" />
+        </Button>
+      ),
+    },
     {
       key: "name",
       header: "Organização",
@@ -282,16 +332,24 @@ export default function SystemOrganizations() {
 
   const filtersForm = (
     <>
-      <input
-        type="text"
-        placeholder="Buscar organização"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
-        }}
-        className={`${filterControlBase} w-full md:w-72`}
-      />
+      <div className="relative w-full md:w-72">
+        <input
+          type="text"
+          placeholder="Buscar organização"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className={`${filterControlBase} w-full pr-10`}
+        />
+        {search !== debouncedSearch && (
+          <Loader2
+            className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+            aria-hidden="true"
+          />
+        )}
+      </div>
       <select
         value={statusFilter}
         onChange={(e) => {
@@ -327,17 +385,26 @@ export default function SystemOrganizations() {
   );
 
   return (
-    <AdminLayout title="Organizações">
+    <AdminLayout title="Organizações" subtitle="Gerencie quem usa o Bóris e seus grupos">
       <div className="space-y-8 animate-fade-in">
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
-              <h2 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">Organizações</h2>
-              <p className="text-sm text-muted-foreground">Gerencie quem usa o Bóris e seus grupos</p>
               <Breadcrumbs
                 items={[{ label: "Central de Comando", href: "/" }, { label: "Organizações" }]}
                 className="text-xs text-muted-foreground/80 [&_a]:text-muted-foreground/80 [&_a:hover]:text-foreground [&_span]:text-muted-foreground/80 [&_span]:font-normal"
               />
+              {hasActiveFilters ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Resultados</span>
+                  <Badge variant="secondary" className="tabular-nums">
+                    {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
+                  </Badge>
+                  {orgsFetching ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             <Button onClick={() => setCreateOrgOpen(true)} size="lg" className="w-full sm:w-auto">
@@ -346,11 +413,35 @@ export default function SystemOrganizations() {
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Total</span>
-            <Badge variant="secondary" className="tabular-nums">
-              {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
-            </Badge>
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <StatsCard
+              title="Total"
+              value={overview?.orgsTotal?.toLocaleString("pt-BR") ?? "—"}
+              icon={Building2}
+              variant="kpi"
+              isLoading={overviewLoading}
+            />
+            <StatsCard
+              title="Ativas"
+              value={overview?.orgsActive?.toLocaleString("pt-BR") ?? "—"}
+              icon={CheckCircle}
+              variant="kpi"
+              isLoading={overviewLoading}
+            />
+            <StatsCard
+              title="Inativas"
+              value={overview?.orgsInactive?.toLocaleString("pt-BR") ?? "—"}
+              icon={XCircle}
+              variant="kpi"
+              isLoading={overviewLoading}
+            />
+            <StatsCard
+              title="Grupos"
+              value={overview?.groupsTotal?.toLocaleString("pt-BR") ?? "—"}
+              icon={Users}
+              variant="kpi"
+              isLoading={overviewLoading}
+            />
           </div>
         </div>
 
