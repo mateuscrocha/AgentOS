@@ -8,12 +8,13 @@ import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
  
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
-import { Activity, AlertTriangle, Building2, Clock, Layers, Users as UsersIcon, MessageSquare, ChevronRight } from "lucide-react";
+import { Activity, AlertTriangle, Building2, Clock, Layers, Users as UsersIcon, MessageSquare, ChevronRight, ArrowUp, Info, Minus } from "lucide-react";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { SectionHeader } from "@/components/group-dashboard/SectionHeader";
 import {
@@ -27,6 +28,7 @@ import {
 import { addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
+import { cn } from "@/lib/utils";
 
 type RecentGroupRow = {
   id: string;
@@ -105,6 +107,81 @@ const Index = () => {
 
   const formatNumberBR = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
+  const pageSections = useMemo(
+    () => [
+      { id: "alerts-24h", label: "Alertas" },
+      { id: "pulse-24h", label: "Pulso" },
+      { id: "new-groups-24h", label: "Grupos" },
+      { id: "kpis", label: "KPIs" },
+    ],
+    [],
+  );
+
+  const [activeSectionId, setActiveSectionId] = useState(pageSections[0]?.id ?? "alerts-24h");
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    try {
+      window.history.replaceState(null, "", `#${id}`);
+    } catch {
+      void 0;
+    }
+  };
+
+  useEffect(() => {
+    let raf = 0;
+    const handleScroll = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => {
+        raf = 0;
+        const doc = document.documentElement;
+        const scrollTop = window.scrollY || doc.scrollTop || 0;
+        const max = Math.max(doc.scrollHeight - doc.clientHeight, 1);
+        const pct = Math.max(0, Math.min(100, (scrollTop / max) * 100));
+        setScrollProgress(pct);
+        setShowBackToTop(scrollTop > 640);
+      });
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  useEffect(() => {
+    const ids = pageSections.map((s) => s.id);
+    const elements = ids
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => Boolean(el));
+
+    if (elements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const candidates = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0));
+        const top = candidates[0];
+        const id = (top?.target as HTMLElement | undefined)?.id;
+        if (id) setActiveSectionId(id);
+      },
+      {
+        threshold: [0.25, 0.4, 0.6],
+        rootMargin: "-20% 0px -70% 0px",
+      },
+    );
+
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [pageSections]);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('system-admin-period');
@@ -176,7 +253,7 @@ const Index = () => {
 
   const last24hTick = Math.floor(Date.now() / 300_000);
   const { last24hStartISO, last24hEndISO, last24hNow } = useMemo(() => {
-    const end = new Date();
+    const end = new Date(last24hTick * 300_000);
     const start = new Date(end.getTime() - 86_400_000);
     return {
       last24hStartISO: start.toISOString(),
@@ -649,39 +726,46 @@ const Index = () => {
       href: string;
     }> = [];
 
-    const idle = (newGroups24h || []).filter((g) => g.status === "idle").slice(0, 3);
-    idle.forEach((g) => {
-      alerts.push({
-        id: `idle-${g.id}`,
-        tone: "info",
-        title: "Grupo novo sem atividade",
-        description: `${g.name} entrou ${formatHoursAgoLabel(g.createdHoursAgo)} e ainda não teve mensagens.`,
-        href: `/groups/${g.id}`,
+    if (!newGroups24hLoading && !newGroups24hError) {
+      const idle = (newGroups24h || []).filter((g) => g.status === "idle").slice(0, 3);
+      idle.forEach((g) => {
+        alerts.push({
+          id: `idle-${g.id}`,
+          tone: "info",
+          title: "Grupo novo sem atividade",
+          description: `${g.name} entrou ${formatHoursAgoLabel(g.createdHoursAgo)} e ainda não teve mensagens.`,
+          href: `/groups/${g.id}`,
+        });
       });
-    });
+    }
 
-    if (pulseMeta.totalMessages === 0) {
-      alerts.push({
-        id: "no-activity",
-        tone: "muted",
-        title: "Baixa atividade",
-        description: "Nenhuma mensagem registrada nas últimas 24h.",
-        href: "/system/groups",
-      });
-    } else if (pulseMeta.sharePct >= 65) {
-      alerts.push({
-        id: "high-concentration",
-        tone: "warning",
-        title: "Concentração alta",
-        description: `Top 4 grupos concentram ${pulseMeta.sharePct}% das mensagens nas últimas 24h.`,
-        href: "/system/groups",
-      });
+    if (!pulse24hLoading && !pulse24hError) {
+      if (pulseMeta.totalMessages === 0) {
+        alerts.push({
+          id: "no-activity",
+          tone: "muted",
+          title: "Baixa atividade",
+          description: "Nenhuma mensagem registrada nas últimas 24h.",
+          href: "/system/groups",
+        });
+      } else if (pulseMeta.sharePct >= 65) {
+        alerts.push({
+          id: "high-concentration",
+          tone: "warning",
+          title: "Concentração alta",
+          description: `Top 4 grupos concentram ${pulseMeta.sharePct}% das mensagens nas últimas 24h.`,
+          href: "/system/groups",
+        });
+      }
     }
 
     return alerts.slice(0, 4);
   })();
 
   const daySummary = (() => {
+    if (newGroups24hLoading || pulse24hLoading) {
+      return "Carregando leitura das últimas 24h…";
+    }
     const newGroupsCount = newGroups24h?.length || 0;
     const totalMessages = pulseMeta.totalMessages;
     const activeGroups = pulseMeta.activeGroups;
@@ -691,11 +775,11 @@ const Index = () => {
 
   const panoramaKpis = (
     <>
-      <StatsCard title="Organizações ativas" value={kpiOrgsPeriodLoading ? "—" : (kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0))} change={kpiOrgsPeriodLoading ? undefined : orgsChange.label} changeType={orgsChange.type} icon={Building2} variant="kpi" />
-      <StatsCard title="Grupos monitorados" value={kpiGroupsPeriodLoading ? "—" : (kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0))} change={kpiGroupsPeriodLoading ? undefined : groupsChange.label} changeType={groupsChange.type} icon={Layers} variant="kpi" />
-      <StatsCard title="Membros ativos" value={kpiActiveMembersLoading ? "—" : (kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0))} change={kpiActiveMembersLoading ? undefined : activeMembersChange.label} changeType={activeMembersChange.type} icon={UsersIcon} variant="kpi" />
-      <StatsCard title="Mensagens no período" value={kpiMessagesLoading ? "—" : (kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0))} change={kpiMessagesLoading ? undefined : messagesChangeLabel} changeType={messagesChangeType} icon={MessageSquare} variant="kpi" />
-      <StatsCard title="Participação dos membros" value={participationValue} change={participationChange.label} changeType={participationChange.type} icon={UsersIcon} variant="kpi" />
+      <StatsCard title="Organizações ativas" value={kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0)} isLoading={kpiOrgsPeriodLoading} change={kpiOrgsPeriodLoading ? undefined : orgsChange.label} changeType={orgsChange.type} icon={Building2} variant="kpi" />
+      <StatsCard title="Grupos monitorados" value={kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0)} isLoading={kpiGroupsPeriodLoading} change={kpiGroupsPeriodLoading ? undefined : groupsChange.label} changeType={groupsChange.type} icon={Layers} variant="kpi" />
+      <StatsCard title="Membros ativos" value={kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0)} isLoading={kpiActiveMembersLoading} change={kpiActiveMembersLoading ? undefined : activeMembersChange.label} changeType={activeMembersChange.type} icon={UsersIcon} variant="kpi" />
+      <StatsCard title="Mensagens no período" value={kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0)} isLoading={kpiMessagesLoading} change={kpiMessagesLoading ? undefined : messagesChangeLabel} changeType={messagesChangeType} icon={MessageSquare} variant="kpi" />
+      <StatsCard title="Participação dos membros" value={participationValue} isLoading={kpiActiveMembersLoading || kpiMembersLoading} change={participationChange.label} changeType={participationChange.type} icon={UsersIcon} variant="kpi" />
     </>
   );
 
@@ -719,7 +803,48 @@ const Index = () => {
           onClearFilters={handleClearFilters}
         />
 
-        <section className="rounded-2xl border border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--warning)/0.04)] p-4 shadow-sm" id="alerts-24h">
+        <nav
+          aria-label="Navegação da página"
+          className="sticky top-16 z-20 -mx-4 sm:-mx-6 border-y border-border bg-background/80 px-4 sm:px-6 py-2 backdrop-blur"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
+              {pageSections.map((s) => {
+                const isActive = activeSectionId === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => scrollToSection(s.id)}
+                    aria-label={`Ir para seção ${s.label}`}
+                    aria-current={isActive ? "true" : undefined}
+                    className={cn(
+                      "h-8 shrink-0 rounded-md px-3 text-xs font-medium transition-colors",
+                      isActive
+                        ? "bg-secondary text-foreground"
+                        : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground",
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+              {Math.round(scrollProgress)}%
+            </div>
+          </div>
+          <div className="mt-2 h-0.5 w-full overflow-hidden rounded-full bg-border/40">
+            <div
+              className="h-full bg-primary transition-[width] duration-150"
+              style={{ width: `${scrollProgress}%` }}
+              aria-hidden="true"
+            />
+          </div>
+        </nav>
+
+        <section className="scroll-mt-32 rounded-2xl border border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--warning)/0.04)] p-4 shadow-sm" id="alerts-24h" aria-busy={newGroups24hLoading || pulse24hLoading ? "true" : undefined}>
           <SectionHeader
             title="Alertas das últimas 24h"
             subtitle="Ações para agir agora"
@@ -728,7 +853,7 @@ const Index = () => {
             titleIcon={AlertTriangle}
           />
 
-          {newGroups24hLoading || pulse24hLoading ? (
+          {newGroups24hLoading && pulse24hLoading ? (
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
@@ -740,27 +865,45 @@ const Index = () => {
                 </div>
               ))}
             </div>
+          ) : alerts24h.length === 0 && (newGroups24hLoading || pulse24hLoading) ? (
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2" aria-live="polite" aria-busy="true">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                  <Skeleton className="h-4 w-6/12" />
+                  <div className="mt-2 space-y-2">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-10/12" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : alerts24h.length === 0 ? (
             <div className="mt-2 rounded-lg border border-success/30 bg-success/5 p-3">
               <p className="text-[13px] text-muted-foreground">Tudo calmo: nenhuma ação imediata nas últimas 24h.</p>
             </div>
           ) : (
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {alerts24h.map((a) => (
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2" aria-live="polite">
+              {alerts24h.map((a, i) => {
+                const ToneIcon = a.tone === "warning" ? AlertTriangle : a.tone === "info" ? Info : Minus;
+                return (
                 <button
                   key={a.id}
                   type="button"
                   onClick={() => navigate(a.href)}
                   className={
-                    "group w-full text-left rounded-lg border px-3 py-3 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background " +
+                    "ripple-surface group w-full text-left rounded-lg border px-3 py-3 shadow-sm transition-colors transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-in " +
                     toneCardClassName(a.tone)
                   }
+                  style={{ animationDelay: `${i * 60}ms` }}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className={"h-5 px-2 text-[10px] font-medium " + toneBadgeClassName(a.tone)}>
-                          {a.tone === "warning" ? "Atenção" : a.tone === "info" ? "Acompanhar" : "Info"}
+                          <span className="inline-flex items-center gap-1">
+                            <ToneIcon className="h-3 w-3" aria-hidden="true" />
+                            {a.tone === "warning" ? "Atenção" : a.tone === "info" ? "Acompanhar" : "Info"}
+                          </span>
                         </Badge>
                         <div className="text-[13px] font-semibold leading-snug text-foreground truncate">{a.title}</div>
                       </div>
@@ -769,12 +912,13 @@ const Index = () => {
                     <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
                   </div>
                 </button>
-              ))}
+              );
+              })}
             </div>
           )}
         </section>
 
-        <section className="rounded-2xl bg-card p-4 shadow-sm" id="day-summary">
+        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="day-summary">
           <SectionHeader
             title="Resumo do dia"
             subtitle="Leitura orientadora do restante da página"
@@ -789,7 +933,7 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="rounded-2xl bg-card p-4 shadow-sm" id="pulse-24h">
+        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="pulse-24h" aria-busy={pulse24hLoading ? "true" : undefined}>
           <SectionHeader
             title="Pulso das comunidades (24h)"
             subtitle="Leitura estratégica: concentração de conversa"
@@ -866,9 +1010,10 @@ const Index = () => {
                       type="button"
                       onClick={() => navigate(`/groups/${g.id}`)}
                       className={
-                        "group w-full text-left rounded-lg border px-3 py-3 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background " +
+                        "ripple-surface group w-full text-left rounded-lg border px-3 py-3 shadow-sm transition-colors transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-in " +
                         pulseRankCardClassName(rank)
                       }
+                      style={{ animationDelay: `${idx * 60}ms` }}
                     >
                       <div className="flex items-start gap-3">
                         <div
@@ -915,7 +1060,7 @@ const Index = () => {
                           <button
                             type="button"
                             onClick={() => navigate(`/groups/${g.id}`)}
-                            className="group w-full text-left rounded-md border border-border/70 bg-card/40 px-2.5 py-1.5 transition-colors hover:bg-secondary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            className="ripple-surface group w-full text-left rounded-md border border-border/70 bg-card/40 px-2.5 py-1.5 transition-colors transition-transform hover:bg-secondary/25 hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0 flex items-center gap-2">
@@ -941,7 +1086,7 @@ const Index = () => {
           )}
         </section>
 
-        <section className="rounded-2xl bg-card p-4 shadow-sm" id="new-groups-24h">
+        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="new-groups-24h" aria-busy={newGroups24hLoading ? "true" : undefined}>
           <SectionHeader
             title="Novos grupos nas últimas 24h"
             subtitle="Acompanhamento preventivo de entradas recentes"
@@ -988,9 +1133,10 @@ const Index = () => {
               </div>
 
               <ul className="space-y-2" role="list">
-                {newGroups24h.map((g) => {
+                {newGroups24h.map((g, idx) => {
                   const statusTone: "warning" | "info" | "muted" = g.status === "active" ? "warning" : g.status === "new" ? "info" : "muted";
                   const statusLabel = g.status === "active" ? "Ativo" : g.status === "new" ? "Novo" : "Sem atividade";
+                  const StatusIcon = g.status === "active" ? Activity : g.status === "new" ? Clock : Minus;
                   const firstActivityLabel = (() => {
                     if (!g.firstActivityAt) return "—";
                     const date = new Date(g.firstActivityAt);
@@ -1003,13 +1149,17 @@ const Index = () => {
                       <button
                         type="button"
                         onClick={() => navigate(`/groups/${g.id}`)}
-                        className="group w-full text-left rounded-lg border border-border bg-card/50 px-2.5 py-2 transition-colors hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        className="ripple-surface group w-full text-left rounded-lg border border-border bg-card/50 px-2.5 py-2 transition-colors transition-transform duration-200 hover:bg-secondary/30 hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-in"
+                        style={{ animationDelay: `${idx * 30}ms` }}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 min-w-0">
                               <Badge variant="outline" className={"h-5 px-2 text-[10px] font-medium shrink-0 " + toneBadgeClassName(statusTone)}>
-                                {statusLabel}
+                                <span className="inline-flex items-center gap-1">
+                                  <StatusIcon className="h-3 w-3" aria-hidden="true" />
+                                  {statusLabel}
+                                </span>
                               </Badge>
                               <div className="text-[13px] font-semibold leading-snug text-foreground truncate">{g.name}</div>
                             </div>
@@ -1035,7 +1185,7 @@ const Index = () => {
           )}
         </section>
 
-        <section className="rounded-2xl bg-card p-4 shadow-sm" id="kpis">
+        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="kpis">
           <SectionHeader
             title="Panorama geral"
             subtitle="Contexto do período selecionado"
@@ -1043,10 +1193,25 @@ const Index = () => {
             density="compact"
             titleIcon={Layers}
           />
-          <div className="mt-2 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-2 grid gap-3 grid-cols-2 sm:grid-cols-2 lg:grid-cols-5">
             {panoramaKpis}
           </div>
         </section>
+
+        {showBackToTop ? (
+          <div className="fixed bottom-5 right-5 z-30">
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              aria-label="Voltar ao topo"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="ripple-surface shadow-sm transition-transform hover:scale-[1.03] active:scale-[0.98]"
+            >
+              <ArrowUp className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+        ) : null}
 
       </div>
     </AdminLayout>

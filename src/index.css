@@ -170,6 +170,30 @@
   .animate-pulse-slow {
     animation: pulse 3s ease-in-out infinite;
   }
+
+  .animate-shimmer {
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  .ripple-surface {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ripple-surface::after {
+    content: "";
+    position: absolute;
+    inset: -60%;
+    background: radial-gradient(circle at center, hsl(var(--primary) / 0.22), transparent 55%);
+    opacity: 0;
+    transform: scale(0.2);
+    pointer-events: none;
+  }
+
+  .ripple-surface:active::after {
+    opacity: 1;
+    animation: ripple 460ms ease-out;
+  }
 }
 
 @keyframes fadeIn {
@@ -191,6 +215,40 @@
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer {
+    animation: none;
+  }
+
+  .ripple-surface:active::after {
+    animation: none;
+    opacity: 0;
   }
 }
 
