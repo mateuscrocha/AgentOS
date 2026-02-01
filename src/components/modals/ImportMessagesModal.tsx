@@ -137,7 +137,7 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
                 <div className="flex items-center justify-between">
                   <div className="font-medium">Resumo da validação</div>
                   {validated.errors?.length ? (
-                    <div className="flex items-center gap-2 text-amber-600">
+                    <div className="flex items-center gap-2 text-warning">
                       <AlertTriangle className="h-4 w-4" />
                       {validated.errors.length} aviso(s)
                     </div>

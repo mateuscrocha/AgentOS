@@ -68,13 +68,13 @@ const ROLE_META: Record<MemberRoleKey, { label: string; shortLabel: string; Icon
     label: "Super Admin",
     shortLabel: "Super Admin",
     Icon: Star,
-    badgeClass: "border-violet-200/70 bg-violet-100/55 text-violet-950",
+    badgeClass: "border-destructive/25 bg-destructive/10 text-destructive",
   },
   ADMIN: {
     label: "Admin",
     shortLabel: "Admin",
     Icon: Shield,
-    badgeClass: "border-sky-200/70 bg-sky-100/55 text-sky-950",
+    badgeClass: "border-primary/25 bg-primary/10 text-primary",
   },
 };
 
@@ -280,7 +280,7 @@ export function GroupPageTop({
 
   return (
     <section className={cn("space-y-4 mb-6", className)}>
-      <div className="static sm:sticky sm:top-16 z-20 -mx-4 px-4 py-3 bg-[#FBFAF6]/80 backdrop-blur border-b border-border/60 sm:-mx-6 sm:px-6">
+      <div className="static sm:sticky sm:top-16 z-20 -mx-4 px-4 py-3 bg-background/80 backdrop-blur border-b border-border/60 sm:-mx-6 sm:px-6">
         <Breadcrumbs items={breadcrumbItems} />
       </div>
       <div className="space-y-0">

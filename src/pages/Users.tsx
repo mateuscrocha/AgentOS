@@ -747,7 +747,7 @@ export default function Users() {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge className={cn(isActive ? "bg-emerald-600 text-white hover:bg-emerald-600" : "bg-secondary text-secondary-foreground")}> 
+          <Badge className={cn(isActive ? "bg-success text-success-foreground hover:bg-success/90" : "bg-secondary text-secondary-foreground")}>
             {isActive ? 'Ativo' : profile.status || 'Desconhecido'}
           </Badge>
         </TooltipTrigger>

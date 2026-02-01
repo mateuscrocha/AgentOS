@@ -166,7 +166,7 @@ export function PeakMomentSection({
   }, [data, messagesPerDay, windowMinutes]);
 
   return (
-    <section className="rounded-2xl border border-[#F5D7A7] bg-[#FFF7E9] p-5 border-l-4 border-l-primary/40">
+    <section className="rounded-2xl border border-primary/20 bg-primary/5 p-5 border-l-4 border-l-primary/40">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -192,7 +192,7 @@ export function PeakMomentSection({
             <button
               type="button"
               aria-label="Entenda o Momento de Pico"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground/80 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground/80 hover:text-foreground hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Info className="h-4 w-4" strokeWidth={1.7} aria-hidden="true" />
             </button>

@@ -123,7 +123,7 @@ export function PeopleSection({
       />
 
       <div className="space-y-6">
-        <div className="rounded-2xl border border-[#F5D7A7] bg-[#FFF7E9] p-6 border-l-4 border-l-primary/40">
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 border-l-4 border-l-primary/40">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-card-foreground">Quem sustentou a conversa</p>

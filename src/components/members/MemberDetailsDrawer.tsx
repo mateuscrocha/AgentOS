@@ -32,11 +32,11 @@ const getMemberRoleKey = (m: { is_super_admin?: boolean | null; is_admin?: boole
 const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = {
   SUPERADMIN: {
     label: "Super Admin",
-    className: "border-violet-200/70 bg-violet-100/55 text-violet-950",
+    className: "border-destructive/25 bg-destructive/10 text-destructive",
   },
   ADMIN: {
     label: "Admin",
-    className: "border-sky-200/70 bg-sky-100/55 text-sky-950",
+    className: "border-primary/25 bg-primary/10 text-primary",
   },
   MEMBRO: {
     label: "Membro",
@@ -49,15 +49,15 @@ type MemberStatusKey = "ATIVO" | "SAIU" | "INATIVO";
 const STATUS_BADGE: Record<MemberStatusKey, { label: string; className: string }> = {
   ATIVO: {
     label: "Ativo",
-    className: "border-emerald-200/70 bg-emerald-100/55 text-emerald-950",
+    className: "border-success/25 bg-success/10 text-success",
   },
   SAIU: {
     label: "Saiu",
-    className: "border-amber-200/70 bg-amber-100/55 text-amber-950",
+    className: "border-warning/25 bg-warning/10 text-warning",
   },
   INATIVO: {
     label: "Inativo",
-    className: "border-rose-200/70 bg-rose-100/55 text-rose-950",
+    className: "border-destructive/25 bg-destructive/10 text-destructive",
   },
 };
 

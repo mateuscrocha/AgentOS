@@ -49,9 +49,9 @@ export function PeriodReport(props: PeriodReportProps) {
       />
 
       <div className="space-y-6">
-        <div className="rounded-xl border border-[#F5D7A7] bg-[#FFF7E9] p-4">
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
           <div className="flex items-start gap-3">
-            <Info className="h-4 w-4 text-[#C27B2D] mt-0.5 shrink-0" />
+            <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
             <p className="text-sm font-medium text-card-foreground/90 max-w-[70ch]">{insight}</p>
           </div>
         </div>

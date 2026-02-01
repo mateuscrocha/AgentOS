@@ -77,7 +77,7 @@ export function SummarySection({
               changeType={changeType}
               icon={MessageSquare}
               variant="kpi"
-              className="col-span-2 md:col-span-2 rounded-xl border-primary/15 bg-[#FFF7E9] p-6 h-[128px]"
+              className="col-span-2 md:col-span-2 rounded-xl border-primary/20 bg-primary/5 p-6 h-[128px]"
               titleClassName="text-[11px] font-semibold text-foreground/80"
               valueClassName="text-5xl sm:text-6xl text-card-foreground"
             />

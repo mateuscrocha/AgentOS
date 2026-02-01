@@ -105,11 +105,11 @@ type MemberRoleKey = "SUPERADMIN" | "ADMIN";
 const ROLE_META: Record<MemberRoleKey, { label: string; badgeClass: string }> = {
   SUPERADMIN: {
     label: "Super Admin",
-    badgeClass: "border-violet-200/70 bg-violet-100/55 text-violet-950",
+    badgeClass: "border-destructive/25 bg-destructive/10 text-destructive",
   },
   ADMIN: {
     label: "Admin",
-    badgeClass: "border-sky-200/70 bg-sky-100/55 text-sky-950",
+    badgeClass: "border-primary/25 bg-primary/10 text-primary",
   },
 };
 
@@ -618,7 +618,7 @@ export default function GroupEdit() {
 
   return (
     <AdminLayout title="Editar grupo" subtitle="Central de controle do grupo — ajustes seguros e previsíveis.">
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-[#FBFAF6] space-y-4">
+      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-4">
         <GroupPageTop
           breadcrumbItems={breadcrumbItems}
           group={{
@@ -937,7 +937,7 @@ export default function GroupEdit() {
           <div className="sm:mt-2" />
         </div>
 
-        <div className="sm:mt-6 sm:static sticky bottom-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-6 pt-3 bg-[#FBFAF6]/90 backdrop-blur supports-[backdrop-filter]:bg-[#FBFAF6]/70">
+        <div className="sm:mt-6 sm:static sticky bottom-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-6 pt-3 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
           <div className="w-full">
             <div className="rounded-2xl border border-border/60 bg-background/80 backdrop-blur px-4 py-3">
               <div className="text-[11px] text-muted-foreground">As alterações entram em vigor imediatamente. Nenhum dado será apagado.</div>
