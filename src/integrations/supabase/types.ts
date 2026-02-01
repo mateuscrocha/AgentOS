@@ -14,6 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_definitions: {
+        Row: {
+          created_at: string
+          dedupe_window_sec: number
+          group_id: string | null
+          id: string
+          match_mode: string
+          name: string
+          notify_in_app: boolean
+          organization_id: string | null
+          scope_all_groups: boolean
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dedupe_window_sec?: number
+          group_id?: string | null
+          id?: string
+          match_mode?: string
+          name: string
+          notify_in_app?: boolean
+          organization_id?: string | null
+          scope_all_groups?: boolean
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dedupe_window_sec?: number
+          group_id?: string | null
+          id?: string
+          match_mode?: string
+          name?: string
+          notify_in_app?: boolean
+          organization_id?: string | null
+          scope_all_groups?: boolean
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      alert_events: {
+        Row: {
+          alert_definition_id: string
+          alert_term_id: string
+          created_at: string
+          first_message_id: string | null
+          first_triggered_at: string
+          group_id: string
+          id: string
+          last_message_id: string | null
+          last_triggered_at: string
+          message_ids: Json
+          occurrences: number
+          organization_id: string
+          snippet: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alert_definition_id: string
+          alert_term_id: string
+          created_at?: string
+          first_message_id?: string | null
+          first_triggered_at?: string
+          group_id: string
+          id?: string
+          last_message_id?: string | null
+          last_triggered_at?: string
+          message_ids?: Json
+          occurrences?: number
+          organization_id: string
+          snippet?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alert_definition_id?: string
+          alert_term_id?: string
+          created_at?: string
+          first_message_id?: string | null
+          first_triggered_at?: string
+          group_id?: string
+          id?: string
+          last_message_id?: string | null
+          last_triggered_at?: string
+          message_ids?: Json
+          occurrences?: number
+          organization_id?: string
+          snippet?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      alert_terms: {
+        Row: {
+          alert_definition_id: string
+          created_at: string
+          id: string
+          term_kind: string
+          term_norm: string
+          term_raw: string
+          updated_at: string
+        }
+        Insert: {
+          alert_definition_id: string
+          created_at?: string
+          id?: string
+          term_kind?: string
+          term_norm?: string
+          term_raw: string
+          updated_at?: string
+        }
+        Update: {
+          alert_definition_id?: string
+          created_at?: string
+          id?: string
+          term_kind?: string
+          term_norm?: string
+          term_raw?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           created_at: string

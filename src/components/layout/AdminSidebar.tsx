@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Activity,
+  Bell,
   Building2,
   ChevronDown,
   FileText,
@@ -15,6 +16,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/hooks/use-user-roles";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -44,7 +47,22 @@ const ONBOARDING_GROUPS_HINT_KEY = "boris_onboarding_groups_hint_done";
 
 export function AdminSidebar() {
   const location = useLocation();
-  const { isSystemAdmin, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
+  const { isSystemAdmin, isOrgAdmin, isGroupManager, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
+
+  const canUseAlerts = isSystemAdmin || isOrgAdmin || isGroupManager;
+  const unreadAlertsQuery = useQuery<number>({
+    queryKey: ["alerts", "unread-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("alert_events")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "unread");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: canUseAlerts,
+    refetchInterval: 20_000,
+  });
 
   const [showGroupsHint, setShowGroupsHint] = useState(() => {
     try {
@@ -117,9 +135,17 @@ export function AdminSidebar() {
       const items: NavItem[] = [{ icon: LayoutDashboard, label: "Painel", href: painelHref }];
       if (organizacoesHref) items.push({ icon: Building2, label: "Organizações", href: organizacoesHref });
       items.push({ icon: Users, label: "Grupos", href: gruposHref });
+      if (canUseAlerts) {
+        items.push({
+          icon: Bell,
+          label: "Alertas",
+          href: "/alerts",
+          badge: unreadAlertsQuery.data ? unreadAlertsQuery.data : undefined,
+        });
+      }
       return items;
     },
-    [gruposHref, organizacoesHref, painelHref],
+    [canUseAlerts, gruposHref, organizacoesHref, painelHref, unreadAlertsQuery.data],
   );
 
   const groupItems: NavItem[] = useMemo(() => {

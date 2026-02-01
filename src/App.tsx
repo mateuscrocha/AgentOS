@@ -29,6 +29,7 @@ import NoAccess from "./pages/NoAccess";
 import NotFound from "./pages/NotFound";
 import DevTestUsers from "./pages/DevTestUsers";
 import Users from "./pages/Users";
+import Alerts from "./pages/Alerts";
 
 const originalConsoleError = console.error;
 console.error = (...args: any[]) => {
@@ -67,6 +68,8 @@ const App = () => (
             <Route path="/system/events" element={<SystemEvents />} />
             <Route path="/system/activity" element={<SystemActivity />} />
             <Route path="/system/settings" element={<Settings />} />
+            <Route path="/system/alerts" element={<Alerts />} />
+            <Route path="/alerts" element={<Alerts />} />
             <Route path="/org/:orgId" element={<Org />} />
             <Route path="/organization/:orgId" element={<Org />} />
             <Route path="/organization/:orgId/groups" element={<Org />} />
