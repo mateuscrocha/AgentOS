@@ -1,27 +1,34 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { useParams } from "react-router-dom";
-import { Users, Search, X, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, Search, X, Filter, ChevronLeft, ChevronRight, Loader2, Shield, Clock, BarChart3 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
-import { cn, getMemberAccessLevel } from "@/lib/utils";
+import { useEffect, useMemo, useState } from "react";
+import { buildPagination, cn, formatPhoneE164BR, getInitialsFromName, getMemberAccessLevel } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, RoleBadge, StatusBadge, type MemberStatusKey } from "@/components/ui/badge";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink } from "@/components/ui/pagination";
+import { StatsCard } from "@/components/dashboard/StatsCard";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
  
 import AccessDenied from "./AccessDenied";
 import { MemberDetailsDrawer } from "@/components/members/MemberDetailsDrawer";
 
 const PAGE_SIZE = 10;
+
+const ROLE_FILTER_OPTIONS = [
+  { key: "all", label: "Todos" },
+  { key: "superadmin", label: "Superadmins" },
+  { key: "admin", label: "Admins" },
+  { key: "member", label: "Membros" },
+] as const;
 
 interface Member {
   id: string;
@@ -54,73 +61,20 @@ const getMemberRoleKey = (m: Pick<Member, "is_super_admin" | "is_admin">): Membe
   return "MEMBRO";
 };
 
-const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = {
-  SUPERADMIN: {
-    label: "Super Admin",
-    className: "border-primary/20 bg-primary/10 text-primary",
-  },
-  ADMIN: {
-    label: "Admin",
-    className: "border-primary/20 bg-primary/10 text-primary",
-  },
-  MEMBRO: {
-    label: "Membro",
-    className: "border-border bg-muted/50 text-muted-foreground",
-  },
-};
-
-const MemberRoleBadge = ({ role }: { role: MemberRoleKey }) => {
-  const cfg = ROLE_BADGE[role];
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center h-6 px-2.5 rounded-full border text-[11px] font-semibold leading-none",
-        cfg.className
-      )}
-    >
-      {cfg.label}
-    </span>
-  );
-};
-
-function buildPagination(current: number, total: number): Array<number | "ellipsis"> {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages = new Set<number>();
-  pages.add(1);
-  pages.add(total);
-  for (let p = current - 1; p <= current + 1; p++) {
-    if (p >= 1 && p <= total) pages.add(p);
-  }
-  if (current <= 3) {
-    pages.add(2);
-    pages.add(3);
-    pages.add(4);
-  }
-  if (current >= total - 2) {
-    pages.add(total - 1);
-    pages.add(total - 2);
-    pages.add(total - 3);
-  }
-
-  const sorted = Array.from(pages).filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
-  const out: Array<number | "ellipsis"> = [];
-  for (let i = 0; i < sorted.length; i++) {
-    const p = sorted[i] as number;
-    const prev = sorted[i - 1];
-    if (i > 0 && prev && p - prev > 1) out.push("ellipsis");
-    out.push(p);
-  }
-  return out;
-}
-
 const GroupMembers = () => {
   const { groupId } = useParams();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [roleFilter, setRoleFilter] = useState<"all" | "superadmin" | "admin" | "member">("all");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
   
 
 
@@ -148,8 +102,8 @@ const GroupMembers = () => {
   });
 
   // Fetch members
-  const { data: membersData, isLoading, error, refetch } = useQuery({
-    queryKey: ['group-members', groupId, page, search, roleFilter],
+  const { data: membersData, isLoading, isFetching, error, refetch } = useQuery({
+    queryKey: ['group-members', groupId, page, debouncedSearch, roleFilter],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -173,8 +127,8 @@ const GroupMembers = () => {
         query = query.eq('is_admin', false).eq('is_super_admin', false);
       }
       
-      if (search) {
-        query = query.or(`name.ilike.%${search}%,phone_e164.ilike.%${search}%,display_name.ilike.%${search}%`);
+      if (debouncedSearch) {
+        query = query.or(`name.ilike.%${debouncedSearch}%,phone_e164.ilike.%${debouncedSearch}%,display_name.ilike.%${debouncedSearch}%`);
       }
       
       const { data, error, count } = await query.range(from, to);
@@ -216,6 +170,62 @@ const GroupMembers = () => {
     enabled: !!groupId && isAuthenticated,
   });
 
+  const last30StartISO = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString();
+  }, []);
+
+  const { data: membersOverview, isLoading: overviewLoading } = useQuery({
+    queryKey: ["group-members-overview", groupId, last30StartISO],
+    queryFn: async () => {
+      const [activeMembers, admins, inactive30d, msgs30d] = await Promise.all([
+        supabase
+          .from("members")
+          .select("id", { count: "exact", head: true })
+          .eq("group_id", groupId)
+          .is("deleted_at", null)
+          .is("left_at", null)
+          .eq("status", "active"),
+        supabase
+          .from("members")
+          .select("id", { count: "exact", head: true })
+          .eq("group_id", groupId)
+          .is("deleted_at", null)
+          .is("left_at", null)
+          .or("is_super_admin.eq.true,is_admin.eq.true"),
+        supabase
+          .from("members")
+          .select("id", { count: "exact", head: true })
+          .eq("group_id", groupId)
+          .is("deleted_at", null)
+          .is("left_at", null)
+          .or(`last_seen_message_at.is.null,last_seen_message_at.lt.${last30StartISO}`),
+        supabase
+          .from("messages")
+          .select("id", { count: "exact", head: true })
+          .eq("group_id", groupId)
+          .is("deleted_at", null)
+          .gte("created_at", last30StartISO),
+      ]);
+
+      const err = activeMembers.error || admins.error || inactive30d.error || msgs30d.error;
+      if (err) throw err;
+
+      const activeCount = activeMembers.count ?? 0;
+      const messagesCount = msgs30d.count ?? 0;
+      const avg = activeCount > 0 ? messagesCount / activeCount : 0;
+
+      return {
+        activeCount,
+        adminsCount: admins.count ?? 0,
+        inactive30dCount: inactive30d.count ?? 0,
+        avgMsgsPerActiveLast30d: avg,
+      };
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
+
   // Loading state
   if (authLoading) {
     return (
@@ -236,165 +246,225 @@ const GroupMembers = () => {
   }
 
   const hasActiveFilters = !!search.trim() || roleFilter !== "all";
+  const activeFiltersCount = (search.trim() ? 1 : 0) + (roleFilter !== "all" ? 1 : 0);
+  const isSearching = search !== debouncedSearch;
 
   return (
     <AdminLayout 
       title="Membros" 
       subtitle={`${(totalMembersCount ?? 0).toLocaleString("pt-BR")} membros${search.trim() ? ` • ${(membersData?.count ?? 0).toLocaleString("pt-BR")} encontrados` : ""}`}
     >
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-6">
-        <GroupPageTop
-          breadcrumbItems={[
-            { label: "Central do Bóris", href: "/" },
-            { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
-            { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
-            { label: "Membros" },
-          ]}
-          group={{
-            groupId: groupId as string,
-            organizationId: groupInfo?.orgId || undefined,
-            name: groupInfo?.groupName || "",
-            provider: groupInfo?.provider || "",
-            totalMembers: (totalMembersCount ?? 0) as number,
-            lastMessageAt: lastMessageAt ?? null,
-            syncStatus: groupInfo?.syncStatus || null,
-          }}
-          filters={(
-            <div className="w-full space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Buscar pessoas..."
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(1);
-                    }}
-                    className="w-full pl-10 pr-10 h-11 rounded-xl border border-border/60 bg-card/70 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  />
-                  {search ? (
-                    <button
-                      onClick={() => {
-                        setSearch("");
+      <TooltipProvider>
+        <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-6">
+          <GroupPageTop
+            breadcrumbItems={[
+              { label: "Central do Bóris", href: "/" },
+              { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
+              { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
+              { label: "Membros" },
+            ]}
+            group={{
+              groupId: groupId as string,
+              organizationId: groupInfo?.orgId || undefined,
+              name: groupInfo?.groupName || "",
+              provider: groupInfo?.provider || "",
+              totalMembers: (totalMembersCount ?? 0) as number,
+              lastMessageAt: lastMessageAt ?? null,
+              syncStatus: groupInfo?.syncStatus || null,
+            }}
+            filters={(
+              <div className="w-full space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Buscar pessoas..."
+                      aria-label="Buscar membros"
+                      value={search}
+                      onChange={(e) => {
+                        setSearch(e.target.value);
                         setPage(1);
                       }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      aria-label="Limpar busca"
+                      className="w-full pl-10 pr-16 h-11 rounded-xl border border-border/60 bg-card/70 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+
+                    {isSearching || isFetching ? (
+                      <Loader2 className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin", search ? "right-10" : "right-3")} />
+                    ) : null}
+
+                    {search ? (
+                      <button
+                        onClick={() => {
+                          setSearch("");
+                          setPage(1);
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        aria-label="Limpar busca"
+                        type="button"
+                      >
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className="sm:hidden">
+                    <Button
                       type="button"
+                      variant="outline"
+                      className="h-11 rounded-xl bg-card/70"
+                      onClick={() => setFiltersOpen(true)}
                     >
-                      <X className="h-4 w-4 text-muted-foreground" />
-                    </button>
+                      <span className="inline-flex items-center gap-2">
+                        <Filter className="h-4 w-4" />
+                        Filtrar
+                      </span>
+                      {hasActiveFilters ? (
+                        <Badge variant="secondary" className="ml-2 h-6 px-2 text-[11px] tabular-nums">
+                          {activeFiltersCount}
+                        </Badge>
+                      ) : null}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="hidden sm:flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {ROLE_FILTER_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        className={cn(
+                          "px-3 py-2 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                          roleFilter === opt.key
+                            ? "bg-primary text-primary-foreground border-transparent"
+                            : "bg-card/70 border-border/60 text-foreground"
+                        )}
+                        onClick={() => {
+                          setRoleFilter(opt.key);
+                          setPage(1);
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {hasActiveFilters ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-10 rounded-xl"
+                      onClick={() => {
+                        setSearch("");
+                        setRoleFilter("all");
+                        setPage(1);
+                      }}
+                    >
+                      Limpar filtros
+                    </Button>
                   ) : null}
                 </div>
 
-                <div className="sm:hidden">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 rounded-xl bg-card/70"
-                    onClick={() => setFiltersOpen(true)}
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <Filter className="h-4 w-4" />
-                      Filtrar
-                    </span>
-                    {hasActiveFilters ? (
-                      <Badge variant="secondary" className="ml-2 h-6 px-2 text-[11px]">
-                        Ativo
-                      </Badge>
-                    ) : null}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="hidden sm:flex items-center gap-2 max-w-2xl">
-                <Select
-                  value={roleFilter}
-                  onValueChange={(v) => {
-                    if (v === 'all' || v === 'superadmin' || v === 'admin' || v === 'member') {
-                      setRoleFilter(v);
-                      setPage(1);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="h-11 w-[220px] rounded-xl bg-card/70">
-                    <SelectValue placeholder="Função" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="superadmin">Superadmins</SelectItem>
-                    <SelectItem value="admin">Admins</SelectItem>
-                    <SelectItem value="member">Membros</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
-                <DrawerContent className="bg-card border-border">
-                  <DrawerHeader className="text-left">
-                    <DrawerTitle>Filtrar membros</DrawerTitle>
-                    <DrawerDescription>Refine por função para navegar mais rápido.</DrawerDescription>
-                  </DrawerHeader>
-                  <div className="px-4 pb-2">
-                    <div className="space-y-3">
-                      <div className="text-sm font-medium text-foreground">Função</div>
-                      <div className="flex flex-wrap gap-2">
-                        {(
-                          [
-                            { key: "all", label: "Todos" },
-                            { key: "superadmin", label: "Superadmins" },
-                            { key: "admin", label: "Admins" },
-                            { key: "member", label: "Membros" },
-                          ] as const
-                        ).map((opt) => (
-                          <button
-                            key={opt.key}
-                            type="button"
-                            className={cn(
-                              "px-3 py-2 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                              roleFilter === opt.key
-                                ? "bg-primary text-primary-foreground border-transparent"
-                                : "bg-background/60 border-border text-foreground"
-                            )}
-                            onClick={() => {
-                              setRoleFilter(opt.key);
-                              setPage(1);
-                            }}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+                <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
+                  <DrawerContent className="bg-card border-border">
+                    <DrawerHeader className="text-left">
+                      <DrawerTitle>Filtrar membros</DrawerTitle>
+                      <DrawerDescription>Refine por função para navegar mais rápido.</DrawerDescription>
+                    </DrawerHeader>
+                    <div className="px-4 pb-2">
+                      <div className="space-y-3">
+                        <div className="text-sm font-medium text-foreground">Função</div>
+                        <div className="flex flex-wrap gap-2">
+                          {ROLE_FILTER_OPTIONS.map((opt) => (
+                            <button
+                              key={opt.key}
+                              type="button"
+                              className={cn(
+                                "px-3 py-2 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                roleFilter === opt.key
+                                  ? "bg-primary text-primary-foreground border-transparent"
+                                  : "bg-background/60 border-border text-foreground"
+                              )}
+                              onClick={() => {
+                                setRoleFilter(opt.key);
+                                setPage(1);
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <DrawerFooter>
-                    {hasActiveFilters ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => {
-                          setSearch("");
-                          setRoleFilter("all");
-                          setPage(1);
-                          setFiltersOpen(false);
-                        }}
-                      >
-                        Limpar filtros
-                      </Button>
-                    ) : null}
-                    <DrawerClose asChild>
-                      <Button type="button">Ver resultados</Button>
-                    </DrawerClose>
-                  </DrawerFooter>
-                </DrawerContent>
-              </Drawer>
-            </div>
-          )}
-          showClearFilters={hasActiveFilters}
-          onClearFilters={() => { setSearch(""); setRoleFilter('all'); setPage(1); }}
-        />
+                    <DrawerFooter>
+                      {hasActiveFilters ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => {
+                            setSearch("");
+                            setRoleFilter("all");
+                            setPage(1);
+                            setFiltersOpen(false);
+                          }}
+                        >
+                          Limpar filtros
+                        </Button>
+                      ) : null}
+                      <DrawerClose asChild>
+                        <Button type="button">Ver resultados</Button>
+                      </DrawerClose>
+                    </DrawerFooter>
+                  </DrawerContent>
+                </Drawer>
+              </div>
+            )}
+            showClearFilters={hasActiveFilters}
+            onClearFilters={() => {
+              setSearch("");
+              setRoleFilter("all");
+              setPage(1);
+            }}
+          />
+
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+            <StatsCard
+              title="Total de membros"
+              value={(totalMembersCount ?? 0).toLocaleString("pt-BR")}
+              icon={Users}
+              variant="kpi"
+              isLoading={overviewLoading}
+            />
+            <StatsCard
+              title="Membros ativos"
+              value={(membersOverview?.activeCount ?? 0).toLocaleString("pt-BR")}
+              icon={Users}
+              variant="kpi"
+              isLoading={overviewLoading}
+            />
+            <StatsCard
+              title="Admins"
+              value={(membersOverview?.adminsCount ?? 0).toLocaleString("pt-BR")}
+              icon={Shield}
+              variant="kpi"
+              isLoading={overviewLoading}
+            />
+            <StatsCard
+              title="Inativos (30d)"
+              value={(membersOverview?.inactive30dCount ?? 0).toLocaleString("pt-BR")}
+              icon={Clock}
+              variant="kpi"
+              isLoading={overviewLoading}
+            />
+            <StatsCard
+              title="Média msgs/ativo (30d)"
+              value={(membersOverview?.avgMsgsPerActiveLast30d ?? 0).toFixed(1).replace(".", ",")}
+              icon={BarChart3}
+              variant="kpi"
+              isLoading={overviewLoading}
+            />
+          </div>
 
         {isLoading ? (
           <LoadingState message="Carregando membros..." />
@@ -405,6 +475,7 @@ const GroupMembers = () => {
             icon={Users}
             title={search.trim() || roleFilter !== "all" ? "Nenhum resultado" : "Nenhum membro"}
             message={search.trim() || roleFilter !== "all" ? "Não encontramos ninguém com esses filtros." : "Este grupo ainda não possui membros."}
+            action={hasActiveFilters ? { label: "Limpar filtros", onClick: () => { setSearch(""); setRoleFilter("all"); setPage(1); } } : undefined}
           />
         ) : (
           <div className="space-y-4">
@@ -412,12 +483,11 @@ const GroupMembers = () => {
               {(membersData?.items ?? []).map((m) => {
                 const role = getMemberRoleKey(m);
                 const displayName = (m.display_name || m.name || "").toString();
-                const isActive = !m.left_at && m.status === "active";
-                const statusLabel = m.left_at ? "Saiu" : isActive ? "Ativo" : (m.status || "—");
+                const statusKey: MemberStatusKey = m.left_at ? "SAIU" : !m.left_at && m.status === "active" ? "ATIVO" : "INATIVO";
                 return (
                   <article
                     key={m.id}
-                    className="rounded-2xl border border-border/60 bg-card/70 px-4 py-4 sm:px-5"
+                    className="rounded-2xl border border-border/60 bg-card/70 px-4 py-4 sm:px-5 cursor-pointer transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     onClick={() => setSelectedMemberId(m.id)}
                     role="button"
                     tabIndex={0}
@@ -434,7 +504,7 @@ const GroupMembers = () => {
                           {m.profile_pic_url ? (
                             <AvatarImage src={m.profile_pic_url} alt="" referrerPolicy="no-referrer" />
                           ) : (
-                            <AvatarFallback className="bg-muted/40 text-[12px]">{displayName?.[0]?.toUpperCase() || ""}</AvatarFallback>
+                            <AvatarFallback className="bg-muted/40 text-[12px]">{getInitialsFromName(displayName) || ""}</AvatarFallback>
                           )}
                         </Avatar>
 
@@ -443,42 +513,32 @@ const GroupMembers = () => {
                             <div className="min-w-0">
                               <div className="text-[15px] sm:text-[16px] font-semibold text-foreground truncate">{displayName}</div>
                             </div>
-                            <MemberRoleBadge role={role} />
+                            <RoleBadge role={role} />
                           </div>
 
                           {m.phone_e164 ? (
-                            <div className="mt-1 text-xs text-muted-foreground tabular-nums truncate">{m.phone_e164}</div>
+                            <div className="mt-1 text-xs text-muted-foreground tabular-nums truncate">
+                              {formatPhoneE164BR(m.phone_e164) || m.phone_e164}
+                            </div>
                           ) : null}
                         </div>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full border text-[11px] font-medium",
-                            isActive
-                              ? "border-success/20 bg-success/10 text-success"
-                              : m.left_at
-                                ? "border-destructive/20 bg-destructive/10 text-destructive"
-                                : "border-border bg-background/60 text-muted-foreground"
-                          )}
-                        >
-                          <span className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-success" : m.left_at ? "bg-destructive" : "bg-muted-foreground")} />
-                          {statusLabel}
-                        </span>
-
-                        <RowActions>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedMemberId(m.id);
-                            }}
-                            className="w-full text-left px-2 py-1.5 text-sm"
-                            type="button"
-                          >
-                            Ver detalhes
-                          </button>
-                        </RowActions>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <StatusBadge status={statusKey} />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {statusKey === "ATIVO"
+                              ? "Ativo = enviou mensagem nos últimos 30 dias."
+                              : statusKey === "INATIVO"
+                                ? "Inativo = sem mensagens nos últimos 30 dias."
+                                : "Saiu do grupo."}
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
                   </article>
@@ -572,7 +632,8 @@ const GroupMembers = () => {
           memberId={selectedMemberId || ""}
           groupId={groupId}
         />
-      </div>
+        </div>
+      </TooltipProvider>
     </AdminLayout>
   );
 };

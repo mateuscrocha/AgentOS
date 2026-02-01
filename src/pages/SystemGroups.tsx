@@ -3,9 +3,11 @@ import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
-import { SlidersHorizontal, Users } from "lucide-react";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { StatsCard } from "@/components/dashboard/StatsCard";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2, SlidersHorizontal, Users, CheckCircle, XCircle, BarChart3, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,10 +101,16 @@ export default function SystemGroups() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [isSearchDebouncing, setIsSearchDebouncing] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    if (search === debouncedSearch) return;
+    setIsSearchDebouncing(true);
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setIsSearchDebouncing(false);
+    }, 300);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [search, debouncedSearch]);
 
   const { data: organizations } = useQuery({
     queryKey: ["groups-organizations-filter-options"],
@@ -114,7 +122,7 @@ export default function SystemGroups() {
       if (error) throw error;
       return (data ?? []) as OrganizationOption[];
     },
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && isSystemAdmin,
   });
 
   const { data: groupsData, isLoading, error, refetch } = useQuery({
@@ -125,7 +133,8 @@ export default function SystemGroups() {
 
       let query = supabase
         .from("groups")
-        .select("id, name, provider, status, organization_id, invite_link, created_at, organizations(name)", { count: "exact" });
+        .select("id, name, provider, status, organization_id, invite_link, created_at, organizations(name)", { count: "exact" })
+        .eq("is_archived", false);
 
       if (debouncedSearch) {
         query = query.ilike("name", `%${debouncedSearch}%`);
@@ -165,7 +174,58 @@ export default function SystemGroups() {
 
       return { items, count: count ?? 0 };
     },
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && isSystemAdmin,
+  });
+
+  const { data: overview, isLoading: overviewLoading } = useQuery({
+    queryKey: ["system-groups-overview"],
+    queryFn: async () => {
+      const [total, active, inactive] = await Promise.all([
+        supabase.from("groups").select("id", { count: "exact", head: true }).eq("is_archived", false),
+        supabase
+          .from("groups")
+          .select("id", { count: "exact", head: true })
+          .eq("is_archived", false)
+          .eq("status", "active"),
+        supabase
+          .from("groups")
+          .select("id", { count: "exact", head: true })
+          .eq("is_archived", false)
+          .eq("status", "inactive"),
+      ]);
+
+      const err = total.error || active.error || inactive.error;
+      if (err) throw err;
+
+      let sumMembers = 0;
+      let rowsCount = 0;
+      const pageSize = 1000;
+      for (let pageIdx = 0; pageIdx < 20; pageIdx++) {
+        const from = pageIdx * pageSize;
+        const to = from + pageSize - 1;
+        const { data, error } = await supabase
+          .from("v_group_overview")
+          .select("members_count")
+          .eq("is_archived", false)
+          .range(from, to);
+        if (error) throw error;
+        const rows = (data ?? []) as Array<{ members_count: number | null }>;
+        for (const r of rows) {
+          sumMembers += Number(r.members_count ?? 0);
+          rowsCount += 1;
+        }
+        if (rows.length < pageSize) break;
+      }
+
+      const avgMembers = rowsCount > 0 ? Math.round(sumMembers / rowsCount) : 0;
+      return {
+        total: total.count ?? 0,
+        active: active.count ?? 0,
+        inactive: inactive.count ?? 0,
+        avgMembers,
+      };
+    },
+    enabled: isAuthenticated && isSystemAdmin,
   });
 
   const updateStatusMutation = useMutation({
@@ -300,7 +360,17 @@ export default function SystemGroups() {
       header: "Organização",
       hideOn: "sm",
       render: (g: GroupRow) => (
-        <span className="text-sm text-muted-foreground">{g.organizations?.name || "—"}</span>
+        <button
+          type="button"
+          className="text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-4"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (g.organization_id) navigate(`/organization/${g.organization_id}/dashboard`);
+          }}
+          aria-label={g.organizations?.name ? `Abrir organização ${g.organizations.name}` : "Abrir organização"}
+        >
+          {g.organizations?.name || "—"}
+        </button>
       ),
     },
     {
@@ -350,105 +420,216 @@ export default function SystemGroups() {
     },
   ];
 
+  const sortValue = `${orderBy}:${orderDir}`;
+  const setSortValue = (value: string) => {
+    const [by, dir] = value.split(":");
+    if ((by === "created_at" || by === "name") && (dir === "asc" || dir === "desc")) {
+      setOrderBy(by);
+      setOrderDir(dir);
+      setPage(1);
+    }
+  };
+
+  const activeFilterChips = (() => {
+    const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
+    if (search.trim()) {
+      chips.push({
+        key: "search",
+        label: `Busca: ${search.trim()}`,
+        onClear: () => {
+          setSearch("");
+          setPage(1);
+        },
+      });
+    }
+    if (orgFilter) {
+      const name = (organizations ?? []).find((o) => o.id === orgFilter)?.name;
+      chips.push({
+        key: "org",
+        label: `Org: ${name || "Selecionada"}`,
+        onClear: () => {
+          setOrgFilter("");
+          setPage(1);
+        },
+      });
+    }
+    if (statusFilter !== "all") {
+      chips.push({
+        key: "status",
+        label: statusFilter === "active" ? "Status: Ativos" : "Status: Inativos",
+        onClear: () => {
+          setStatusFilter("all");
+          setPage(1);
+        },
+      });
+    }
+    if (sortValue !== "created_at:desc") {
+      const label =
+        sortValue === "created_at:asc"
+          ? "Ordem: Criado (antigo)"
+          : sortValue === "name:asc"
+          ? "Ordem: Nome (A–Z)"
+          : sortValue === "name:desc"
+          ? "Ordem: Nome (Z–A)"
+          : "Ordem";
+      chips.push({
+        key: "sort",
+        label,
+        onClear: () => {
+          setOrderBy("created_at");
+          setOrderDir("desc");
+          setPage(1);
+        },
+      });
+    }
+    return chips;
+  })();
+
   return (
-    <AdminLayout title="Grupos" subtitle="Todos os grupos conectados ao Bóris">
+    <AdminLayout title="Grupos" subtitle="Central de Comando › Grupos">
       <div className="space-y-6 animate-fade-in">
-        <section className="space-y-4">
-          <Breadcrumbs
-            items={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
-            className="text-xs text-muted-foreground [&_span]:font-normal [&_span]:text-muted-foreground"
-          />
+        <AdminPageHeader
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
+          title="Grupos"
+          description="Todos os grupos conectados ao Bóris"
+          generalKpis={(
+            <>
+              <StatsCard
+                title="Total"
+                value={overview?.total?.toLocaleString("pt-BR") ?? "—"}
+                icon={Users}
+                variant="kpi"
+                isLoading={overviewLoading}
+              />
+              <StatsCard
+                title="Ativos"
+                value={overview?.active?.toLocaleString("pt-BR") ?? "—"}
+                icon={CheckCircle}
+                variant="kpi"
+                isLoading={overviewLoading}
+              />
+              <StatsCard
+                title="Inativos"
+                value={overview?.inactive?.toLocaleString("pt-BR") ?? "—"}
+                icon={XCircle}
+                variant="kpi"
+                isLoading={overviewLoading}
+              />
+              <StatsCard
+                title="Média de membros"
+                value={overviewLoading ? "—" : (overview?.avgMembers ?? 0).toLocaleString("pt-BR")}
+                icon={BarChart3}
+                variant="kpi"
+                isLoading={overviewLoading}
+              />
+            </>
+          )}
+          filters={(
+            <div className="flex w-full flex-wrap items-center gap-3">
+              <div className="hidden md:flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Buscar por nome"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-9 w-72 px-3 pr-9 rounded-lg border border-border bg-card text-sm"
+                    aria-label="Buscar grupos por nome"
+                  />
+                  {isSearchDebouncing && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-1">
-              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">Grupos</h1>
-              <p className="text-sm text-muted-foreground">Todos os grupos conectados ao Bóris</p>
-            </div>
-
-            <div className="shrink-0 flex items-center gap-2 sm:mt-1">
-              <span className="hidden sm:inline text-xs text-muted-foreground">Grupos conectados</span>
-              <Badge variant="secondary" className="tabular-nums">
-                {typeof groupsData?.count === "number" ? groupsData.count.toLocaleString("pt-BR") : "—"}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-secondary/20 p-3 sm:p-4">
-            <div className="md:hidden flex items-center justify-between gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9"
-                onClick={() => setFiltersOpen(true)}
-              >
-                <SlidersHorizontal className="h-4 w-4 mr-2" />
-                Filtrar
-              </Button>
-
-              {hasActiveFilters ? (
-                <Button type="button" variant="ghost" size="sm" className="h-9" onClick={handleClearFilters}>
-                  Limpar
-                </Button>
-              ) : (
-                <span className="text-xs text-muted-foreground">Refine para encontrar um grupo.</span>
-              )}
-            </div>
-
-            <div className="hidden md:flex flex-wrap items-center gap-2 justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Buscar por nome"
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  className="h-9 w-72 px-3 rounded-lg border border-border/60 bg-background text-sm"
-                />
                 <select
                   value={orgFilter}
-                  onChange={(e) => { setOrgFilter(e.target.value); setPage(1); }}
-                  className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                  onChange={(e) => {
+                    setOrgFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-9 px-3 rounded-lg border border-border bg-card text-sm"
+                  aria-label="Filtrar por organização"
                 >
                   <option value="">Organização</option>
                   {(organizations ?? []).map((org) => (
-                    <option key={org.id} value={org.id}>{org.name}</option>
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
                   ))}
                 </select>
+
                 <select
                   value={statusFilter}
-                  onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1); }}
-                  className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value as any);
+                    setPage(1);
+                  }}
+                  className="h-9 px-3 rounded-lg border border-border bg-card text-sm"
+                  aria-label="Filtrar por status"
                 >
                   <option value="all">Status</option>
                   <option value="active">Ativos</option>
                   <option value="inactive">Inativos</option>
                 </select>
+
                 <select
-                  value={orderBy}
-                  onChange={(e) => setOrderBy(e.target.value as any)}
-                  className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+                  value={sortValue}
+                  onChange={(e) => setSortValue(e.target.value)}
+                  className="h-9 px-3 rounded-lg border border-border bg-card text-sm"
+                  aria-label="Ordenação"
                 >
-                  <option value="created_at">Criado</option>
-                  <option value="name">Nome</option>
-                </select>
-                <select
-                  value={orderDir}
-                  onChange={(e) => setOrderDir(e.target.value as any)}
-                  className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
-                >
-                  <option value="asc">Crescente</option>
-                  <option value="desc">Decrescente</option>
+                  <option value="created_at:desc">Criado (novo)</option>
+                  <option value="created_at:asc">Criado (antigo)</option>
+                  <option value="name:asc">Nome (A–Z)</option>
+                  <option value="name:desc">Nome (Z–A)</option>
                 </select>
               </div>
 
-              {hasActiveFilters && (
-                <Button type="button" variant="ghost" size="sm" className="h-9" onClick={handleClearFilters}>
-                  Limpar filtros
+              <div className="md:hidden w-full">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full justify-between bg-background/60"
+                  onClick={() => setFiltersOpen(true)}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filtrar
+                  </span>
+                  {hasActiveFilters && (
+                    <Badge variant="secondary" className="h-6 px-2 text-[11px]">
+                      Ativo
+                    </Badge>
+                  )}
                 </Button>
-              )}
+              </div>
             </div>
+          )}
+          showClearFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+        />
+
+        {activeFilterChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {activeFilterChips.map((chip) => (
+              <Button
+                key={chip.key}
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={chip.onClear}
+                className="h-7 px-2 gap-1"
+              >
+                <span className="truncate max-w-[220px]">{chip.label}</span>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            ))}
           </div>
-        </section>
+        )}
 
         <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
           <SheetContent side="bottom" className="bg-card border-border">
@@ -459,13 +640,22 @@ export default function SystemGroups() {
             <div className="mt-4 space-y-3">
               <div className="space-y-1">
                 <div className="text-xs font-medium text-muted-foreground">Buscar por nome</div>
-                <input
-                  type="text"
-                  placeholder="Ex: Comercial, Operações, Suporte…"
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Ex: Comercial, Operações, Suporte…"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-10 w-full px-3 pr-9 rounded-lg border border-border bg-background text-sm"
+                    aria-label="Buscar grupos por nome"
+                  />
+                  {isSearchDebouncing && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -474,6 +664,7 @@ export default function SystemGroups() {
                   value={orgFilter}
                   onChange={(e) => { setOrgFilter(e.target.value); setPage(1); }}
                   className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
+                  aria-label="Filtrar por organização"
                 >
                   <option value="">Todas</option>
                   {(organizations ?? []).map((org) => (
@@ -489,6 +680,7 @@ export default function SystemGroups() {
                     value={statusFilter}
                     onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1); }}
                     className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
+                    aria-label="Filtrar por status"
                   >
                     <option value="all">Todos</option>
                     <option value="active">Ativos</option>
@@ -497,28 +689,19 @@ export default function SystemGroups() {
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">Direção</div>
+                  <div className="text-xs font-medium text-muted-foreground">Ordenação</div>
                   <select
-                    value={orderDir}
-                    onChange={(e) => setOrderDir(e.target.value as any)}
+                    value={sortValue}
+                    onChange={(e) => setSortValue(e.target.value)}
                     className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
+                    aria-label="Ordenação"
                   >
-                    <option value="desc">Decrescente</option>
-                    <option value="asc">Crescente</option>
+                    <option value="created_at:desc">Criado (novo)</option>
+                    <option value="created_at:asc">Criado (antigo)</option>
+                    <option value="name:asc">Nome (A–Z)</option>
+                    <option value="name:desc">Nome (Z–A)</option>
                   </select>
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-muted-foreground">Ordenar por</div>
-                <select
-                  value={orderBy}
-                  onChange={(e) => setOrderBy(e.target.value as any)}
-                  className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
-                >
-                  <option value="created_at">Criado</option>
-                  <option value="name">Nome</option>
-                </select>
               </div>
 
               <div className="flex items-center justify-between gap-3 pt-2">
@@ -526,7 +709,7 @@ export default function SystemGroups() {
                   Limpar
                 </Button>
                 <Button type="button" onClick={() => setFiltersOpen(false)}>
-                  Ver resultados
+                  Ver resultados{typeof groupsData?.count === "number" ? ` (${groupsData.count.toLocaleString("pt-BR")})` : ""}
                 </Button>
               </div>
             </div>
@@ -535,7 +718,23 @@ export default function SystemGroups() {
 
         <div className="md:hidden">
           {isLoading ? (
-            <LoadingState message="Carregando grupos..." />
+            <div className="space-y-3">
+              {[...Array(4)].map((_, idx) => (
+                <div key={idx} className="rounded-2xl bg-secondary/20 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-5 w-2/3" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : error ? (
             <ErrorState message="Falha ao carregar grupos" retry={() => refetch()} />
           ) : (groupsData?.items ?? []).length === 0 ? (
@@ -560,7 +759,17 @@ export default function SystemGroups() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate text-base font-semibold text-foreground">{g.name || "—"}</div>
-                        <div className="mt-0.5 truncate text-sm text-muted-foreground">{g.organizations?.name || "—"}</div>
+                        <button
+                          type="button"
+                          className="mt-0.5 truncate text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-4"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (g.organization_id) navigate(`/organization/${g.organization_id}/dashboard`);
+                          }}
+                          aria-label={g.organizations?.name ? `Abrir organização ${g.organizations.name}` : "Abrir organização"}
+                        >
+                          {g.organizations?.name || "—"}
+                        </button>
                       </div>
                       <div className="shrink-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <StatusTag variant={getStatusVariant(g.status)} className="hidden sm:inline-flex">

@@ -1,13 +1,14 @@
 import { ReactNode, useMemo, useState } from "react";
 import { Breadcrumbs, type BreadcrumbItem } from "@/components/ui/breadcrumbs";
 import { GroupHeader } from "@/components/group-dashboard/GroupHeader";
-import { cn } from "@/lib/utils";
+import { cn, formatPhoneE164BR, getInitialsFromName, getPhoneFallback, isProbablyPhone } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Shield, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RoleBadge } from "@/components/ui/badge";
 
 type MemberRoleKey = "SUPERADMIN" | "ADMIN";
 
@@ -22,59 +23,16 @@ type SpecialMember = {
   last_sender_name?: string | null;
 };
 
-function isProbablyPhone(value?: string | null) {
-  const v = (value || "").trim();
-  if (!v) return false;
-  if (/[A-Za-zÀ-ÿ]/.test(v)) return false;
-  const digits = v.replace(/\D/g, "");
-  return digits.length >= 8;
-}
-
-function formatPhoneE164BR(input?: string | null) {
-  const raw = (input || "").trim();
-  if (!raw) return "";
-  const digits = raw.replace(/\D/g, "");
-  const d = digits.startsWith("55") ? digits.slice(2) : digits;
-  if (!d) return raw;
-  const ddd = d.slice(0, 2);
-  const rest = d.slice(2);
-  if (rest.length === 8) {
-    return `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
-  }
-  if (rest.length === 9) {
-    return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
-  }
-  return raw;
-}
-
-function getInitialsFromName(name?: string | null) {
-  const n = (name || "").trim();
-  if (!n) return "";
-  const parts = n.split(/\s+/).filter(Boolean);
-  const a = parts[0]?.[0] || "";
-  const b = parts.length > 1 ? parts[parts.length - 1]?.[0] || "" : "";
-  return (a + b).toUpperCase();
-}
-
-function getPhoneFallback(phone?: string | null) {
-  const digits = (phone || "").replace(/\D/g, "");
-  if (!digits) return "";
-  const d = digits.startsWith("55") ? digits.slice(2) : digits;
-  return d.slice(-2);
-}
-
-const ROLE_META: Record<MemberRoleKey, { label: string; shortLabel: string; Icon: typeof Shield; badgeClass: string }> = {
+const ROLE_META: Record<MemberRoleKey, { label: string; shortLabel: string; Icon: typeof Shield }> = {
   SUPERADMIN: {
     label: "Super Admin",
     shortLabel: "Super Admin",
     Icon: Star,
-    badgeClass: "border-destructive/25 bg-destructive/10 text-destructive",
   },
   ADMIN: {
     label: "Admin",
     shortLabel: "Admin",
     Icon: Shield,
-    badgeClass: "border-primary/25 bg-primary/10 text-primary",
   },
 };
 
@@ -260,14 +218,7 @@ export function GroupPageTop({
                       </div>
                     </div>
 
-                    <span
-                      className={cn(
-                        "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
-                        role.badgeClass,
-                      )}
-                    >
-                      {role.shortLabel}
-                    </span>
+                    <RoleBadge role={m.roleKey} className="h-5 px-2 text-[10px]" />
                   </div>
                 );
               })}
@@ -300,6 +251,11 @@ export function GroupPageTop({
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div className="flex flex-wrap items-center gap-3">{filters}</div>
             <div className="flex items-center gap-2">
+              {_showClearFilters && _onClearFilters ? (
+                <Button type="button" variant="secondary" size="sm" onClick={_onClearFilters}>
+                  Limpar filtros
+                </Button>
+              ) : null}
               {rightActions}
             </div>
           </div>

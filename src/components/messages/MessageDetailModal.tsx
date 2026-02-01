@@ -13,6 +13,7 @@ import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 import { Activity, FileText, Image, MapPin, Mic, Smile, Video, Shield, User, Database, Link as LinkIcon, Calendar, Users, Globe, ArrowDownLeft, ArrowUpRight, CheckCircle2 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { applyWhatsAppStylesToParts, formatWhatsAppStyles } from "@/lib/whatsapp-format";
+import { translateMessageType } from "@/lib/messages";
 
 interface MessageDetailModalProps {
   open: boolean;
@@ -20,22 +21,6 @@ interface MessageDetailModalProps {
   groupId: string;
   messageId: string;
 }
-
-const translateType = (type: string) => {
-  const map: Record<string, string> = {
-    text: "Texto",
-    image: "Imagem",
-    audio: "Áudio",
-    video: "Vídeo",
-    document: "Documento",
-    sticker: "Figurinha",
-    location: "Localização",
-    poll: "Enquete",
-    poll_vote: "Voto",
-    system: "Sistema",
-  };
-  return map[type] || type;
-};
 
 const getTypeIcon = (type: string) => {
   switch (type) {
@@ -357,7 +342,7 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                             <TypeIcon className="h-3.5 w-3.5" />
                             Tipo
                           </div>
-                          <div className="mt-1 text-sm text-card-foreground">{translateType(message.message_type)}</div>
+                          <div className="mt-1 text-sm text-card-foreground">{translateMessageType(message.message_type)}</div>
                         </div>
                         <div className="rounded-lg border border-border bg-background/40 px-3 py-2">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -397,10 +382,10 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                             {repliedMessage.message_type === "system"
                               ? formatWhatsAppStyles(
                                   (repliedMessage.text || repliedMessage.content || repliedMessage.media_caption || "").toString().trim() ||
-                                    `[${translateType(repliedMessage.message_type || "text")}]`
+                                    `[${translateMessageType(repliedMessage.message_type || "text")}]`
                                 )
                               : ((repliedMessage.text || repliedMessage.content || repliedMessage.media_caption || "").toString().trim() ||
-                                  `[${translateType(repliedMessage.message_type || "text")}]`)}
+                                  `[${translateMessageType(repliedMessage.message_type || "text")}]`)}
                           </div>
                         </div>
                       ) : (
@@ -507,8 +492,8 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                               </div>
                               <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">
                                 {c.message_type === "system"
-                                  ? formatWhatsAppStyles(c.content_preview || `[${translateType(c.message_type)}]`)
-                                  : (c.content_preview || `[${translateType(c.message_type)}]`)}
+                                  ? formatWhatsAppStyles(c.content_preview || `[${translateMessageType(c.message_type)}]`)
+                                  : (c.content_preview || `[${translateMessageType(c.message_type)}]`)}
                               </div>
                             </div>
                           ))}
@@ -523,9 +508,9 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                             <div className="mt-1 text-sm text-card-foreground whitespace-pre-wrap break-words">
                               {message.message_type === "system"
                                 ? formatWhatsAppStyles(
-                                    (message.text || message.content || message.media_caption || "").toString().trim() || `[${translateType(message.message_type)}]`
+                                    (message.text || message.content || message.media_caption || "").toString().trim() || `[${translateMessageType(message.message_type)}]`
                                   )
-                                : ((message.text || message.content || message.media_caption || "").toString().trim() || `[${translateType(message.message_type)}]`)}
+                                : ((message.text || message.content || message.media_caption || "").toString().trim() || `[${translateMessageType(message.message_type)}]`)}
                             </div>
                           </div>
 
@@ -538,8 +523,8 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                               </div>
                               <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">
                                 {c.message_type === "system"
-                                  ? formatWhatsAppStyles(c.content_preview || `[${translateType(c.message_type)}]`)
-                                  : (c.content_preview || `[${translateType(c.message_type)}]`)}
+                                  ? formatWhatsAppStyles(c.content_preview || `[${translateMessageType(c.message_type)}]`)
+                                  : (c.content_preview || `[${translateMessageType(c.message_type)}]`)}
                               </div>
                             </div>
                           ))}

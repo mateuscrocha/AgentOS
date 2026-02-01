@@ -15,7 +15,7 @@ import { ChevronLeft, ChevronRight, ListChecks } from "lucide-react";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { buildPagination, cn } from "@/lib/utils";
 import { computePollPercent } from "@/lib/polls";
 import { Badge } from "@/components/ui/badge";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink } from "@/components/ui/pagination";
@@ -44,36 +44,6 @@ type PollOptionResult = {
 };
 
 const PAGE_SIZE = 10;
-
-function buildPagination(current: number, total: number): Array<number | "ellipsis"> {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages = new Set<number>();
-  pages.add(1);
-  pages.add(total);
-  for (let p = current - 1; p <= current + 1; p++) {
-    if (p >= 1 && p <= total) pages.add(p);
-  }
-  if (current <= 3) {
-    pages.add(2);
-    pages.add(3);
-    pages.add(4);
-  }
-  if (current >= total - 2) {
-    pages.add(total - 1);
-    pages.add(total - 2);
-    pages.add(total - 3);
-  }
-
-  const sorted = Array.from(pages).filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
-  const out: Array<number | "ellipsis"> = [];
-  for (let i = 0; i < sorted.length; i++) {
-    const p = sorted[i] as number;
-    const prev = sorted[i - 1];
-    if (i > 0 && prev && p - prev > 1) out.push("ellipsis");
-    out.push(p);
-  }
-  return out;
-}
 
 export default function GroupPolls() {
   const { groupId } = useParams();

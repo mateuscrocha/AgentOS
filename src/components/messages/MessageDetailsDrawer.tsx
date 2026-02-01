@@ -10,6 +10,7 @@ import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 import { formatDateTimeBR } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { applyWhatsAppStylesToParts, formatWhatsAppStyles } from "@/lib/whatsapp-format";
+import { translateMessageType } from "@/lib/messages";
 import { Link as LinkIcon, Image, Mic, Video, FileText, MessageSquare, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
 type Variant = "sheet" | "dialog";
@@ -20,22 +21,6 @@ type MessageDetailsDrawerProps = {
   messageId: string;
   groupId: string;
   variant?: Variant;
-};
-
-const translateType = (type: string) => {
-  const map: Record<string, string> = {
-    text: "Texto",
-    image: "Imagem",
-    audio: "Áudio",
-    video: "Vídeo",
-    document: "Documento",
-    sticker: "Figurinha",
-    location: "Localização",
-    poll: "Enquete",
-    poll_vote: "Voto",
-    system: "Sistema",
-  };
-  return map[type] || type;
 };
 
 const getTypeIcon = (type: string) => {
@@ -282,7 +267,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
 
   const messageTypeLabel = useMemo(() => {
     const mt = (message?.message_type || "text").toString();
-    return mt === "text" ? classificationLabel : translateType(mt);
+    return mt === "text" ? classificationLabel : translateMessageType(mt);
   }, [message, classificationLabel]);
 
   const TypeIcon = useMemo(() => getTypeIcon((message?.message_type || "text").toString()), [message]);
@@ -439,9 +424,9 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
           )}
 
           {message.message_type && !["text", "system", "image", "audio", "video", "document"].includes(message.message_type) ? (
-            <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground inline-flex items-center gap-2">
+              <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground inline-flex items-center gap-2">
               <LinkIcon className="h-4 w-4" />
-              Conteúdo do tipo {translateType(message.message_type)}
+                Conteúdo do tipo {translateMessageType(message.message_type)}
             </div>
           ) : null}
         </div>
@@ -474,7 +459,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                   <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">
                     {c.message_type === "system"
                       ? formatWhatsAppStyles(c.content_preview || `[${translateType(c.message_type)}]`)
-                      : (c.content_preview || `[${translateType(c.message_type)}]`)}
+                      : (c.content_preview || `[${translateMessageType(c.message_type)}]`)}
                   </div>
                 </div>
               ))}

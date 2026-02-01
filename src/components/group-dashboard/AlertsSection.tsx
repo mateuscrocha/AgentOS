@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MessageDetailsDrawer } from "@/components/messages/MessageDetailsDrawer";
+import { translateMessageType } from "@/lib/messages";
 
 interface AtRiskMember {
   id: string;
@@ -48,17 +49,6 @@ export function AlertsSection({
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const { groupId: routeGroupId } = useParams();
   const currentGroup = (groupId || routeGroupId) as string | undefined;
-  const translateMessageType = (type: string) => {
-    const types: Record<string, string> = {
-      text: 'Texto',
-      image: 'Imagem',
-      video: 'Vídeo',
-      audio: 'Áudio',
-      document: 'Documento',
-      sticker: 'Figurinha',
-    };
-    return types[type] || type;
-  };
 
   const linkOrMentionRegex = /(https?:\/\/[^\s]+)|@([0-9]{5,})/g;
   const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string, string>) => {

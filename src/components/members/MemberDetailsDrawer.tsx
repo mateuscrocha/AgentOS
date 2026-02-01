@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { SAO_PAULO_TZ, formatDateSimpleBR, formatDateTimeBR } from "@/lib/date";
-import { Users, Phone, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Phone, ArrowRight, Users } from "lucide-react";
+import { cn, formatPhoneE164BR, getInitialsFromName, getMemberAccessLevel, getPhoneFallback } from "@/lib/utils";
+import { RoleBadge, StatusBadge, type MemberRoleKey, type MemberStatusKey } from "@/components/ui/badge";
 
 type MemberDetailsDrawerProps = {
   open: boolean;
@@ -21,56 +22,11 @@ type MemberDetailsDrawerProps = {
   variant?: "sheet" | "dialog";
 };
 
-type MemberRoleKey = "SUPERADMIN" | "ADMIN" | "MEMBRO";
-
 const getMemberRoleKey = (m: { is_super_admin?: boolean | null; is_admin?: boolean | null }): MemberRoleKey => {
-  if (m.is_super_admin) return "SUPERADMIN";
-  if (m.is_admin) return "ADMIN";
+  const level = getMemberAccessLevel(m);
+  if (level === "superadmin") return "SUPERADMIN";
+  if (level === "admin") return "ADMIN";
   return "MEMBRO";
-};
-
-const ROLE_BADGE: Record<MemberRoleKey, { label: string; className: string }> = {
-  SUPERADMIN: {
-    label: "Super Admin",
-    className: "border-destructive/25 bg-destructive/10 text-destructive",
-  },
-  ADMIN: {
-    label: "Admin",
-    className: "border-primary/25 bg-primary/10 text-primary",
-  },
-  MEMBRO: {
-    label: "Membro",
-    className: "border-border bg-muted/50 text-muted-foreground",
-  },
-};
-
-type MemberStatusKey = "ATIVO" | "SAIU" | "INATIVO";
-
-const STATUS_BADGE: Record<MemberStatusKey, { label: string; className: string }> = {
-  ATIVO: {
-    label: "Ativo",
-    className: "border-success/25 bg-success/10 text-success",
-  },
-  SAIU: {
-    label: "Saiu",
-    className: "border-warning/25 bg-warning/10 text-warning",
-  },
-  INATIVO: {
-    label: "Inativo",
-    className: "border-destructive/25 bg-destructive/10 text-destructive",
-  },
-};
-
-const getMemberRoleLabel = (role: MemberRoleKey) => {
-  if (role === "SUPERADMIN") return "Super Admin";
-  if (role === "ADMIN") return "Admin";
-  return "Membro";
-};
-
-const getMemberRoleDescription = (role: MemberRoleKey) => {
-  if (role === "SUPERADMIN") return "Admin com permissões ampliadas.";
-  if (role === "ADMIN") return "Pode gerenciar membros e configurar o grupo.";
-  return "Participante comum do grupo.";
 };
 
 function formatRelativeBR(dateStr?: string | null) {
@@ -176,7 +132,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
 
   const [recentPage, setRecentPage] = useState(1);
   const RECENT_PAGE_SIZE = 5;
-  const { data: recentMessages } = useQuery({
+  const { data: recentMessages, isLoading: recentMessagesLoading } = useQuery({
     queryKey: ["member-recent-msg", ctxGroupId, memberId, recentPage],
     queryFn: async () => {
       const from = (recentPage - 1) * RECENT_PAGE_SIZE;
@@ -203,7 +159,21 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
     return "ATIVO";
   }, [member]);
 
-  const statusLabel = useMemo(() => STATUS_BADGE[statusKey].label, [statusKey]);
+  const headerTitle = useMemo(() => {
+    const rawDisplay = (member?.display_name || "").toString().trim();
+    const rawName = (member?.name || "").toString().trim();
+    const formattedPhone = formatPhoneE164BR(member?.phone_e164);
+    return rawDisplay || rawName || formattedPhone || "Membro";
+  }, [member?.display_name, member?.name, member?.phone_e164]);
+
+  const formattedPhone = useMemo(() => {
+    if (!member?.phone_e164) return "";
+    return formatPhoneE164BR(member.phone_e164) || member.phone_e164;
+  }, [member?.phone_e164]);
+
+  const avatarFallback = useMemo(() => {
+    return getInitialsFromName(headerTitle) || getPhoneFallback(member?.phone_e164) || "M";
+  }, [headerTitle, member?.phone_e164]);
 
   const header = (
     <div className="flex flex-col sm:flex-row items-start gap-4 cursor-default" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -221,37 +191,28 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
           {member?.profile_pic_url ? (
             <AvatarImage src={member.profile_pic_url} alt="" referrerPolicy="no-referrer" className="object-cover" />
           ) : (
-            <AvatarFallback>
-              <Users className="h-9 w-9 text-muted-foreground" />
+            <AvatarFallback className="bg-muted/40 text-xl font-semibold text-muted-foreground">
+              {avatarFallback || <Users className="h-9 w-9" />}
             </AvatarFallback>
           )}
         </Avatar>
       </button>
 
       <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-xl font-semibold text-card-foreground truncate">{member?.display_name || member?.name || "Membro"}</h3>
-          <span
-            className={cn(
-              "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
-              ROLE_BADGE[effectiveMemberRole].className
-            )}
-          >
-            {ROLE_BADGE[effectiveMemberRole].label}
-          </span>
-          <span
-            className={cn(
-              "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
-              STATUS_BADGE[statusKey].className
-            )}
-          >
-            {statusLabel}
-          </span>
+        <div className="space-y-1">
+          <h3 className="text-2xl font-semibold text-card-foreground truncate">{headerTitle}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <RoleBadge role={effectiveMemberRole} className="h-6 px-2.5 text-[11px]" />
+            <StatusBadge status={statusKey} />
+          </div>
         </div>
 
-        {member?.phone_e164 ? (
-          <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{member.phone_e164}</span>
+        {formattedPhone ? (
+          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Phone className="h-3 w-3" />
+              {formattedPhone}
+            </span>
           </div>
         ) : null}
 
@@ -307,18 +268,32 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
 
   const recentList = (
     <div className="space-y-2">
-      {(recentMessages || []).map((m) => (
-        <div key={m.id} className="p-3 rounded-xl border border-border bg-card/50 hover:bg-secondary/20 transition-colors">
-          <div className="text-[11px] font-medium text-muted-foreground">{formatDateTimeBR(m.created_at)}</div>
-          <div className="mt-1 text-sm text-card-foreground line-clamp-2 break-words">{m.preview || `[${m.type}]`}</div>
-          {ctxGroupId ? (
-            <a href={`/groups/${ctxGroupId}/messages`} className="inline-flex items-center gap-1 text-xs text-primary mt-1 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm">
-              <ArrowRight className="h-3 w-3" />
-              Ver na conversa
-            </a>
-          ) : null}
+      {recentMessagesLoading ? (
+        <>
+          <Skeleton className="h-[76px] w-full" />
+          <Skeleton className="h-[76px] w-full" />
+        </>
+      ) : (recentMessages || []).length === 0 ? (
+        <div className="p-4 rounded-xl border border-border bg-secondary/10 text-sm text-muted-foreground">
+          Sem mensagens recentes.
         </div>
-      ))}
+      ) : (
+        (recentMessages || []).map((m) => (
+          <div key={m.id} className="p-3 rounded-xl border border-border bg-card/50 hover:bg-secondary/20 transition-colors">
+            <div className="text-[11px] font-medium text-muted-foreground">{formatDateTimeBR(m.created_at)}</div>
+            <div className="mt-1 text-sm text-card-foreground line-clamp-2 break-words">{m.preview || `[${m.type}]`}</div>
+            {ctxGroupId ? (
+              <a
+                href={`/groups/${ctxGroupId}/messages`}
+                className="inline-flex items-center gap-1 text-xs text-primary mt-1 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+              >
+                <ArrowRight className="h-3 w-3" />
+                Ver na conversa
+              </a>
+            ) : null}
+          </div>
+        ))
+      )}
     </div>
   );
 
