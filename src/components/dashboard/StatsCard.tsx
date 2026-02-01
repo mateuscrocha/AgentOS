@@ -50,7 +50,7 @@ export function StatsCard({
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <Icon className="h-4 w-4 text-primary" />
             </div>
-            <p className={cn("text-xs font-medium text-muted-foreground truncate", titleClassName)}>{title}</p>
+            <p className={cn("text-xs font-medium leading-snug text-muted-foreground line-clamp-2", titleClassName)}>{title}</p>
           </div>
           {isLoading ? (
             <Skeleton className="h-9 w-20 shrink-0" />

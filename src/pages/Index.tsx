@@ -9,6 +9,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
  
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
@@ -109,15 +110,14 @@ const Index = () => {
 
   const pageSections = useMemo(
     () => [
-      { id: "alerts-24h", label: "Alertas" },
-      { id: "pulse-24h", label: "Pulso" },
-      { id: "new-groups-24h", label: "Grupos" },
       { id: "kpis", label: "KPIs" },
+      { id: "executive-summary", label: "Resumo" },
+      { id: "context", label: "Contexto" },
     ],
     [],
   );
 
-  const [activeSectionId, setActiveSectionId] = useState(pageSections[0]?.id ?? "alerts-24h");
+  const [activeSectionId, setActiveSectionId] = useState(pageSections[0]?.id ?? "kpis");
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
@@ -589,14 +589,15 @@ const Index = () => {
     const curr = kpiMessagesPeriod || 0;
     const prev = kpiMessagesPrevPeriod ?? null;
     if (prev === null) return null;
-    const base = Math.max(prev, 1);
-    return Math.round(((curr - prev) / base) * 100);
+    if (prev === 0) return null;
+    return Math.round(((curr - prev) / prev) * 100);
   })();
   const messagesChangeLabel = (() => {
     const prev = kpiMessagesPrevPeriod ?? null;
     if (prev === null) return "—";
     const curr = kpiMessagesPeriod || 0;
     if (curr === prev) return "sem variação";
+    if (prev === 0) return curr > 0 ? `novo ${comparisonSuffix}` : "sem variação";
     const d = messagesDelta as number;
     if (Math.abs(d) <= 2) return `estável ${comparisonSuffix}`;
     const sign = d >= 0 ? "+" : "";
@@ -607,6 +608,7 @@ const Index = () => {
     if (prev === null) return "neutral" as const;
     const curr = kpiMessagesPeriod || 0;
     if (curr === prev) return "neutral" as const;
+    if (prev === 0) return curr > 0 ? ("positive" as const) : ("neutral" as const);
     const d = messagesDelta as number;
     if (Math.abs(d) <= 2) return "neutral" as const;
     return d > 0 ? "positive" as const : "negative" as const;
@@ -641,8 +643,8 @@ const Index = () => {
     const prev = kpiActiveMembersPrevPeriod ?? null;
     if (prev === null) return { label: "—", type: "neutral" as const };
     if (curr === prev) return { label: "sem variação", type: "neutral" as const };
-    const base = Math.max(prev, 1);
-    const delta = Math.round(((curr - prev) / base) * 100);
+    if (prev === 0) return { label: `novo ${comparisonSuffix}`, type: "positive" as const };
+    const delta = Math.round(((curr - prev) / prev) * 100);
     if (Math.abs(delta) <= 2) return { label: `estável ${comparisonSuffix}`, type: "neutral" as const };
     const sign = delta >= 0 ? "+" : "";
     const type = delta > 0 ? "positive" as const : "negative" as const;
@@ -773,13 +775,58 @@ const Index = () => {
     return `Nas últimas 24h: ${newGroupsCount} novos grupos, ${formatNumberBR(totalMessages)} mensagens em ${formatNumberBR(activeGroups)} grupos (concentração ${concentration}).`;
   })();
 
-  const panoramaKpis = (
+  const mainKpis = (
     <>
-      <StatsCard title="Organizações ativas" value={kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0)} isLoading={kpiOrgsPeriodLoading} change={kpiOrgsPeriodLoading ? undefined : orgsChange.label} changeType={orgsChange.type} icon={Building2} variant="kpi" />
-      <StatsCard title="Grupos monitorados" value={kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0)} isLoading={kpiGroupsPeriodLoading} change={kpiGroupsPeriodLoading ? undefined : groupsChange.label} changeType={groupsChange.type} icon={Layers} variant="kpi" />
-      <StatsCard title="Membros ativos" value={kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0)} isLoading={kpiActiveMembersLoading} change={kpiActiveMembersLoading ? undefined : activeMembersChange.label} changeType={activeMembersChange.type} icon={UsersIcon} variant="kpi" />
-      <StatsCard title="Mensagens no período" value={kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0)} isLoading={kpiMessagesLoading} change={kpiMessagesLoading ? undefined : messagesChangeLabel} changeType={messagesChangeType} icon={MessageSquare} variant="kpi" />
-      <StatsCard title="Participação dos membros" value={participationValue} isLoading={kpiActiveMembersLoading || kpiMembersLoading} change={participationChange.label} changeType={participationChange.type} icon={UsersIcon} variant="kpi" />
+      <StatsCard
+        title="Mensagens no período"
+        value={kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0)}
+        isLoading={kpiMessagesLoading}
+        change={kpiMessagesLoading ? undefined : messagesChangeLabel}
+        changeType={messagesChangeType}
+        icon={MessageSquare}
+        variant="kpi"
+      />
+      <StatsCard
+        title="Membros ativos"
+        value={kpiActiveMembersError ? "Erro" : String(kpiActiveMembersPeriod ?? 0)}
+        isLoading={kpiActiveMembersLoading}
+        change={kpiActiveMembersLoading ? undefined : activeMembersChange.label}
+        changeType={activeMembersChange.type}
+        icon={UsersIcon}
+        variant="kpi"
+      />
+      <StatsCard
+        title="Participação dos membros"
+        value={participationValue}
+        isLoading={kpiActiveMembersLoading || kpiMembersLoading}
+        change={participationChange.label}
+        changeType={participationChange.type}
+        icon={UsersIcon}
+        variant="kpi"
+      />
+    </>
+  );
+
+  const contextKpis = (
+    <>
+      <StatsCard
+        title="Organizações ativas"
+        value={kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0)}
+        isLoading={kpiOrgsPeriodLoading}
+        change={kpiOrgsPeriodLoading ? undefined : orgsChange.label}
+        changeType={orgsChange.type}
+        icon={Building2}
+        variant="kpi"
+      />
+      <StatsCard
+        title="Grupos monitorados"
+        value={kpiGroupsPeriodError ? "Erro" : String(kpiGroupsPeriod ?? 0)}
+        isLoading={kpiGroupsPeriodLoading}
+        change={kpiGroupsPeriodLoading ? undefined : groupsChange.label}
+        changeType={groupsChange.type}
+        icon={Layers}
+        variant="kpi"
+      />
     </>
   );
 
@@ -821,7 +868,7 @@ const Index = () => {
                     className={cn(
                       "h-8 shrink-0 rounded-md px-3 text-xs font-medium transition-colors",
                       isActive
-                        ? "bg-secondary text-foreground"
+                        ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground",
                     )}
                   >
@@ -844,357 +891,389 @@ const Index = () => {
           </div>
         </nav>
 
-        <section className="scroll-mt-32 rounded-2xl border border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--warning)/0.04)] p-4 shadow-sm" id="alerts-24h" aria-busy={newGroups24hLoading || pulse24hLoading ? "true" : undefined}>
-          <SectionHeader
-            title="Alertas das últimas 24h"
-            subtitle="Ações para agir agora"
-            subtitleClassName="font-normal text-muted-foreground/80"
-            density="compact"
-            titleIcon={AlertTriangle}
-          />
-
-          {newGroups24hLoading && pulse24hLoading ? (
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
-                  <Skeleton className="h-4 w-7/12" />
-                  <div className="mt-2 space-y-2">
-                    <Skeleton className="h-3 w-full" />
-                    <Skeleton className="h-3 w-9/12" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : alerts24h.length === 0 && (newGroups24hLoading || pulse24hLoading) ? (
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2" aria-live="polite" aria-busy="true">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
-                  <Skeleton className="h-4 w-6/12" />
-                  <div className="mt-2 space-y-2">
-                    <Skeleton className="h-3 w-full" />
-                    <Skeleton className="h-3 w-10/12" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : alerts24h.length === 0 ? (
-            <div className="mt-2 rounded-lg border border-success/30 bg-success/5 p-3">
-              <p className="text-[13px] text-muted-foreground">Tudo calmo: nenhuma ação imediata nas últimas 24h.</p>
-            </div>
-          ) : (
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2" aria-live="polite">
-              {alerts24h.map((a, i) => {
-                const ToneIcon = a.tone === "warning" ? AlertTriangle : a.tone === "info" ? Info : Minus;
-                return (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => navigate(a.href)}
-                  className={
-                    "ripple-surface group w-full text-left rounded-lg border px-3 py-3 shadow-sm transition-colors transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-in " +
-                    toneCardClassName(a.tone)
-                  }
-                  style={{ animationDelay: `${i * 60}ms` }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={"h-5 px-2 text-[10px] font-medium " + toneBadgeClassName(a.tone)}>
-                          <span className="inline-flex items-center gap-1">
-                            <ToneIcon className="h-3 w-3" aria-hidden="true" />
-                            {a.tone === "warning" ? "Atenção" : a.tone === "info" ? "Acompanhar" : "Info"}
-                          </span>
-                        </Badge>
-                        <div className="text-[13px] font-semibold leading-snug text-foreground truncate">{a.title}</div>
-                      </div>
-                      <p className="mt-1 text-[12px] text-muted-foreground leading-snug">{a.description}</p>
-                    </div>
-                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
-                  </div>
-                </button>
-              );
-              })}
-            </div>
-          )}
-        </section>
-
-        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="day-summary">
-          <SectionHeader
-            title="Resumo do dia"
-            subtitle="Leitura orientadora do restante da página"
-            subtitleClassName="font-normal text-muted-foreground/80"
-            density="compact"
-            titleIcon={Activity}
-          />
-          <div className="mt-2 rounded-lg bg-secondary/25 p-3">
-            <p className="text-[13px] leading-relaxed text-card-foreground">
-              <span className="font-medium">Leitura rápida:</span> {daySummary}
-            </p>
-          </div>
-        </section>
-
-        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="pulse-24h" aria-busy={pulse24hLoading ? "true" : undefined}>
-          <SectionHeader
-            title="Pulso das comunidades (24h)"
-            subtitle="Leitura estratégica: concentração de conversa"
-            subtitleClassName="font-normal text-muted-foreground/80"
-            density="compact"
-            titleIcon={Activity}
-          />
-
-          {pulse24hLoading ? (
-            <div className="mt-2 space-y-2" aria-live="polite" aria-busy="true">
-              <div className="rounded-lg border border-border bg-card/50 p-2.5">
-                <Skeleton className="h-4 w-6/12" />
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
-                      <Skeleton className="h-4 w-10/12" />
-                      <div className="mt-2 space-y-2">
-                        <Skeleton className="h-3 w-8/12" />
-                        <Skeleton className="h-3 w-7/12" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
-                    <Skeleton className="h-4 w-8/12" />
-                    <Skeleton className="mt-2 h-3 w-5/12" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : pulse24hError ? (
-            <div className="mt-2">
-              <ErrorState title="Falha ao carregar" message="Não foi possível carregar o pulso das comunidades (24h)." retry={refetchPulse24h} />
-            </div>
-          ) : !pulse24h || !pulse24h.topGroups || pulse24h.topGroups.length === 0 ? (
-            <div className="mt-2 rounded-lg bg-secondary/25 p-3">
-              <p className="text-[13px] text-muted-foreground">Ainda não há atividade suficiente nas últimas 24h.</p>
-            </div>
-          ) : (
-            <div className="mt-2 space-y-3" aria-live="polite">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[14px] font-semibold leading-tight text-card-foreground">
-                    <span className="tabular-nums">{formatNumberBR(pulseMeta.totalMessages)}</span> mensagens
-                    <span className="mx-2 text-muted-foreground/50">·</span>
-                    <span className="tabular-nums">{formatNumberBR(pulseMeta.activeGroups)}</span> grupos ativos
-                  </div>
-                  <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-                    Top 4 concentram <span className="font-medium tabular-nums text-card-foreground">{pulseMeta.sharePct}%</span> da conversa
-                  </div>
-                  <div className="mt-1 text-[12px] leading-snug text-muted-foreground/80">{pulseMeta.insight}</div>
-                </div>
-
-                <Badge
-                  variant="outline"
-                  className="h-5 shrink-0 border-border/60 bg-transparent px-2 text-[10px] font-medium text-muted-foreground"
-                >
-                  Concentração {pulseMeta.concentration}
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {pulse24h.topGroups.slice(0, 4).map((g, idx) => {
-                  const count = Number(g.count || 0);
-                  const share = pulseMeta.totalMessages ? Math.round((count / pulseMeta.totalMessages) * 100) : 0;
-                  const rank = (idx + 1) as 1 | 2 | 3 | 4;
-                  const activeMembers = Number(g.activeMembers || 0);
-                  return (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => navigate(`/groups/${g.id}`)}
-                      className={
-                        "ripple-surface group w-full text-left rounded-lg border px-3 py-3 shadow-sm transition-colors transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-in " +
-                        pulseRankCardClassName(rank)
-                      }
-                      style={{ animationDelay: `${idx * 60}ms` }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={
-                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border text-base font-semibold tabular-nums " +
-                            pulseRankBadgeClassName(rank)
-                          }
-                          aria-hidden="true"
-                        >
-                          {rank}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[14px] font-semibold leading-snug text-card-foreground truncate">{g.name}</div>
-                          <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-                            <span className="tabular-nums font-medium text-card-foreground/90">{formatNumberBR(count)}</span> mensagens
-                            <span className="mx-2 text-muted-foreground/50">·</span>
-                            <span className="tabular-nums">{formatNumberBR(activeMembers)}</span> ativos
-                          </div>
-                          <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground/90">
-                            <span className="tabular-nums">{share}%</span> da conversa total
-                          </div>
-                        </div>
-
-                        <ChevronRight
-                          className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground"
-                          aria-hidden="true"
-                        />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {pulse24h.topGroups.length > 4 && (
-                <div className="rounded-lg border border-border bg-card/30 p-2.5">
-                  <div className="text-[11px] text-muted-foreground/80">Demais grupos (5º ao 10º)</div>
-                  <ul className="mt-2 space-y-1" role="list">
-                    {pulse24h.topGroups.slice(4, 10).map((g, idx) => {
-                      const rank = idx + 5;
-                      const count = Number(g.count || 0);
-                      return (
-                        <li key={g.id} role="listitem">
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/groups/${g.id}`)}
-                            className="ripple-surface group w-full text-left rounded-md border border-border/70 bg-card/40 px-2.5 py-1.5 transition-colors transition-transform hover:bg-secondary/25 hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0 flex items-center gap-2">
-                                <div className="w-6 text-[10px] font-medium tabular-nums text-muted-foreground/60" aria-hidden="true">
-                                  {rank}
-                                </div>
-                                <div className="min-w-0 text-[13px] font-medium leading-snug text-card-foreground truncate">{g.name}</div>
-                              </div>
-                              <div className="shrink-0 flex items-center gap-2">
-                                <div className="text-[12px] font-semibold tabular-nums text-card-foreground">{formatNumberBR(count)}</div>
-                                <div className="text-[10px] text-muted-foreground/70">msg</div>
-                                <ChevronRight className="h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
-                              </div>
-                            </div>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-
-        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="new-groups-24h" aria-busy={newGroups24hLoading ? "true" : undefined}>
-          <SectionHeader
-            title="Novos grupos nas últimas 24h"
-            subtitle="Acompanhamento preventivo de entradas recentes"
-            subtitleClassName="font-normal text-muted-foreground/80"
-            linkHref="/system/groups"
-            linkLabel="Ver todos"
-            density="compact"
-            titleIcon={Clock}
-          />
-
-          {newGroups24hLoading ? (
-            <div className="mt-2 grid grid-cols-1 gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <Skeleton className="h-4 w-7/12" />
-                      <div className="flex flex-wrap gap-2">
-                        <Skeleton className="h-3 w-16" />
-                        <Skeleton className="h-3 w-20" />
-                        <Skeleton className="h-3 w-16" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Skeleton className="h-6 w-16" />
-                      <Skeleton className="h-3 w-10" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : newGroups24hError ? (
-            <div className="mt-2">
-              <ErrorState title="Falha ao carregar" message="Não foi possível carregar os novos grupos das últimas 24h." retry={refetchNewGroups24h} />
-            </div>
-          ) : !newGroups24h || newGroups24h.length === 0 ? (
-            <div className="mt-2 rounded-lg bg-secondary/25 p-3">
-              <p className="text-[13px] text-muted-foreground">Nenhum grupo novo nas últimas 24h.</p>
-            </div>
-          ) : (
-            <div className="mt-2 space-y-2" aria-live="polite">
-              <div className="text-[11px] text-muted-foreground/80">
-                Leia assim: com mensagens = aquecendo; sem atividade = pode precisar de onboarding.
-              </div>
-
-              <ul className="space-y-2" role="list">
-                {newGroups24h.map((g, idx) => {
-                  const statusTone: "warning" | "info" | "muted" = g.status === "active" ? "warning" : g.status === "new" ? "info" : "muted";
-                  const statusLabel = g.status === "active" ? "Ativo" : g.status === "new" ? "Novo" : "Sem atividade";
-                  const StatusIcon = g.status === "active" ? Activity : g.status === "new" ? Clock : Minus;
-                  const firstActivityLabel = (() => {
-                    if (!g.firstActivityAt) return "—";
-                    const date = new Date(g.firstActivityAt);
-                    if (!Number.isFinite(date.getTime())) return "—";
-                    return formatInTimeZone(date, SAO_PAULO_TZ, "HH:mm");
-                  })();
-
-                  return (
-                    <li key={g.id} role="listitem">
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/groups/${g.id}`)}
-                        className="ripple-surface group w-full text-left rounded-lg border border-border bg-card/50 px-2.5 py-2 transition-colors transition-transform duration-200 hover:bg-secondary/30 hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-in"
-                        style={{ animationDelay: `${idx * 30}ms` }}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Badge variant="outline" className={"h-5 px-2 text-[10px] font-medium shrink-0 " + toneBadgeClassName(statusTone)}>
-                                <span className="inline-flex items-center gap-1">
-                                  <StatusIcon className="h-3 w-3" aria-hidden="true" />
-                                  {statusLabel}
-                                </span>
-                              </Badge>
-                              <div className="text-[13px] font-semibold leading-snug text-foreground truncate">{g.name}</div>
-                            </div>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                              <span className="truncate max-w-[26ch]">{g.organizations?.name || "—"}</span>
-                              <span className="text-muted-foreground/50">·</span>
-                              <span className="whitespace-nowrap tabular-nums">{formatHoursAgoLabel(g.createdHoursAgo)}</span>
-                              <span className="text-muted-foreground/50">·</span>
-                              <span className="whitespace-nowrap tabular-nums">{formatNumberBR(g.messages24h)} msg</span>
-                              <span className="text-muted-foreground/50">·</span>
-                              <span className="whitespace-nowrap tabular-nums">1ª às {firstActivityLabel}</span>
-                            </div>
-                          </div>
-
-                          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-        </section>
-
         <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="kpis">
           <SectionHeader
-            title="Panorama geral"
-            subtitle="Contexto do período selecionado"
+            title="KPIs principais"
+            subtitle="Sinais do período selecionado"
             subtitleClassName="font-normal text-muted-foreground/80"
             density="compact"
             titleIcon={Layers}
           />
-          <div className="mt-2 grid gap-3 grid-cols-2 sm:grid-cols-2 lg:grid-cols-5">
-            {panoramaKpis}
+          <div className="mt-2 grid gap-3 grid-cols-1 sm:grid-cols-3">
+            {mainKpis}
+          </div>
+        </section>
+
+        <section className="scroll-mt-32 rounded-2xl border border-border bg-card p-4 shadow-sm" id="executive-summary" aria-busy={newGroups24hLoading || pulse24hLoading ? "true" : undefined}>
+          <SectionHeader
+            title="Resumo executivo"
+            subtitle="Leitura rápida + detalhes do dia"
+            subtitleClassName="font-normal text-muted-foreground/80"
+            density="compact"
+            titleIcon={Activity}
+          />
+
+          <div className="mt-2 space-y-3">
+            <div className="rounded-lg bg-secondary/25 p-3">
+              <p className="text-[13px] leading-relaxed text-card-foreground">
+                <span className="font-medium">Leitura rápida:</span> {daySummary}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-3">
+              <Accordion type="multiple" className="w-full">
+                <AccordionItem value="alerts" className="border-border/60">
+                  <AccordionTrigger className="text-sm text-muted-foreground hover:text-foreground">
+                    <div className="flex items-center gap-2">
+                      <span>Alertas (24h)</span>
+                      <Badge variant="secondary" className="h-5 px-2 text-[10px] font-medium tabular-nums">
+                        {alerts24h.length}
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {newGroups24hLoading && pulse24hLoading ? (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                            <Skeleton className="h-4 w-7/12" />
+                            <div className="mt-2 space-y-2">
+                              <Skeleton className="h-3 w-full" />
+                              <Skeleton className="h-3 w-9/12" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : alerts24h.length === 0 && (newGroups24hLoading || pulse24hLoading) ? (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-live="polite" aria-busy="true">
+                        {Array.from({ length: 2 }).map((_, i) => (
+                          <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                            <Skeleton className="h-4 w-6/12" />
+                            <div className="mt-2 space-y-2">
+                              <Skeleton className="h-3 w-full" />
+                              <Skeleton className="h-3 w-10/12" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : alerts24h.length === 0 ? (
+                      <div className="rounded-lg border border-success/30 bg-success/5 p-3">
+                        <p className="text-[13px] text-muted-foreground">Tudo calmo: nenhuma ação imediata nas últimas 24h.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-live="polite">
+                        {alerts24h.map((a, i) => {
+                          const ToneIcon = a.tone === "warning" ? AlertTriangle : a.tone === "info" ? Info : Minus;
+                          return (
+                            <button
+                              key={a.id}
+                              type="button"
+                              onClick={() => navigate(a.href)}
+                              className={
+                                "ripple-surface group w-full text-left rounded-lg border px-3 py-3 shadow-sm transition-colors transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-in " +
+                                toneCardClassName(a.tone)
+                              }
+                              style={{ animationDelay: `${i * 60}ms` }}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className={"h-5 px-2 text-[10px] font-medium " + toneBadgeClassName(a.tone)}>
+                                      <span className="inline-flex items-center gap-1">
+                                        <ToneIcon className="h-3 w-3" aria-hidden="true" />
+                                        {a.tone === "warning" ? "Atenção" : a.tone === "info" ? "Acompanhar" : "Info"}
+                                      </span>
+                                    </Badge>
+                                    <div className="text-[13px] font-semibold leading-snug text-foreground truncate">{a.title}</div>
+                                  </div>
+                                  <p className="mt-1 text-[12px] text-muted-foreground leading-snug">{a.description}</p>
+                                </div>
+                                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="pulse" className="border-border/60">
+                  <AccordionTrigger className="text-sm text-muted-foreground hover:text-foreground">
+                    <div className="flex items-center gap-2">
+                      <span>Pulso (24h)</span>
+                      <Badge variant="outline" className="h-5 border-border/60 bg-transparent px-2 text-[10px] font-medium text-muted-foreground">
+                        Concentração {pulseMeta.concentration}
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {pulse24hLoading ? (
+                      <div className="space-y-2" aria-live="polite" aria-busy="true">
+                        <div className="rounded-lg border border-border bg-card/50 p-2.5">
+                          <Skeleton className="h-4 w-6/12" />
+                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                              <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                                <Skeleton className="h-4 w-10/12" />
+                                <div className="mt-2 space-y-2">
+                                  <Skeleton className="h-3 w-8/12" />
+                                  <Skeleton className="h-3 w-7/12" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                              <Skeleton className="h-4 w-8/12" />
+                              <Skeleton className="mt-2 h-3 w-5/12" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : pulse24hError ? (
+                      <div>
+                        <ErrorState title="Falha ao carregar" message="Não foi possível carregar o pulso das comunidades (24h)." retry={refetchPulse24h} />
+                      </div>
+                    ) : !pulse24h || !pulse24h.topGroups || pulse24h.topGroups.length === 0 ? (
+                      <div className="rounded-lg bg-secondary/25 p-3">
+                        <p className="text-[13px] text-muted-foreground">Ainda não há atividade suficiente nas últimas 24h.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3" aria-live="polite">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[14px] font-semibold leading-tight text-card-foreground">
+                              <span className="tabular-nums">{formatNumberBR(pulseMeta.totalMessages)}</span> mensagens
+                              <span className="mx-2 text-muted-foreground/50">·</span>
+                              <span className="tabular-nums">{formatNumberBR(pulseMeta.activeGroups)}</span> grupos ativos
+                            </div>
+                            <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                              Top 4 concentram <span className="font-medium tabular-nums text-card-foreground">{pulseMeta.sharePct}%</span> da conversa
+                            </div>
+                            <div className="mt-1 text-[12px] leading-snug text-muted-foreground/80">{pulseMeta.insight}</div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {pulse24h.topGroups.slice(0, 4).map((g, idx) => {
+                            const count = Number(g.count || 0);
+                            const share = pulseMeta.totalMessages ? Math.round((count / pulseMeta.totalMessages) * 100) : 0;
+                            const rank = (idx + 1) as 1 | 2 | 3 | 4;
+                            const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "4";
+                            const activeMembers = Number(g.activeMembers || 0);
+                            return (
+                              <button
+                                key={g.id}
+                                type="button"
+                                onClick={() => navigate(`/groups/${g.id}`)}
+                                className={
+                                  "ripple-surface group w-full text-left rounded-lg border px-3 py-3 shadow-sm transition-colors transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-in " +
+                                  pulseRankCardClassName(rank)
+                                }
+                                style={{ animationDelay: `${idx * 60}ms` }}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div
+                                    className={
+                                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border text-base font-semibold tabular-nums " +
+                                      pulseRankBadgeClassName(rank)
+                                    }
+                                    aria-hidden="true"
+                                  >
+                                    {medal}
+                                  </div>
+
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-[14px] font-semibold leading-snug text-card-foreground truncate">{g.name}</div>
+                                    <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                                      <span className="tabular-nums font-medium text-card-foreground/90">{formatNumberBR(count)}</span> mensagens
+                                      <span className="mx-2 text-muted-foreground/50">·</span>
+                                      <span className="tabular-nums">{formatNumberBR(activeMembers)}</span> ativos
+                                    </div>
+                                    <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground/90">
+                                      <span className="tabular-nums">{share}%</span> da conversa total
+                                    </div>
+                                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border/40">
+                                      <div
+                                        className={cn(
+                                          "h-full rounded-full",
+                                          rank === 1 ? "bg-[hsl(var(--warning))]/70" : rank === 2 ? "bg-[hsl(var(--info))]/70" : "bg-primary/60",
+                                        )}
+                                        style={{ width: `${Math.max(0, Math.min(100, share))}%` }}
+                                        aria-hidden="true"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <ChevronRight
+                                    className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground"
+                                    aria-hidden="true"
+                                  />
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {pulse24h.topGroups.length > 4 && (
+                          <div className="rounded-lg border border-border bg-card/30 p-2.5">
+                            <div className="text-[11px] text-muted-foreground/80">Demais grupos (5º ao 10º)</div>
+                            <ul className="mt-2 space-y-1" role="list">
+                              {pulse24h.topGroups.slice(4, 10).map((g, idx) => {
+                                const rank = idx + 5;
+                                const count = Number(g.count || 0);
+                                const share = pulseMeta.totalMessages ? Math.round((count / pulseMeta.totalMessages) * 100) : 0;
+                                return (
+                                  <li key={g.id} role="listitem">
+                                    <button
+                                      type="button"
+                                      onClick={() => navigate(`/groups/${g.id}`)}
+                                      className="ripple-surface group w-full text-left rounded-md border border-border/70 bg-card/40 px-2.5 py-1.5 transition-colors transition-transform hover:bg-secondary/25 hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                    >
+                                      <div className="flex items-center justify-between gap-3">
+                                        <div className="min-w-0 flex items-center gap-2">
+                                          <div className="w-6 text-[10px] font-medium tabular-nums text-muted-foreground/60" aria-hidden="true">
+                                            {rank}
+                                          </div>
+                                          <div className="min-w-0 text-[13px] font-medium leading-snug text-card-foreground truncate">{g.name}</div>
+                                        </div>
+                                        <div className="shrink-0 flex items-center gap-2">
+                                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-border/40" aria-hidden="true">
+                                            <div className="h-full rounded-full bg-primary/60" style={{ width: `${Math.max(0, Math.min(100, share))}%` }} />
+                                          </div>
+                                          <div className="text-[12px] font-semibold tabular-nums text-card-foreground">{formatNumberBR(count)}</div>
+                                          <div className="text-[10px] text-muted-foreground/70">msg</div>
+                                          <ChevronRight className="h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
+                                        </div>
+                                      </div>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="new-groups" className="border-border/60">
+                  <AccordionTrigger className="text-sm text-muted-foreground hover:text-foreground">
+                    <div className="flex items-center gap-2">
+                      <span>Novos grupos (24h)</span>
+                      <Badge variant="secondary" className="h-5 px-2 text-[10px] font-medium tabular-nums">
+                        {newGroups24h?.length ?? 0}
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {newGroups24hLoading ? (
+                      <div className="grid grid-cols-1 gap-2">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1 space-y-2">
+                                <Skeleton className="h-4 w-7/12" />
+                                <div className="flex flex-wrap gap-2">
+                                  <Skeleton className="h-3 w-16" />
+                                  <Skeleton className="h-3 w-20" />
+                                  <Skeleton className="h-3 w-16" />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Skeleton className="h-6 w-16" />
+                                <Skeleton className="h-3 w-10" />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : newGroups24hError ? (
+                      <div>
+                        <ErrorState title="Falha ao carregar" message="Não foi possível carregar os novos grupos das últimas 24h." retry={refetchNewGroups24h} />
+                      </div>
+                    ) : !newGroups24h || newGroups24h.length === 0 ? (
+                      <div className="rounded-lg bg-secondary/25 p-3">
+                        <p className="text-[13px] text-muted-foreground">Tudo tranquilo: nenhum grupo novo nas últimas 24h.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2" aria-live="polite">
+                        <div className="text-[11px] text-muted-foreground/80">
+                          Leia assim: com mensagens = aquecendo; sem atividade = pode precisar de onboarding.
+                        </div>
+
+                        <ul className="space-y-2" role="list">
+                          {newGroups24h.map((g, idx) => {
+                            const statusTone: "warning" | "info" | "muted" = g.status === "active" ? "warning" : g.status === "new" ? "info" : "muted";
+                            const statusLabel = g.status === "active" ? "Ativo" : g.status === "new" ? "Novo" : "Sem atividade";
+                            const StatusIcon = g.status === "active" ? Activity : g.status === "new" ? Clock : Minus;
+                            const firstActivityLabel = (() => {
+                              if (!g.firstActivityAt) return "—";
+                              const date = new Date(g.firstActivityAt);
+                              if (!Number.isFinite(date.getTime())) return "—";
+                              return formatInTimeZone(date, SAO_PAULO_TZ, "HH:mm");
+                            })();
+
+                            return (
+                              <li key={g.id} role="listitem">
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/groups/${g.id}`)}
+                                  className="ripple-surface group w-full text-left rounded-lg border border-border bg-card/50 px-2.5 py-2 transition-colors transition-transform duration-200 hover:bg-secondary/30 hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background animate-fade-in"
+                                  style={{ animationDelay: `${idx * 30}ms` }}
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <Badge variant="outline" className={"h-5 px-2 text-[10px] font-medium shrink-0 " + toneBadgeClassName(statusTone)}>
+                                          <span className="inline-flex items-center gap-1">
+                                            <StatusIcon className="h-3 w-3" aria-hidden="true" />
+                                            {statusLabel}
+                                          </span>
+                                        </Badge>
+                                        <div className="text-[13px] font-semibold leading-snug text-foreground truncate">{g.name}</div>
+                                      </div>
+                                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                                        <span className="truncate max-w-[26ch]">{g.organizations?.name || "—"}</span>
+                                        <span className="text-muted-foreground/50">·</span>
+                                        <span className="whitespace-nowrap tabular-nums">{formatHoursAgoLabel(g.createdHoursAgo)}</span>
+                                        <span className="text-muted-foreground/50">·</span>
+                                        <span className="whitespace-nowrap tabular-nums">{formatNumberBR(g.messages24h)} msg</span>
+                                        <span className="text-muted-foreground/50">·</span>
+                                        <span className="whitespace-nowrap tabular-nums">1ª às {firstActivityLabel}</span>
+                                      </div>
+                                    </div>
+
+                                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
+                                  </div>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+          </div>
+        </section>
+
+        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="context">
+          <SectionHeader
+            title="Contexto do período"
+            subtitle="Base monitorada e alcance"
+            subtitleClassName="font-normal text-muted-foreground/80"
+            density="compact"
+            titleIcon={Layers}
+          />
+          <div className="mt-2 grid gap-3 grid-cols-1 sm:grid-cols-2">
+            {contextKpis}
           </div>
         </section>
 
