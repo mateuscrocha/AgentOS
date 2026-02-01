@@ -458,7 +458,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                   </div>
                   <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">
                     {c.message_type === "system"
-                      ? formatWhatsAppStyles(c.content_preview || `[${translateType(c.message_type)}]`)
+                      ? formatWhatsAppStyles(c.content_preview || `[${translateMessageType(c.message_type)}]`)
                       : (c.content_preview || `[${translateMessageType(c.message_type)}]`)}
                   </div>
                 </div>
@@ -468,7 +468,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                 <div className="text-[11px] font-medium text-muted-foreground">Mensagem selecionada</div>
                 <div className="mt-1 text-sm text-card-foreground whitespace-pre-wrap break-words">
                   {(() => {
-                    const raw = (message?.text || message?.content || message?.media_caption || "").toString().trim() || `[${translateType(message?.message_type || "text")}]`;
+                    const raw = (message?.text || message?.content || message?.media_caption || "").toString().trim() || `[${translateMessageType(message?.message_type || "text")}]`;
                     return message?.message_type === "system" ? formatWhatsAppStyles(raw) : raw;
                   })()}
                 </div>
@@ -483,8 +483,8 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                   </div>
                   <div className="mt-1 text-sm text-card-foreground line-clamp-2 whitespace-pre-wrap break-words">
                     {c.message_type === "system"
-                      ? formatWhatsAppStyles(c.content_preview || `[${translateType(c.message_type)}]`)
-                      : (c.content_preview || `[${translateType(c.message_type)}]`)}
+                      ? formatWhatsAppStyles(c.content_preview || `[${translateMessageType(c.message_type)}]`)
+                      : (c.content_preview || `[${translateMessageType(c.message_type)}]`)}
                   </div>
                 </div>
               ))}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,15 +20,19 @@ import { computePollPercent } from "@/lib/polls";
 import { Badge } from "@/components/ui/badge";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink } from "@/components/ui/pagination";
 import { formatDateSimpleBR } from "@/lib/date";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { motion } from "framer-motion";
+import type { Database } from "@/integrations/supabase/types";
 
-interface PollItem {
-  id: string;
-  question: string;
-  created_at: string;
-  max_options: number | null;
-  max_votes_per_member: number | null;
-  whatsapp_provider_id: string | null;
-}
+type PollRow = Database["public"]["Tables"]["polls"]["Row"];
+type PollSummaryRow = Database["public"]["Views"]["v_poll_summary"]["Row"];
+type PollResultRow = Database["public"]["Views"]["v_poll_results"]["Row"];
+
+type PollItem = Pick<
+  PollRow,
+  "id" | "question" | "created_at" | "max_options" | "max_votes_per_member" | "whatsapp_provider_id"
+>;
 
 type PollSummaryItem = {
   votersCount: number;
@@ -44,6 +48,7 @@ type PollOptionResult = {
 };
 
 const PAGE_SIZE = 10;
+const QUESTION_LAYOUT_TRANSITION = { duration: 0.22, ease: "easeOut" } as const;
 
 export default function GroupPolls() {
   const { groupId } = useParams();
@@ -54,8 +59,16 @@ export default function GroupPolls() {
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const currentRange = getDateRange(selectedPeriod, customRange);
-  const hasActiveFilters = selectedPeriod !== '7d' || !!customRange;
+  const hasActiveFilters = selectedPeriod !== '7d' || !!customRange || !!search.trim();
+
+  useEffect(() => {
+    const next = search.trim();
+    const t = window.setTimeout(() => setDebouncedSearch(next), 300);
+    return () => window.clearTimeout(t);
+  }, [search]);
 
 
   const { data: groupInfo } = useQuery({
@@ -109,18 +122,23 @@ export default function GroupPolls() {
   });
 
   const { data: pollsData, isLoading, error } = useQuery({
-    queryKey: ["group-polls", groupId, page, currentRange.from.toISOString(), currentRange.to.toISOString()],
+    queryKey: ["group-polls", groupId, page, currentRange.from.toISOString(), currentRange.to.toISOString(), debouncedSearch],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const { data, error, count } = await (supabase as any)
+      let q = supabase
         .from("polls")
         .select("id, question, created_at, max_options, max_votes_per_member, whatsapp_provider_id", { count: "exact" })
         .eq("group_id", groupId)
         .gte("created_at", currentRange.from.toISOString())
         .lte("created_at", currentRange.to.toISOString())
-        .order("created_at", { ascending: false })
-        .range(from, to);
+        .order("created_at", { ascending: false });
+
+      if (debouncedSearch.length >= 2) {
+        q = q.ilike("question", `%${debouncedSearch}%`);
+      }
+
+      const { data, error, count } = await q.range(from, to);
       if (error) throw error;
       return { items: (data ?? []) as PollItem[], count: count ?? 0 };
     },
@@ -132,16 +150,18 @@ export default function GroupPolls() {
     queryFn: async () => {
       const ids = (pollsData?.items || []).map(p => p.id);
       if (!ids.length) return {} as Record<string, PollSummaryItem>;
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from("v_poll_summary")
         .select("poll_id, voters_count, vote_events_count, selections_count")
         .in("poll_id", ids);
+
       const map: Record<string, PollSummaryItem> = {};
-      for (const r of data || []) {
-        map[r.poll_id as string] = {
-          votersCount: Number(r.voters_count || 0),
-          voteEventsCount: Number(r.vote_events_count || 0),
-          selectionsCount: Number(r.selections_count || 0),
+      for (const r of (data ?? []) as PollSummaryRow[]) {
+        if (!r.poll_id) continue;
+        map[String(r.poll_id)] = {
+          votersCount: Number(r.voters_count ?? 0),
+          voteEventsCount: Number(r.vote_events_count ?? 0),
+          selectionsCount: Number(r.selections_count ?? 0),
         };
       }
       return map;
@@ -155,7 +175,7 @@ export default function GroupPolls() {
       const ids = (pollsData?.items || []).map(p => p.id);
       if (!ids.length) return {} as Record<string, PollOptionResult[]>;
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("v_poll_results")
         .select("poll_id, option_text, option_index, votes_count")
         .in("poll_id", ids)
@@ -165,11 +185,12 @@ export default function GroupPolls() {
       if (error) throw error;
 
       const map: Record<string, PollOptionResult[]> = {};
-      for (const r of data || []) {
-        const pollId = r.poll_id as string;
+      for (const r of (data ?? []) as PollResultRow[]) {
+        if (!r.poll_id) continue;
+        const pollId = String(r.poll_id);
         (map[pollId] ||= []).push({
           pollId,
-          optionText: r.option_text as string,
+          optionText: String(r.option_text ?? "").trim() || "—",
           optionIndex: Number(r.option_index ?? 0),
           votesCount: Number(r.votes_count ?? 0),
         });
@@ -188,8 +209,14 @@ export default function GroupPolls() {
     );
   }
 
-  const errorCode = (error as any)?.code;
-  if (error && (error.message?.includes("permission") || errorCode === "PGRST301")) {
+  const errorMessage = error instanceof Error ? error.message : "";
+  const errorCode = (() => {
+    if (!error || typeof error !== "object") return "";
+    if (!("code" in error)) return "";
+    return String((error as { code?: unknown }).code ?? "");
+  })();
+
+  if (error && (errorMessage.includes("permission") || errorCode === "PGRST301")) {
     return <AccessDenied message="Você não tem permissão para acessar as enquetes deste grupo." />;
   }
 
@@ -214,6 +241,16 @@ export default function GroupPolls() {
           }}
           filters={(
             <div className="flex items-center gap-3">
+              <Input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Buscar pergunta…"
+                className="h-9 w-[220px] max-w-[45vw] bg-card"
+                aria-label="Buscar por texto da pergunta"
+              />
               <PeriodFilter
                 value={selectedPeriod}
                 customRange={customRange}
@@ -223,8 +260,17 @@ export default function GroupPolls() {
             </div>
           )}
           showClearFilters={hasActiveFilters}
-          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setPage(1); }}
+          onClearFilters={() => {
+            setSelectedPeriod('7d');
+            setCustomRange(undefined);
+            setSearch("");
+            setPage(1);
+          }}
         />
+
+        <div className="sr-only" aria-live="polite">
+          {(pollsData?.count ?? 0)} enquetes no período selecionado{debouncedSearch ? ` (busca: ${debouncedSearch})` : ""}.
+        </div>
 
         {error || resultsError ? (
           <ErrorState
@@ -237,7 +283,46 @@ export default function GroupPolls() {
             }}
           />
         ) : isLoading ? (
-          <LoadingState message="Carregando enquetes..." />
+          <div className="space-y-4" aria-label="Carregando enquetes">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
+                <div className="p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="space-y-2">
+                        <Skeleton className="h-5 w-3/4" />
+                        <Skeleton className="h-5 w-2/3" />
+                      </div>
+                      <Skeleton className="h-3 w-56" />
+                    </div>
+                    <Skeleton className="h-9 w-36 rounded-lg" />
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <div className="rounded-2xl border border-primary/20 bg-primary/10 px-3.5 py-3">
+                      <Skeleton className="h-3 w-32" />
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <Skeleton className="h-4 w-2/3" />
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {Array.from({ length: 3 }).map((__, j) => (
+                        <div key={j} className="rounded-xl px-2 py-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <Skeleton className="h-4 w-2/3" />
+                            <Skeleton className="h-4 w-20" />
+                          </div>
+                          <Skeleton className="mt-2 h-2 w-full rounded-full" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : !pollsData?.items?.length ? (
           <EmptyState
             icon={ListChecks}
@@ -263,11 +348,26 @@ export default function GroupPolls() {
               const isQuestionExpanded = !!expandedQuestions[p.id];
 
               return (
-                <section key={p.id} className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
-                  <div className="p-4 sm:p-5">
+                <section
+                  key={p.id}
+                  className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden"
+                  role="article"
+                  aria-labelledby={`poll-${p.id}-title`}
+                >
+                  <motion.div layout initial={false} transition={QUESTION_LAYOUT_TRANSITION} className="p-4 sm:p-5">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className={cn("text-[16px] sm:text-[18px] font-semibold text-foreground leading-snug", !isQuestionExpanded && "line-clamp-3")}>{p.question || "Enquete"}</h3>
+                      <motion.div layout transition={QUESTION_LAYOUT_TRANSITION} className="min-w-0">
+                        <motion.h3
+                          layout
+                          transition={QUESTION_LAYOUT_TRANSITION}
+                          id={`poll-${p.id}-title`}
+                          className={cn(
+                            "text-[16px] sm:text-[18px] font-semibold text-foreground leading-snug",
+                            !isQuestionExpanded && "line-clamp-3"
+                          )}
+                        >
+                          {p.question || "Enquete"}
+                        </motion.h3>
 
                         {showQuestionToggle ? (
                           <button
@@ -283,17 +383,19 @@ export default function GroupPolls() {
                         ) : null}
 
                         <div className="mt-2 text-xs text-muted-foreground">
-                          <span className="tabular-nums">Criada em {createdAtLabel}</span> • <span className="tabular-nums">{voteEventsCount}</span> votos
+                          <span className="tabular-nums">Criada em {createdAtLabel}</span> • <span className="tabular-nums">{voteEventsCount}</span> votos registrados
                         </div>
-                      </div>
+                      </motion.div>
 
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => navigate(`/groups/${groupId}/polls/${p.id}`)}
                         className="shrink-0 text-primary hover:bg-primary/10"
+                        aria-label="Abrir detalhes da enquete"
                       >
-                        Entender respostas
+                        <span className="hidden sm:inline">Entender respostas</span>
+                        <ChevronRight className="h-4 w-4 sm:ml-1" />
                       </Button>
                     </div>
 
@@ -338,10 +440,17 @@ export default function GroupPolls() {
                                 </div>
 
                                 <div className="mt-2 h-2 rounded-full bg-muted/60 overflow-hidden">
-                                  <div
-                                    className={cn("h-full rounded-full", isWinner ? "bg-primary" : "bg-foreground/20")}
-                                    style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
-                                  />
+                                  {opt.votesCount <= 0 ? (
+                                    <div className="h-full w-full rounded-full border border-dashed border-foreground/20" />
+                                  ) : (
+                                    <div
+                                      className={cn(
+                                        "h-full rounded-full transition-[width] duration-500 ease-out",
+                                        isWinner ? "bg-primary" : "bg-foreground/20",
+                                      )}
+                                      style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+                                    />
+                                  )}
                                 </div>
                               </div>
                             );
@@ -349,7 +458,7 @@ export default function GroupPolls() {
                         </div>
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                 </section>
               );
             })}
@@ -398,6 +507,7 @@ export default function GroupPolls() {
                                       e.preventDefault();
                                       setPage(it);
                                     }}
+                                    aria-label={`Ir para página ${it}`}
                                   >
                                     {it}
                                   </PaginationLink>

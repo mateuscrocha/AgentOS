@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -7,11 +7,10 @@ import { LoadingState } from "@/components/ui/loading-state";
 import AccessDenied from "./AccessDenied";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Activity, Copy } from "lucide-react";
+import { Activity, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { KpiCard } from "@/components/group-dashboard";
@@ -21,26 +20,45 @@ import { notify } from "@/components/ui/sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { getInitialsFromName } from "@/lib/utils";
+import type { Database } from "@/integrations/supabase/types";
+
+type PollRow = Database["public"]["Tables"]["polls"]["Row"];
+type PollSummaryRow = Database["public"]["Views"]["v_poll_summary"]["Row"];
+type PollResultsRow = Database["public"]["Views"]["v_poll_results"]["Row"];
+type PollVotesByPersonRow = Database["public"]["Views"]["v_poll_votes_by_person"]["Row"];
+
+type PollVoteByPersonItem = {
+  personId: string | null;
+  personName: string | null;
+  votedOptions: string[];
+  createdAt: string;
+  voteSequence: number | null;
+  votesCount: number | null;
+};
+
+type PollOptionItem = {
+  optionText: string;
+  optionIndex: number;
+  votesCount: number;
+};
 
 export default function GroupPoll() {
   const { groupId, pollId } = useParams();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [copyFallbackOpen, setCopyFallbackOpen] = useState(false);
   const [copyFallbackText, setCopyFallbackText] = useState("");
+  const [copied, setCopied] = useState(false);
   const copyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const copiedTimeoutRef = useRef<number | null>(null);
   const loggedAvatarFailuresRef = useRef<Set<string>>(new Set());
 
-  const getNameInitials = (name: string | null | undefined) => {
-    const raw = (name ?? "").trim();
-    if (!raw) return "?";
-    const parts = raw.split(/\s+/).filter(Boolean);
-    const first = (parts[0]?.[0] ?? "").toUpperCase();
-    if (parts.length >= 2) {
-      const last = (parts[parts.length - 1]?.[0] ?? "").toUpperCase();
-      return `${first}${last}` || "?";
-    }
-    return first || "?";
-  };
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current) window.clearTimeout(copiedTimeoutRef.current);
+    };
+  }, []);
 
   const makeShortTitle = (text: string, max = 60) => {
     const raw = (text ?? "").toString().trim();
@@ -77,16 +95,30 @@ export default function GroupPoll() {
     enabled: !!groupId && isAuthenticated,
   });
 
+  const { data: totalMembersCount } = useQuery({
+    queryKey: ["group-members-total", groupId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("members")
+        .select("*", { count: "exact", head: true })
+        .eq("group_id", groupId)
+        .is("deleted_at", null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!groupId && isAuthenticated,
+  });
+
   const { data: poll, error: pollError } = useQuery({
     queryKey: ["poll", pollId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("polls")
         .select("id, question, max_options, created_at")
         .eq("id", pollId)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return data as Pick<PollRow, "id" | "question" | "max_options" | "created_at"> | null;
     },
     enabled: !!pollId && isAuthenticated,
   });
@@ -94,14 +126,15 @@ export default function GroupPoll() {
   const { data: pollOptions } = useQuery({
     queryKey: ["poll-options-results", pollId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from("v_poll_results")
         .select("option_text, option_index, votes_count")
         .eq("poll_id", pollId)
         .order("option_index", { ascending: true });
-      return (data ?? []).map((r: any) => ({
-        optionText: r.option_text as string,
-        optionIndex: Number(r.option_index),
+
+      return ((data ?? []) as PollResultsRow[]).map((r): PollOptionItem => ({
+        optionText: String(r.option_text ?? "").trim() || "—",
+        optionIndex: Number(r.option_index ?? 0),
         votesCount: Number(r.votes_count ?? 0),
       }));
     },
@@ -111,12 +144,12 @@ export default function GroupPoll() {
   const { data: pollSummary } = useQuery({
     queryKey: ["poll-summary", pollId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from("v_poll_summary")
         .select("voters_count, vote_events_count, selections_count")
         .eq("poll_id", pollId)
         .maybeSingle();
-      return data;
+      return data as Pick<PollSummaryRow, "voters_count" | "vote_events_count" | "selections_count"> | null;
     },
     enabled: !!pollId && isAuthenticated,
   });
@@ -124,16 +157,17 @@ export default function GroupPoll() {
   const { data: pollVotesByPerson, isLoading: pollVotesByPersonLoading } = useQuery({
     queryKey: ["poll-votes-by-person", pollId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from("v_poll_votes_by_person")
         .select("person_id, person_name, voted_options, created_at, vote_sequence, votes_count")
         .eq("poll_id", pollId)
         .order("created_at", { ascending: false });
-      return (data ?? []).map((r: any) => ({
-        personId: r.person_id as string | null,
-        personName: r.person_name as string | null,
+
+      return ((data ?? []) as PollVotesByPersonRow[]).map((r): PollVoteByPersonItem => ({
+        personId: (r.person_id as string | null) ?? null,
+        personName: (r.person_name as string | null) ?? null,
         votedOptions: normalizeVotedOptions(r.voted_options),
-        createdAt: r.created_at as string,
+        createdAt: (r.created_at as string | null) ?? "",
         voteSequence: Number(r.vote_sequence ?? 0) || null,
         votesCount: Number(r.votes_count ?? 0) || null,
       }));
@@ -143,8 +177,8 @@ export default function GroupPoll() {
 
   const voterIds = useMemo(() => {
     const ids = (pollVotesByPerson ?? [])
-      .map((v: any) => v.personId as string | null)
-      .filter((id: string | null): id is string => !!id);
+      .map((v) => v.personId)
+      .filter((id): id is string => !!id);
     return Array.from(new Set(ids)).sort();
   }, [pollVotesByPerson]);
 
@@ -152,7 +186,7 @@ export default function GroupPoll() {
     queryKey: ["poll-voters-avatars", groupId, voterIds],
     queryFn: async () => {
       if (!voterIds.length || !groupId) return {} as Record<string, string | null>;
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("members")
         .select("id, profile_pic_url")
         .eq("group_id", groupId)
@@ -176,25 +210,60 @@ export default function GroupPoll() {
     );
   }
 
-  if (pollError && ((pollError as any).message?.includes("permission") || (pollError as any).code === "PGRST301")) {
+  const pollErrorMessage = pollError instanceof Error ? pollError.message : "";
+  const pollErrorCode = (() => {
+    if (!pollError || typeof pollError !== "object") return "";
+    if (!("code" in pollError)) return "";
+    return String((pollError as { code?: unknown }).code ?? "");
+  })();
+
+  if (pollError && (pollErrorMessage.includes("permission") || pollErrorCode === "PGRST301")) {
     return <AccessDenied message="Você não tem permissão para acessar esta enquete." />;
   }
 
-  const totalVotes = (pollOptions ?? []).reduce((sum: number, o: any) => sum + o.votesCount, 0);
-  const votersCount = Number((pollSummary as any)?.voters_count ?? 0);
-  const voteEventsCount = Number((pollSummary as any)?.vote_events_count ?? 0);
-  const selectionsCount = Number((pollSummary as any)?.selections_count ?? 0);
+  const totalVotes = (pollOptions ?? []).reduce((sum, o) => sum + o.votesCount, 0);
+  const votersCount = Number(pollSummary?.voters_count ?? 0);
+  const voteEventsCount = Number(pollSummary?.vote_events_count ?? 0);
+  const selectionsCount = Number(pollSummary?.selections_count ?? 0);
   const percentBase = selectionsCount > 0 ? selectionsCount : totalVotes;
-  const sortedOptions = [...(pollOptions ?? [])].sort((a: any, b: any) => b.votesCount - a.votesCount);
-  const chartData = sortedOptions.map((o: any) => ({ name: o.optionText, value: o.votesCount }));
-  const createdAtLabel = poll ? formatDateDescriptiveBR((poll as any).created_at) : "";
+  const sortedOptions = [...(pollOptions ?? [])].sort((a, b) => b.votesCount - a.votesCount);
+  const chartData = sortedOptions.map((o) => ({ name: o.optionText, value: o.votesCount }));
+  const topValue = sortedOptions.reduce((m, o) => Math.max(m, Number(o.votesCount ?? 0)), 0);
+  const createdAtLabel = poll?.created_at ? formatDateDescriptiveBR(poll.created_at) : "";
+
+  const participationPercent = (totalMembersCount ?? 0) > 0
+    ? Math.round((votersCount / Math.max(1, totalMembersCount ?? 0)) * 100)
+    : 0;
+
+  const kpiHelp = {
+    selections: {
+      whatIs: "Soma das seleções em todas as opções.",
+      howToInterpret: "Pode ser maior que o número de votantes se a enquete permitir múltiplas opções por voto.",
+      whatToObserve: "Use para ver volume total de escolhas e distribuição entre opções.",
+    },
+    voteEvents: {
+      whatIs: "Quantidade de registros de voto (eventos).",
+      howToInterpret: "Se alguém muda o voto, isso gera novos registros. Por isso pode ser maior que ‘Votantes únicos’.",
+      whatToObserve: "Alta diferença entre ‘registrados’ e ‘únicos’ indica mudanças/revotações.",
+    },
+    voters: {
+      whatIs: "Quantidade de pessoas únicas que votaram.",
+      howToInterpret: "Cada pessoa conta uma vez, mesmo que tenha votado mais de uma vez.",
+      whatToObserve: "Compare com ‘Taxa de participação’ para entender alcance no grupo.",
+    },
+    participation: {
+      whatIs: "Percentual de membros do grupo que votaram.",
+      howToInterpret: "Votantes únicos ÷ total de membros do grupo.",
+      whatToObserve: "Baixa participação pode indicar pergunta pouco clara ou timing ruim.",
+    },
+  };
 
   const buildWhatsAppResultText = () => {
-    const question = String((poll as any)?.question ?? "");
+    const question = String(poll?.question ?? "");
     const title = makeShortTitle(question);
-    const date = (poll as any)?.created_at ? formatDateSimpleBR((poll as any).created_at) : "—";
+    const date = poll?.created_at ? formatDateSimpleBR(poll.created_at) : "—";
 
-    const opts = [...(pollOptions ?? [])].sort((a: any, b: any) => {
+    const opts = [...(pollOptions ?? [])].sort((a, b) => {
       const d = Number(b.votesCount ?? 0) - Number(a.votesCount ?? 0);
       if (d !== 0) return d;
       return Number(a.optionIndex ?? 0) - Number(b.optionIndex ?? 0);
@@ -217,7 +286,7 @@ export default function GroupPoll() {
     if (percentBase <= 0 || totalVotes <= 0) {
       lines.push("Sem votos ainda");
     } else {
-      opts.forEach((o: any, idx: number) => {
+      opts.forEach((o, idx) => {
         const votes = Number(o.votesCount ?? 0);
         const pct = computePollPercent(votes, percentBase, 1);
         const label = String(o.optionText ?? "").trim() || "—";
@@ -240,6 +309,9 @@ export default function GroupPoll() {
     const text = buildWhatsAppResultText();
     try {
       await navigator.clipboard.writeText(text);
+      setCopied(true);
+      if (copiedTimeoutRef.current) window.clearTimeout(copiedTimeoutRef.current);
+      copiedTimeoutRef.current = window.setTimeout(() => setCopied(false), 1600);
       notify.success("Resultado copiado", "Pronto para colar no WhatsApp.");
     } catch {
       notify.error("Não foi possível copiar automaticamente", "Abra o texto e selecione tudo.");
@@ -272,7 +344,7 @@ export default function GroupPoll() {
               <Activity className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl md:text-2xl font-semibold text-card-foreground">{(poll as any)?.question || "Enquete"}</h1>
+              <h1 className="text-xl md:text-2xl font-semibold text-card-foreground">{poll?.question || "Enquete"}</h1>
               <p className="text-xs md:text-sm text-muted-foreground">Criada em {createdAtLabel}</p>
             </div>
           </div>
@@ -311,10 +383,11 @@ export default function GroupPoll() {
             ) : (
                 <div className="space-y-5">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <KpiCard title="Votos (seleções)" value={totalVotes} />
-                    <KpiCard title="Votos registrados" value={voteEventsCount} />
-                    <KpiCard title="Votantes únicos" value={votersCount} />
-                    <KpiCard title="Máx. opções" value={(poll as any).max_options ?? 1} />
+                    <KpiCard title="Votos (seleções)" value={totalVotes} help={kpiHelp.selections} />
+                    <KpiCard title="Votos registrados" value={voteEventsCount} help={kpiHelp.voteEvents} />
+                    <KpiCard title="Votantes únicos" value={votersCount} help={kpiHelp.voters} />
+                    <KpiCard title="Taxa de participação" value={`${participationPercent}%`} help={kpiHelp.participation} />
+                    <KpiCard title="Máx. opções" value={poll?.max_options ?? 1} helpText="Número máximo de opções que cada pessoa pode selecionar." />
                   </div>
 
                   <div className="flex items-center justify-between gap-3">
@@ -322,9 +395,15 @@ export default function GroupPoll() {
                       <div className="text-sm font-medium text-card-foreground">Resumo do Resultado</div>
                       <div className="text-xs text-muted-foreground">Copie para WhatsApp com a formatação correta.</div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => void copyWhatsAppResult()} className="shrink-0">
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copiar resultado (WhatsApp)
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void copyWhatsAppResult()}
+                      className="shrink-0"
+                      aria-label="Copiar resultado para WhatsApp"
+                    >
+                      {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                      {copied ? "Copiado" : "Copiar resultado (WhatsApp)"}
                     </Button>
                   </div>
 
@@ -339,7 +418,19 @@ export default function GroupPoll() {
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} className="text-muted-foreground" axisLine={false} tickLine={false} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" axisLine={false} tickLine={false} width={40} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4,4,0,0]} />
+                      <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                        {chartData.map((entry, idx) => {
+                          const isWinner = topValue > 0 && entry.value === topValue;
+                          return (
+                            <Cell
+                              key={`cell-${idx}`}
+                              fillOpacity={isWinner ? 1 : 0.35}
+                              stroke={isWinner ? "hsl(var(--primary))" : "transparent"}
+                              strokeWidth={isWinner ? 1 : 0}
+                            />
+                          );
+                        })}
+                      </Bar>
                     </BarChart>
                   </ChartContainer>
                 )}
@@ -350,13 +441,23 @@ export default function GroupPoll() {
                   ) : (
                     sortedOptions.map((opt: any) => {
                       const pct = computePollPercent(opt.votesCount, percentBase, 1);
+                      const isWinner = topValue > 0 && opt.votesCount === topValue;
                       return (
                         <div key={opt.optionIndex} className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-card-foreground">{opt.optionText}</span>
+                            <span className={isWinner ? "text-sm text-primary font-medium" : "text-sm text-card-foreground"}>{opt.optionText}</span>
                             <span className="text-xs text-muted-foreground">{opt.votesCount} voto(s) • {pct}%</span>
                           </div>
-                          <Progress value={pct} />
+                          <div className="h-2 rounded-full bg-muted/60 overflow-hidden">
+                            {opt.votesCount <= 0 ? (
+                              <div className="h-full w-full rounded-full border border-dashed border-foreground/20" />
+                            ) : (
+                              <div
+                                className={isWinner ? "h-full rounded-full bg-primary transition-[width] duration-500 ease-out" : "h-full rounded-full bg-foreground/20 transition-[width] duration-500 ease-out"}
+                                style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+                              />
+                            )}
+                          </div>
                         </div>
                       );
                     })
@@ -365,7 +466,14 @@ export default function GroupPoll() {
 
                 <Accordion type="single" collapsible>
                   <AccordionItem value="votes-by-person">
-                    <AccordionTrigger>Votos por pessoa</AccordionTrigger>
+                    <AccordionTrigger>
+                      <div className="flex items-center gap-2">
+                        <span>Votos por pessoa</span>
+                        <Badge variant="secondary" className="h-5 px-2 text-[11px]">
+                          {pollVotesByPerson?.length ?? 0}
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
                     <AccordionContent>
                       {pollVotesByPersonLoading ? (
                         <div className="space-y-2">
@@ -411,7 +519,7 @@ export default function GroupPoll() {
                                         />
                                       ) : null}
                                       <AvatarFallback className="text-xs font-medium text-muted-foreground">
-                                        {getNameInitials(v.personName)}
+                                        {getInitialsFromName(v.personName) || "?"}
                                       </AvatarFallback>
                                     </Avatar>
                                     <span className="text-sm text-card-foreground truncate">{v.personName || "Participante"}</span>
