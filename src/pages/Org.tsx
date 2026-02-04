@@ -574,10 +574,12 @@ const Org = () => {
   const { data: profileGroupsOverview, isLoading: profileGroupsLoading, error: profileGroupsError } = useQuery({
     queryKey: ["org-profile-groups", orgId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("v_group_overview")
         .select("group_id,group_name,description,members_count,is_active,organization_id")
-        .eq("organization_id", orgId!);
+        .eq("organization_id", orgId!)
+        .neq("is_archived", true);
+      if (error) throw error;
       return (data || []).map((g: any) => ({
         id: g.group_id as string,
         name: g.group_name as string,
@@ -586,18 +588,19 @@ const Org = () => {
         status: g.is_active ? "Ativo" : "Inativo",
       }));
     },
-    enabled: !!orgId && isAuthenticated && hasAccess && isProfileRoute,
+    enabled: !!orgId && isAuthenticated && hasAccess && (isGroupsRoute || isProfileRoute),
   });
 
   const { data: profileLeaders } = useQuery({
     queryKey: ["org-profile-leaders", orgId, orgGroupIds?.join(",")],
     queryFn: async () => {
       if (!orgGroupIds || orgGroupIds.length === 0) return {} as Record<string, string>;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("members")
         .select("group_id,name,is_super_admin,is_admin")
         .in("group_id", orgGroupIds)
         .or("is_super_admin.eq.true,is_admin.eq.true");
+      if (error) throw error;
       const map: Record<string, string> = {};
       (data || []).forEach((m: any) => {
         const gid = m.group_id as string;
@@ -607,7 +610,7 @@ const Org = () => {
       });
       return map;
     },
-    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds) && isProfileRoute,
+    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds) && (isGroupsRoute || isProfileRoute),
   });
 
   const currentRange = getDateRange(selectedPeriod, customRange);
@@ -657,6 +660,151 @@ const Org = () => {
     }
     return lines.join("\n");
   };
+
+  const orgGroupsListSection = (() => {
+    const groupsOverview = profileGroupsOverview;
+    const groupsLoading = profileGroupsLoading;
+    const groupsError = profileGroupsError;
+    const leaders = profileLeaders;
+
+    const list = (groupsOverview || []).map((g: any) => ({ ...g, leader: leaders?.[g.id] || null }));
+    const filtered = list.filter((g: any) => {
+      const s = profileSearch.trim().toLowerCase();
+      if (s && !(`${g.name}`.toLowerCase().includes(s) || `${g.description || ""}`.toLowerCase().includes(s))) return false;
+      if (profileStatusFilter !== "all") {
+        if (profileStatusFilter === "active" && g.status !== "Ativo") return false;
+        if (profileStatusFilter === "inactive" && g.status !== "Inativo") return false;
+      }
+      if (profileLeaderFilter.trim()) {
+        const l = profileLeaderFilter.trim().toLowerCase();
+        if (!(`${g.leader || ""}`.toLowerCase().includes(l))) return false;
+      }
+      return true;
+    });
+    const sorted = filtered.sort((a: any, b: any) => {
+      const dir = profileOrderDir === "asc" ? 1 : -1;
+      if (profileOrderBy === "name") return a.name.localeCompare(b.name, "pt-BR") * dir;
+      if (profileOrderBy === "members") return ((a.members || 0) - (b.members || 0)) * dir;
+      if (profileOrderBy === "status") return a.status.localeCompare(b.status, "pt-BR") * dir;
+      return 0;
+    });
+
+    const handleExportCsv = () => {
+      const csv = buildOrgGroupsCsv(
+        sorted.map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          description: g.description,
+          leader: g.leader,
+          members: g.members,
+          status: g.status,
+        })),
+      );
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${org?.name || "organizacao"}-grupos.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
+    return (
+      <section className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <h4 className="text-sm font-semibold text-foreground">Grupos da organização</h4>
+            <p className="text-xs text-muted-foreground">Lista interativa com filtros e exportação</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportCsv}>Exportar CSV</Button>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+            <input
+              type="text"
+              placeholder="Buscar por nome ou descrição"
+              value={profileSearch}
+              onChange={(e) => setProfileSearch(e.target.value)}
+              className="h-9 w-full px-3 rounded-lg border border-border/60 bg-background text-sm"
+            />
+            <select
+              value={profileStatusFilter}
+              onChange={(e) => setProfileStatusFilter(e.target.value as any)}
+              className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+            >
+              <option value="all">Status</option>
+              <option value="active">Ativos</option>
+              <option value="inactive">Inativos</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Filtrar por líder"
+              value={profileLeaderFilter}
+              onChange={(e) => setProfileLeaderFilter(e.target.value)}
+              className="h-9 w-full px-3 rounded-lg border border-border/60 bg-background text-sm"
+            />
+            <div className="flex gap-2">
+              <select
+                value={profileOrderBy}
+                onChange={(e) => setProfileOrderBy(e.target.value as any)}
+                className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+              >
+                <option value="name">Ordenar: nome</option>
+                <option value="members">Ordenar: integrantes</option>
+                <option value="status">Ordenar: status</option>
+              </select>
+              <select
+                value={profileOrderDir}
+                onChange={(e) => setProfileOrderDir(e.target.value as any)}
+                className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
+              >
+                <option value="asc">Asc</option>
+                <option value="desc">Desc</option>
+              </select>
+            </div>
+          </div>
+
+          {groupsLoading ? (
+            <div className="mt-4"><LoadingState message="Carregando grupos..." /></div>
+          ) : groupsError ? (
+            <div className="mt-4"><ErrorState message="Falha ao carregar grupos" /></div>
+          ) : sorted.length === 0 ? (
+            <div className="mt-2"><EmptyState title="Nenhum grupo" message="Nada por aqui." /></div>
+          ) : (
+            <div className="mt-4">
+              <div className="space-y-3">
+                {sorted.map((g: any) => (
+                  <div
+                    key={g.id}
+                    className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/30 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/groups/${g.id}`)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-card-foreground truncate">{g.name}</div>
+                        <div className="mt-1 text-xs text-muted-foreground truncate">{g.description || ""}</div>
+                        <div className="mt-2 text-xs text-muted-foreground">Líder: {g.leader || "-"}</div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-semibold tabular-nums text-card-foreground">{typeof g.members === "number" ? g.members.toLocaleString("pt-BR") : "-"}</div>
+                        <div className="text-[11px] text-muted-foreground">Integrantes</div>
+                        <div className="mt-1 text-[11px]">{g.status}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  })();
 
   const safeRatio = (curr: number, prev: number): number | null => {
     if (!Number.isFinite(curr) || !Number.isFinite(prev)) return null;
@@ -1554,137 +1702,13 @@ const Org = () => {
               </section>
             </div>
 
-            {(() => {
-              const groupsOverview = profileGroupsOverview;
-              const groupsLoading = profileGroupsLoading;
-              const groupsError = profileGroupsError;
-              const leaders = profileLeaders;
+            {orgGroupsListSection}
+          </div>
+        )}
 
-              const list = (groupsOverview || []).map((g: any) => ({ ...g, leader: leaders?.[g.id] || null }));
-              const filtered = list.filter((g: any) => {
-                const s = profileSearch.trim().toLowerCase();
-                if (s && !(`${g.name}`.toLowerCase().includes(s) || `${g.description || ""}`.toLowerCase().includes(s))) return false;
-                if (profileStatusFilter !== "all") {
-                  if (profileStatusFilter === "active" && g.status !== "Ativo") return false;
-                  if (profileStatusFilter === "inactive" && g.status !== "Inativo") return false;
-                }
-                if (profileLeaderFilter.trim()) {
-                  const l = profileLeaderFilter.trim().toLowerCase();
-                  if (!(`${g.leader || ""}`.toLowerCase().includes(l))) return false;
-                }
-                return true;
-              });
-              const sorted = filtered.sort((a: any, b: any) => {
-                const dir = profileOrderDir === "asc" ? 1 : -1;
-                if (profileOrderBy === "name") return a.name.localeCompare(b.name, "pt-BR") * dir;
-                if (profileOrderBy === "members") return ((a.members || 0) - (b.members || 0)) * dir;
-                if (profileOrderBy === "status") return a.status.localeCompare(b.status, "pt-BR") * dir;
-                return 0;
-              });
-
-              const handleExportCsv = () => {
-                const csv = buildOrgGroupsCsv(sorted.map((g: any) => ({ id: g.id, name: g.name, description: g.description, leader: g.leader, members: g.members, status: g.status })));
-                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `${org?.name || "organizacao"}-grupos.csv`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-              };
-
-              return (
-                <section className="space-y-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 space-y-1">
-                      <h4 className="text-sm font-semibold text-foreground">Grupos da organização</h4>
-                      <p className="text-xs text-muted-foreground">Lista interativa com filtros e exportação</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={handleExportCsv}>Exportar CSV</Button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-border bg-card p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                      <input
-                        type="text"
-                        placeholder="Buscar por nome ou descrição"
-                        value={profileSearch}
-                        onChange={(e) => setProfileSearch(e.target.value)}
-                        className="h-9 w-full px-3 rounded-lg border border-border/60 bg-background text-sm"
-                      />
-                      <select
-                        value={profileStatusFilter}
-                        onChange={(e) => setProfileStatusFilter(e.target.value as any)}
-                        className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
-                      >
-                        <option value="all">Status</option>
-                        <option value="active">Ativos</option>
-                        <option value="inactive">Inativos</option>
-                      </select>
-                      <input
-                        type="text"
-                        placeholder="Filtrar por líder"
-                        value={profileLeaderFilter}
-                        onChange={(e) => setProfileLeaderFilter(e.target.value)}
-                        className="h-9 w-full px-3 rounded-lg border border-border/60 bg-background text-sm"
-                      />
-                      <div className="flex gap-2">
-                        <select
-                          value={profileOrderBy}
-                          onChange={(e) => setProfileOrderBy(e.target.value as any)}
-                          className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
-                        >
-                          <option value="name">Ordenar: nome</option>
-                          <option value="members">Ordenar: integrantes</option>
-                          <option value="status">Ordenar: status</option>
-                        </select>
-                        <select
-                          value={profileOrderDir}
-                          onChange={(e) => setProfileOrderDir(e.target.value as any)}
-                          className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
-                        >
-                          <option value="asc">Asc</option>
-                          <option value="desc">Desc</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {groupsLoading ? (
-                      <div className="mt-4"><LoadingState message="Carregando grupos..." /></div>
-                    ) : groupsError ? (
-                      <div className="mt-4"><ErrorState message="Falha ao carregar grupos" /></div>
-                    ) : sorted.length === 0 ? (
-                      <div className="mt-2"><EmptyState title="Nenhum grupo" message="Nada por aqui." /></div>
-                    ) : (
-                      <div className="mt-4">
-                        <div className="space-y-3">
-                          {sorted.map((g: any) => (
-                            <div key={g.id} className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => navigate(`/groups/${g.id}`)}>
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="text-sm font-semibold text-card-foreground truncate">{g.name}</div>
-                                  <div className="mt-1 text-xs text-muted-foreground truncate">{g.description || ""}</div>
-                                  <div className="mt-2 text-xs text-muted-foreground">Líder: {g.leader || "-"}</div>
-                                </div>
-                                <div className="shrink-0 text-right">
-                                  <div className="text-sm font-semibold tabular-nums text-card-foreground">{typeof g.members === "number" ? g.members.toLocaleString("pt-BR") : "-"}</div>
-                                  <div className="text-[11px] text-muted-foreground">Integrantes</div>
-                                  <div className="mt-1 text-[11px]">{g.status}</div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </section>
-              );
-            })()}
+        {isGroupsRoute && (
+          <div id="org-groups" className="space-y-8">
+            {orgGroupsListSection}
           </div>
         )}
 
