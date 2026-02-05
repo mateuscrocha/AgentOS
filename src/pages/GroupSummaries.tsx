@@ -9,6 +9,7 @@ import { KpiCard } from "@/components/group-dashboard";
 import { DiaryPageSkeleton } from "@/components/group-summaries/DiaryPageSkeleton";
 import { SectionDivider } from "@/components/group-summaries/SectionDivider";
 import { TopicCard } from "@/components/group-summaries/TopicCard";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -177,7 +178,16 @@ function DiaryContent({
                 <div className="space-y-2 pr-3 overflow-x-hidden">
                   {filteredConversationsView.map((day) => {
                     const isActive = day.id === openSummaryId;
-                    const subtitle = pickHumanDaySummary(day.topics, day.keywords);
+                    const topicLabels = (day.topics || [])
+                      .map((t) => cleanInlineLabel(t.title || ""))
+                      .filter(Boolean)
+                      .slice(0, 2);
+                    const keywordLabels = (day.keywords || [])
+                      .map((kw) => cleanInlineLabel(kw.keyword || ""))
+                      .filter(Boolean)
+                      .slice(0, 2);
+                    const hasHighlights = topicLabels.length > 0 || keywordLabels.length > 0;
+                    const subtitle = hasHighlights ? "" : pickHumanDaySummary(day.topics, day.keywords);
                     return (
                       <button
                         key={day.id}
@@ -190,16 +200,39 @@ function DiaryContent({
                         )}
                       >
                         <div className="flex items-center justify-between gap-3 min-w-0">
-                          <div className="min-w-0 text-sm font-medium text-card-foreground truncate">
+                          <div className="min-w-0 text-sm font-medium text-card-foreground whitespace-normal break-words">
                             {formatDateDescriptiveBR(day.dateLabel)}
                           </div>
                           <div className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
                             {day.intensity.label}
                           </div>
                         </div>
-                        <div className="mt-1 text-xs text-muted-foreground whitespace-normal break-words max-w-full">
-                          {subtitle}
-                        </div>
+                        {hasHighlights ? (
+                          <div className="mt-2 flex flex-wrap gap-1.5 min-w-0 max-w-full">
+                            {topicLabels.map((label) => (
+                              <Badge
+                                key={`topic:${label}`}
+                                variant="secondary"
+                                className="h-5 px-2 text-[11px] font-medium text-foreground/80 bg-muted/40 hover:bg-muted/40"
+                              >
+                                <span className="truncate max-w-[22ch]">{label}</span>
+                              </Badge>
+                            ))}
+                            {keywordLabels.map((label) => (
+                              <Badge
+                                key={`kw:${label}`}
+                                variant="secondary"
+                                className="h-5 px-2 text-[11px] font-medium text-muted-foreground bg-secondary/40 hover:bg-secondary/40"
+                              >
+                                <span className="truncate max-w-[22ch]">{label}</span>
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-1 text-xs text-muted-foreground whitespace-normal break-words max-w-full">
+                            {subtitle}
+                          </div>
+                        )}
                         <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground min-w-0 max-w-full">
                           <span>
                             {day.painsCount} d · {day.desiresCount} o · {day.objectionsCount} obj
@@ -241,45 +274,20 @@ function DiaryContent({
           </div>
 
           <Card className="rounded-3xl border border-primary/30 bg-primary/10 px-7 py-8 sm:px-10 sm:py-10">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="space-y-1 min-w-0">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Dia selecionado
-                  </div>
-                  <div className="text-lg sm:text-xl font-semibold text-foreground truncate">{selectedDateLabel}</div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="secondary" onClick={onCopyPlain} className="gap-2">
-                        {plainCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        Texto limpo
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{plainCopied ? "Copiado" : "Copiar resumo sem marcação"}</TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="secondary" onClick={onCopyRaw} className="gap-2">
-                        {rawCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        Texto original
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{rawCopied ? "Copiado" : "Copiar resumo completo"}</TooltipContent>
-                  </Tooltip>
-                </div>
+            <div className="space-y-2">
+              <div className="space-y-1 min-w-0">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dia selecionado</div>
+                <div className="text-lg sm:text-xl font-semibold text-foreground truncate">{selectedDateLabel}</div>
               </div>
-
-              <div className="text-sm text-muted-foreground max-w-[90ch]">{selectedDayBlurb}</div>
-
-              <div className="rounded-2xl bg-background/70 border border-border/60 px-5 py-5">
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  {renderWhatsappToReact(selectedSummary?.summary_text || "")}
+              {selectedSummary ? (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
+                  {selectedSummary.intensity?.label ? <span>{selectedSummary.intensity.label}</span> : null}
+                  <span>
+                    {selectedSummary.painsCount} d · {selectedSummary.desiresCount} o · {selectedSummary.objectionsCount} obj
+                  </span>
+                  {selectedSummary.linksCount > 0 ? <span>· {selectedSummary.linksCount} links</span> : null}
                 </div>
-              </div>
+              ) : null}
             </div>
           </Card>
 
@@ -379,6 +387,47 @@ function DiaryContent({
                 </div>
               </Card>
             )}
+          </div>
+
+          <div className="space-y-2.5">
+            <SectionDivider title="Resumo" subtitle={selectedSummary ? "Texto completo do dia" : undefined} />
+
+            <Card className="rounded-2xl border border-border/60 bg-card/60 p-5 sm:p-6">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-card-foreground">Copiar</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="secondary" onClick={onCopyPlain} className="gap-2">
+                          {plainCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          Texto limpo
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{plainCopied ? "Copiado" : "Copiar resumo sem marcação"}</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="secondary" onClick={onCopyRaw} className="gap-2">
+                          {rawCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          Texto original
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{rawCopied ? "Copiado" : "Copiar resumo completo"}</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+
+                {selectedDayBlurb ? <div className="text-xs text-muted-foreground max-w-[90ch]">{selectedDayBlurb}</div> : null}
+
+                <div className="rounded-2xl bg-background/70 border border-border/60 px-5 py-5">
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    {renderWhatsappToReact(selectedSummary?.summary_text || "")}
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       </div>
@@ -488,7 +537,7 @@ const GroupSummaries = () => {
   return (
     <AdminLayout
       title="Diário"
-      subtitle="Resumo, tópicos e palavras-chave por dia"
+      subtitle="Tópicos e palavras-chave por dia"
     >
       <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-6">
         <GroupPageTop
