@@ -519,15 +519,14 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryKey: ['group-dashboard-previous-admins', groupId, previousPeriodStartISO, previousPeriodEndISO],
     queryFn: async () => {
       const { data: admins } = await supabase
-        .from('members')
-        .select('id, name, is_admin, is_super_admin, phone_e164')
+        .from('vw_group_collaborators')
+        .select('member_id, phone_e164')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .or('is_admin.eq.true,is_super_admin.eq.true');
+        .eq('classification', 'active');
 
       if (!admins || admins.length === 0) return null;
 
-      const adminIds = admins.map(a => a.id);
+      const adminIds = admins.map(a => a.member_id).filter(Boolean) as string[];
       const adminPhones = admins.map(a => a.phone_e164).filter(Boolean) as string[];
       const adminPhoneSet = new Set(adminPhones);
 
@@ -551,7 +550,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
           activeAdminIds.add(m.member_id);
         } else if (m.sender_phone) {
           const admin = admins.find(a => a.phone_e164 === m.sender_phone);
-          if (admin) activeAdminIds.add(admin.id);
+          if (admin?.member_id) activeAdminIds.add(admin.member_id as string);
         }
       });
 
@@ -992,15 +991,14 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryKey: ['group-dashboard-admins', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data: admins } = await supabase
-        .from('members')
-        .select('id, name, display_name, profile_pic_url, is_admin, is_super_admin, phone_e164')
+        .from('vw_group_collaborators')
+        .select('member_id, display_name, profile_pic_url, phone_e164')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .or('is_admin.eq.true,is_super_admin.eq.true');
+        .eq('classification', 'active');
 
       if (!admins || admins.length === 0) return null;
 
-      const adminIds = admins.map(a => a.id);
+      const adminIds = admins.map(a => a.member_id).filter(Boolean) as string[];
       const adminPhones = admins.map(a => a.phone_e164).filter(Boolean) as string[];
       const adminPhoneSet = new Set(adminPhones);
 
@@ -1024,8 +1022,9 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
           adminCounts[m.member_id] = (adminCounts[m.member_id] || 0) + 1;
         } else if (m.sender_phone) {
           const admin = admins.find(a => a.phone_e164 === m.sender_phone);
-          if (admin) {
-            adminCounts[admin.id] = (adminCounts[admin.id] || 0) + 1;
+          if (admin?.member_id) {
+            const id = admin.member_id as string;
+            adminCounts[id] = (adminCounts[id] || 0) + 1;
           }
         }
       });
@@ -1036,15 +1035,17 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       let topAdmin: { id: string; name: string; messages: number; avatarUrl: string | null } | null = null;
       let maxMessages = 0;
       admins.forEach(admin => {
-        const count = adminCounts[admin.id] || 0;
+        const id = admin.member_id as string | null;
+        if (!id) return;
+        const count = adminCounts[id] || 0;
         if (count > maxMessages) {
           maxMessages = count;
-          const rawLabel = ((admin as any).display_name || (admin as any).name || '').toString().trim();
+          const rawLabel = ((admin as any).display_name || '').toString().trim();
           const digits = rawLabel.replace(/\D/g, "");
           const isPhoneLike = digits.length >= 6 && /^[+()\d\s.-]{7,}$/.test(rawLabel);
           const label = rawLabel && !isPhoneLike ? rawLabel : "Administrador";
           topAdmin = {
-            id: admin.id as string,
+            id,
             name: label,
             messages: count,
             avatarUrl: ((admin as any).profile_pic_url as string | null) ?? null,

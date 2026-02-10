@@ -1549,6 +1549,60 @@ export type Database = {
           },
         ]
       }
+      collaborator_overrides: {
+        Row: {
+          classification: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          metadata: Json
+          organization_id: string
+          phone_e164: string | null
+          provider_member_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          classification?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          metadata?: Json
+          organization_id: string
+          phone_e164?: string | null
+          provider_member_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          classification?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          metadata?: Json
+          organization_id?: string
+          phone_e164?: string | null
+          provider_member_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaborator_overrides_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaborator_overrides_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_events_br_time: {
@@ -3009,6 +3063,88 @@ export type Database = {
           },
         ]
       }
+      vw_group_collaborators: {
+        Row: {
+          classification: string | null
+          collaborator_ref: string | null
+          display_name: string | null
+          group_id: string | null
+          is_admin: boolean | null
+          is_owner: boolean | null
+          is_super_admin: boolean | null
+          member_id: string | null
+          organization_id: string | null
+          phone_e164: string | null
+          profile_pic_url: string | null
+          provider_member_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_org_collaborators: {
+        Row: {
+          classification: string | null
+          collaborator_ref: string | null
+          display_name: string | null
+          group_ids: string[] | null
+          groups_count: number | null
+          organization_id: string | null
+          phone_e164: string | null
+          profile_pic_url: string | null
+          provider_member_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       activity_daily_org_admins: {
@@ -3125,6 +3261,40 @@ export type Database = {
         Returns: boolean
       }
       is_system_admin: { Args: { _user_id: string }; Returns: boolean }
+      org_collaborator_group_kpis: {
+        Args: { _end: string; _org_id: string; _start: string }
+        Returns: {
+          collaborator_ref: string
+          group_id: string
+          group_name: string
+          messages_total: number
+        }[]
+      }
+      org_collaborator_kpis: {
+        Args: { _end: string; _org_id: string; _start: string }
+        Returns: {
+          classification: string
+          collaborator_ref: string
+          display_name: string
+          groups_active: number
+          groups_count: number
+          messages_total: number
+          phone_e164: string | null
+          profile_pic_url: string | null
+          provider_member_id: string | null
+        }[]
+      }
+      org_team_collaborator_kpis: {
+        Args: { _end: string; _org_id: string; _start: string }
+        Returns: {
+          collaborators_active: number
+          collaborators_active_in_period: number
+          collaborators_external: number
+          collaborators_total: number
+          messages_from_collaborators: number
+          messages_total: number
+        }[]
+      }
     }
     Enums: {
       app_role: "SYSTEM_ADMIN" | "ORG_ADMIN" | "GROUP_MANAGER" | "USER"

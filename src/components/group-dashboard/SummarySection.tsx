@@ -71,7 +71,7 @@ export function SummarySection({
           })();
           return (
             <StatsCard 
-              title="Mensagens (7 dias)"
+              title="Mensagens"
               value={isLoading ? '—' : curr.toLocaleString('pt-BR')}
               change={isLoading ? undefined : changeLabel}
               changeType={changeType}

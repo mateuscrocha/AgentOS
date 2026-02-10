@@ -21,7 +21,7 @@ import {
   Plus,
   HelpCircle,
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { FunctionsFetchError, FunctionsHttpError } from "@supabase/supabase-js";
 import { useState, useEffect, useRef } from "react";
@@ -318,6 +318,8 @@ const Org = () => {
   const [profileLeaderFilter, setProfileLeaderFilter] = useState<string>("");
   const [profileOrderBy, setProfileOrderBy] = useState<"name" | "members" | "status">("name");
   const [profileOrderDir, setProfileOrderDir] = useState<"asc" | "desc">("asc");
+
+  const [collaboratorSearch, setCollaboratorSearch] = useState("");
 
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
@@ -630,6 +632,78 @@ const Org = () => {
   const decisionEndISO = decisionRange.to.toISOString();
   const decisionPrevStartISO = decisionPrevStart.toISOString();
   const decisionPrevEndISO = decisionPrevEnd.toISOString();
+
+  const {
+    data: collaboratorTeamKpis,
+    isLoading: collaboratorTeamKpisLoading,
+    error: collaboratorTeamKpisError,
+    refetch: refetchCollaboratorTeamKpis,
+  } = useQuery({
+    queryKey: ["org-team-collaborator-kpis", orgId, decisionStartISO, decisionEndISO],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("org_team_collaborator_kpis", {
+        _org_id: orgId!,
+        _start: decisionStartISO,
+        _end: decisionEndISO,
+      });
+      if (error) throw error;
+      return data?.[0] ?? null;
+    },
+    enabled: !!orgId && isAuthenticated && hasAccess && (isDashboardRoute || isDefaultOrgHome || isProfileRoute),
+  });
+
+  const {
+    data: orgCollaborators,
+    isLoading: orgCollaboratorsLoading,
+    error: orgCollaboratorsError,
+    refetch: refetchOrgCollaborators,
+  } = useQuery({
+    queryKey: ["org-collaborators", orgId, decisionStartISO, decisionEndISO],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("org_collaborator_kpis", {
+        _org_id: orgId!,
+        _start: decisionStartISO,
+        _end: decisionEndISO,
+      });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!orgId && isAuthenticated && hasAccess && (isDashboardRoute || isDefaultOrgHome),
+  });
+
+  const updateCollaboratorClassification = useMutation({
+    mutationFn: async (args: { phone_e164: string | null; provider_member_id: string | null; classification: "active" | "external" }) => {
+      if (!orgId) throw new Error("ORG_ID_REQUIRED");
+      if (!args.phone_e164 && !args.provider_member_id) throw new Error("COLLABORATOR_IDENTITY_REQUIRED");
+
+      const collaboratorKey = args.phone_e164 ?? args.provider_member_id;
+      if (!collaboratorKey) throw new Error("COLLABORATOR_IDENTITY_REQUIRED");
+
+      if (args.classification === "external") {
+        const { error } = await supabase
+          .from("org_collaborator_overrides")
+          .upsert({ organization_id: orgId, collaborator_key: collaboratorKey, status: "external" } as any, {
+            onConflict: "organization_id,collaborator_key",
+          });
+        if (error) throw error;
+        return;
+      }
+
+      const { error } = await supabase
+        .from("org_collaborator_overrides")
+        .delete()
+        .eq("organization_id", orgId)
+        .eq("collaborator_key", collaboratorKey);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["org-team-collaborator-kpis", orgId, decisionStartISO, decisionEndISO] });
+      await queryClient.invalidateQueries({ queryKey: ["org-collaborators", orgId, decisionStartISO, decisionEndISO] });
+    },
+    onError: (err: any) => {
+      notify.error("Falha ao atualizar colaborador", err?.message ? String(err.message) : "Tente novamente.");
+    },
+  });
 
   const formatNumberBR = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
@@ -962,7 +1036,6 @@ const Org = () => {
           .select('content_preview,message_type,created_at,group_id')
           .in('group_id', orgGroupIds)
           .eq('message_type', 'text')
-          .is('deleted_at', null)
           .gte('created_at', startISO)
           .lte('created_at', endISO)
           .limit(2000);
@@ -1829,6 +1902,242 @@ const Org = () => {
                     <div className="text-xs text-muted-foreground">Com alerta</div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-none">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-semibold text-card-foreground">Colaboradores</div>
+                    <div className="text-xs text-muted-foreground">Últimos 7 dias</div>
+                  </div>
+                </div>
+
+                {collaboratorTeamKpisLoading ? (
+                  <div className="mt-4">
+                    <LoadingState message="Carregando colaboradores..." />
+                  </div>
+                ) : collaboratorTeamKpisError ? (
+                  <div className="mt-4">
+                    <ErrorState
+                      title="Não foi possível carregar o time"
+                      message="Tente novamente em alguns instantes."
+                      retry={() => refetchCollaboratorTeamKpis()}
+                    />
+                  </div>
+                ) : collaboratorTeamKpis ? (
+                  <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="rounded-xl bg-secondary/30 p-4">
+                      <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-card-foreground">
+                        {formatNumberBR(Number((collaboratorTeamKpis as any).collaborators_active ?? 0))}
+                      </div>
+                      <div className="mt-1 text-sm font-medium text-card-foreground">Ativos</div>
+                      <div className="text-xs text-muted-foreground">Administradores internos</div>
+                    </div>
+                    <div className="rounded-xl bg-secondary/30 p-4">
+                      <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-muted-foreground">
+                        {formatNumberBR(Number((collaboratorTeamKpis as any).collaborators_external ?? 0))}
+                      </div>
+                      <div className="mt-1 text-sm font-medium text-card-foreground">Externos</div>
+                      <div className="text-xs text-muted-foreground">Marcados como cliente</div>
+                    </div>
+                    <div className="rounded-xl bg-secondary/30 p-4">
+                      <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-card-foreground">
+                        {formatNumberBR(Number((collaboratorTeamKpis as any).collaborators_active_in_period ?? 0))}
+                      </div>
+                      <div className="mt-1 text-sm font-medium text-card-foreground">Ativos no período</div>
+                      <div className="text-xs text-muted-foreground">Enviaram mensagem</div>
+                    </div>
+                    <div className="rounded-xl bg-secondary/30 p-4">
+                      {(() => {
+                        const messagesTotal = Number((collaboratorTeamKpis as any).messages_total ?? 0);
+                        const fromCollabs = Number((collaboratorTeamKpis as any).messages_from_collaborators ?? 0);
+                        const rate = messagesTotal > 0 ? Math.round((fromCollabs / messagesTotal) * 100) : 0;
+                        return (
+                          <>
+                            <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-card-foreground">{rate}%</div>
+                            <div className="mt-1 text-sm font-medium text-card-foreground">Participação</div>
+                            <div className="text-xs text-muted-foreground">Msgs do time / total</div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 text-sm text-muted-foreground">Sem dados de colaboradores.</div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-none">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-card-foreground">Lista de colaboradores</div>
+                    <div className="text-xs text-muted-foreground">Administradores do WhatsApp consolidados</div>
+                  </div>
+                  <div className="w-full sm:max-w-xs">
+                    <Input
+                      value={collaboratorSearch}
+                      onChange={(e) => setCollaboratorSearch(e.target.value)}
+                      placeholder="Buscar por nome ou telefone"
+                    />
+                  </div>
+                </div>
+
+                {orgCollaboratorsLoading ? (
+                  <div className="mt-4">
+                    <LoadingState message="Carregando lista..." />
+                  </div>
+                ) : orgCollaboratorsError ? (
+                  <div className="mt-4">
+                    <ErrorState
+                      title="Não foi possível carregar o time"
+                      message="Tente novamente em alguns instantes."
+                      retry={() => refetchOrgCollaborators()}
+                    />
+                  </div>
+                ) : !orgCollaborators || orgCollaborators.length === 0 ? (
+                  <div className="mt-4 text-sm text-muted-foreground">Sem colaboradores encontrados.</div>
+                ) : (
+                  (() => {
+                    const q = collaboratorSearch.trim().toLowerCase();
+                    const filtered = (orgCollaborators as any[])
+                      .filter((c) => {
+                        if (!q) return true;
+                        const hay = [c.display_name, c.phone_e164, c.provider_member_id]
+                          .map((v) => String(v ?? "").toLowerCase())
+                          .join(" ");
+                        return hay.includes(q);
+                      })
+                      .sort((a, b) => Number(b.messages_total ?? 0) - Number(a.messages_total ?? 0));
+
+                    const rows = filtered.slice(0, 60);
+
+                    return (
+                      <>
+                        <div className="mt-4 hidden md:block">
+                          <div className="overflow-hidden rounded-xl border border-border">
+                            <table className="w-full text-sm">
+                              <thead className="bg-secondary/30">
+                                <tr>
+                                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Colaborador</th>
+                                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Tipo</th>
+                                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Grupos</th>
+                                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Grupos (período)</th>
+                                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Msgs (7d)</th>
+                                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Ação</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rows.map((c) => {
+                                  const isExternal = String(c.classification) === "external";
+                                  const label = String(c.display_name || c.provider_member_id || c.phone_e164 || "Colaborador");
+                                  const phone = (c.phone_e164 ?? null) as string | null;
+                                  const providerMemberId = (c.provider_member_id ?? null) as string | null;
+
+                                  return (
+                                    <tr key={String(c.collaborator_ref)} className="border-t border-border">
+                                      <td className="px-3 py-3">
+                                        <div className="font-medium text-card-foreground">{label}</div>
+                                        <div className="text-xs text-muted-foreground">{phone || providerMemberId || "—"}</div>
+                                      </td>
+                                      <td className="px-3 py-3">
+                                        <StatusTag variant={isExternal ? "neutral" : "success"}>
+                                          {isExternal ? "Externo/Cliente" : "Colaborador"}
+                                        </StatusTag>
+                                      </td>
+                                      <td className="px-3 py-3 text-right tabular-nums">{formatNumberBR(Number(c.groups_count ?? 0))}</td>
+                                      <td className="px-3 py-3 text-right tabular-nums">{formatNumberBR(Number(c.groups_active ?? 0))}</td>
+                                      <td className="px-3 py-3 text-right tabular-nums">{formatNumberBR(Number(c.messages_total ?? 0))}</td>
+                                      <td className="px-3 py-3 text-right">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          disabled={!userCanEditOrg || updateCollaboratorClassification.isPending}
+                                          onClick={() =>
+                                            updateCollaboratorClassification.mutate({
+                                              phone_e164: phone,
+                                              provider_member_id: providerMemberId,
+                                              classification: isExternal ? "active" : "external",
+                                            })
+                                          }
+                                          className="gap-2"
+                                        >
+                                          {updateCollaboratorClassification.isPending ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : null}
+                                          {isExternal ? "Marcar como colaborador" : "Marcar como externo"}
+                                        </Button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 space-y-3 md:hidden">
+                          {rows.slice(0, 20).map((c) => {
+                            const isExternal = String(c.classification) === "external";
+                            const label = String(c.display_name || c.provider_member_id || c.phone_e164 || "Colaborador");
+                            const phone = (c.phone_e164 ?? null) as string | null;
+                            const providerMemberId = (c.provider_member_id ?? null) as string | null;
+                            return (
+                              <div key={String(c.collaborator_ref)} className="rounded-2xl bg-secondary/30 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="font-medium text-card-foreground truncate">{label}</div>
+                                    <div className="text-xs text-muted-foreground truncate">{phone || providerMemberId || "—"}</div>
+                                  </div>
+                                  <StatusTag variant={isExternal ? "neutral" : "success"}>
+                                    {isExternal ? "Externo" : "Ativo"}
+                                  </StatusTag>
+                                </div>
+                                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                                  <div className="rounded-lg bg-background/40 p-2">
+                                    <div className="text-[10px]">Grupos</div>
+                                    <div className="text-sm font-medium tabular-nums text-card-foreground">{formatNumberBR(Number(c.groups_count ?? 0))}</div>
+                                  </div>
+                                  <div className="rounded-lg bg-background/40 p-2">
+                                    <div className="text-[10px]">Grupos (7d)</div>
+                                    <div className="text-sm font-medium tabular-nums text-card-foreground">{formatNumberBR(Number(c.groups_active ?? 0))}</div>
+                                  </div>
+                                  <div className="rounded-lg bg-background/40 p-2">
+                                    <div className="text-[10px]">Msgs (7d)</div>
+                                    <div className="text-sm font-medium tabular-nums text-card-foreground">{formatNumberBR(Number(c.messages_total ?? 0))}</div>
+                                  </div>
+                                </div>
+                                <div className="mt-3">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!userCanEditOrg || updateCollaboratorClassification.isPending}
+                                    onClick={() =>
+                                      updateCollaboratorClassification.mutate({
+                                        phone_e164: phone,
+                                        provider_member_id: providerMemberId,
+                                        classification: isExternal ? "active" : "external",
+                                      })
+                                    }
+                                    className="w-full gap-2"
+                                  >
+                                    {updateCollaboratorClassification.isPending ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : null}
+                                    {isExternal ? "Marcar como colaborador" : "Marcar como externo"}
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    );
+                  })()
+                )}
               </CardContent>
             </Card>
 
