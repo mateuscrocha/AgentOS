@@ -40,7 +40,7 @@ export function StatsCard({
         {...componentProps}
         onClick={onClick}
         className={cn(
-          "rounded-md border border-border bg-card p-4 sm:p-5 shadow-none text-left w-full h-[112px]",
+          "rounded-md border border-border bg-card p-4 sm:p-5 shadow-none text-left w-full min-h-[132px]",
           onClick && "ripple-surface cursor-pointer transition-colors transition-transform hover:bg-secondary/50 hover:scale-[1.02] active:scale-[0.99]",
           className
         )}

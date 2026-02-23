@@ -3,10 +3,21 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { subDays } from "date-fns";
-import { startOfDaySP, endOfDaySP } from "@/components/group-dashboard/period-utils";
 import { formatDateKeySP, getHourSP } from "@/lib/date";
 import { notify } from "@/components/ui/sonner";
 import { extractBigramsFromRows } from "@/utils/keywords";
+import { buildGroupDashboardPeriods } from "@/hooks/group-dashboard-periods";
+import { countActiveInboundPeople, rankParticipantsByMessages } from "@/hooks/group-dashboard-aggregations";
+import { buildDailyCountSeries, buildDailyUniqueCountSeries } from "@/hooks/group-dashboard-series";
+import { buildHourlyActivitySummary, buildParticipantPresenceIndex } from "@/hooks/group-dashboard-activity";
+import { buildMemberEngagementDistribution, countUniqueExternalMembers } from "@/hooks/group-dashboard-member-metrics";
+import {
+  buildBusyDayAvatars,
+  buildPeakWindowAvatars,
+  buildThemeAvatars,
+  computeLowEffortPercentFromDailySeries,
+  computePeakTwoHourStart,
+} from "@/hooks/group-dashboard-derived";
 
  
 
@@ -42,41 +53,18 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   // Use provided date range or default to 7 days
   const nowRef = useRef<Date>(new Date());
   const now = nowRef.current;
-  const currentPeriodEnd = dateRange?.to ?? now;
-  const currentPeriodStart = dateRange?.from ?? subDays(now, 6);
-
-  const startToday = startOfDaySP(now);
-  const endToday = endOfDaySP(now);
-  const isTodayRange = currentPeriodStart.getTime() === startToday.getTime() && currentPeriodEnd.getTime() === endToday.getTime();
-  const yesterdayStartSP = startOfDaySP(subDays(now, 1));
-  const yesterdayEndSP = endOfDaySP(subDays(now, 1));
-  const isYesterdayRange = currentPeriodStart.getTime() === yesterdayStartSP.getTime() && currentPeriodEnd.getTime() === yesterdayEndSP.getTime();
-
-  let effectiveCurrEnd = currentPeriodEnd;
-  let previousPeriodStart: Date;
-  let previousPeriodEnd: Date;
-  if (isTodayRange) {
-    effectiveCurrEnd = nowRef.current;
-    const elapsedMs = Math.max(0, effectiveCurrEnd.getTime() - startToday.getTime());
-    const yesterdayStart = startOfDaySP(subDays(now, 1));
-    previousPeriodStart = yesterdayStart;
-    previousPeriodEnd = new Date(yesterdayStart.getTime() + elapsedMs);
-  } else if (isYesterdayRange) {
-    const anteontem = subDays(startOfDaySP(currentPeriodStart), 1);
-    previousPeriodStart = startOfDaySP(anteontem);
-    previousPeriodEnd = endOfDaySP(anteontem);
-  } else {
-    const lengthMs = Math.max(0, currentPeriodEnd.getTime() - currentPeriodStart.getTime());
-    previousPeriodEnd = new Date(currentPeriodStart.getTime() - 1);
-    previousPeriodStart = new Date(previousPeriodEnd.getTime() - lengthMs);
-  }
-
-  const periodDays = Math.ceil((currentPeriodEnd.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
-
-  const currentPeriodStartISO = currentPeriodStart.toISOString();
-  const currentPeriodEndISO = effectiveCurrEnd.toISOString();
-  const previousPeriodStartISO = previousPeriodStart.toISOString();
-  const previousPeriodEndISO = previousPeriodEnd.toISOString();
+  const {
+    currentPeriodStart,
+    currentPeriodEnd,
+    periodDays,
+    currentPeriodStartISO,
+    currentPeriodEndISO,
+    previousPeriodStartISO,
+    previousPeriodEndISO,
+  } = buildGroupDashboardPeriods({
+    now,
+    dateRange,
+  });
 
   useEffect(() => {
     if (!groupId || !isGroupIdValid || !isAuthenticated) return;
@@ -162,15 +150,13 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['group-dashboard-stats', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      let totalMembers: number | null = (groupOverview as any)?.members_count ?? null;
-      if (totalMembers === null || totalMembers === undefined) {
-        const { count } = await supabase
-          .from('members')
-          .select('*', { count: 'exact', head: true })
-          .eq('group_id', groupId!)
-          .is('deleted_at', null);
-        totalMembers = count ?? 0;
-      }
+      const { count: totalMembersCountSnapshot } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId!)
+        .is('deleted_at', null)
+        .neq('status', 'inactive');
+      const totalMembers = totalMembersCountSnapshot ?? 0;
 
       // Fetch messages in current period
       const { count: totalMessages } = await supabase
@@ -193,17 +179,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const uniqueActivePeople = new Set<string>();
-      let hasUnknownInbound = false;
-      (activeMembersData || []).forEach((msg: any) => {
-        const key = (msg.member_id as string) || (msg.sender_phone as string);
-        if (key) {
-          uniqueActivePeople.add(key);
-        } else {
-          hasUnknownInbound = true;
-        }
-      });
-      const activeMembers = uniqueActivePeople.size + (hasUnknownInbound ? 1 : 0);
+      const activeMembers = countActiveInboundPeople(activeMembersData as any[]);
 
       const engagementRate = totalMembers && totalMembers > 0 
         ? Math.round((activeMembers / totalMembers) * 100) 
@@ -219,23 +195,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const memberCounts: Record<string, { name: string; count: number; avatarUrl: string | null }> = {};
-      topParticipantData?.forEach((msg: any) => {
-        const memberId = msg.member_id;
-        const memberName = msg.members?.name || 'Desconhecido';
-        const avatarUrl = (msg.members as any)?.profile_pic_url || null;
-        if (!memberCounts[memberId]) {
-          memberCounts[memberId] = { name: memberName, count: 0, avatarUrl };
-        }
-        memberCounts[memberId].count++;
-        if (!memberCounts[memberId].avatarUrl && avatarUrl) {
-          memberCounts[memberId].avatarUrl = avatarUrl;
-        }
-      });
-
-      const topParticipantEntry = Object.entries(memberCounts)
-        .sort((a, b) => b[1].count - a[1].count)[0];
-      const topParticipant = topParticipantEntry ? { id: topParticipantEntry[0], ...topParticipantEntry[1] } : null;
+      const topParticipant = rankParticipantsByMessages(topParticipantData as any[])[0] ?? null;
 
       // Get last message timestamp
       const { data: lastMessageData } = await supabase
@@ -311,16 +271,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
-      const uniqueActiveMembers = new Set<string>();
-      let prevHasUnknownInbound = false;
-      (activeMembersData || []).forEach((msg: any) => {
-        const key = (msg.member_id as string) || (msg.sender_phone as string);
-        if (key) {
-          uniqueActiveMembers.add(key);
-        } else {
-          prevHasUnknownInbound = true;
-        }
-      });
+      const activeMembers = countActiveInboundPeople(activeMembersData as any[]);
       // Compute snapshot of total members at end of previous period
       const { count: joinedBeforePrevEnd } = await supabase
         .from('members')
@@ -346,7 +297,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       const totalMembers = (joinedBeforePrevEnd || 0) + (joinedNullPrev || 0) - (exitedBeforePrevEnd || 0);
 
       const engagementRate = totalMembers && totalMembers > 0 
-        ? Math.round((uniqueActiveMembers.size / totalMembers) * 100) 
+        ? Math.round((activeMembers / totalMembers) * 100) 
         : 0;
 
       // Get top participant in previous period
@@ -359,27 +310,11 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
-      const memberCounts: Record<string, { name: string; count: number; avatarUrl: string | null }> = {};
-      topParticipantData?.forEach((msg: any) => {
-        const memberId = msg.member_id;
-        const memberName = msg.members?.name || 'Desconhecido';
-        const avatarUrl = (msg.members as any)?.profile_pic_url || null;
-        if (!memberCounts[memberId]) {
-          memberCounts[memberId] = { name: memberName, count: 0, avatarUrl };
-        }
-        memberCounts[memberId].count++;
-        if (!memberCounts[memberId].avatarUrl && avatarUrl) {
-          memberCounts[memberId].avatarUrl = avatarUrl;
-        }
-      });
-
-      const prevTopEntry = Object.entries(memberCounts)
-        .sort((a, b) => b[1].count - a[1].count)[0];
-      const topParticipant = prevTopEntry ? { id: prevTopEntry[0], ...prevTopEntry[1] } : null;
+      const topParticipant = rankParticipantsByMessages(topParticipantData as any[])[0] ?? null;
 
       return {
         totalMessages: totalMessages || 0,
-        activeMembers: uniqueActiveMembers.size + (prevHasUnknownInbound ? 1 : 0),
+        activeMembers,
         totalMembers,
         engagementRate,
         topParticipant,
@@ -400,27 +335,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
-      const countsByHour: Record<number, number> = {};
-      for (let i = 0; i < 24; i++) {
-        countsByHour[i] = 0;
-      }
-
-      data?.forEach(msg => {
-        const hour = getHourSP(msg.created_at);
-        countsByHour[hour]++;
-      });
-
-      const activityByHour = Object.entries(countsByHour).map(([hour, count]) => ({
-        hour: parseInt(hour),
-        count,
-      }));
-
-      const peakEntry = activityByHour.reduce((max, curr) => 
-        curr.count > max.count ? curr : max, { hour: 0, count: 0 });
-
+      const summary = buildHourlyActivitySummary(data as any[]);
       return {
-        peakHour: peakEntry.count > 0 ? peakEntry.hour : null,
-        peakHourMessages: peakEntry.count,
+        peakHour: summary.peakHour,
+        peakHourMessages: summary.peakHourMessages,
       };
     },
     enabled: !!groupId && !!group && isAuthenticated,
@@ -436,8 +354,6 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .eq('group_id', groupId!)
         .is('deleted_at', null);
 
-      if (!members) return { recorrentes: 0, esporadicos: 0, inativos: 0 };
-
       const { data: messageCounts } = await supabase
         .from('messages')
         .select('member_id')
@@ -447,23 +363,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
-      const counts: Record<string, number> = {};
-      messageCounts?.forEach(msg => {
-        counts[msg.member_id!] = (counts[msg.member_id!] || 0) + 1;
-      });
-
-      let recorrentes = 0;
-      let esporadicos = 0;
-      let inativos = 0;
-
-      members.forEach(member => {
-        const count = counts[member.id] || 0;
-        if (count >= 5) recorrentes++;
-        else if (count >= 1) esporadicos++;
-        else inativos++;
-      });
-
-      return { recorrentes, esporadicos, inativos };
+      return buildMemberEngagementDistribution(members as any[], messageCounts as any[]);
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -475,18 +375,13 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       const entryTypes = ['GROUP_PARTICIPANT_ADD', 'GROUP_PARTICIPANT_INVITE'] as const;
       const { data } = await supabase
         .from('member_events')
-        .select('external_member_id, event_type, occurred_at')
+        .select('member_lid, event_type, occurred_at')
         .eq('group_id', groupId!)
         .in('event_type', entryTypes)
         .gte('occurred_at', previousPeriodStartISO)
         .lte('occurred_at', previousPeriodEndISO);
 
-      const unique = new Set<string>();
-      (data || []).forEach((e: any) => {
-        const id = (e.external_member_id || '').toString().trim();
-        if (id) unique.add(id);
-      });
-      return unique.size;
+      return countUniqueExternalMembers(data as any[]);
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -498,18 +393,13 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       const exitTypes = ['GROUP_PARTICIPANT_LEAVE', 'GROUP_PARTICIPANT_REMOVE'] as const;
       const { data } = await supabase
         .from('member_events')
-        .select('external_member_id, event_type, occurred_at')
+        .select('member_lid, event_type, occurred_at')
         .eq('group_id', groupId!)
         .in('event_type', exitTypes)
         .gte('occurred_at', previousPeriodStartISO)
         .lte('occurred_at', previousPeriodEndISO);
 
-      const unique = new Set<string>();
-      (data || []).forEach((e: any) => {
-        const id = (e.external_member_id || '').toString().trim();
-        if (id) unique.add(id);
-      });
-      return unique.size;
+      return countUniqueExternalMembers(data as any[]);
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -584,24 +474,11 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .lte('created_at', currentPeriodEndISO)
         .order('created_at', { ascending: true });
 
-      const countsByDay: Record<string, number> = {};
-      for (let i = periodDays - 1; i >= 0; i--) {
-        const date = subDays(currentPeriodEnd, i);
-        const dateKey = formatDateKeySP(date);
-        countsByDay[dateKey] = 0;
-      }
-
-      data?.forEach(msg => {
-        const dateKey = formatDateKeySP(new Date(msg.created_at));
-        if (countsByDay[dateKey] !== undefined) {
-          countsByDay[dateKey]++;
-        }
+      return buildDailyCountSeries(data, {
+        periodDays,
+        currentPeriodEnd,
+        getDate: (msg) => new Date((msg as any).created_at),
       });
-
-      return Object.entries(countsByDay).map(([date, count]) => ({
-        date,
-        count,
-      }));
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -624,21 +501,11 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .lte('occurred_at', currentPeriodEndISO)
         .order('occurred_at', { ascending: true });
 
-      const countsByDay: Record<string, number> = {};
-      for (let i = periodDays - 1; i >= 0; i--) {
-        const date = subDays(currentPeriodEnd, i);
-        const dateKey = formatDateKeySP(date);
-        countsByDay[dateKey] = 0;
-      }
-
-      data?.forEach(m => {
-        const dateKey = formatDateKeySP(new Date((m as any).occurred_at));
-        if (countsByDay[dateKey] !== undefined) {
-          countsByDay[dateKey]++;
-        }
+      return buildDailyCountSeries(data, {
+        periodDays,
+        currentPeriodEnd,
+        getDate: (m) => new Date((m as any).occurred_at),
       });
-
-      return Object.entries(countsByDay).map(([date, count]) => ({ date, count }));
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -657,21 +524,11 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .lte('occurred_at', currentPeriodEndISO)
         .order('occurred_at', { ascending: true });
 
-      const countsByDay: Record<string, number> = {};
-      for (let i = periodDays - 1; i >= 0; i--) {
-        const date = subDays(currentPeriodEnd, i);
-        const dateKey = formatDateKeySP(date);
-        countsByDay[dateKey] = 0;
-      }
-
-      data?.forEach(m => {
-        const dateKey = formatDateKeySP(new Date((m as any).occurred_at));
-        if (countsByDay[dateKey] !== undefined) {
-          countsByDay[dateKey]++;
-        }
+      return buildDailyCountSeries(data, {
+        periodDays,
+        currentPeriodEnd,
+        getDate: (m) => new Date((m as any).occurred_at),
       });
-
-      return Object.entries(countsByDay).map(([date, count]) => ({ date, count }));
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -687,7 +544,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       ] as const;
       const { data, error } = await supabase
         .from("member_events")
-        .select("id, created_at, occurred_at, event_type, member_id, external_member_id, source, members(name, display_name, profile_pic_url)")
+        .select("id, created_at, occurred_at, event_type, member_id, member_lid, source, members(name, display_name, profile_pic_url)")
         .eq("group_id", groupId!)
         .in("event_type", eventTypes)
         .gte("occurred_at", currentPeriodStartISO)
@@ -700,7 +557,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       return ((data ?? []) as any[]).map((e): MemberChangeEvent => {
         const type = (e.event_type as string) || "";
         const kind: MemberChangeEvent["kind"] = type === "GROUP_PARTICIPANT_LEAVE" || type === "GROUP_PARTICIPANT_REMOVE" ? "saida" : "entrada";
-        const memberName = e.members?.display_name || e.members?.name || e.external_member_id || "Membro";
+        const memberName = e.members?.display_name || e.members?.name || e.member_lid || "Membro";
         const memberAvatarUrl = (e.members?.profile_pic_url as string | null) ?? null;
         return {
           id: e.id as string,
@@ -710,7 +567,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
           memberId: (e.member_id as string | null) ?? null,
           memberName,
           memberAvatarUrl,
-          externalMemberId: e.external_member_id as string,
+          externalMemberId: e.member_lid as string,
           source: (e.source as string) || "",
         };
       });
@@ -732,26 +589,12 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .lte('created_at', currentPeriodEndISO)
         .order('created_at', { ascending: true });
 
-      const membersByDay: Record<string, Set<string>> = {};
-      // Initialize all days in range to ensure full alignment
-      for (let i = periodDays - 1; i >= 0; i--) {
-        const date = subDays(currentPeriodEnd, i);
-        const dateKey = formatDateKeySP(date);
-        membersByDay[dateKey] = new Set<string>();
-      }
-
-      data?.forEach(msg => {
-        const dateKey = formatDateKeySP(new Date(msg.created_at));
-        const memberId = msg.member_id as string | null;
-        if (memberId && membersByDay[dateKey]) {
-          membersByDay[dateKey].add(memberId);
-        }
+      return buildDailyUniqueCountSeries(data, {
+        periodDays,
+        currentPeriodEnd,
+        getDate: (msg) => new Date((msg as any).created_at),
+        getKey: (msg) => (msg as any).member_id as string | null,
       });
-
-      return Object.entries(membersByDay).map(([date, set]) => ({
-        date,
-        count: set.size,
-      }));
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -768,29 +611,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const countsByHour: Record<number, number> = {};
-      for (let i = 0; i < 24; i++) {
-        countsByHour[i] = 0;
-      }
-
-      data?.forEach(msg => {
-        const hour = getHourSP(msg.created_at);
-        countsByHour[hour]++;
-      });
-
-      const activityByHour = Object.entries(countsByHour).map(([hour, count]) => ({
-        hour: parseInt(hour),
-        count,
-      }));
-
-      const peakEntry = activityByHour.reduce((max, curr) => 
-        curr.count > max.count ? curr : max, { hour: 0, count: 0 });
-
-      return {
-        activityByHour,
-        peakHour: peakEntry.count > 0 ? peakEntry.hour : null,
-        peakHourMessages: peakEntry.count,
-      };
+      return buildHourlyActivitySummary(data as any[]);
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -811,38 +632,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const participantsByDay: Record<string, { id: string; avatarUrl: string | null }[]> = {};
-      const participantsByHour: Record<number, { id: string; avatarUrl: string | null }[]> = {};
-      const seenDay: Record<string, Set<string>> = {};
-      const seenHour: Record<number, Set<string>> = {};
-      for (let i = 0; i < 24; i++) {
-        participantsByHour[i] = [];
-        seenHour[i] = new Set<string>();
-      }
-
-      (data || []).forEach((msg: any) => {
-        const memberId = msg.member_id as string | null;
-        if (!memberId) return;
-        const avatarUrl = msg.member_avatar || null;
-        const dateKey = formatDateKeySP(new Date(msg.created_at));
-        const hour = getHourSP(msg.created_at);
-
-        if (!participantsByDay[dateKey]) {
-          participantsByDay[dateKey] = [];
-          seenDay[dateKey] = new Set<string>();
-        }
-        if (!seenDay[dateKey].has(memberId)) {
-          participantsByDay[dateKey].push({ id: memberId, avatarUrl });
-          seenDay[dateKey].add(memberId);
-        }
-
-        if (!seenHour[hour].has(memberId)) {
-          participantsByHour[hour].push({ id: memberId, avatarUrl });
-          seenHour[hour].add(memberId);
-        }
-      });
-
-      return { participantsByDay, participantsByHour };
+      return buildParticipantPresenceIndex(data as any[]);
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -860,24 +650,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const memberCounts: Record<string, { name: string; count: number; avatarUrl: string | null }> = {};
-      data?.forEach((msg: any) => {
-        const memberId = msg.member_id;
-        const memberName = msg.members?.name || 'Desconhecido';
-        const avatarUrl = (msg.members as any)?.profile_pic_url || null;
-        if (!memberCounts[memberId]) {
-          memberCounts[memberId] = { name: memberName, count: 0, avatarUrl };
-        }
-        memberCounts[memberId].count++;
-        if (!memberCounts[memberId].avatarUrl && avatarUrl) {
-          memberCounts[memberId].avatarUrl = avatarUrl;
-        }
-      });
-
-      return Object.entries(memberCounts)
-        .map(([id, v]) => ({ id, ...v }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
+      return rankParticipantsByMessages(data as any[]).slice(0, 5);
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -892,8 +665,6 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .eq('group_id', groupId!)
         .is('deleted_at', null);
 
-      if (!members) return { recorrentes: 0, esporadicos: 0, inativos: 0 };
-
       const { data: messageCounts } = await supabase
         .from('messages')
         .select('member_id')
@@ -903,23 +674,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', currentPeriodStartISO)
         .lte('created_at', currentPeriodEndISO);
 
-      const counts: Record<string, number> = {};
-      messageCounts?.forEach(msg => {
-        counts[msg.member_id!] = (counts[msg.member_id!] || 0) + 1;
-      });
-
-      let recorrentes = 0;
-      let esporadicos = 0;
-      let inativos = 0;
-
-      members.forEach(member => {
-        const count = counts[member.id] || 0;
-        if (count >= 5) recorrentes++;
-        else if (count >= 1) esporadicos++;
-        else inativos++;
-      });
-
-      return { recorrentes, esporadicos, inativos };
+      return buildMemberEngagementDistribution(members as any[], messageCounts as any[]);
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -1098,18 +853,13 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       const entryTypes = ['GROUP_PARTICIPANT_ADD', 'GROUP_PARTICIPANT_INVITE'] as const;
       const { data } = await supabase
         .from('member_events')
-        .select('external_member_id, event_type, occurred_at')
+        .select('member_lid, event_type, occurred_at')
         .eq('group_id', groupId!)
         .in('event_type', entryTypes)
         .gte('occurred_at', currentPeriodStartISO)
         .lte('occurred_at', currentPeriodEndISO);
 
-      const unique = new Set<string>();
-      (data || []).forEach((e: any) => {
-        const id = (e.external_member_id || '').toString().trim();
-        if (id) unique.add(id);
-      });
-      return unique.size;
+      return countUniqueExternalMembers(data as any[]);
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -1121,18 +871,13 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       const exitTypes = ['GROUP_PARTICIPANT_LEAVE', 'GROUP_PARTICIPANT_REMOVE'] as const;
       const { data } = await supabase
         .from('member_events')
-        .select('external_member_id, event_type, occurred_at')
+        .select('member_lid, event_type, occurred_at')
         .eq('group_id', groupId!)
         .in('event_type', exitTypes)
         .gte('occurred_at', currentPeriodStartISO)
         .lte('occurred_at', currentPeriodEndISO);
 
-      const unique = new Set<string>();
-      (data || []).forEach((e: any) => {
-        const id = (e.external_member_id || '').toString().trim();
-        if (id) unique.add(id);
-      });
-      return unique.size;
+      return countUniqueExternalMembers(data as any[]);
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -1307,16 +1052,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
   const activeDaysPercent = periodDays > 0 ? Math.round((daysWithActivity / periodDays) * 100) : 0;
 
-  const computeLowEffortPercent = () => {
-    const slice = (messagesPerDay || []).slice(Math.max(0, (messagesPerDay || []).length - periodDays));
-    const avg = slice.length > 0 ? Math.round(slice.reduce((sum, d) => sum + d.count, 0) / slice.length) : 0;
-    const excess = slice.filter(d => d.count > avg).length;
-    const percent = periodDays > 0 ? Math.round((excess / periodDays) * 100) : 0;
-    const lowEffort = Math.max(0, Math.min(100, 100 - percent));
-    return lowEffort;
-  };
-
-  const lowEffortPercent = computeLowEffortPercent();
+  const lowEffortPercent = computeLowEffortPercentFromDailySeries(messagesPerDay as any[], periodDays);
 
   const recurringPercent = (() => {
     const idsCurrent = new Set((membersOverview || []).filter(m => m.messagesCount > 0).map(m => m.id));
@@ -1334,86 +1070,30 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     return slice.reduce((max, curr) => (curr.count > (max?.count || 0) ? curr : max), slice[0]).date || null;
   })();
 
-  const peakTwoHourStart = (() => {
-    const hours = activityData?.activityByHour || [];
-    if (!hours || hours.length === 0) return null;
-    let bestStart = 0;
-    let bestSum = 0;
-    for (let i = 0; i < 24; i++) {
-      const a = hours.find(h => h.hour === i)?.count || 0;
-      const b = hours.find(h => h.hour === ((i + 1) % 24))?.count || 0;
-      const sum = a + b;
-      if (sum > bestSum) {
-        bestSum = sum;
-        bestStart = i;
-      }
-    }
-    return bestSum > 0 ? bestStart : null;
-  })();
+  const peakTwoHourStart = computePeakTwoHourStart(activityData?.activityByHour as any[]);
 
   const recurringIds = new Set((membersOverview || []).filter(m => m.messagesCount >= 5).map(m => m.id));
 
-  const pickAvatars = (list: { id: string; avatarUrl: string | null }[], limit = 8) => {
-    const res: { id: string; avatarUrl: string | null }[] = [];
-    const seen = new Set<string>();
-    // prioritize recurring
-    list.forEach(m => {
-      if (res.length >= limit) return;
-      if (recurringIds.has(m.id) && !seen.has(m.id)) {
-        res.push(m);
-        seen.add(m.id);
-      }
-    });
-    // fill with others
-    list.forEach(m => {
-      if (res.length >= limit) return;
-      if (!seen.has(m.id)) {
-        res.push(m);
-        seen.add(m.id);
-      }
-    });
-    return res;
-  };
+  const busyDayAvatars = buildBusyDayAvatars({
+    busiestDayKey,
+    participantsByDay: periodParticipants?.participantsByDay,
+    recurringIds,
+    limit: 8,
+  });
 
-  const busyDayAvatars = (() => {
-    if (!busiestDayKey || !periodParticipants?.participantsByDay) return [] as { id: string; avatarUrl: string | null }[];
-    const list = periodParticipants.participantsByDay[busiestDayKey] || [];
-    return pickAvatars(list, 8);
-  })();
+  const peakWindowAvatars = buildPeakWindowAvatars({
+    peakTwoHourStart,
+    participantsByHour: periodParticipants?.participantsByHour,
+    recurringIds,
+    limit: 8,
+  });
 
-  const peakWindowAvatars = (() => {
-    if (peakTwoHourStart === null || !periodParticipants?.participantsByHour) return [] as { id: string; avatarUrl: string | null }[];
-    const a = periodParticipants.participantsByHour[peakTwoHourStart] || [];
-    const b = periodParticipants.participantsByHour[((peakTwoHourStart + 1) % 24)] || [];
-    const merged: { id: string; avatarUrl: string | null }[] = [];
-    const seen = new Set<string>();
-    [...a, ...b].forEach(m => { if (!seen.has(m.id)) { merged.push(m); seen.add(m.id); } });
-    return pickAvatars(merged, 8);
-  })();
-
-  const themeAvatars = (() => {
-    const recurringIdsList = (membersOverview || []).filter(m => m.messagesCount >= 5).map(m => m.id);
-    const fromParticipants: { id: string; avatarUrl: string | null }[] = [];
-    const seen = new Set<string>();
-    // gather avatars from period participants first
-    Object.values(periodParticipants?.participantsByDay || {}).forEach(arr => {
-      arr.forEach(m => {
-        if (recurringIds.has(m.id) && !seen.has(m.id)) {
-          fromParticipants.push(m);
-          seen.add(m.id);
-        }
-      });
-    });
-    // fallback to membersOverview avatars if missing
-    recurringIdsList.forEach(id => {
-      if (!seen.has(id)) {
-        const mo = (membersOverview || []).find(m => m.id === id);
-        fromParticipants.push({ id, avatarUrl: (mo as any)?.avatarUrl || null });
-        seen.add(id);
-      }
-    });
-    return pickAvatars(fromParticipants, 8);
-  })();
+  const themeAvatars = buildThemeAvatars({
+    membersOverview: membersOverview as any[],
+    participantsByDay: periodParticipants?.participantsByDay,
+    recurringIds,
+    limit: 8,
+  });
 
   const stopwordsPt = new Set([
     'a','à','às','ao','aos','ainda','algum','alguma','alguns','algumas','além','am','ano','anos','antes','após','as','até','cada','coisa','coisas','como','da','das','de','dela','dele','deles','demais','depois','desde','desta','deste','do','dos','e','ela','ele','eles','em','entre','era','eram','essa','esse','esta','este','eu','faz','foi','fora','houve','isso','isto','já','la','lá','lhe','lhes','logo','maior','mais','me','mesmo','meu','meus','minha','minhas','muito','na','nas','não','nas','nem','no','nos','nós','nossa','nossas','nosso','nossos','nunca','o','os','ou','para','pela','pelas','pelo','pelos','per','pode','por','porque','pra','quais','qual','quando','que','quem','se','sem','ser','seu','seus','sua','suas','sobre','só','sua','são','tanto','também','te','tem','tenho','tendo','ter','tinha','tiveram','tivemos','tive','todo','toda','todos','todas','tu','tá','um','uma','uns','umas','vai','você','vocês','vos','vou','www','http','https','kkk','rs','haha','hahaha','bom','boa','dia','noite','tarde','oi','olá','ok','blz','vlw','obrigado','obrigada',

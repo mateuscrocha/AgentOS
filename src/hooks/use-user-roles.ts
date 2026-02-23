@@ -13,6 +13,8 @@ interface UserRole {
   created_at: string;
 }
 
+export type UserRoleAccessInput = Pick<UserRole, "role" | "organization_id" | "group_id">;
+
 interface RoleContext {
   role: AppRole;
   organizationId?: string;
@@ -34,6 +36,19 @@ const ROLE_PRIORITY: Record<AppRole, number> = {
   'GROUP_MANAGER': 2,
   'USER': 1,
 };
+
+export function hasGroupAccessForRoles(
+  roles: UserRoleAccessInput[] | undefined,
+  groupId: string,
+  orgId?: string,
+  isSystemAdmin = false
+) {
+  if (isSystemAdmin) return true;
+  return roles?.some((r) =>
+    r.group_id === groupId ||
+    (!!orgId && r.organization_id === orgId && ['ORG_ADMIN', 'GROUP_MANAGER', 'USER'].includes(r.role))
+  ) ?? false;
+}
 
 export function useUserRoles() {
   const { user, isAuthenticated } = useAuth();
@@ -57,36 +72,50 @@ export function useUserRoles() {
     queryKey: ['user-role-contexts', user?.id, roles],
     queryFn: async () => {
       if (!roles || roles.length === 0) return [];
-      
-      const contexts: RoleContext[] = [];
-      
-      for (const role of roles) {
+
+      const orgIds = Array.from(new Set(roles.map((r) => r.organization_id).filter(Boolean)));
+      const groupIds = Array.from(new Set(roles.map((r) => r.group_id).filter(Boolean)));
+
+      const [orgsResult, groupsResult] = await Promise.all([
+        orgIds.length > 0
+          ? supabase
+              .from('organizations')
+              .select('id,name')
+              .in('id', orgIds)
+          : Promise.resolve({ data: [], error: null } as const),
+        groupIds.length > 0
+          ? supabase
+              .from('groups')
+              .select('id,name')
+              .in('id', groupIds)
+          : Promise.resolve({ data: [], error: null } as const),
+      ]);
+
+      if (orgsResult.error) throw orgsResult.error;
+      if (groupsResult.error) throw groupsResult.error;
+
+      const orgNameById = new Map<string, string>(
+        (orgsResult.data ?? []).map((org: any) => [String(org.id), String(org.name || 'Organização')]),
+      );
+      const groupNameById = new Map<string, string>(
+        (groupsResult.data ?? []).map((group: any) => [String(group.id), String(group.name || 'Grupo')]),
+      );
+
+      return roles.map((role) => {
         const context: RoleContext = { role: role.role };
-        
+
         if (role.organization_id) {
-          const { data: org } = await supabase
-            .from('organizations')
-            .select('name')
-            .eq('id', role.organization_id)
-            .maybeSingle();
           context.organizationId = role.organization_id;
-          context.organizationName = org?.name || 'Organização';
+          context.organizationName = orgNameById.get(role.organization_id) || 'Organização';
         }
-        
+
         if (role.group_id) {
-          const { data: group } = await supabase
-            .from('groups')
-            .select('name')
-            .eq('id', role.group_id)
-            .maybeSingle();
           context.groupId = role.group_id;
-          context.groupName = group?.name || 'Grupo';
+          context.groupName = groupNameById.get(role.group_id) || 'Grupo';
         }
-        
-        contexts.push(context);
-      }
-      
-      return contexts;
+
+        return context;
+      });
     },
     enabled: isAuthenticated && !!user?.id && !!roles && roles.length > 0,
   });
@@ -153,12 +182,8 @@ export function useUserRoles() {
     ) ?? false;
   };
 
-  const hasGroupAccess = (groupId: string) => {
-    if (isSystemAdmin) return true;
-    return roles?.some(r => 
-      r.group_id === groupId || 
-      (r.role === 'ORG_ADMIN' || r.role === 'GROUP_MANAGER' || r.role === 'USER')
-    ) ?? false;
+  const hasGroupAccess = (groupId: string, orgId?: string) => {
+    return hasGroupAccessForRoles(roles, groupId, orgId, isSystemAdmin);
   };
 
   const canEditOrg = (orgId: string) => {

@@ -9,24 +9,62 @@ export default defineConfig(({ mode }) => {
   void env;
 
   return {
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  define: {},
-  optimizeDeps: {
-    force: true,
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    server: {
+      host: "::",
+      port: 8080,
     },
-  },
-  test: {
-    environment: "jsdom",
-    globals: true,
-    include: ["src/**/*.test.{ts,tsx}"],
-  },
+    define: {},
+    optimizeDeps: {
+      force: true,
+    },
+    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return;
+
+            if (id.includes("recharts") || id.includes("d3-") || id.includes("victory-vendor")) {
+              return "charts-vendor";
+            }
+
+            if (id.includes("@supabase/")) {
+              return "supabase-vendor";
+            }
+
+            if (id.includes("@tanstack/react-query")) {
+              return "query-vendor";
+            }
+
+            if (id.includes("react-router") || id.includes("@remix-run/router")) {
+              return "router-vendor";
+            }
+
+            if (id.includes("@radix-ui/") || id.includes("cmdk") || id.includes("vaul")) {
+              return "ui-radix-vendor";
+            }
+
+            if (id.includes("framer-motion") || id.includes("motion-")) {
+              return "motion-vendor";
+            }
+
+            if (id.includes("react") || id.includes("scheduler")) {
+              return "react-vendor";
+            }
+          },
+        },
+      },
+    },
+    test: {
+      environment: "jsdom",
+      globals: true,
+      include: ["src/**/*.test.{ts,tsx}"],
+      setupFiles: ["./src/test/setup.ts"],
+    },
   };
 });

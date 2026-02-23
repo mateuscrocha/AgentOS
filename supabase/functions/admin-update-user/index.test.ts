@@ -3,6 +3,7 @@ import { assertEquals, assert } from "https://deno.land/std@0.224.0/testing/asse
 import { createAdminUpdateUserHandler } from "./index.ts";
 
 const DenoRef = (globalThis as any).Deno;
+const STRONG_PASSWORD_72 = "Aa1!".repeat(18);
 
 function makeReq(body: any) {
   return new Request("http://localhost:8000/functions/v1/admin-update-user", {
@@ -69,6 +70,32 @@ DenoRef.test("admin-update-user retorna erro claro quando senha é muito longa",
   assert(String(body.message || "").includes("no máximo"));
 });
 
+DenoRef.test("admin-update-user rejeita senha fraca", async () => {
+  const handler = createAdminUpdateUserHandler({
+    createClientImpl: makeCreateClientStub({ requesterId: "u-req", requesterIsSystemAdmin: true }) as any,
+    env: {
+      get: (k: string) => {
+        if (k === "SUPABASE_URL") return "http://localhost:8000";
+        if (k === "SUPABASE_ANON_KEY") return "anon";
+        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        return undefined;
+      },
+    },
+  });
+
+  const res = await handler(
+    makeReq({
+      user_id: "u-target",
+      password: "abcdef1234",
+    })
+  );
+
+  assertEquals(res.status, 400);
+  const body = await res.json();
+  assertEquals(body.success, false);
+  assertEquals(body.code, "WEAK_PASSWORD");
+});
+
 DenoRef.test("admin-update-user aceita senha no limite sem quebrar", async () => {
   const handler = createAdminUpdateUserHandler({
     createClientImpl: makeCreateClientStub({ requesterId: "u-req", requesterIsSystemAdmin: true }) as any,
@@ -85,7 +112,7 @@ DenoRef.test("admin-update-user aceita senha no limite sem quebrar", async () =>
   const res = await handler(
     makeReq({
       user_id: "u-target",
-      password: "a".repeat(72),
+      password: STRONG_PASSWORD_72,
     })
   );
 
@@ -94,4 +121,3 @@ DenoRef.test("admin-update-user aceita senha no limite sem quebrar", async () =>
   assertEquals(body.success, true);
   assertEquals(body.user_id, "u-target");
 });
-

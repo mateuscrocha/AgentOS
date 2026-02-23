@@ -38,7 +38,8 @@ interface ProvisionPayload {
   };
   group: {
     provider: string;
-    whatsapp_provider_id: string;
+    provider_phone?: string;
+    whatsapp_provider_id?: string;
     name: string;
     invite_link: string;
   };
@@ -47,7 +48,8 @@ interface ProvisionPayload {
     name: string;
     is_admin: boolean;
     is_super_admin?: boolean;
-    whatsapp_provider_id: string;
+    lid?: string;
+    whatsapp_provider_id?: string;
   }>;
 }
 
@@ -282,7 +284,7 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
       return json({ success: false, code: 'ORG_NAME_REQUIRED', message: 'Organization name is required' }, 400);
     }
 
-    if (!payload.group?.name || !payload.group?.whatsapp_provider_id) {
+    if (!payload.group?.name || !(payload.group?.provider_phone || payload.group?.whatsapp_provider_id)) {
       return json({ success: false, code: 'GROUP_DATA_INCOMPLETE', message: 'Group data is incomplete' }, 400);
     }
 
@@ -533,7 +535,7 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
         metadata: {
           organization_name: payload.organization.name,
           group_name: payload.group.name,
-          whatsapp_provider_id: payload.group.whatsapp_provider_id,
+          whatsapp_provider_id: payload.group.whatsapp_provider_id ?? payload.group.provider_phone,
         },
       };
       const { error } = await supabase.from('events').insert(evt);
@@ -667,8 +669,8 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
           description: null,
           organization_id: organizationId,
           provider: 'whatsapp',
-          whatsapp_provider_id: payload.group.whatsapp_provider_id,
-          provider_phone: null,
+          whatsapp_provider_id: payload.group.whatsapp_provider_id ?? payload.group.provider_phone ?? null,
+          provider_phone: payload.group.provider_phone ?? payload.group.whatsapp_provider_id ?? null,
           invite_link: payload.group.invite_link,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -757,4 +759,6 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
   };
 };
 
-serve(createProvisionOnboardingHandler());
+if (import.meta.main) {
+  serve(createProvisionOnboardingHandler());
+}

@@ -31,6 +31,7 @@ export function EmptyState({
       <p className="text-sm text-muted-foreground max-w-md mb-4">{message}</p>
       {action && (
         <button
+          type="button"
           onClick={action.onClick}
           className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >

@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getDateRange, type PeriodType, type DateRange } from "./period-utils";
 import { SAO_PAULO_TZ, isValidDate } from "@/lib/date";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface PeriodFilterProps {
   value: PeriodType;
@@ -41,6 +42,7 @@ const periodOptions: { value: PeriodType; label: string }[] = [
 ];
 
 export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps) {
+  const isMobile = useIsMobile();
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [tempRange, setTempRange] = useState<{ from?: Date; to?: Date }>({
     from: customRange?.from,
@@ -90,7 +92,7 @@ export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps
     <div className="flex items-center gap-2">
       <Popover open={isCustomOpen} onOpenChange={setIsCustomOpen}>
         <Select value={value} onValueChange={(v) => handlePeriodChange(v as PeriodType)}>
-          <SelectTrigger className="w-[180px] bg-card border-border">
+          <SelectTrigger className="w-[200px] bg-card border-border" aria-label="Mostrar dados de">
             <SelectValue placeholder="Período">
               {formatRangeLabel()}
             </SelectValue>
@@ -121,19 +123,22 @@ export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps
 
         <PopoverContent className="w-auto p-0" align="end">
           <div className="p-3 border-b border-border">
-            <p className="text-sm font-medium">Selecione o período</p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-sm font-medium">Escolha as datas</p>
+            <p className="text-[13px] text-muted-foreground mt-1">
               {tempRange.from && tempRange.to 
                 ? `${format(tempRange.from, 'dd/MM/yyyy', { locale: ptBR })} - ${format(tempRange.to, 'dd/MM/yyyy', { locale: ptBR })}`
                 : 'Selecione as datas'
               }
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground/90">
+              Comparação: o painel usa o período anterior equivalente.
             </p>
           </div>
           <Calendar
             mode="range"
             selected={{ from: tempRange.from, to: tempRange.to }}
             onSelect={(range) => setTempRange({ from: range?.from, to: range?.to })}
-            numberOfMonths={2}
+            numberOfMonths={isMobile ? 1 : 2}
             locale={ptBR}
             disabled={(date) => date > new Date()}
             className="p-3 pointer-events-auto"

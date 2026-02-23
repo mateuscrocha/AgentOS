@@ -9,6 +9,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+function isInteractiveTarget(target: EventTarget | null, container: HTMLElement) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target === container) return false;
+  return !!target.closest(
+    'button, a, input, select, textarea, [role="button"], [role="menuitem"], [contenteditable="true"]',
+  );
+}
+
 export interface BorisColumn<T> {
   key: string;
   header: string;
@@ -121,7 +129,19 @@ export function BorisTable<T>({
               <tr
                 key={keyExtractor(item)}
                 onClick={() => onRowClick?.(item)}
-                className={cn("transition-colors h-11", onRowClick && "cursor-pointer hover:bg-secondary/50")}
+                onKeyDown={(e) => {
+                  if (!onRowClick) return;
+                  if (isInteractiveTarget(e.target, e.currentTarget)) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onRowClick(item);
+                  }
+                }}
+                tabIndex={onRowClick ? 0 : undefined}
+                className={cn(
+                  "transition-colors h-11",
+                  onRowClick && "cursor-pointer hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                )}
               >
                 {columns.map((col) => (
                   <td
@@ -154,15 +174,19 @@ export function BorisTable<T>({
           </p>
           <div className="flex gap-1">
             <button
+              type="button"
               onClick={() => onPageChange(page - 1)}
               disabled={page <= 1}
+              aria-label="Página anterior"
               className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <button
+              type="button"
               onClick={() => onPageChange(page + 1)}
               disabled={page >= totalPages}
+              aria-label="Próxima página"
               className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="h-4 w-4" />
@@ -179,7 +203,9 @@ export function RowActions({ children }: { children: React.ReactNode }) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
+          type="button"
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
           className="p-1.5 rounded-lg hover:bg-secondary transition-colors ml-auto"
           aria-label="Ações"
         >
@@ -192,4 +218,3 @@ export function RowActions({ children }: { children: React.ReactNode }) {
     </DropdownMenu>
   );
 }
-

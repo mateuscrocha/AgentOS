@@ -67,14 +67,23 @@ export function EditOrganizationModal({
   });
 
   useEffect(() => {
+    if (!open) return;
+
     if (organization) {
       form.reset({
         name: organization.name || "",
         status: organization.status || "active",
         description: ((organization.settings as any)?.description as string) || "",
       });
+      return;
     }
-  }, [organization, form]);
+
+    form.reset({
+      name: "",
+      status: "active",
+      description: "",
+    });
+  }, [organization, open, form]);
 
   const onSubmit = async (values: any) => {
     try {

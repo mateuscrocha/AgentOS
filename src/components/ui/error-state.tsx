@@ -26,6 +26,7 @@ export function ErrorState({
       <p className="text-sm text-muted-foreground max-w-md mb-4">{message}</p>
       {retry && (
         <button
+          type="button"
           onClick={retry}
           className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 transition-colors"
         >

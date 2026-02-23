@@ -1,16 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { queryClient } from '@/lib/query-client';
 
 let explicitSignOutAt = 0;
+let explicitSignOutPending = false;
 
-export function isExplicitSignOutRecent(maxAgeMs = 2000) {
-  return explicitSignOutAt > 0 && Date.now() - explicitSignOutAt <= maxAgeMs;
+export function isExplicitSignOutRecent(maxAgeMs = 10000) {
+  return explicitSignOutPending || (explicitSignOutAt > 0 && Date.now() - explicitSignOutAt <= maxAgeMs);
 }
 
 function markExplicitSignOut() {
   explicitSignOutAt = Date.now();
+  explicitSignOutPending = true;
+}
+
+function clearExplicitSignOut() {
+  explicitSignOutPending = false;
 }
 
 function clearClientSideSessionData() {
@@ -40,7 +46,17 @@ function clearClientSideSessionData() {
   sessionStorage.clear();
 }
 
-export function useAuth() {
+type AuthContextValue = {
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  signOut: () => Promise<{ error: unknown }>;
+  isAuthenticated: boolean;
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+function useProvideAuth(): AuthContextValue {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +65,9 @@ export function useAuth() {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
+          clearExplicitSignOut();
+        }
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -64,6 +83,7 @@ export function useAuth() {
         } catch {
           void 0;
         }
+        clearExplicitSignOut();
         setSession(null);
         setUser(null);
         setLoading(false);
@@ -110,14 +130,30 @@ export function useAuth() {
     setLoading(false);
     console.info('[auth] logout:done');
 
-    return { error };
+    return { error: error ?? null };
   }, []);
 
-  return {
-    user,
-    session,
-    loading,
-    signOut,
-    isAuthenticated: !!session,
-  };
+  return useMemo(
+    () => ({
+      user,
+      session,
+      loading,
+      signOut,
+      isAuthenticated: !!session,
+    }),
+    [user, session, loading, signOut]
+  );
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const value = useProvideAuth();
+  return createElement(AuthContext.Provider, { value }, children);
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth must be used within <AuthProvider>');
+  }
+  return ctx;
 }

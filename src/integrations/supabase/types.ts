@@ -615,7 +615,7 @@ export type Database = {
         Row: {
           created_at: string
           event_type: Database["public"]["Enums"]["member_event_type"]
-          external_member_id: string
+          member_lid: string
           group_id: string
           id: string
           member_id: string | null
@@ -627,7 +627,7 @@ export type Database = {
         Insert: {
           created_at?: string
           event_type: Database["public"]["Enums"]["member_event_type"]
-          external_member_id: string
+          member_lid: string
           group_id: string
           id?: string
           member_id?: string | null
@@ -639,7 +639,7 @@ export type Database = {
         Update: {
           created_at?: string
           event_type?: Database["public"]["Enums"]["member_event_type"]
-          external_member_id?: string
+          member_lid?: string
           group_id?: string
           id?: string
           member_id?: string | null

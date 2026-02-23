@@ -58,7 +58,7 @@ export function AdminPageHeader({
         <div className="rounded-lg border border-border bg-card p-3">
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div className="flex flex-wrap items-center gap-3">{filters}</div>
-            {showClearFilters && (
+            {showClearFilters && onClearFilters && (
               <Button variant="ghost" size="sm" onClick={onClearFilters}>
                 {clearFiltersLabel || "Limpar filtros"}
               </Button>

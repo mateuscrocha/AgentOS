@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -389,7 +389,7 @@ export default function Alerts() {
     onError: (e: any) => notify.error(e?.message ?? "Não foi possível remover."),
   });
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormName("");
     setFormScopeType(isSystemAdmin ? "system" : isOrgAdmin ? "org" : "group");
     setFormOrgId(orgsQuery.data?.[0]?.id ?? orgIds[0] ?? "");
@@ -400,14 +400,14 @@ export default function Alerts() {
     setFormNotifyInApp(true);
     setTermDrafts([]);
     setTermInput("");
-  };
+  }, [groupIds, groupsQuery.data, isOrgAdmin, isSystemAdmin, orgIds, orgsQuery.data]);
 
   useEffect(() => {
     if (!createOpen) {
       setEditing(null);
       resetForm();
     }
-  }, [createOpen]);
+  }, [createOpen, resetForm]);
 
   const openCreate = () => {
     setEditing(null);

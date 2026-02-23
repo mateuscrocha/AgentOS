@@ -8,8 +8,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ArrowUpRight, Building2, CheckCircle, ChevronLeft, ChevronRight, Loader2, Plus, SlidersHorizontal, Users, XCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/use-auth";
@@ -29,16 +28,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { notify } from "@/components/ui/sonner";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
 import { Badge } from "@/components/ui/badge";
-
-interface Organization {
-  id: string;
-  name: string;
-  status: string;
-  created_at: string;
-}
+import { useSystemOrganizations, type OrganizationListItem } from "@/hooks/use-system-organizations";
 
 const PAGE_SIZE = 10;
 
@@ -71,6 +64,21 @@ async function parseInvokeError(err: any): Promise<{ message: string; code?: str
   return { message, code, counts };
 }
 
+function parseDbError(err: any): { title: string; message: string } {
+  const raw = String(err?.message || "");
+  const code = String(err?.code || "");
+
+  if (code === "42501" || /policy|permission|forbidden/i.test(raw)) {
+    return { title: "Sem permissão", message: "Você não tem permissão para concluir esta ação." };
+  }
+
+  if (/foreign key|violates foreign key/i.test(raw)) {
+    return { title: "Dependências existentes", message: "Existem registros vinculados a esta organização." };
+  }
+
+  return { title: "Não foi possível concluir", message: raw || "Algo deu errado. Tente novamente." };
+}
+
 export default function SystemOrganizations() {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -78,15 +86,16 @@ export default function SystemOrganizations() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "suspended">("all");
   const [orderBy, setOrderBy] = useState<"name" | "created_at">("name");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
-  const [removeOrg, setRemoveOrg] = useState<Organization | null>(null);
-  const [removingOrg, setRemovingOrg] = useState(false);
+  const [removeOrg, setRemoveOrg] = useState<OrganizationListItem | null>(null);
+  const [removingOrgId, setRemovingOrgId] = useState<string | null>(null);
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
-  const [cascadeOrg, setCascadeOrg] = useState<Organization | null>(null);
+  const [editingOrg, setEditingOrg] = useState<OrganizationListItem | null>(null);
+  const [cascadeOrg, setCascadeOrg] = useState<OrganizationListItem | null>(null);
   const [confirmCascadeName, setConfirmCascadeName] = useState("");
-  const [deletingCascade, setDeletingCascade] = useState(false);
+  const [deletingCascadeOrgId, setDeletingCascadeOrgId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -95,97 +104,26 @@ export default function SystemOrganizations() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const {
-    data: orgsData,
-    isLoading: orgsLoading,
-    isFetching: orgsFetching,
-    error: orgsError,
-    refetch: refetchOrgs,
-  } = useQuery({
-    queryKey: ["system-organizations", page, debouncedSearch, statusFilter, orderBy, orderDir],
-    queryFn: async () => {
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      let query = supabase
-        .from("organizations")
-        .select("id, name, status, created_at", { count: "exact" });
-
-      if (debouncedSearch) {
-        query = query.ilike("name", `%${debouncedSearch}%`);
-      }
-      if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter);
-      }
-
-      query = query.order(orderBy, { ascending: orderDir === "asc" });
-
-      const { data, error, count } = await query.range(from, to);
-      if (error) throw error;
-      return { items: (data ?? []) as Organization[], count: count ?? 0 };
-    },
-    enabled: isAuthenticated,
+  const { orgsQuery, overviewQuery, orgGroupCountsQuery, updateStatusMutation, refreshAll } = useSystemOrganizations({
+    isAuthenticated,
+    page,
+    pageSize: PAGE_SIZE,
+    search: debouncedSearch,
+    statusFilter,
+    orderBy,
+    orderDir,
   });
+  const { data: orgsData, isLoading: orgsLoading, isFetching: orgsFetching, error: orgsError, refetch: refetchOrgs } = orgsQuery;
+  const { data: overview, isLoading: overviewLoading } = overviewQuery;
+  const { data: orgGroupCounts } = orgGroupCountsQuery;
 
-  const { data: overview, isLoading: overviewLoading } = useQuery({
-    queryKey: ["system-organizations-overview"],
-    queryFn: async () => {
-      const [orgsTotal, orgsActive, orgsInactive, groupsTotal] = await Promise.all([
-        supabase.from("organizations").select("id", { count: "exact", head: true }),
-        supabase.from("organizations").select("id", { count: "exact", head: true }).eq("status", "active"),
-        supabase.from("organizations").select("id", { count: "exact", head: true }).eq("status", "inactive"),
-        supabase.from("groups").select("id", { count: "exact", head: true }),
-      ]);
+  useEffect(() => {
+    const count = orgsData?.count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+    if (page > totalPages) setPage(totalPages);
+  }, [orgsData?.count, page]);
 
-      const err = orgsTotal.error || orgsActive.error || orgsInactive.error || groupsTotal.error;
-      if (err) throw err;
-
-      return {
-        orgsTotal: orgsTotal.count ?? 0,
-        orgsActive: orgsActive.count ?? 0,
-        orgsInactive: orgsInactive.count ?? 0,
-        groupsTotal: groupsTotal.count ?? 0,
-      };
-    },
-    enabled: isAuthenticated,
-  });
-
-  const orgIds = useMemo(() => (orgsData?.items ?? []).map((o) => o.id), [orgsData]);
-  const { data: orgGroupCounts } = useQuery({
-    queryKey: ["org-group-counts", orgIds],
-    queryFn: async () => {
-      if (!orgIds || orgIds.length === 0) return {} as Record<string, number>;
-      const { data, error } = await supabase
-        .from("groups")
-        .select("organization_id, id")
-        .in("organization_id", orgIds);
-      if (error) throw error;
-      const counts: Record<string, number> = {};
-      (data ?? []).forEach((g: any) => {
-        const key = g.organization_id as string;
-        counts[key] = (counts[key] || 0) + 1;
-      });
-      return counts;
-    },
-    enabled: isAuthenticated && orgIds.length > 0,
-  });
-
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: "active" | "inactive" }) => {
-      const { error } = await supabase
-        .from("organizations")
-        .update({ status })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      notify.success("Status atualizado", "Dados salvos com sucesso.");
-      refetchOrgs();
-    },
-    onError: () => {
-      notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
-    },
-  });
+  const refreshOrganizationsData = refreshAll;
 
   if (authLoading || rolesLoading) {
     return (
@@ -199,7 +137,7 @@ export default function SystemOrganizations() {
     return <AccessDenied />;
   }
 
-  const getStatusLabel = (status: Organization["status"]) => {
+  const getStatusLabel = (status: OrganizationListItem["status"]) => {
     if (!status) return "Indefinida";
     if (status === "active") return "Ativa";
     if (status === "inactive") return "Inativa";
@@ -207,7 +145,7 @@ export default function SystemOrganizations() {
     return status;
   };
 
-  const renderStatusChip = (status: Organization["status"]) => (
+  const renderStatusChip = (status: OrganizationListItem["status"]) => (
     <span
       className={`px-2 py-0.5 rounded-full text-xs font-medium ${
         status === "active"
@@ -221,12 +159,68 @@ export default function SystemOrganizations() {
     </span>
   );
 
+  const pendingStatusOrgId = (updateStatusMutation.isPending ? (updateStatusMutation.variables as any)?.id : null) as string | null;
+
+  const renderOrgActions = (org: OrganizationListItem) => {
+    const isStatusPending = pendingStatusOrgId === org.id;
+    const isDeletePending = removingOrgId === org.id;
+    const isCascadePending = deletingCascadeOrgId === org.id;
+    const actionsDisabled = isStatusPending || isDeletePending || isCascadePending;
+
+    return (
+      <RowActions>
+        <DropdownMenuItem onSelect={() => navigate(`/org/${org.id}`)} disabled={actionsDisabled}>
+          Abrir
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => setEditingOrg(org)} disabled={actionsDisabled}>
+          Editar
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={async () => {
+            try {
+              await updateStatusMutation.mutateAsync({
+                id: org.id,
+                status: org.status === "active" ? "inactive" : "active",
+              });
+              notify.success("Status atualizado", "Dados salvos com sucesso.");
+              await refreshOrganizationsData();
+            } catch (err: any) {
+              const parsed = parseDbError(err);
+              notify.error(parsed.title, parsed.message);
+            }
+          }}
+          disabled={actionsDisabled}
+        >
+          {isStatusPending ? "Salvando..." : org.status === "active" ? "Desativar" : "Reativar"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => setRemoveOrg(org)}
+          className="text-destructive focus:text-destructive"
+          disabled={actionsDisabled}
+        >
+          Excluir
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            setCascadeOrg(org);
+            setConfirmCascadeName("");
+          }}
+          className="text-destructive focus:text-destructive"
+          disabled={actionsDisabled}
+        >
+          Excluir com tudo
+        </DropdownMenuItem>
+      </RowActions>
+    );
+  };
+
   const columns = [
     {
       key: "open",
       header: "",
       className: "w-0",
-      render: (org: Organization) => (
+      render: (org: OrganizationListItem) => (
         <Button
           type="button"
           variant="ghost"
@@ -245,22 +239,28 @@ export default function SystemOrganizations() {
     {
       key: "name",
       header: "Organização",
-      render: (org: Organization) => (
+      render: (org: OrganizationListItem) => (
         <div className="min-w-0">
-          <div className="font-semibold text-card-foreground truncate">{org.name}</div>
+          <Link
+            to={`/org/${org.id}`}
+            className="font-semibold text-card-foreground truncate hover:underline focus:outline-none focus:ring-2 focus:ring-ring rounded-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {org.name}
+          </Link>
         </div>
       ),
     },
     {
       key: "status",
       header: "Status",
-      render: (org: Organization) => renderStatusChip(org.status),
+      render: (org: OrganizationListItem) => renderStatusChip(org.status),
     },
     {
       key: "groups_count",
       header: "Grupos",
       hideOn: "sm",
-      render: (org: Organization) => (
+      render: (org: OrganizationListItem) => (
         <Badge variant="secondary" className="tabular-nums">
           {orgGroupCounts?.[org.id] ?? 0}
         </Badge>
@@ -270,7 +270,7 @@ export default function SystemOrganizations() {
       key: "created_at",
       header: "Criada em",
       hideOn: "md",
-      render: (org: Organization) => (
+      render: (org: OrganizationListItem) => (
         <span className="text-xs text-muted-foreground tabular-nums">{formatDateSimpleBR(org.created_at)}</span>
       ),
     },
@@ -278,40 +278,7 @@ export default function SystemOrganizations() {
       key: "actions",
       header: "",
       className: "text-right w-0",
-      render: (org: Organization) => (
-        <RowActions>
-          <DropdownMenuItem
-            onSelect={() => {
-              navigate(`/org/${org.id}`);
-            }}
-          >
-            Abrir
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() =>
-              updateStatusMutation.mutate({
-                id: org.id,
-                status: org.status === "active" ? "inactive" : "active",
-              })
-            }
-          >
-            {org.status === "active" ? "Desativar" : "Reativar"}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setRemoveOrg(org)} className="text-destructive focus:text-destructive">
-            Excluir
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => {
-              setCascadeOrg(org);
-              setConfirmCascadeName("");
-            }}
-            className="text-destructive focus:text-destructive"
-          >
-            Excluir com tudo
-          </DropdownMenuItem>
-        </RowActions>
-      ),
+      render: (org: OrganizationListItem) => renderOrgActions(org),
     },
   ];
 
@@ -362,6 +329,7 @@ export default function SystemOrganizations() {
         <option value="all">Status: todos</option>
         <option value="active">Status: ativos</option>
         <option value="inactive">Status: inativos</option>
+        <option value="suspended">Status: suspensos</option>
       </select>
       <select
         value={orderBy}
@@ -413,7 +381,7 @@ export default function SystemOrganizations() {
             </Button>
           </div>
 
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
             <StatsCard
               title="Total"
               value={overview?.orgsTotal?.toLocaleString("pt-BR") ?? "—"}
@@ -431,6 +399,13 @@ export default function SystemOrganizations() {
             <StatsCard
               title="Inativas"
               value={overview?.orgsInactive?.toLocaleString("pt-BR") ?? "—"}
+              icon={XCircle}
+              variant="kpi"
+              isLoading={overviewLoading}
+            />
+            <StatsCard
+              title="Suspensas"
+              value={overview?.orgsSuspended?.toLocaleString("pt-BR") ?? "—"}
               icon={XCircle}
               variant="kpi"
               isLoading={overviewLoading}
@@ -541,58 +516,22 @@ export default function SystemOrganizations() {
                 {(orgsData?.items ?? []).map((org) => {
                   const groupsCount = orgGroupCounts?.[org.id] ?? 0;
                   return (
-                    <li
-                      key={org.id}
-                      className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/30 transition-colors cursor-pointer"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => navigate(`/org/${org.id}`)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          navigate(`/org/${org.id}`);
-                        }
-                      }}
-                    >
+                    <li key={org.id} className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/30 transition-colors">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-base font-semibold text-card-foreground truncate">{org.name}</div>
+                        <Link
+                          to={`/org/${org.id}`}
+                          className="min-w-0 flex-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                          aria-label={`Abrir organização ${org.name}`}
+                        >
+                          <div className="text-base font-semibold text-card-foreground truncate hover:underline">{org.name}</div>
                           <div className="mt-1">{renderStatusChip(org.status)}</div>
                           <div className="mt-2 text-sm text-muted-foreground">
                             {groupsCount} grupos · Criada em {formatDateSimpleBR(org.created_at)}
                           </div>
-                        </div>
+                        </Link>
 
                         <div className="shrink-0">
-                          <RowActions>
-                            <DropdownMenuItem onSelect={() => navigate(`/org/${org.id}`)}>Abrir</DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() =>
-                                updateStatusMutation.mutate({
-                                  id: org.id,
-                                  status: org.status === "active" ? "inactive" : "active",
-                                })
-                              }
-                            >
-                              {org.status === "active" ? "Desativar" : "Reativar"}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onSelect={() => setRemoveOrg(org)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              Excluir
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                setCascadeOrg(org);
-                                setConfirmCascadeName("");
-                              }}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              Excluir com tudo
-                            </DropdownMenuItem>
-                          </RowActions>
+                          {renderOrgActions(org)}
                         </div>
                       </div>
                     </li>
@@ -665,7 +604,7 @@ export default function SystemOrganizations() {
                     notify.warning("Atenção", "Exclua os grupos antes de remover a organização.");
                     return;
                   }
-                  setRemovingOrg(true);
+                  setRemovingOrgId(removeOrg.id);
                   try {
                     const { error } = await supabase
                       .from("organizations")
@@ -674,16 +613,17 @@ export default function SystemOrganizations() {
                     if (error) throw error;
                     notify.success("Organização excluída", "Tudo certo.");
                     setRemoveOrg(null);
-                    refetchOrgs();
+                    await refreshOrganizationsData();
                   } catch (err: any) {
-                    notify.error("Não foi possível concluir", "Algo deu errado. Tente novamente.");
+                    const parsed = parseDbError(err);
+                    notify.error(parsed.title, parsed.message);
                   } finally {
-                    setRemovingOrg(false);
+                    setRemovingOrgId(null);
                   }
                 }}
-                disabled={removingOrg}
+                disabled={removingOrgId === removeOrg?.id}
               >
-                Excluir
+                {removingOrgId === removeOrg?.id ? "Excluindo..." : "Excluir"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -716,7 +656,7 @@ export default function SystemOrganizations() {
                     notify.warning("Atenção", "O nome digitado não confere.");
                     return;
                   }
-                  setDeletingCascade(true);
+                  setDeletingCascadeOrgId(cascadeOrg.id);
                   try {
                     const { error } = await supabase.functions.invoke("delete-resource-cascade", {
                       body: { resourceType: "organization", resourceId: cascadeOrg.id },
@@ -724,7 +664,7 @@ export default function SystemOrganizations() {
                     if (error) throw error;
                     notify.success("Organização excluída", "Tudo certo.");
                     setCascadeOrg(null);
-                    refetchOrgs();
+                    await refreshOrganizationsData();
                   } catch (err: any) {
                     const parsed = await parseInvokeError(err);
                     const countsLabel = formatCounts(parsed.counts);
@@ -746,22 +686,35 @@ export default function SystemOrganizations() {
                     }
                     notify.error("Não foi possível concluir", countsLabel ? `${parsed.message} (${countsLabel})` : parsed.message);
                   } finally {
-                    setDeletingCascade(false);
+                    setDeletingCascadeOrgId(null);
                   }
                 }}
-                disabled={deletingCascade || confirmCascadeName !== cascadeOrg?.name}
+                disabled={deletingCascadeOrgId === cascadeOrg?.id || confirmCascadeName !== cascadeOrg?.name}
               >
-                Excluir com tudo
+                {deletingCascadeOrgId === cascadeOrg?.id ? "Excluindo..." : "Excluir com tudo"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
         <EditOrganizationModal
+          organization={editingOrg}
+          open={!!editingOrg}
+          onOpenChange={(open) => {
+            if (!open) setEditingOrg(null);
+          }}
+          onSuccess={() => {
+            void refreshOrganizationsData();
+          }}
+        />
+
+        <EditOrganizationModal
           organization={null}
           open={createOrgOpen}
           onOpenChange={setCreateOrgOpen}
-          onSuccess={() => refetchOrgs()}
+          onSuccess={() => {
+            void refreshOrganizationsData();
+          }}
         />
       </div>
     </AdminLayout>

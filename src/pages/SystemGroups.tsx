@@ -9,7 +9,7 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, SlidersHorizontal, Users, CheckCircle, XCircle, BarChart3, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { FunctionsFetchError, FunctionsHttpError } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/use-auth";
@@ -48,6 +48,11 @@ interface GroupRow {
 interface OrganizationOption { id: string; name: string; }
 
 const PAGE_SIZE = 10;
+const WHATSAPP_INVITE_HOST_RE = /(?:https?:\/\/)?chat\.whatsapp\.com\/[A-Za-z0-9]+/i;
+
+function isValidWhatsAppInviteLink(value: string): boolean {
+  return WHATSAPP_INVITE_HOST_RE.test((value ?? "").trim());
+}
 
 async function parseInvokeError(err: any): Promise<{ message: string; code?: string }> {
   let message = err?.message || "Algo deu errado. Tente novamente.";
@@ -83,6 +88,7 @@ async function parseInvokeError(err: any): Promise<{ message: string; code?: str
 
 export default function SystemGroups() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
 
@@ -96,6 +102,7 @@ export default function SystemGroups() {
   const [removingGroup, setRemovingGroup] = useState(false);
   const [editInviteGroup, setEditInviteGroup] = useState<GroupRow | null>(null);
   const [inviteLinkInput, setInviteLinkInput] = useState("");
+  const [inviteLinkError, setInviteLinkError] = useState<string | null>(null);
   const [cascadeGroup, setCascadeGroup] = useState<GroupRow | null>(null);
   const [deletingCascade, setDeletingCascade] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -111,6 +118,21 @@ export default function SystemGroups() {
     }, 300);
     return () => clearTimeout(t);
   }, [search, debouncedSearch]);
+
+  const refreshGroupsList = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["system-groups"], exact: false });
+  };
+
+  const refreshGroupsOverview = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["system-groups-overview"] });
+  };
+
+  const refreshGroupsPageData = async ({ includeOverview = false }: { includeOverview?: boolean } = {}) => {
+    await Promise.all([
+      refreshGroupsList(),
+      ...(includeOverview ? [refreshGroupsOverview()] : []),
+    ]);
+  };
 
   const { data: organizations } = useQuery({
     queryKey: ["groups-organizations-filter-options"],
@@ -180,6 +202,27 @@ export default function SystemGroups() {
   const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: ["system-groups-overview"],
     queryFn: async () => {
+      const isMissingGroupsOverviewRpcError = (rpcError: unknown) => {
+        const code = String((rpcError as { code?: string } | null)?.code ?? "");
+        const message = String((rpcError as { message?: string } | null)?.message ?? "");
+        return code === "42883" || /function .*get_system_groups_overview/i.test(message);
+      };
+
+      const { data: rpcData, error: rpcError } = await (supabase as any).rpc("get_system_groups_overview");
+      if (!rpcError) {
+        const payload = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+        return {
+          total: Number(payload?.total ?? 0),
+          active: Number(payload?.active ?? 0),
+          inactive: Number(payload?.inactive ?? 0),
+          avgMembers: Number(payload?.avg_members ?? payload?.avgMembers ?? 0),
+        };
+      }
+
+      if (!isMissingGroupsOverviewRpcError(rpcError)) {
+        throw rpcError;
+      }
+
       const [total, active, inactive] = await Promise.all([
         supabase.from("groups").select("id", { count: "exact", head: true }).eq("is_archived", false),
         supabase
@@ -197,27 +240,16 @@ export default function SystemGroups() {
       const err = total.error || active.error || inactive.error;
       if (err) throw err;
 
-      let sumMembers = 0;
-      let rowsCount = 0;
-      const pageSize = 1000;
-      for (let pageIdx = 0; pageIdx < 20; pageIdx++) {
-        const from = pageIdx * pageSize;
-        const to = from + pageSize - 1;
-        const { data, error } = await supabase
-          .from("v_group_overview")
-          .select("members_count")
-          .eq("is_archived", false)
-          .range(from, to);
-        if (error) throw error;
-        const rows = (data ?? []) as Array<{ members_count: number | null }>;
-        for (const r of rows) {
-          sumMembers += Number(r.members_count ?? 0);
-          rowsCount += 1;
-        }
-        if (rows.length < pageSize) break;
-      }
+      const { data: rows, error: membersErr } = await supabase
+        .from("v_group_overview")
+        .select("members_count")
+        .eq("is_archived", false);
+      if (membersErr) throw membersErr;
 
-      const avgMembers = rowsCount > 0 ? Math.round(sumMembers / rowsCount) : 0;
+      const membersRows = (rows ?? []) as Array<{ members_count: number | null }>;
+      const sumMembers = membersRows.reduce((sum, r) => sum + Number(r.members_count ?? 0), 0);
+      const avgMembers = membersRows.length > 0 ? Math.round(sumMembers / membersRows.length) : 0;
+
       return {
         total: total.count ?? 0,
         active: active.count ?? 0,
@@ -236,9 +268,9 @@ export default function SystemGroups() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       notify.success("Status atualizado", "Dados salvos com sucesso.");
-      refetch();
+      await refreshGroupsPageData({ includeOverview: true });
     },
     onError: (err: any) => {
       notify.error("Não foi possível atualizar status", "Algo deu errado. Tente novamente.");
@@ -253,11 +285,11 @@ export default function SystemGroups() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       notify.success("Convite atualizado", "Dados salvos com sucesso.");
       setEditInviteGroup(null);
       setInviteLinkInput("");
-      refetch();
+      await refreshGroupsPageData();
     },
     onError: (err: any) => {
       notify.error("Não foi possível atualizar convite", "Algo deu errado. Tente novamente.");
@@ -277,6 +309,15 @@ export default function SystemGroups() {
   }
 
   const hasActiveFilters = !!search || !!orgFilter || statusFilter !== "all" || orderBy !== "created_at" || orderDir !== "desc";
+
+  useEffect(() => {
+    const total = groupsData?.count;
+    if (typeof total !== "number") return;
+    const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (page > maxPage) {
+      setPage(maxPage);
+    }
+  }, [groupsData?.count, page]);
 
   const handleClearFilters = () => {
     setSearch("");
@@ -321,11 +362,19 @@ export default function SystemGroups() {
       <button
         onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: g.id, status: g.status === "active" ? "inactive" : "active" }); }}
         className="w-full text-left px-2 py-1.5 text-sm"
+        disabled={updateStatusMutation.isPending}
       >
-        {g.status === "active" ? "Desativar" : "Reativar"}
+        {updateStatusMutation.isPending && updateStatusMutation.variables?.id === g.id
+          ? "Atualizando..."
+          : g.status === "active" ? "Desativar" : "Reativar"}
       </button>
       <button
-        onClick={(e) => { e.stopPropagation(); setEditInviteGroup(g); setInviteLinkInput(g.invite_link || ""); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditInviteGroup(g);
+          setInviteLinkInput(g.invite_link || "");
+          setInviteLinkError(null);
+        }}
         className="w-full text-left px-2 py-1.5 text-sm"
       >
         Editar convite
@@ -822,7 +871,7 @@ export default function SystemGroups() {
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Arquivar grupo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
-                O grupo será arquivado e não aparecerá nas listas. Os dados históricos serão preservados.
+                O grupo <span className="font-medium text-foreground">{removeGroup?.name || "selecionado"}</span> será arquivado e não aparecerá nas listas. Os dados históricos serão preservados.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -839,7 +888,7 @@ export default function SystemGroups() {
                     if (error) throw error;
                     notify.success("Grupo arquivado", "Tudo certo.");
                     setRemoveGroup(null);
-                    refetch();
+                    await refreshGroupsPageData({ includeOverview: true });
                   } catch (err: any) {
                     notify.error("Não foi possível arquivar", "Algo deu errado. Tente novamente.");
                   } finally {
@@ -859,17 +908,23 @@ export default function SystemGroups() {
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Editar link de convite</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
-                Informe o link de convite do WhatsApp para revalidar o grupo.
+                Informe o link de convite do WhatsApp para revalidar o grupo <span className="font-medium text-foreground">{editInviteGroup?.name || "selecionado"}</span>.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-3">
               <input
                 type="text"
                 value={inviteLinkInput}
-                onChange={(e) => setInviteLinkInput(e.target.value)}
+                onChange={(e) => {
+                  setInviteLinkInput(e.target.value);
+                  if (inviteLinkError) setInviteLinkError(null);
+                }}
                 placeholder="https://chat.whatsapp.com/…"
                 className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
               />
+              {inviteLinkError && (
+                <div className="text-xs text-destructive">{inviteLinkError}</div>
+              )}
             </div>
             <AlertDialogFooter>
               <AlertDialogCancel className="mr-2" onClick={() => setEditInviteGroup(null)}>Cancelar</AlertDialogCancel>
@@ -877,11 +932,16 @@ export default function SystemGroups() {
                 onClick={() => {
                   if (!editInviteGroup) return;
                   const v = inviteLinkInput.trim();
+                  if (v.length > 0 && !isValidWhatsAppInviteLink(v)) {
+                    setInviteLinkError("Cole um link de convite válido do WhatsApp.");
+                    return;
+                  }
                   const value = v.length ? v : null;
                   updateInviteMutation.mutate({ id: editInviteGroup.id, invite_link: value });
                 }}
+                disabled={updateInviteMutation.isPending}
               >
-                Salvar
+                {updateInviteMutation.isPending ? "Salvando..." : "Salvar"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -892,7 +952,7 @@ export default function SystemGroups() {
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Excluir grupo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
-                Esta ação é irreversível e removerá o grupo e todos os dados associados.
+                Esta ação é irreversível e removerá o grupo <span className="font-medium text-foreground">{cascadeGroup?.name || "selecionado"}</span> e todos os dados associados.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-3">
@@ -916,7 +976,7 @@ export default function SystemGroups() {
                     if (error) throw error;
                     notify.success("Grupo excluído", "Tudo certo.");
                     setCascadeGroup(null);
-                    refetch();
+                    await refreshGroupsPageData({ includeOverview: true });
                   } catch (err: any) {
                     const parsed = await parseInvokeError(err);
                     if (parsed.code === "NETWORK_ERROR") {

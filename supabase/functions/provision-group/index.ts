@@ -164,7 +164,8 @@ interface ProvisionGroupPayload {
   organization_id: string;
   group: {
     provider: string;
-    whatsapp_provider_id: string;
+    provider_phone?: string;
+    whatsapp_provider_id?: string;
     name: string;
     invite_link: string;
   };
@@ -173,7 +174,8 @@ interface ProvisionGroupPayload {
     name: string;
     is_admin: boolean;
     is_super_admin?: boolean;
-    whatsapp_provider_id: string;
+    lid?: string;
+    whatsapp_provider_id?: string;
   }>;
 }
 
@@ -236,7 +238,7 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
       );
     }
 
-    if (!payload.group?.name || !payload.group?.whatsapp_provider_id) {
+    if (!payload.group?.name || !(payload.group?.provider_phone || payload.group?.whatsapp_provider_id)) {
       return new Response(
         JSON.stringify({ success: false, code: 'GROUP_DATA_INCOMPLETE', message: 'Group data is incomplete' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -448,8 +450,8 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
         description: null,
         organization_id: payload.organization_id,
         provider: 'whatsapp',
-        whatsapp_provider_id: payload.group.whatsapp_provider_id,
-        provider_phone: null,
+        whatsapp_provider_id: payload.group.whatsapp_provider_id ?? payload.group.provider_phone ?? null,
+        provider_phone: payload.group.provider_phone ?? payload.group.whatsapp_provider_id ?? null,
         invite_link: payload.group.invite_link,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -547,4 +549,6 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
   };
 };
 
-serve(createProvisionGroupHandler());
+if (import.meta.main) {
+  serve(createProvisionGroupHandler());
+}

@@ -3,12 +3,14 @@ type ParticipantLike = {
   name?: unknown;
   is_admin?: unknown;
   is_super_admin?: unknown;
+  lid?: unknown;
   whatsapp_provider_id?: unknown;
 };
 
 type NormalizedParticipant = {
-  phone_raw: string;
-  phone_e164: string;
+  phone_raw: string | null;
+  phone_e164: string | null;
+  lid: string | null;
   whatsapp_provider_id: string;
   name: string | null;
   is_admin: boolean;
@@ -57,15 +59,17 @@ const normalizeParticipants = (participants: unknown): NormalizedParticipant[] =
 
   const normalized = participants
     .map((p: ParticipantLike) => {
+      const lidRaw = String(p?.lid ?? '').trim();
       const providerIdRaw = String(p?.whatsapp_provider_id ?? '').trim();
-      const providerDigits = toDigits(providerIdRaw);
-      const phoneRaw = String(p?.phone ?? '').trim();
+      const preferredProviderId = lidRaw || providerIdRaw;
+      const providerDigits = toDigits(preferredProviderId);
+      const phoneRawValue = String(p?.phone ?? '').trim();
+      const phoneRaw = phoneRawValue || null;
 
-      const phoneE164 = toE164(phoneRaw) ?? (providerDigits.length >= 10 ? toE164(providerDigits) : null);
-      if (!phoneE164) return null;
+      const phoneE164 = (phoneRaw ? toE164(phoneRaw) : null) ?? (providerDigits.length >= 10 ? toE164(providerDigits) : null);
 
-      const digits = toDigits(phoneE164);
-      const providerId = providerIdRaw || digits;
+      const digits = phoneE164 ? toDigits(phoneE164) : '';
+      const providerId = preferredProviderId || digits;
       if (!providerId) return null;
 
       const isSuperAdmin = !!p?.is_super_admin;
@@ -76,6 +80,7 @@ const normalizeParticipants = (participants: unknown): NormalizedParticipant[] =
       return {
         phone_raw: phoneRaw,
         phone_e164: phoneE164,
+        lid: lidRaw || null,
         whatsapp_provider_id: providerId,
         name,
         is_admin: isAdmin,
@@ -88,7 +93,13 @@ const normalizeParticipants = (participants: unknown): NormalizedParticipant[] =
   const seen = new Set<string>();
 
   for (const p of normalized) {
-    const key = toDigits(p.phone_e164) || toDigits(p.whatsapp_provider_id) || p.whatsapp_provider_id.trim() || p.phone_e164;
+    const key =
+      (p.lid || '').trim() ||
+      (p.phone_e164 ? toDigits(p.phone_e164) : '') ||
+      toDigits(p.whatsapp_provider_id) ||
+      p.whatsapp_provider_id.trim() ||
+      p.phone_e164 ||
+      '';
     if (!key) continue;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -106,6 +117,7 @@ const buildRows = (args: {
   includeSuperAdmin: boolean;
   includeProvider: boolean;
   includeProviderMemberId: boolean;
+  includeLid: boolean;
   includeTiming: boolean;
   includeStatus: boolean;
 }) => {
@@ -117,6 +129,7 @@ const buildRows = (args: {
     includeSuperAdmin,
     includeProvider,
     includeProviderMemberId,
+    includeLid,
     includeTiming,
     includeStatus,
   } = args;
@@ -124,7 +137,7 @@ const buildRows = (args: {
   return participants.map((p) => {
     const base: any = {
       group_id: groupId,
-      name: p.name || p.phone_raw || p.phone_e164,
+      name: p.name || p.phone_raw || p.phone_e164 || p.lid || p.whatsapp_provider_id,
       is_admin: p.is_admin,
     };
 
@@ -132,6 +145,7 @@ const buildRows = (args: {
 
     if (includeSuperAdmin) base.is_super_admin = p.is_super_admin;
     if (includeProviderMemberId) base.whatsapp_provider_id = p.whatsapp_provider_id;
+    if (includeLid) base.lid = p.lid ?? p.whatsapp_provider_id;
     if (includeProvider) base.provider = 'whatsapp';
     if (includeTiming) {
       base.first_seen_at = nowIso;
@@ -171,6 +185,7 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       includeSuperAdmin: true,
       includeProvider: true,
       includeProviderMemberId: true,
+      includeLid: true,
       includeTiming: true,
       includeStatus: true,
     }),
@@ -182,6 +197,7 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       includeSuperAdmin: true,
       includeProvider: true,
       includeProviderMemberId: true,
+      includeLid: false,
       includeTiming: true,
       includeStatus: true,
     }),
@@ -193,6 +209,7 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       includeSuperAdmin: false,
       includeProvider: true,
       includeProviderMemberId: true,
+      includeLid: false,
       includeTiming: true,
       includeStatus: true,
     }),
@@ -204,6 +221,7 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       includeSuperAdmin: false,
       includeProvider: false,
       includeProviderMemberId: true,
+      includeLid: true,
       includeTiming: false,
       includeStatus: false,
     }),
@@ -215,6 +233,7 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       includeSuperAdmin: false,
       includeProvider: false,
       includeProviderMemberId: false,
+      includeLid: false,
       includeTiming: false,
       includeStatus: false,
     }),
@@ -226,6 +245,7 @@ export const insertMembersFromParticipantsForGroup = async (args: {
       includeSuperAdmin: false,
       includeProvider: false,
       includeProviderMemberId: false,
+      includeLid: false,
       includeTiming: false,
       includeStatus: false,
     }),

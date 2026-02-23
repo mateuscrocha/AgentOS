@@ -4,7 +4,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { useParams } from "react-router-dom";
-import { Users, Search, X, Filter, ChevronLeft, ChevronRight, Loader2, Shield, Clock, BarChart3 } from "lucide-react";
+import { Users, Search, X, Filter, ChevronLeft, ChevronRight, Loader2, Shield, BarChart3 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useState } from "react";
@@ -146,7 +146,8 @@ const GroupMembers = () => {
         .from('members')
         .select('*', { count: 'exact', head: true })
         .eq('group_id', groupId)
-        .is('deleted_at', null);
+        .is('deleted_at', null)
+        .neq('status', 'inactive');
       if (error) throw error;
       return count ?? 0;
     },
@@ -428,7 +429,7 @@ const GroupMembers = () => {
             }}
           />
 
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             <StatsCard
               title="Total de membros"
               value={(totalMembersCount ?? 0).toLocaleString("pt-BR")}
@@ -437,23 +438,9 @@ const GroupMembers = () => {
               isLoading={overviewLoading}
             />
             <StatsCard
-              title="Membros ativos"
-              value={(membersOverview?.activeCount ?? 0).toLocaleString("pt-BR")}
-              icon={Users}
-              variant="kpi"
-              isLoading={overviewLoading}
-            />
-            <StatsCard
               title="Admins"
               value={(membersOverview?.adminsCount ?? 0).toLocaleString("pt-BR")}
               icon={Shield}
-              variant="kpi"
-              isLoading={overviewLoading}
-            />
-            <StatsCard
-              title="Inativos (30d)"
-              value={(membersOverview?.inactive30dCount ?? 0).toLocaleString("pt-BR")}
-              icon={Clock}
               variant="kpi"
               isLoading={overviewLoading}
             />
@@ -483,7 +470,12 @@ const GroupMembers = () => {
               {(membersData?.items ?? []).map((m) => {
                 const role = getMemberRoleKey(m);
                 const displayName = (m.display_name || m.name || "").toString();
-                const statusKey: MemberStatusKey = m.left_at ? "SAIU" : !m.left_at && m.status === "active" ? "ATIVO" : "INATIVO";
+                const hasLeftGroup = !!m.left_at;
+                const hasRecentActivity =
+                  !hasLeftGroup &&
+                  !!m.last_seen_message_at &&
+                  new Date(m.last_seen_message_at).getTime() >= new Date(last30StartISO).getTime();
+                const statusKey: MemberStatusKey = hasLeftGroup ? "SAIU" : hasRecentActivity ? "ATIVO" : "INATIVO";
                 return (
                   <article
                     key={m.id}

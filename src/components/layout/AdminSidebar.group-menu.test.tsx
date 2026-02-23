@@ -74,7 +74,10 @@ describe("AdminSidebar — menu do grupo", () => {
     await act(async () => {
       root.render(
         <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000"]}>
+          <MemoryRouter
+            initialEntries={["/groups/00000000-0000-4000-8000-000000000000"]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
             <AdminSidebar />
           </MemoryRouter>
         </QueryClientProvider>
@@ -106,7 +109,10 @@ describe("AdminSidebar — menu do grupo", () => {
     await act(async () => {
       root.render(
         <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000"]}>
+          <MemoryRouter
+            initialEntries={["/groups/00000000-0000-4000-8000-000000000000"]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
             <AdminSidebar />
           </MemoryRouter>
         </QueryClientProvider>

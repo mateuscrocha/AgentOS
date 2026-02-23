@@ -43,8 +43,6 @@ export default function GroupEvents() {
   const [eventType, setEventType] = useState("all");
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
-  const hasAccess = groupId ? hasGroupAccess(groupId) : false;
-
   const currentRange = getDateRange(selectedPeriod, customRange);
   const currentStartISO = currentRange.from.toISOString();
   const currentEndISO = currentRange.to.toISOString();
@@ -61,8 +59,10 @@ export default function GroupEvents() {
       if (error) throw error;
       return data;
     },
-    enabled: !!groupId && hasAccess,
+    enabled: !!groupId && !authLoading,
   });
+
+  const hasAccess = groupId ? hasGroupAccess(groupId, group?.organization_id ?? undefined) : false;
 
   // Fetch organization info for breadcrumbs
   const { data: org } = useQuery({

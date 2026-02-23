@@ -46,7 +46,7 @@ describe("logout", () => {
       };
     });
 
-    const { useAuth } = await import("@/hooks/use-auth");
+    const { AuthProvider, useAuth } = await import("@/hooks/use-auth");
 
     localStorage.setItem("sb-test-auth-token", "token");
     localStorage.setItem("system-admin-period", "{\"period\":\"7d\"}");
@@ -70,7 +70,11 @@ describe("logout", () => {
     const root = createRoot(container);
 
     await act(async () => {
-      root.render(<TestApp />);
+      root.render(
+        <AuthProvider>
+          <TestApp />
+        </AuthProvider>,
+      );
     });
 
     await act(async () => {
@@ -164,4 +168,3 @@ describe("logout", () => {
     container.remove();
   });
 });
-

@@ -10,6 +10,23 @@ const corsHeaders = {
 };
 
 const MAX_PASSWORD_LENGTH = 72;
+const MIN_PASSWORD_LENGTH = 10;
+
+function validatePasswordStrength(password: string): string | null {
+  const value = (password || "").trim();
+  if (!value) return "Senha obrigatória";
+  if (value.length < MIN_PASSWORD_LENGTH) {
+    return `Senha deve ter no mínimo ${MIN_PASSWORD_LENGTH} caracteres.`;
+  }
+  if (value.length > MAX_PASSWORD_LENGTH) {
+    return `Senha muito longa. Use no máximo ${MAX_PASSWORD_LENGTH} caracteres.`;
+  }
+  if (!/[A-Z]/.test(value)) return "Senha deve incluir letra maiúscula.";
+  if (!/[a-z]/.test(value)) return "Senha deve incluir letra minúscula.";
+  if (!/\d/.test(value)) return "Senha deve incluir número.";
+  if (!/[^A-Za-z0-9]/.test(value)) return "Senha deve incluir símbolo.";
+  return null;
+}
 
 function normalizePhoneE164(phone: string): string {
   const raw = (phone || "").trim();
@@ -90,13 +107,12 @@ export function createAdminCreateUserHandler(args?: {
       console.log(JSON.stringify({ stage: 'validation', payload: { name: !!payload?.name, email: !!payload?.email, scope_type: payload?.scope_type, scope_id: payload?.scope_id }, status: 400 }));
       return json({ success: false, message: "Dados obrigatórios ausentes", code: 'VALIDATION_ERROR' }, 400);
     }
-    const passwordLen = (payload.password || "").length;
-    if (passwordLen > MAX_PASSWORD_LENGTH) {
-      console.log(JSON.stringify({ stage: 'validation_password_too_long', len: passwordLen, status: 400 }));
-      return json(
-        { success: false, message: `Senha muito longa. Use no máximo ${MAX_PASSWORD_LENGTH} caracteres.`, code: 'PASSWORD_TOO_LONG' },
-        400
-      );
+    const passwordValidationError = validatePasswordStrength(payload.password || "");
+    if (passwordValidationError) {
+      const passwordLen = (payload.password || "").length;
+      const code = passwordLen > MAX_PASSWORD_LENGTH ? "PASSWORD_TOO_LONG" : "WEAK_PASSWORD";
+      console.log(JSON.stringify({ stage: 'validation_password_policy', len: passwordLen, code, status: 400 }));
+      return json({ success: false, message: passwordValidationError, code }, 400);
     }
     if (!payload.scope_type || !payload.scope_id) {
       console.log(JSON.stringify({ stage: 'validation_scope', payload: { scope_type: payload.scope_type, scope_id: payload.scope_id }, status: 400 }));

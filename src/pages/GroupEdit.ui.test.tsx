@@ -129,7 +129,10 @@ describe("GroupEdit — ajustes de UI", () => {
 
     await act(async () => {
       root.render(
-        <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}>
+        <MemoryRouter
+          initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <Routes>
             <Route path="/groups/:groupId/edit" element={<GroupEditComponent />} />
           </Routes>
@@ -153,7 +156,10 @@ describe("GroupEdit — ajustes de UI", () => {
 
     await act(async () => {
       root.render(
-        <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}>
+        <MemoryRouter
+          initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <Routes>
             <Route path="/groups/:groupId/edit" element={<GroupEditComponent />} />
           </Routes>
@@ -183,7 +189,10 @@ describe("GroupEdit — ajustes de UI", () => {
 
     await act(async () => {
       root.render(
-        <MemoryRouter initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}>
+        <MemoryRouter
+          initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <Routes>
             <Route path="/groups/:groupId/edit" element={<GroupEditComponent />} />
           </Routes>

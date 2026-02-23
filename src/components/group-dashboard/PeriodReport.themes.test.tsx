@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PeriodReport } from "./PeriodReport";
+
+vi.mock("@/components/ui/metric-help", () => ({
+  MetricHelp: () => null,
+}));
 
 describe("PeriodReport (grupo) — Temas em destaque", () => {
   it("não renderiza Temas em destaque", () => {

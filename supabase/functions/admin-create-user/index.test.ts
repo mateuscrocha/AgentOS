@@ -3,6 +3,7 @@ import { assertEquals, assert } from "https://deno.land/std@0.224.0/testing/asse
 import { createAdminCreateUserHandler } from "./index.ts";
 
 const DenoRef = (globalThis as any).Deno;
+const STRONG_PASSWORD_72 = "Aa1!".repeat(18);
 
 function makeReq(body: any) {
   return new Request("http://localhost:8000/functions/v1/admin-create-user", {
@@ -84,6 +85,39 @@ DenoRef.test("admin-create-user retorna erro claro quando senha é muito longa",
   assert(String(body.message || "").includes("no máximo"));
 });
 
+DenoRef.test("admin-create-user rejeita senha fraca", async () => {
+  const handler = createAdminCreateUserHandler({
+    createClientImpl: makeCreateClientStub({
+      requesterId: "u-req",
+      requesterIsSystemAdmin: true,
+      createdUserId: "u-new",
+    }) as any,
+    env: {
+      get: (k: string) => {
+        if (k === "SUPABASE_URL") return "http://localhost:8000";
+        if (k === "SUPABASE_ANON_KEY") return "anon";
+        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        return undefined;
+      },
+    },
+  });
+
+  const res = await handler(
+    makeReq({
+      name: "Teste",
+      email: "teste@exemplo.com",
+      password: "abcdef1234",
+      scope_type: "organization",
+      scope_id: "org-1",
+    })
+  );
+
+  assertEquals(res.status, 400);
+  const body = await res.json();
+  assertEquals(body.success, false);
+  assertEquals(body.code, "WEAK_PASSWORD");
+});
+
 DenoRef.test("admin-create-user aceita senha no limite sem quebrar", async () => {
   const handler = createAdminCreateUserHandler({
     createClientImpl: makeCreateClientStub({
@@ -105,7 +139,7 @@ DenoRef.test("admin-create-user aceita senha no limite sem quebrar", async () =>
     makeReq({
       name: "Teste",
       email: "teste@exemplo.com",
-      password: "a".repeat(72),
+      password: STRONG_PASSWORD_72,
       scope_type: "organization",
       scope_id: "org-1",
       assign_org_admin: false,

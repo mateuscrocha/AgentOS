@@ -64,6 +64,7 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 import { cn } from "@/lib/utils";
+import { APP_PASSWORD_HINT, APP_PASSWORD_MAX_LENGTH, validateAppPassword } from "@/lib/password-policy";
 
 interface Profile {
   id: string;
@@ -1085,23 +1086,22 @@ export default function Users() {
             <div>
               <Input
                 type="password"
-                placeholder="Senha (6 dígitos)"
+                placeholder="Senha"
                 value={newUserPassword}
-                onChange={(e) => setNewUserPassword(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                inputMode="numeric"
-                pattern="\\d{6}"
-                maxLength={6}
+                onChange={(e) => setNewUserPassword(e.target.value)}
+                minLength={10}
+                maxLength={APP_PASSWORD_MAX_LENGTH}
               />
+              <p className="mt-1 text-xs text-muted-foreground">{APP_PASSWORD_HINT}</p>
             </div>
             <div>
               <Input
                 type="password"
-                placeholder="Confirmar senha (6 dígitos)"
+                placeholder="Confirmar senha"
                 value={newUserPasswordConfirm}
-                onChange={(e) => setNewUserPasswordConfirm(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                inputMode="numeric"
-                pattern="\\d{6}"
-                maxLength={6}
+                onChange={(e) => setNewUserPasswordConfirm(e.target.value)}
+                minLength={10}
+                maxLength={APP_PASSWORD_MAX_LENGTH}
               />
             </div>
             <div className="pt-2 border-t border-border space-y-2">
@@ -1176,8 +1176,9 @@ export default function Users() {
                   notify.warning('Atenção', 'Informe um email válido.');
                   return;
                 }
-                if (!/^\d{6}$/.test(password)) {
-                  notify.warning('Atenção', 'A senha deve ter exatamente 6 dígitos.');
+                const passwordError = validateAppPassword(password);
+                if (passwordError) {
+                  notify.warning('Atenção', passwordError);
                   return;
                 }
                 if (password !== confirm) {

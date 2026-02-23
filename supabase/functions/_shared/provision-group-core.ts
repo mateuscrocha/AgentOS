@@ -5,11 +5,13 @@ type ParticipantLike = {
   name?: unknown;
   is_admin?: unknown;
   is_super_admin?: unknown;
+  lid?: unknown;
   whatsapp_provider_id?: unknown;
 };
 
 type ProvisionGroupInput = {
   provider?: unknown;
+  provider_phone?: unknown;
   whatsapp_provider_id?: unknown;
   name?: unknown;
   invite_link?: unknown;
@@ -72,17 +74,19 @@ const normalizeParticipants = (participants: unknown) => {
   const seen = new Set<string>();
 
   participants.forEach((p: ParticipantLike, index) => {
+    const lidRaw = String(p?.lid ?? '').trim();
     const providerIdRaw = String(p?.whatsapp_provider_id ?? '').trim();
-    const providerDigits = toDigits(providerIdRaw);
+    const preferredProviderId = lidRaw || providerIdRaw;
+    const providerDigits = toDigits(preferredProviderId);
     const phoneRaw = String(p?.phone ?? '').trim();
     const phoneE164 = toE164(phoneRaw) ?? (providerDigits.length >= 10 ? toE164(providerDigits) : null);
-    if (!phoneE164) {
+    if (!phoneE164 && !preferredProviderId) {
       invalid.push({ index, reason: 'PHONE_INVALID' });
       return;
     }
 
-    const digits = toDigits(phoneE164);
-    const providerId = providerIdRaw || digits;
+    const digits = phoneE164 ? toDigits(phoneE164) : '';
+    const providerId = preferredProviderId || digits;
     if (!providerId) {
       invalid.push({ index, reason: 'PROVIDER_ID_MISSING' });
       return;
@@ -105,6 +109,7 @@ const normalizeParticipants = (participants: unknown) => {
       name: String(p?.name ?? '').trim() || null,
       is_admin: isAdmin,
       is_super_admin: isSuperAdmin,
+      lid: lidRaw || null,
       whatsapp_provider_id: providerId,
     });
   });
@@ -123,8 +128,16 @@ const findExistingGroup = async (args: {
   ({ data: existing, error: err } = await supabase
     .from('groups')
     .select('id, name')
-    .eq('whatsapp_provider_id', externalId)
+    .eq('provider_phone', externalId)
     .maybeSingle());
+
+  if (!existing && (!err || isUnknownColumnError(err))) {
+    ({ data: existing, error: err } = await supabase
+      .from('groups')
+      .select('id, name')
+      .eq('whatsapp_provider_id', externalId)
+      .maybeSingle());
+  }
 
   if (err && isUnknownColumnError(err)) {
     ({ data: existing, error: err } = await supabase
@@ -160,10 +173,15 @@ const tryInsertGroup = async (args: {
   };
 
   const attempts: any[] = [
+    { ...base, provider_phone: externalId, whatsapp_provider_id: externalId },
+    { ...base, provider_phone: externalId },
     { ...base, whatsapp_provider_id: externalId },
     { ...base, provider_group_id: externalId },
+    { name: groupName, organization_id: organizationId, provider: 'whatsapp', invite_link: inviteLink, provider_phone: externalId, whatsapp_provider_id: externalId },
+    { name: groupName, organization_id: organizationId, provider: 'whatsapp', invite_link: inviteLink, provider_phone: externalId },
     { name: groupName, organization_id: organizationId, provider: 'whatsapp', invite_link: inviteLink, whatsapp_provider_id: externalId },
     { name: groupName, organization_id: organizationId, provider: 'whatsapp', invite_link: inviteLink, provider_group_id: externalId },
+    { name: groupName, organization_id: organizationId, provider: 'whatsapp', provider_phone: externalId },
     { name: groupName, organization_id: organizationId, provider: 'whatsapp', whatsapp_provider_id: externalId },
     { name: groupName, organization_id: organizationId, provider: 'whatsapp', provider_group_id: externalId },
   ];
@@ -208,7 +226,7 @@ export const provisionGroupWithMembersCore = async (args: {
   }
 
   const groupName = String(args.group?.name ?? '').trim();
-  const externalId = String(args.group?.whatsapp_provider_id ?? '').trim();
+  const externalId = String(args.group?.provider_phone ?? args.group?.whatsapp_provider_id ?? '').trim();
   const inviteLink = String(args.group?.invite_link ?? '').trim() || null;
 
   if (!organizationId) {

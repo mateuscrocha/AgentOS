@@ -57,6 +57,8 @@ export function GroupGrowthSection({
 
   const netGrowthClassName =
     netGrowth > 0 ? "text-success" : "text-muted-foreground";
+  const netGrowthLabel =
+    netGrowth > 0 ? `+${netGrowth}` : netGrowth < 0 ? `−${Math.abs(netGrowth)}` : "0";
 
   const sortedEvents = (memberEvents ?? []).slice().sort((a, b) => (b.occurredAt || "").localeCompare(a.occurredAt || ""));
 
@@ -64,8 +66,7 @@ export function GroupGrowthSection({
   const hasMoreEvents = sortedEvents.length > 5;
   const eventsHref = groupId ? `/groups/${groupId}/events` : undefined;
 
-  const displayedCurrentMembers =
-    membersAtPeriodStart !== undefined ? Math.max(0, membersAtPeriodStart + netGrowth) : currentMembers;
+  const displayedCurrentMembers = Math.max(0, currentMembers);
 
   return (
     <section className="rounded-2xl border border-border/60 bg-card/70 p-5">
@@ -95,7 +96,7 @@ export function GroupGrowthSection({
               <Skeleton className="h-9 w-20" />
             ) : (
               <p className={`text-2xl font-semibold tabular-nums ${netGrowthClassName}`}>
-                {netGrowth > 0 ? `+${netGrowth}` : `−${Math.abs(netGrowth)}`}
+                {netGrowthLabel}
               </p>
             )}
             <div>

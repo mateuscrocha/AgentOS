@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -30,6 +30,7 @@ import { addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { getPostLoginRedirectPath } from "@/lib/auth-routing";
 
 type RecentGroupRow = {
   id: string;
@@ -62,6 +63,13 @@ type SignalConcentrationPayload = {
   activeGroups: number;
 } | null;
 
+type PeriodKpiSummary = {
+  totalMessages: number;
+  activeGroups: number;
+  activeOrganizations: number;
+  activeMembers: number;
+};
+
 const Index = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -82,20 +90,21 @@ const Index = () => {
     if (!authLoading && !rolesLoading && isAuthenticated && !isSystemAdmin) {
       const groups = getAccessibleGroupIds();
       const orgs = getAccessibleOrgIds();
-      if (groups && groups.length > 0) {
-        navigate(`/groups/${groups[0]}`, { replace: true });
-      } else if (orgs && orgs.length > 0) {
-        navigate(`/organization/${orgs[0]}`, { replace: true });
-      } else {
-        navigate("/no-access", { replace: true });
-      }
+      const redirectPath = getPostLoginRedirectPath({
+        isSystemAdmin,
+        groupIds: groups ?? [],
+        orgIds: orgs ?? [],
+      });
+      if (redirectPath) navigate(redirectPath, { replace: true });
     }
   }, [authLoading, rolesLoading, isAuthenticated, isSystemAdmin, getAccessibleGroupIds, getAccessibleOrgIds, navigate]);
 
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('30d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
-  const currentRange = getDateRange(selectedPeriod, customRange);
-  const queryClient = useQueryClient();
+  const currentRange = useMemo(
+    () => getDateRange(selectedPeriod, customRange),
+    [selectedPeriod, customRange],
+  );
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
     setSelectedPeriod(period);
     setCustomRange(period === 'custom' ? range : undefined);
@@ -107,18 +116,8 @@ const Index = () => {
   };
 
   const formatNumberBR = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
+  const formatTimeBR = (date: Date) => formatInTimeZone(date, SAO_PAULO_TZ, "HH:mm");
 
-  const pageSections = useMemo(
-    () => [
-      { id: "kpis", label: "KPIs" },
-      { id: "executive-summary", label: "Resumo" },
-      { id: "context", label: "Contexto" },
-    ],
-    [],
-  );
-
-  const [activeSectionId, setActiveSectionId] = useState(pageSections[0]?.id ?? "kpis");
-  const [scrollProgress, setScrollProgress] = useState(0);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   const scrollToSection = (id: string) => {
@@ -140,9 +139,6 @@ const Index = () => {
         raf = 0;
         const doc = document.documentElement;
         const scrollTop = window.scrollY || doc.scrollTop || 0;
-        const max = Math.max(doc.scrollHeight - doc.clientHeight, 1);
-        const pct = Math.max(0, Math.min(100, (scrollTop / max) * 100));
-        setScrollProgress(pct);
         setShowBackToTop(scrollTop > 640);
       });
     };
@@ -154,33 +150,6 @@ const Index = () => {
       if (raf) window.cancelAnimationFrame(raf);
     };
   }, []);
-
-  useEffect(() => {
-    const ids = pageSections.map((s) => s.id);
-    const elements = ids
-      .map((id) => document.getElementById(id))
-      .filter((el): el is HTMLElement => Boolean(el));
-
-    if (elements.length === 0) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const candidates = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0));
-        const top = candidates[0];
-        const id = (top?.target as HTMLElement | undefined)?.id;
-        if (id) setActiveSectionId(id);
-      },
-      {
-        threshold: [0.25, 0.4, 0.6],
-        rootMargin: "-20% 0px -70% 0px",
-      },
-    );
-
-    elements.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [pageSections]);
 
   useEffect(() => {
     try {
@@ -204,19 +173,9 @@ const Index = () => {
     } catch { void 0; }
   }, [selectedPeriod, customRange]);
 
-  useEffect(() => {
-    try {
-      queryClient.invalidateQueries({
-        predicate: (q) => {
-          const k = q.queryKey?.[0] as string | undefined;
-          return typeof k === 'string' && (k.startsWith('kpi-') || k.startsWith('system-') || k.startsWith('signal-'));
-        }
-      });
-    } catch { void 0; }
-  }, [selectedPeriod, customRange, queryClient]);
-
-  const computeComparisonRange = () => {
-    const now = new Date();
+  const comparisonNowTick = selectedPeriod === "today" ? Math.floor(Date.now() / 300_000) : 0;
+  const comparisonRange = useMemo(() => {
+    const now = selectedPeriod === "today" ? new Date(comparisonNowTick * 300_000) : new Date();
     let currTo = currentRange.to;
     let prevFrom: Date;
     let prevTo: Date;
@@ -245,9 +204,9 @@ const Index = () => {
       prevFrom = new Date(prevTo.getTime() - lengthMs);
     }
     return { prevFrom, prevTo };
-  };
+  }, [comparisonNowTick, currentRange.from, currentRange.to, selectedPeriod]);
 
-  const { prevFrom, prevTo } = computeComparisonRange();
+  const { prevFrom, prevTo } = comparisonRange;
   const prevStartISO = prevFrom.toISOString();
   const prevEndISO = prevTo.toISOString();
 
@@ -262,14 +221,6 @@ const Index = () => {
     };
   }, [last24hTick]);
 
-  const getComparisonSuffix = () => {
-    switch (selectedPeriod) {
-      default:
-        return 'vs período anterior';
-    }
-  };
-  const comparisonSuffix = getComparisonSuffix();
-
   const fetchTotalMembersCount = async () => {
     const { count, error } = await supabase
       .from("members")
@@ -277,6 +228,66 @@ const Index = () => {
       .is("deleted_at", null);
     if (error) throw error;
     return count ?? 0;
+  };
+
+  const isMissingRpcFunctionError = (error: unknown) => {
+    const code = String((error as { code?: string } | null)?.code ?? "");
+    const message = String((error as { message?: string } | null)?.message ?? "");
+    return code === "42883" || /function .*get_system_dashboard_kpis/i.test(message);
+  };
+
+  const fetchPeriodKpiSummary = async (startISO: string, endISO: string): Promise<PeriodKpiSummary> => {
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_system_dashboard_kpis", {
+      p_start: startISO,
+      p_end: endISO,
+    });
+
+    if (!rpcError) {
+      const payload = (rpcData ?? {}) as Partial<PeriodKpiSummary>;
+      return {
+        totalMessages: Number(payload.totalMessages ?? 0),
+        activeGroups: Number(payload.activeGroups ?? 0),
+        activeOrganizations: Number(payload.activeOrganizations ?? 0),
+        activeMembers: Number(payload.activeMembers ?? 0),
+      };
+    }
+
+    if (!isMissingRpcFunctionError(rpcError)) {
+      throw rpcError;
+    }
+
+    const { data: messageRows, error: msgErr } = await supabase
+      .from("messages")
+      .select("group_id, member_id")
+      .is("deleted_at", null)
+      .gte("created_at", startISO)
+      .lte("created_at", endISO);
+    if (msgErr) throw msgErr;
+
+    const rows = (messageRows ?? []) as Array<{ group_id: string | null; member_id: string | null }>;
+    const groupIds = Array.from(new Set(rows.map((r) => r.group_id).filter(Boolean))) as string[];
+    const activeMembers = new Set(rows.map((r) => r.member_id).filter(Boolean)).size;
+
+    let activeOrganizations = 0;
+    if (groupIds.length > 0) {
+      const { data: groupsData, error: grpErr } = await supabase
+        .from("groups")
+        .select("id, organization_id")
+        .in("id", groupIds);
+      if (grpErr) throw grpErr;
+      activeOrganizations = new Set(
+        ((groupsData ?? []) as Array<{ organization_id: string | null }>)
+          .map((g) => g.organization_id)
+          .filter(Boolean),
+      ).size;
+    }
+
+    return {
+      totalMessages: rows.length,
+      activeGroups: groupIds.length,
+      activeOrganizations,
+      activeMembers,
+    };
   };
 
   const fetchNewGroups24h = async () => {
@@ -367,180 +378,52 @@ const Index = () => {
   });
 
   const {
-    data: kpiOrgsPeriod,
-    isLoading: kpiOrgsPeriodLoading,
-    error: kpiOrgsPeriodError,
+    data: currentPeriodKpis,
+    isLoading: currentPeriodKpisLoading,
+    error: currentPeriodKpisError,
   } = useQuery({
-    queryKey: ["kpi-organizations-active-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
-    queryFn: async () => {
-      const { data: msgData, error: msgErr } = await supabase
-        .from("messages")
-        .select("group_id,created_at")
-        .is("deleted_at", null)
-        .gte("created_at", currentRange.from.toISOString())
-        .lte("created_at", currentRange.to.toISOString());
-      if (msgErr) throw msgErr;
-      const groupIds = Array.from(new Set((msgData || []).map((m: any) => m.group_id).filter(Boolean)));
-      if (groupIds.length === 0) return 0;
-      const { data: groupsData, error: grpErr } = await supabase
-        .from("groups")
-        .select("id,organization_id")
-        .in("id", groupIds);
-      if (grpErr) throw grpErr;
-      const orgIds = Array.from(new Set((groupsData || []).map((g: any) => g.organization_id).filter(Boolean)));
-      return orgIds.length;
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
-  const { data: kpiGroupsPeriod, 
-    isLoading: kpiGroupsPeriodLoading,
-    error: kpiGroupsPeriodError,
-  } = useQuery({
-    queryKey: ["kpi-groups-active-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("group_id")
-        .is("deleted_at", null)
-        .gte("created_at", currentRange.from.toISOString())
-        .lte("created_at", currentRange.to.toISOString());
-      if (error) throw error;
-      const ids = Array.from(new Set((data || []).map((m: any) => m.group_id).filter(Boolean)));
-      return ids.length;
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
-  const { data: kpiGroupsPrevPeriod } = useQuery({
-    queryKey: ["kpi-groups-active-prev-period", prevStartISO, prevEndISO],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("group_id")
-        .is("deleted_at", null)
-        .gte("created_at", prevStartISO)
-        .lte("created_at", prevEndISO);
-      if (error) throw error;
-      const ids = Array.from(new Set((data || []).map((m: any) => m.group_id).filter(Boolean)));
-      return ids.length;
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
- 
-
-  const {
-    data: kpiMessagesPeriod,
-    isLoading: kpiMessagesLoading,
-    error: kpiMessagesError,
-  } = useQuery({
-    queryKey: ["kpi-messages-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("messages")
-        .select("*", { count: "exact", head: true })
-        .is("deleted_at", null)
-        .gte("created_at", currentRange.from.toISOString())
-        .lte("created_at", currentRange.to.toISOString());
-      if (error) throw error;
-      return count ?? 0;
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
-  const { data: kpiMessagesPrevPeriod } = useQuery({
-    queryKey: ["kpi-messages-prev-period", prevStartISO, prevEndISO],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("messages")
-        .select("*", { count: "exact", head: true })
-        .is("deleted_at", null)
-        .gte("created_at", prevStartISO)
-        .lte("created_at", prevEndISO);
-      if (error) throw error;
-      return count ?? 0;
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
-  const { data: kpiOrgsPrevPeriod } = useQuery({
-    queryKey: ["kpi-organizations-active-prev-period", prevStartISO, prevEndISO],
-    queryFn: async () => {
-      const { data: msgData, error: msgErr } = await supabase
-        .from("messages")
-        .select("group_id,created_at")
-        .is("deleted_at", null)
-        .gte("created_at", prevStartISO)
-        .lte("created_at", prevEndISO);
-      if (msgErr) throw msgErr;
-      const groupIds = Array.from(new Set((msgData || []).map((m: any) => m.group_id).filter(Boolean)));
-      if (groupIds.length === 0) return 0;
-      const { data: groupsData, error: grpErr } = await supabase
-        .from("groups")
-        .select("id,organization_id")
-        .in("id", groupIds);
-      if (grpErr) throw grpErr;
-      const orgIds = Array.from(new Set((groupsData || []).map((g: any) => g.organization_id).filter(Boolean)));
-      return orgIds.length;
-    },
+    queryKey: ["kpi-summary-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
+    queryFn: () => fetchPeriodKpiSummary(currentRange.from.toISOString(), currentRange.to.toISOString()),
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
   });
 
   const {
-    data: kpiActiveMembersPeriod,
-    isLoading: kpiActiveMembersLoading,
-    error: kpiActiveMembersError,
+    data: prevPeriodKpis,
+    isLoading: prevPeriodKpisLoading,
+    error: prevPeriodKpisError,
   } = useQuery({
-    queryKey: ["kpi-active-members-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("member_id")
-        .is("deleted_at", null)
-        .not("member_id", "is", null)
-        .gte("created_at", currentRange.from.toISOString())
-        .lte("created_at", currentRange.to.toISOString());
-      if (error) throw error;
-      const set = new Set((data || []).map((row: any) => row.member_id).filter(Boolean));
-      return set.size;
-    },
+    queryKey: ["kpi-summary-prev-period", prevStartISO, prevEndISO],
+    queryFn: () => fetchPeriodKpiSummary(prevStartISO, prevEndISO),
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
   });
 
-  const { data: kpiActiveMembersPrevPeriod } = useQuery({
-    queryKey: ["kpi-active-members-prev-period", prevStartISO, prevEndISO],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("member_id")
-        .is("deleted_at", null)
-        .not("member_id", "is", null)
-        .gte("created_at", prevStartISO)
-        .lte("created_at", prevEndISO);
-      if (error) throw error;
-      const set = new Set((data || []).map((row: any) => row.member_id).filter(Boolean));
-      return set.size;
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
+  const kpiMessagesPeriod = currentPeriodKpis?.totalMessages;
+  const kpiGroupsPeriod = currentPeriodKpis?.activeGroups;
+  const kpiOrgsPeriod = currentPeriodKpis?.activeOrganizations;
+  const kpiActiveMembersPeriod = currentPeriodKpis?.activeMembers;
+  const kpiMessagesPrevPeriod = prevPeriodKpis?.totalMessages;
+  const kpiGroupsPrevPeriod = prevPeriodKpis?.activeGroups;
+  const kpiOrgsPrevPeriod = prevPeriodKpis?.activeOrganizations;
+  const kpiActiveMembersPrevPeriod = prevPeriodKpis?.activeMembers;
+  const kpiMessagesLoading = currentPeriodKpisLoading;
+  const kpiGroupsPeriodLoading = currentPeriodKpisLoading;
+  const kpiOrgsPeriodLoading = currentPeriodKpisLoading;
+  const kpiActiveMembersLoading = currentPeriodKpisLoading;
+  const kpiMessagesError = currentPeriodKpisError;
+  const kpiGroupsPeriodError = currentPeriodKpisError;
+  const kpiOrgsPeriodError = currentPeriodKpisError;
+  const kpiActiveMembersError = currentPeriodKpisError;
 
   useEffect(() => {
-    if (kpiMembersError) notify.error("Falha ao carregar Membros", "Tente novamente.");
-    if (kpiMessagesError) notify.error("Falha ao carregar Mensagens do período", "Tente novamente.");
-    if (kpiActiveMembersError) notify.error("Falha ao carregar Membros ativos", "Tente novamente.");
+    if (kpiMembersError || currentPeriodKpisError || prevPeriodKpisError) {
+      notify.error("Alguns indicadores não puderam ser carregados", "Você ainda pode usar os blocos com dados disponíveis.");
+    }
   }, [
     kpiMembersError,
-    kpiMessagesError,
-    kpiActiveMembersError,
+    currentPeriodKpisError,
+    prevPeriodKpisError,
   ]);
 
 
@@ -566,13 +449,6 @@ const Index = () => {
 
   
 
-  useEffect(() => {
-    if (pulse24hError) notify.error("Falha ao carregar pulso (24h)", "Tente novamente.");
-    if (newGroups24hError) notify.error("Falha ao carregar novos grupos (24h)", "Tente novamente.");
-  }, [pulse24hError, newGroups24hError]);
-
- 
-
   if (authLoading || rolesLoading) {
     return (
       <AdminLayout title="Central do Bóris" subtitle="Carregando...">
@@ -585,6 +461,19 @@ const Index = () => {
     return null;
   }
 
+  const describePercentChange = (delta: number, suffix: string) => {
+    if (Math.abs(delta) <= 2) return `Estável em relação ao ${suffix}`;
+    if (delta > 0) return `Subiu ${delta}% em relação ao ${suffix}`;
+    return `Caiu ${Math.abs(delta)}% em relação ao ${suffix}`;
+  };
+
+  const describeAbsoluteChange = (abs: number, singular: string, plural: string, suffix: string) => {
+    if (abs === 0) return `Estável em relação ao ${suffix}`;
+    const unit = Math.abs(abs) === 1 ? singular : plural;
+    if (abs > 0) return `${abs} ${unit} a mais que o ${suffix}`;
+    return `${Math.abs(abs)} ${unit} a menos que o ${suffix}`;
+  };
+
   const messagesDelta = (() => {
     const curr = kpiMessagesPeriod || 0;
     const prev = kpiMessagesPrevPeriod ?? null;
@@ -596,12 +485,10 @@ const Index = () => {
     const prev = kpiMessagesPrevPeriod ?? null;
     if (prev === null) return "—";
     const curr = kpiMessagesPeriod || 0;
-    if (curr === prev) return "sem variação";
-    if (prev === 0) return curr > 0 ? `novo ${comparisonSuffix}` : "sem variação";
+    if (curr === prev) return "Estável";
+    if (prev === 0) return curr > 0 ? "Sem histórico anterior para comparar" : "Estável";
     const d = messagesDelta as number;
-    if (Math.abs(d) <= 2) return `estável ${comparisonSuffix}`;
-    const sign = d >= 0 ? "+" : "";
-    return `${sign}${d}% ${comparisonSuffix}`;
+    return describePercentChange(d, "período anterior");
   })();
   const messagesChangeType = (() => {
     const prev = kpiMessagesPrevPeriod ?? null;
@@ -621,10 +508,7 @@ const Index = () => {
     const prev = kpiOrgsPrevPeriod ?? null;
     if (prev === null) return { label: "—", type: "neutral" as const };
     const abs = curr - prev;
-    if (abs === 0) return { label: `estável ${comparisonSuffix}` , type: "neutral" as const };
-    const sign = abs > 0 ? "+" : "";
-    const unit = Math.abs(abs) === 1 ? "organização" : "organizações";
-    return { label: `${sign}${abs} ${unit} ${comparisonSuffix}`, type: abs > 0 ? "positive" as const : "negative" as const };
+    return { label: describeAbsoluteChange(abs, "organização", "organizações", "período anterior"), type: abs > 0 ? "positive" as const : abs < 0 ? "negative" as const : "neutral" as const };
   })();
 
   const groupsChange = (() => {
@@ -632,23 +516,18 @@ const Index = () => {
     const prev = kpiGroupsPrevPeriod ?? null;
     if (prev === null) return { label: "—", type: "neutral" as const };
     const abs = curr - prev;
-    if (abs === 0) return { label: `estável ${comparisonSuffix}` , type: "neutral" as const };
-    const sign = abs > 0 ? "+" : "";
-    const unit = Math.abs(abs) === 1 ? "grupo" : "grupos";
-    return { label: `${sign}${abs} ${unit} ${comparisonSuffix}`, type: abs > 0 ? "positive" as const : "negative" as const };
+    return { label: describeAbsoluteChange(abs, "grupo", "grupos", "período anterior"), type: abs > 0 ? "positive" as const : abs < 0 ? "negative" as const : "neutral" as const };
   })();
 
   const activeMembersChange = (() => {
     const curr = kpiActiveMembersPeriod || 0;
     const prev = kpiActiveMembersPrevPeriod ?? null;
     if (prev === null) return { label: "—", type: "neutral" as const };
-    if (curr === prev) return { label: "sem variação", type: "neutral" as const };
-    if (prev === 0) return { label: `novo ${comparisonSuffix}`, type: "positive" as const };
+    if (curr === prev) return { label: "Estável", type: "neutral" as const };
+    if (prev === 0) return { label: "Sem histórico anterior para comparar", type: "positive" as const };
     const delta = Math.round(((curr - prev) / prev) * 100);
-    if (Math.abs(delta) <= 2) return { label: `estável ${comparisonSuffix}`, type: "neutral" as const };
-    const sign = delta >= 0 ? "+" : "";
     const type = delta > 0 ? "positive" as const : "negative" as const;
-    return { label: `${sign}${delta}% ${comparisonSuffix}`, type };
+    return { label: describePercentChange(delta, "período anterior"), type };
   })();
 
   const participationChange = (() => {
@@ -660,11 +539,11 @@ const Index = () => {
     const prevPct = total ? (prevActive / total) * 100 : 0;
     const delta = currPct - prevPct;
     const rounded = Math.round(delta * 10) / 10;
-    if (rounded === 0) return { label: "sem variação", type: "neutral" as const };
-    if (Math.abs(rounded) <= 2) return { label: `estável ${comparisonSuffix}`, type: "neutral" as const };
-    const formatted = `${rounded >= 0 ? "+" : ""}${String(rounded).replace(".", ",")}`;
+    if (rounded === 0) return { label: "Estável", type: "neutral" as const };
+    if (Math.abs(rounded) <= 2) return { label: "Estável", type: "neutral" as const };
+    const formatted = `${String(Math.abs(rounded)).replace(".", ",")}`;
     const type = rounded > 0 ? "positive" as const : "negative" as const;
-    return { label: `${formatted} p.p. ${comparisonSuffix}`, type };
+    return { label: rounded > 0 ? `Subiu ${formatted} p.p. em relação ao período anterior` : `Caiu ${formatted} p.p. em relação ao período anterior`, type };
   })();
 
   const periodLabel = `${formatDateSimpleBR(currentRange.from)} — ${formatDateSimpleBR(currentRange.to)}`;
@@ -772,7 +651,7 @@ const Index = () => {
     const totalMessages = pulseMeta.totalMessages;
     const activeGroups = pulseMeta.activeGroups;
     const concentration = pulseMeta.concentration;
-    return `Nas últimas 24h: ${newGroupsCount} novos grupos, ${formatNumberBR(totalMessages)} mensagens em ${formatNumberBR(activeGroups)} grupos (concentração ${concentration}).`;
+    return `Nas últimas 24h, foram criados ${newGroupsCount} grupos. Houve ${formatNumberBR(totalMessages)} mensagens em ${formatNumberBR(activeGroups)} grupos, com atividade ${concentration === "alta" ? "concentrada em poucos grupos" : concentration === "média" ? "moderadamente concentrada" : "bem distribuída"}.`;
   })();
 
   const mainKpis = (
@@ -784,6 +663,7 @@ const Index = () => {
         change={kpiMessagesLoading ? undefined : messagesChangeLabel}
         changeType={messagesChangeType}
         icon={MessageSquare}
+        description="Total de mensagens enviadas no período escolhido"
         variant="kpi"
       />
       <StatsCard
@@ -793,6 +673,7 @@ const Index = () => {
         change={kpiActiveMembersLoading ? undefined : activeMembersChange.label}
         changeType={activeMembersChange.type}
         icon={UsersIcon}
+        description="Pessoas que enviaram pelo menos 1 mensagem"
         variant="kpi"
       />
       <StatsCard
@@ -802,6 +683,7 @@ const Index = () => {
         change={participationChange.label}
         changeType={participationChange.type}
         icon={UsersIcon}
+        description="Percentual de membros que participaram com mensagem"
         variant="kpi"
       />
     </>
@@ -816,6 +698,7 @@ const Index = () => {
         change={kpiOrgsPeriodLoading ? undefined : orgsChange.label}
         changeType={orgsChange.type}
         icon={Building2}
+        description="Organizações com pelo menos um grupo ativo"
         variant="kpi"
       />
       <StatsCard
@@ -825,6 +708,7 @@ const Index = () => {
         change={kpiGroupsPeriodLoading ? undefined : groupsChange.label}
         changeType={groupsChange.type}
         icon={Layers}
+        description="Grupos que tiveram mensagens no período"
         variant="kpi"
       />
     </>
@@ -841,94 +725,74 @@ const Index = () => {
           title="Central do Bóris"
           description="Panorama geral do Bóris"
           filters={(
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <span className="text-sm font-medium text-foreground">Período</span>
               <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
-              <span className="text-xs text-muted-foreground">Período (panorama): {periodLabel}</span>
+              <span className="text-sm text-muted-foreground">Atualizado às {formatTimeBR(last24hNow)} (BRT)</span>
+              <span className="w-full text-xs text-muted-foreground/90 sm:w-auto">Período selecionado: {periodLabel}</span>
             </div>
           )}
           showClearFilters={hasActiveFilters}
           onClearFilters={handleClearFilters}
         />
 
-        <nav
-          aria-label="Navegação da página"
-          className="sticky top-16 z-20 -mx-4 sm:-mx-6 border-y border-border bg-background/80 px-4 sm:px-6 py-2 backdrop-blur"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
-              {pageSections.map((s) => {
-                const isActive = activeSectionId === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => scrollToSection(s.id)}
-                    aria-label={`Ir para seção ${s.label}`}
-                    aria-current={isActive ? "true" : undefined}
-                    className={cn(
-                      "h-8 shrink-0 rounded-md px-3 text-xs font-medium transition-colors",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground",
-                    )}
-                  >
-                    {s.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-              {Math.round(scrollProgress)}%
-            </div>
-          </div>
-          <div className="mt-2 h-0.5 w-full overflow-hidden rounded-full bg-border/40">
-            <div
-              className="h-full bg-primary transition-[width] duration-150"
-              style={{ width: `${scrollProgress}%` }}
-              aria-hidden="true"
-            />
-          </div>
-        </nav>
-
-        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="kpis">
-          <SectionHeader
-            title="KPIs principais"
-            subtitle="Sinais do período selecionado"
-            subtitleClassName="font-normal text-muted-foreground/80"
-            density="compact"
-            titleIcon={Layers}
-          />
-          <div className="mt-2 grid gap-3 grid-cols-1 sm:grid-cols-3">
-            {mainKpis}
-          </div>
-        </section>
-
         <section className="scroll-mt-32 rounded-2xl border border-border bg-card p-4 shadow-sm" id="executive-summary" aria-busy={newGroups24hLoading || pulse24hLoading ? "true" : undefined}>
           <SectionHeader
-            title="Resumo executivo"
-            subtitle="Leitura rápida + detalhes do dia"
+            title="Resumo do dia"
+            subtitle="Entenda rapidamente o que aconteceu e onde agir"
             subtitleClassName="font-normal text-muted-foreground/80"
             density="compact"
             titleIcon={Activity}
           />
 
           <div className="mt-2 space-y-3">
-            <div className="rounded-lg bg-secondary/25 p-3">
-              <p className="text-[13px] leading-relaxed text-card-foreground">
-                <span className="font-medium">Leitura rápida:</span> {daySummary}
+            <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
+              <p className="text-sm leading-relaxed text-card-foreground">
+                <span className="font-medium">Resumo em 1 minuto:</span> {daySummary}
               </p>
             </div>
 
+            {!newGroups24hLoading && !pulse24hLoading && alerts24h.length > 0 ? (
+              <div className="rounded-xl border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning)/0.07)] p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md bg-[hsl(var(--warning)/0.14)]">
+                    <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-card-foreground">O que fazer agora</p>
+                    <p className="mt-1 text-sm text-card-foreground/90">
+                      Você tem {alerts24h.length} ponto(s) para revisar. Comece pelos alertas abaixo.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" size="sm" onClick={() => scrollToSection("executive-summary")}>
+                    Ver alertas
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => scrollToSection("context")}>
+                    Ver base analisada
+                  </Button>
+                </div>
+              </div>
+            ) : !newGroups24hLoading && !pulse24hLoading ? (
+              <div className="rounded-xl border border-success/25 bg-success/5 p-4">
+                <p className="text-sm font-semibold text-card-foreground">Tudo sob controle</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Não há alertas imediatos nas últimas 24h. Você pode revisar os indicadores e a base analisada abaixo.
+                </p>
+              </div>
+            ) : null}
+
             <div className="rounded-xl border border-border/60 bg-muted/20 px-3">
-              <Accordion type="multiple" className="w-full">
+              <Accordion type="multiple" defaultValue={["alerts"]} className="w-full">
                 <AccordionItem value="alerts" className="border-border/60">
                   <AccordionTrigger className="text-sm text-muted-foreground hover:text-foreground">
-                    <div className="flex items-center gap-2">
-                      <span>Alertas (24h)</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span>Alertas importantes (24h)</span>
                       <Badge variant="secondary" className="h-5 px-2 text-[10px] font-medium tabular-nums">
                         {alerts24h.length}
                       </Badge>
+                      <span className="text-xs text-muted-foreground/80">Abrir</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -958,12 +822,14 @@ const Index = () => {
                       </div>
                     ) : alerts24h.length === 0 ? (
                       <div className="rounded-lg border border-success/30 bg-success/5 p-3">
-                        <p className="text-[13px] text-muted-foreground">Tudo calmo: nenhuma ação imediata nas últimas 24h.</p>
+                        <p className="text-sm font-medium text-card-foreground">Nenhum alerta importante nas últimas 24h</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Sinal de estabilidade. Se quiser, veja os grupos com mais movimento logo abaixo.</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-live="polite">
                         {alerts24h.map((a, i) => {
                           const ToneIcon = a.tone === "warning" ? AlertTriangle : a.tone === "info" ? Info : Minus;
+                          const alertCtaLabel = a.href.startsWith("/groups/") ? "Abrir grupo para verificar" : "Ver lista de grupos";
                           return (
                             <button
                               key={a.id}
@@ -986,7 +852,8 @@ const Index = () => {
                                     </Badge>
                                     <div className="text-[13px] font-semibold leading-snug text-foreground truncate">{a.title}</div>
                                   </div>
-                                  <p className="mt-1 text-[12px] text-muted-foreground leading-snug">{a.description}</p>
+                                  <p className="mt-1 text-[13px] text-muted-foreground leading-snug">{a.description}</p>
+                                  <p className="mt-2 text-xs font-medium text-foreground/80">{alertCtaLabel}</p>
                                 </div>
                                 <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
                               </div>
@@ -1001,10 +868,11 @@ const Index = () => {
                 <AccordionItem value="pulse" className="border-border/60">
                   <AccordionTrigger className="text-sm text-muted-foreground hover:text-foreground">
                     <div className="flex items-center gap-2">
-                      <span>Pulso (24h)</span>
+                      <span>Grupos com mais movimento (24h)</span>
                       <Badge variant="outline" className="h-5 border-border/60 bg-transparent px-2 text-[10px] font-medium text-muted-foreground">
-                        Concentração {pulseMeta.concentration}
+                        Conversa {pulseMeta.concentration === "alta" ? "concentrada" : pulseMeta.concentration === "média" ? "moderada" : "distribuída"}
                       </Badge>
+                      <span className="text-xs text-muted-foreground/80">Abrir</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -1038,8 +906,9 @@ const Index = () => {
                         <ErrorState title="Falha ao carregar" message="Não foi possível carregar o pulso das comunidades (24h)." retry={refetchPulse24h} />
                       </div>
                     ) : !pulse24h || !pulse24h.topGroups || pulse24h.topGroups.length === 0 ? (
-                      <div className="rounded-lg bg-secondary/25 p-3">
-                        <p className="text-[13px] text-muted-foreground">Ainda não há atividade suficiente nas últimas 24h.</p>
+                      <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
+                        <p className="text-sm font-medium text-card-foreground">Ainda sem movimento suficiente para análise</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Quando houver mensagens em mais grupos, este bloco mostra onde a conversa está concentrada.</p>
                       </div>
                     ) : (
                       <div className="space-y-3" aria-live="polite">
@@ -1050,10 +919,10 @@ const Index = () => {
                               <span className="mx-2 text-muted-foreground/50">·</span>
                               <span className="tabular-nums">{formatNumberBR(pulseMeta.activeGroups)}</span> grupos ativos
                             </div>
-                            <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                            <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
                               Top 4 concentram <span className="font-medium tabular-nums text-card-foreground">{pulseMeta.sharePct}%</span> da conversa
                             </div>
-                            <div className="mt-1 text-[12px] leading-snug text-muted-foreground/80">{pulseMeta.insight}</div>
+                            <div className="mt-1 text-[13px] leading-snug text-muted-foreground/80">{pulseMeta.insight}</div>
                           </div>
                         </div>
 
@@ -1093,9 +962,10 @@ const Index = () => {
                                       <span className="mx-2 text-muted-foreground/50">·</span>
                                       <span className="tabular-nums">{formatNumberBR(activeMembers)}</span> ativos
                                     </div>
-                                    <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground/90">
+                                    <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground/90">
                                       <span className="tabular-nums">{share}%</span> da conversa total
                                     </div>
+                                    <div className="mt-2 text-xs font-medium text-foreground/80">Abrir grupo</div>
                                     <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border/40">
                                       <div
                                         className={cn(
@@ -1120,7 +990,7 @@ const Index = () => {
 
                         {pulse24h.topGroups.length > 4 && (
                           <div className="rounded-lg border border-border bg-card/30 p-2.5">
-                            <div className="text-[11px] text-muted-foreground/80">Demais grupos (5º ao 10º)</div>
+                            <div className="text-xs text-muted-foreground/80">Outros grupos com movimento (5º ao 10º)</div>
                             <ul className="mt-2 space-y-1" role="list">
                               {pulse24h.topGroups.slice(4, 10).map((g, idx) => {
                                 const rank = idx + 5;
@@ -1164,10 +1034,11 @@ const Index = () => {
                 <AccordionItem value="new-groups" className="border-border/60">
                   <AccordionTrigger className="text-sm text-muted-foreground hover:text-foreground">
                     <div className="flex items-center gap-2">
-                      <span>Novos grupos (24h)</span>
+                      <span>Grupos criados nas últimas 24h</span>
                       <Badge variant="secondary" className="h-5 px-2 text-[10px] font-medium tabular-nums">
                         {newGroups24h?.length ?? 0}
                       </Badge>
+                      <span className="text-xs text-muted-foreground/80">Abrir</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -1197,13 +1068,14 @@ const Index = () => {
                         <ErrorState title="Falha ao carregar" message="Não foi possível carregar os novos grupos das últimas 24h." retry={refetchNewGroups24h} />
                       </div>
                     ) : !newGroups24h || newGroups24h.length === 0 ? (
-                      <div className="rounded-lg bg-secondary/25 p-3">
-                        <p className="text-[13px] text-muted-foreground">Tudo tranquilo: nenhum grupo novo nas últimas 24h.</p>
+                      <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
+                        <p className="text-sm font-medium text-card-foreground">Nenhum grupo novo nas últimas 24h</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Se quiser acompanhar criação de grupos, mude o período no topo para uma janela maior.</p>
                       </div>
                     ) : (
                       <div className="space-y-2" aria-live="polite">
-                        <div className="text-[11px] text-muted-foreground/80">
-                          Leia assim: com mensagens = aquecendo; sem atividade = pode precisar de onboarding.
+                        <div className="text-xs text-muted-foreground/80">
+                          Dica: grupos com mensagens já começaram a conversar; grupos sem atividade podem precisar de uma primeira ação.
                         </div>
 
                         <ul className="space-y-2" role="list">
@@ -1237,7 +1109,7 @@ const Index = () => {
                                         </Badge>
                                         <div className="text-[13px] font-semibold leading-snug text-foreground truncate">{g.name}</div>
                                       </div>
-                                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                                         <span className="truncate max-w-[26ch]">{g.organizations?.name || "—"}</span>
                                         <span className="text-muted-foreground/50">·</span>
                                         <span className="whitespace-nowrap tabular-nums">{formatHoursAgoLabel(g.createdHoursAgo)}</span>
@@ -1246,6 +1118,7 @@ const Index = () => {
                                         <span className="text-muted-foreground/50">·</span>
                                         <span className="whitespace-nowrap tabular-nums">1ª às {firstActivityLabel}</span>
                                       </div>
+                                      <div className="mt-2 text-xs font-medium text-foreground/80">Abrir grupo</div>
                                     </div>
 
                                     <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" aria-hidden="true" />
@@ -1264,11 +1137,34 @@ const Index = () => {
           </div>
         </section>
 
+        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="kpis">
+          <SectionHeader
+            title="Indicadores principais"
+            subtitle="Números mais importantes no período escolhido"
+            subtitleClassName="font-normal text-muted-foreground/75"
+            density="compact"
+            titleIcon={Layers}
+          />
+          <div className="mt-2 grid gap-3 grid-cols-1 sm:grid-cols-3">
+            {mainKpis}
+          </div>
+          <div className="mt-3 rounded-lg border border-border/60 bg-muted/10 p-3">
+            <p className="text-sm text-muted-foreground/95">
+              Dica rápida: estes números mostram volume de mensagens e participação. Se algo cair muito, veja os alertas na seção acima.
+            </p>
+          </div>
+          {kpiMembersError || currentPeriodKpisError || prevPeriodKpisError ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Alguns indicadores podem estar incompletos no momento. Tente atualizar a página em instantes.
+            </p>
+          ) : null}
+        </section>
+
         <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="context">
           <SectionHeader
-            title="Contexto do período"
-            subtitle="Base monitorada e alcance"
-            subtitleClassName="font-normal text-muted-foreground/80"
+            title="Base analisada no período"
+            subtitle="Escopo usado para calcular os indicadores"
+            subtitleClassName="font-normal text-muted-foreground/75"
             density="compact"
             titleIcon={Layers}
           />
@@ -1285,7 +1181,7 @@ const Index = () => {
               size="icon"
               aria-label="Voltar ao topo"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="ripple-surface shadow-sm transition-transform hover:scale-[1.03] active:scale-[0.98]"
+              className="ripple-surface shadow-sm transition-transform hover:scale-[1.03] active:scale-[0.98] h-11 w-11"
             >
               <ArrowUp className="h-4 w-4" aria-hidden="true" />
             </Button>

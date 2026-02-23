@@ -6,10 +6,10 @@ import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { notify } from "@/components/ui/sonner";
 import { getAppUrl } from "@/lib/utils";
 import { z } from "zod";
+import { APP_PASSWORD_HINT, validateAppPassword } from "@/lib/password-policy";
 
 const emailSchema = z.string().email("Email inválido");
 const loginPasswordSchema = z.string().min(1, "Senha é obrigatória");
-const newPasswordSchema = z.string().regex(/^\d{6}$/, "Senha deve ter exatamente 6 dígitos");
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -32,11 +32,13 @@ const Auth = () => {
   const validateInputs = () => {
     if (isRecovery) {
       try {
-        newPasswordSchema.parse(newPassword);
-      } catch (e) {
-        if (e instanceof z.ZodError) {
-          setError(e.errors[0].message);
+        const passwordError = validateAppPassword(newPassword);
+        if (passwordError) {
+          setError(passwordError);
+          return false;
         }
+      } catch (e) {
+        if (e instanceof Error) setError(e.message);
         return false;
       }
       if (newPassword !== confirmPassword) {
@@ -229,17 +231,16 @@ const Auth = () => {
                     <input
                       type="password"
                       value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="••••••"
                       required
-                      inputMode="numeric"
-                      pattern="\\d{6}"
-                      maxLength={6}
+                      minLength={10}
+                      maxLength={72}
                       autoComplete="new-password"
                       className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">Exatamente 6 dígitos.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{APP_PASSWORD_HINT}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-card-foreground mb-1.5 block">
@@ -250,12 +251,11 @@ const Auth = () => {
                     <input
                       type="password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••"
                       required
-                      inputMode="numeric"
-                      pattern="\\d{6}"
-                      maxLength={6}
+                      minLength={10}
+                      maxLength={72}
                       autoComplete="new-password"
                       className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />

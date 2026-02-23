@@ -212,7 +212,7 @@ const Group = () => {
             organizationId: group.organization_id,
             name: group?.name || "",
             provider: group?.provider || "",
-            totalMembers: stats.totalMembers,
+            totalMembers: Number(currentMembers ?? stats.totalMembers ?? 0),
             lastMessageAt: stats.lastMessageAt,
             syncStatus: group?.sync_status,
           }}
@@ -233,7 +233,7 @@ const Group = () => {
                   totalMessages: Number((stats as any)?.totalMessages ?? (stats as any)?.totalMessages7d ?? 0),
                   activeMembers: Number((stats as any)?.activeMembers ?? (stats as any)?.activeMembers7d ?? 0),
                   engagementRate: Number((stats as any)?.engagementRate ?? 0),
-                  totalMembers: Number((stats as any)?.totalMembers ?? currentMembers ?? 0),
+                  totalMembers: Number(currentMembers ?? (stats as any)?.totalMembers ?? 0),
                 };
                 const prevSummaryStats = previousStats ? {
                   totalMessages: Number((previousStats as any)?.totalMessages ?? (previousStats as any)?.totalMessages7d ?? 0),

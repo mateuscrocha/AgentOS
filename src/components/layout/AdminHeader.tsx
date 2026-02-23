@@ -88,7 +88,7 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
         {isAuthenticated ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 rounded-lg p-2 hover:bg-secondary transition-colors">
+              <button type="button" className="flex items-center gap-3 rounded-lg p-2 hover:bg-secondary transition-colors">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-primary">
                   <User className="h-4 w-4 text-primary-foreground" />
                 </div>
@@ -132,6 +132,7 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
           </DropdownMenu>
         ) : (
           <button
+            type="button"
             onClick={() => navigate('/auth')}
             className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >

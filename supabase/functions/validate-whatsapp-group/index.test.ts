@@ -59,6 +59,7 @@ function makeReq(body: any) {
 function makeValidGroupPayload() {
   return {
     phone: "5511999990000-group",
+    provider_phone: "5511999990000-group",
     description: "Grupo de testes",
     subject: "Assunto",
     name: "Nome do grupo",
@@ -77,7 +78,7 @@ function makeValidGroupPayload() {
 
 DenoRef.test("validateWebhookGroupPayload aceita payload válido", () => {
   const out = validateWebhookGroupPayload(makeValidGroupPayload());
-  assertEquals(out.phone, "5511999990000-group");
+  assertEquals(out.provider_phone, "5511999990000-group");
   assertEquals(out.participants.length, 2);
 });
 
@@ -87,10 +88,10 @@ DenoRef.test("validateWebhookGroupPayload exige owner corresponder a um particip
   assertThrowsMessage(() => validateWebhookGroupPayload(payload), "group.owner");
 });
 
-DenoRef.test("validateWebhookGroupPayload exige group.phone terminar com -group", () => {
+DenoRef.test("validateWebhookGroupPayload exige group.provider_phone terminar com -group", () => {
   const payload = makeValidGroupPayload();
-  payload.phone = "5511999990000";
-  assertThrowsMessage(() => validateWebhookGroupPayload(payload), "group.phone");
+  payload.provider_phone = "5511999990000";
+  assertThrowsMessage(() => validateWebhookGroupPayload(payload), "group.provider_phone");
 });
 
 DenoRef.test("validateWebhookGroupPayload exige participants array não vazio", () => {
@@ -132,6 +133,7 @@ DenoRef.test("handler normaliza e retorna participantes no formato esperado", as
   assertEquals(body.success, true);
   assertEquals(body.is_valid, true);
   assertEquals(body.is_boris_in_group, true);
+  assertEquals(body.provider_phone, "5511999990000-group");
   assertEquals(body.whatsapp_provider_id, "5511999990000-group");
   assertEquals(body.group_name, "Nome do grupo");
   assertEquals(body.owner_phone_e164, "+5511999990000");
@@ -139,6 +141,7 @@ DenoRef.test("handler normaliza e retorna participantes no formato esperado", as
   assertEquals(Array.isArray(body.participants), true);
   assertEquals(body.participants[0].is_super_admin, true);
   assertEquals(body.participants[0].is_admin, true);
+  assertEquals(body.participants[0].lid, "lid-1");
   assertEquals(body.participants[1].is_super_admin, false);
   assertEquals(body.participants[1].is_admin, true);
 });
@@ -255,7 +258,7 @@ DenoRef.test("handler respeita timeout do upstream", async () => {
 
 DenoRef.test("handler retorna erro claro quando payload do webhook é inválido", async () => {
   const invalid = makeValidGroupPayload();
-  invalid.phone = "5511999990000";
+  invalid.provider_phone = "5511999990000";
 
   const handler = createValidateWhatsAppGroupHandler({
     env: { get: (k: string) => (k === "VITE_N8N_CHECK_GROUP_ENTRY_URL" ? testWebhookUrl : undefined) },
@@ -272,5 +275,5 @@ DenoRef.test("handler retorna erro claro quando payload do webhook é inválido"
   const body: any = await readJson(res);
   assertEquals(body.success, false);
   assertEquals(body.code, "INVALID_WEBHOOK_PAYLOAD");
-  assertIncludes(String(body.message || ""), "group.phone");
+  assertIncludes(String(body.message || ""), "group.provider_phone");
 });

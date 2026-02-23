@@ -23,10 +23,11 @@ import {
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FunctionsFetchError, FunctionsHttpError } from "@supabase/supabase-js";
 import { useState, useEffect, useRef } from "react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
+import { useOrgCounts } from "@/hooks/use-org-counts";
+import { useOrgCoreData } from "@/hooks/use-org-core-data";
 import AccessDenied from "./AccessDenied";
 import { formatDateSimpleBR } from "@/lib/date";
 import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
@@ -72,53 +73,10 @@ import {
 } from "@/components/ui/dialog";
 import { logEvent } from "@/lib/audit";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { parseSupabaseFunctionInvokeError } from "@/lib/supabase-function-invoke-error";
 
 const PANORAMA_PAGE_SIZE = 20;
 const RECENT_MESSAGES_HOURS = 24;
-
-function formatCounts(counts?: Record<string, number>): string {
-  if (!counts) return "";
-  const entries = Object.entries(counts)
-    .filter(([, v]) => typeof v === "number" && v > 0)
-    .sort((a, b) => (b[1] as number) - (a[1] as number))
-    .slice(0, 6)
-    .map(([k, v]) => `${k}: ${v}`);
-  return entries.length ? entries.join(" • ") : "";
-}
-
-async function parseInvokeError(err: any): Promise<{ message: string; code?: string; counts?: Record<string, number> }> {
-  let message = err?.message || "Algo deu errado. Tente novamente.";
-  let code: string | undefined;
-  let counts: Record<string, number> | undefined;
-
-  if (err instanceof FunctionsHttpError && (err as any).context) {
-    try {
-      const body = await (err as any).context.json();
-      if (body?.message) message = body.message;
-      if (typeof body?.code === "string") code = body.code;
-      if (body?.details?.counts && typeof body.details.counts === "object") counts = body.details.counts;
-    } catch {
-      void 0;
-    }
-  }
-
-  const isFetchError =
-    err instanceof FunctionsFetchError ||
-    err?.name === "FunctionsFetchError" ||
-    /failed to send a request to the edge function/i.test(message) ||
-    /fetch failed/i.test(message) ||
-    /networkerror/i.test(message);
-
-  if (!code && isFetchError) {
-    const isOffline = typeof navigator !== "undefined" && navigator?.onLine === false;
-    code = "NETWORK_ERROR";
-    message = isOffline
-      ? "Sem conexão com a internet."
-      : "Não foi possível comunicar com o servidor. Verifique sua conexão/VPN e tente novamente.";
-  }
-
-  return { message, code, counts };
-}
 
 interface OrganizationDetail {
   id: string;
@@ -197,6 +155,7 @@ type N8nCheckGroupNotEnabledResponse = {
 
 type N8nCheckGroupSuccessItem = {
   phone?: unknown;
+  provider_phone?: unknown;
   subject?: unknown;
   name?: unknown;
   description?: unknown;
@@ -208,6 +167,53 @@ type N8nCheckGroupSuccessItem = {
 const isBotNotEnabledResponse = (payload: unknown): payload is N8nCheckGroupNotEnabledResponse => {
   if (!payload || typeof payload !== "object") return false;
   return (payload as any).checkBotEnabled === false;
+};
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
+
+const extractGroupAddedFlag = (payload: unknown): boolean | null => {
+  if (isObjectRecord(payload) && typeof payload.groupAdded === "boolean") {
+    return payload.groupAdded;
+  }
+
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const nested = extractGroupAddedFlag(item);
+      if (nested !== null) return nested;
+    }
+  }
+
+  if (isObjectRecord(payload)) {
+    for (const value of Object.values(payload)) {
+      const nested = extractGroupAddedFlag(value);
+      if (nested !== null) return nested;
+    }
+  }
+
+  return null;
+};
+
+const extractN8nGroupItem = (payload: unknown): N8nCheckGroupSuccessItem | null => {
+  if (Array.isArray(payload)) {
+    const candidate = payload.find((item) => isObjectRecord(item) && Array.isArray((item as any).participants));
+    return (candidate as N8nCheckGroupSuccessItem | undefined) ?? null;
+  }
+
+  if (isObjectRecord(payload)) {
+    if (Array.isArray(payload.data)) {
+      return extractN8nGroupItem(payload.data);
+    }
+    if (Array.isArray(payload.result)) {
+      return extractN8nGroupItem(payload.result);
+    }
+    for (const value of Object.values(payload)) {
+      const nested = extractN8nGroupItem(value);
+      if (nested) return nested;
+    }
+  }
+
+  return null;
 };
 
 const toDigits = (raw: unknown): string => String(raw ?? "").replace(/\D/g, "");
@@ -279,13 +285,93 @@ const upsertMembersForGroup = async (args: {
     .filter((r) => !!r.whatsapp_provider_id || !!r.lid);
 
   if (rows.length > 0) {
-    const { error } = await supabase
-      .from("members")
-      .upsert(rows as any, { onConflict: "group_id,provider_member_id" });
-    if (error) throw error;
+    const CHUNK_SIZE = 200;
+    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+      const chunk = rows.slice(i, i + CHUNK_SIZE);
+      const { error } = await supabase
+        .from("members")
+        .upsert(chunk as any, { onConflict: "group_id,provider_member_id" });
+      if (error) throw error;
+    }
   }
 
   return { insertedOrUpdated: rows.length };
+};
+
+const ensureGroupFromN8nPayload = async (args: {
+  orgId: string;
+  inviteLink: string;
+  item: N8nCheckGroupSuccessItem;
+}) => {
+  const providerPhoneRaw = String(args.item.provider_phone ?? args.item.phone ?? "").trim();
+  const whatsappProviderId = providerPhoneRaw || null;
+  if (!whatsappProviderId) {
+    throw new Error("GROUP_PROVIDER_ID_MISSING");
+  }
+
+  const groupName = String(args.item.name ?? args.item.subject ?? "").trim() || "Grupo WhatsApp";
+  const description =
+    typeof args.item.description === "string" && args.item.description.trim()
+      ? args.item.description.trim()
+      : null;
+  const createdAtProvider = toISOFromCreation(args.item.creation);
+
+  const { data: existingGroup, error: existingError } = await supabase
+    .from("groups")
+    .select("id")
+    .eq("organization_id", args.orgId)
+    .eq("whatsapp_provider_id", whatsappProviderId)
+    .maybeSingle();
+  if (existingError) throw existingError;
+
+  const groupPayload = {
+    organization_id: args.orgId,
+    name: groupName,
+    description,
+    provider: "whatsapp",
+    provider_phone: providerPhoneRaw || null,
+    whatsapp_provider_id: whatsappProviderId,
+    invite_link: args.inviteLink,
+    invite_link_status: "valid",
+    is_active: true,
+    is_archived: false,
+    status: "active",
+    created_at_provider: createdAtProvider,
+    raw_provider: args.item as any,
+  };
+
+  let groupId = existingGroup?.id as string | undefined;
+  if (groupId) {
+    const { error: updateError } = await supabase
+      .from("groups")
+      .update(groupPayload as any)
+      .eq("id", groupId);
+    if (updateError) throw updateError;
+  } else {
+    const { data: insertedGroup, error: insertError } = await supabase
+      .from("groups")
+      .insert(groupPayload as any)
+      .select("id")
+      .single();
+    if (insertError) throw insertError;
+    groupId = insertedGroup.id;
+  }
+
+  if (!groupId) {
+    throw new Error("GROUP_ID_NOT_RESOLVED");
+  }
+
+  const membersResult = await upsertMembersForGroup({
+    groupId,
+    participants: args.item.participants,
+  });
+
+  return {
+    groupId,
+    groupName,
+    membersUpserted: membersResult.insertedOrUpdated,
+    existed: !!existingGroup?.id,
+  };
 };
 
 let orgGroupsSignalRpcAvailable: boolean | null = null;
@@ -428,125 +514,38 @@ const Org = () => {
     setCustomRange(period === 'custom' ? range : undefined);
   };
 
-  // Fetch organization details
-  const { data: org, isLoading: orgLoading, error: orgError, refetch: refetchOrg } = useQuery({
-    queryKey: ['organization-detail', orgId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('id', orgId)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data as OrganizationDetail;
-    },
-    enabled: !!orgId && isAuthenticated && hasAccess,
+  const {
+    org,
+    orgLoading,
+    orgError,
+    refetchOrg,
+    ownerProfile,
+    primaryContact,
+    contactLoading,
+    contactError,
+    refetchPrimaryContact,
+    contactName,
+    contactEmail,
+    contactPhone,
+    contactRole,
+  } = useOrgCoreData({
+    orgId,
+    isAuthenticated,
+    hasAccess,
   });
 
-  // Fetch owner profile if exists
-  const { data: ownerProfile } = useQuery({
-    queryKey: ['owner-profile', org?.owner_user_id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', org!.owner_user_id!)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!org?.owner_user_id && hasAccess,
-  });
-
-  const { data: primaryContact, isLoading: contactLoading, error: contactError, refetch: refetchPrimaryContact } = useQuery({
-    queryKey: ['org-primary-contact', orgId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('organization_contacts')
-        .select('*')
-        .eq('organization_id', orgId)
-        .eq('is_primary', true)
-        .maybeSingle();
-      if (error) throw error;
-      return data as {
-        id: string;
-        organization_id: string;
-        name: string;
-        email: string | null;
-        phone: string | null;
-        role_title: string | null;
-        is_primary: boolean;
-        created_at: string;
-        updated_at: string;
-      };
-    },
-    enabled: !!orgId && isAuthenticated && hasAccess,
-  });
-
-  const contactName = primaryContact?.name || org?.contact_name || undefined;
-  const contactEmail = primaryContact?.email || org?.contact_email || undefined;
-  const contactPhone = primaryContact?.phone || org?.contact_phone || undefined;
-  const contactRole = primaryContact?.role_title || undefined;
-
-  const { data: orgGroupIds } = useQuery({
-    queryKey: ['org-group-ids', orgId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('groups')
-        .select('id')
-        .eq('organization_id', orgId!)
-        .is('deleted_at', null)
-        .neq('is_archived', true);
-      return (data ?? []).map((g: { id: string }) => g.id);
-    },
-    enabled: !!orgId && isAuthenticated && hasAccess,
-  });
-
-  const { data: totalMembersCount, isLoading: membersCountLoading } = useQuery({
-    queryKey: ['org-total-members', orgId, orgGroupIds?.join(',')],
-    queryFn: async () => {
-      if (!orgGroupIds || orgGroupIds.length === 0) return 0;
-      const { count } = await supabase
-        .from('members')
-        .select('*', { count: 'exact', head: true })
-        .in('group_id', orgGroupIds)
-        .is('deleted_at', null);
-      return count ?? 0;
-    },
-    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds),
-  });
-
-  const { data: messagesLast7dCount, isLoading: messagesCountLoading } = useQuery({
-    queryKey: ['org-messages-7d', orgId, orgGroupIds?.join(',')],
-    queryFn: async () => {
-      if (!orgGroupIds || orgGroupIds.length === 0) return 0;
-      const fromISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const toISO = new Date().toISOString();
-      const { count } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .in('group_id', orgGroupIds)
-        .is('deleted_at', null)
-        .gte('created_at', fromISO)
-        .lte('created_at', toISO);
-      return count ?? 0;
-    },
-    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds),
-  });
-
-  const { data: activeGroupsCount, isLoading: activeGroupsLoading } = useQuery({
-    queryKey: ['org-active-groups-count', orgId],
-    queryFn: async () => {
-      const { count } = await supabase
-        .from('groups')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', orgId!)
-        .is('deleted_at', null)
-        .neq('is_archived', true)
-        .eq('is_active', true);
-      return count ?? 0;
-    },
-    enabled: !!orgId && isAuthenticated && hasAccess,
+  const {
+    orgGroupIds,
+    totalMembersCount,
+    membersCountLoading,
+    messagesLast7dCount,
+    messagesCountLoading,
+    activeGroupsCount,
+    activeGroupsLoading,
+  } = useOrgCounts({
+    orgId,
+    isAuthenticated,
+    hasAccess,
   });
 
   
@@ -1424,7 +1423,10 @@ const Org = () => {
       const res = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invite_link: rawLink }),
+        body: JSON.stringify({
+          invite_link: rawLink,
+          organization_id: orgId,
+        }),
       });
 
       if (!res.ok) {
@@ -1442,126 +1444,38 @@ const Org = () => {
         return;
       }
 
-      const groupsArray = (() => {
-        if (Array.isArray(payload)) return payload;
-        if (payload && typeof payload === "object") {
-          const obj = payload as any;
-          if (Array.isArray(obj?.data)) return obj.data;
-          if (Array.isArray(obj?.groups)) return obj.groups;
-          if (Array.isArray(obj?.items)) return obj.items;
-          if (Array.isArray(obj?.result)) return obj.result;
-          if (Array.isArray(obj?.participants)) return [payload];
-        }
-        return null;
-      })();
-
-      if (Array.isArray(groupsArray) && groupsArray.length === 0) {
+      const groupAdded = extractGroupAddedFlag(payload);
+      if (groupAdded === false) {
         setAttachError(scenarioBMessage);
         return;
       }
 
-      if (!Array.isArray(groupsArray) || groupsArray.length < 1) {
-        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
-        return;
-      }
-
-      const item = (groupsArray.find((g) => !!g && typeof g === "object" && Array.isArray((g as any).participants)) ??
-        null) as N8nCheckGroupSuccessItem | null;
-
-      if (!item) {
-        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
-        return;
-      }
-
-      const groupPhone = String(item?.phone ?? "").trim();
-      const groupName = String(item?.subject ?? item?.name ?? "").trim();
-      const groupDescription = String(item?.description ?? "").trim();
-      const createdAtProvider = toISOFromCreation(item?.creation);
-      const participants = (item as any)?.participants;
-
-      if (!groupPhone) {
-        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
-        return;
-      }
-
-      if (!Array.isArray(participants)) {
-        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
-        return;
-      }
-
-      const groupPayload = {
-        organization_id: orgId,
-        provider: "whatsapp",
-        whatsapp_provider_id: groupPhone,
-        provider_phone: groupPhone,
-        name: groupName || groupPhone,
-        description: groupDescription || null,
-        created_at_provider: createdAtProvider,
-        invite_link: rawLink,
-        invite_link_status: "valid",
-        status: "active",
-        is_active: true,
-        is_archived: false,
-        deleted_at: null,
-        raw_provider: item as any,
-      } as any;
-
-      let groupIdToUse: string | null = null;
-
-      const { data: inserted, error: insertError } = await supabase
-        .from("groups")
-        .insert(groupPayload)
-        .select("id")
-        .single();
-
-      if (!insertError && inserted?.id) {
-        groupIdToUse = inserted.id;
-      } else {
-        const insertCode = String((insertError as any)?.code ?? "");
-        if (insertCode !== "23505") {
-          setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+      if (groupAdded === null) {
+        const groupItem = extractN8nGroupItem(payload);
+        if (!groupItem) {
+          setAttachError("Resposta inesperada do verificador. Tente novamente em instantes.");
           return;
         }
 
-        const { data: existing, error: existingError } = await supabase
-          .from("groups")
-          .select("id")
-          .eq("whatsapp_provider_id", groupPhone)
-          .maybeSingle();
-
-        if (existingError || !existing?.id) {
-          setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
-          return;
-        }
-
-        const { error: updateError } = await supabase
-          .from("groups")
-          .update(groupPayload)
-          .eq("id", existing.id);
-
-        if (updateError) {
-          setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
-          return;
-        }
-
-        groupIdToUse = existing.id;
+        await ensureGroupFromN8nPayload({
+          orgId,
+          inviteLink: rawLink,
+          item: groupItem,
+        });
       }
 
-      if (!groupIdToUse) {
-        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
-        return;
-      }
-
-      await upsertMembersForGroup({ groupId: groupIdToUse, participants });
-
-      notify.success("Grupo adicionado com sucesso e membros sincronizados.", "");
+      notify.success("Grupo adicionado com sucesso.", "");
       setAttachGroupOpen(false);
       setAttachInviteLink("");
+      await queryClient.invalidateQueries({ queryKey: ["org-profile-groups", orgId] });
+      await queryClient.invalidateQueries({ queryKey: ["org-groups-signals", orgId] });
       await queryClient.invalidateQueries({ queryKey: ["org-groups", orgId] });
       await queryClient.invalidateQueries({ queryKey: ["org-group-ids", orgId] });
       await queryClient.invalidateQueries({ queryKey: ["org-active-groups-count", orgId] });
       await queryClient.invalidateQueries({ queryKey: ["org-total-members", orgId] });
       await queryClient.invalidateQueries({ queryKey: ["org-messages-7d", orgId] });
+      await queryClient.invalidateQueries({ queryKey: ["org-collaborators", orgId] });
+      await queryClient.invalidateQueries({ queryKey: ["org-team-collaborator-kpis", orgId] });
     } catch {
       setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
     } finally {
@@ -1576,6 +1490,121 @@ const Org = () => {
       : org.status === "inactive"
         ? "bg-muted text-muted-foreground"
         : "bg-destructive/10 text-destructive";
+
+  const hasPrimaryContactData = !!(contactName || contactEmail || contactPhone || contactRole);
+  const hasCollaborators = Array.isArray(orgCollaborators) && orgCollaborators.length > 0;
+  const hasGroups = totalGroupsCount > 0;
+  const allHealthKpisZero = [totalGroupsCount, activeGroupsValue, silentGroupsCount, alertGroupsCount].every((v) => (v ?? 0) === 0);
+  const showOrgOnboarding = (isDashboardRoute || isDefaultOrgHome) && !hasGroups;
+  const addGroupLabel = hasGroups ? "Adicionar grupo" : "Criar primeiro grupo";
+
+  const headerSummaryParts = [
+    `${formatNumberBR(activeGroupsValue ?? 0)} grupos em operação`,
+    `${formatNumberBR(Number((collaboratorTeamKpis as any)?.collaborators_active ?? 0))} colaboradores`,
+    org.plan ? `Plano ${String(org.plan).toUpperCase()}` : "Plano não definido",
+  ];
+  const headerDescription = `${formatDateSimpleBR(org.created_at)} • ${headerSummaryParts.join(" • ")} • Atualizada em ${formatDateSimpleBR(org.updated_at)}`;
+
+  const adminSummarySection = (isDashboardRoute || isDefaultOrgHome) ? (
+    <Card className="border-0 shadow-none">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-card-foreground">Resumo administrativo</div>
+            <div className="text-xs text-muted-foreground">Contato principal e situação de billing</div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-xl bg-secondary/20 p-4 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-medium text-card-foreground flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                Contato da organização
+              </h3>
+              {userCanEditOrg && (
+                <Button variant="outline" size="sm" onClick={() => setEditContactOpen(true)}>
+                  {hasPrimaryContactData ? "Editar contato" : "Cadastrar contato"}
+                </Button>
+              )}
+            </div>
+
+            {contactLoading ? (
+              <p className="text-sm text-muted-foreground">Carregando contato...</p>
+            ) : contactError ? (
+              <p className="text-sm text-destructive">Falha ao carregar contato.</p>
+            ) : !hasPrimaryContactData ? (
+              <div className="rounded-lg border border-dashed border-border bg-background/40 p-3">
+                <p className="text-sm text-card-foreground">Nenhum contato primário cadastrado.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Cadastre um contato para facilitar comunicação comercial e suporte.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Nome</span>
+                  <p className="font-medium text-card-foreground">{contactName || "-"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Cargo</span>
+                  <p className="font-medium text-card-foreground">{contactRole || "-"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Email</span>
+                  <p className="font-medium text-card-foreground">{contactEmail || "-"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Telefone</span>
+                  <p className="font-medium text-card-foreground">{contactPhone || "-"}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl bg-secondary/20 p-4 space-y-4">
+            <h3 className="text-sm font-medium text-card-foreground flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              Plano / Billing
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">Plano</span>
+                <p className="font-medium text-card-foreground capitalize">{org.plan || "-"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Status do billing</span>
+                <p
+                  className={`font-medium capitalize ${
+                    org.billing_status === "active"
+                      ? "text-success"
+                      : org.billing_status === "past_due" || org.billing_status === "overdue"
+                        ? "text-destructive"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  {org.billing_status || "-"}
+                </p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Início do trial</span>
+                <p className="font-medium text-card-foreground">
+                  {org.trial_started_at ? formatDateSimpleBR(org.trial_started_at) : "-"}
+                </p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Fim do trial</span>
+                <p className="font-medium text-card-foreground">
+                  {org.trial_ends_at ? formatDateSimpleBR(org.trial_ends_at) : "-"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  ) : null;
 
   return (
     <AdminLayout 
@@ -1595,7 +1624,37 @@ const Org = () => {
               </span>
             </div>
           }
-          description={`Criada em ${formatDateSimpleBR(org.created_at)}`}
+          description={headerDescription}
+          generalKpis={
+            (isDashboardRoute || isDefaultOrgHome) ? (
+              <>
+                <div className="rounded-xl border border-border bg-card p-3">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Grupos</div>
+                  <div className="mt-1 text-lg font-semibold tabular-nums text-card-foreground">{formatNumberBR(totalGroupsCount)}</div>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-3">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Colaboradores</div>
+                  <div className="mt-1 text-lg font-semibold tabular-nums text-card-foreground">
+                    {formatNumberBR(Number((collaboratorTeamKpis as any)?.collaborators_active ?? 0))}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-3">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Alertas</div>
+                  <div className={`mt-1 text-lg font-semibold tabular-nums ${(alertGroupsCount ?? 0) > 0 ? "text-warning" : "text-success"}`}>
+                    {formatNumberBR(alertGroupsCount ?? 0)}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-3">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Plano</div>
+                  <div className="mt-1 text-lg font-semibold text-card-foreground capitalize">{org.plan || "-"}</div>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-3">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Billing</div>
+                  <div className="mt-1 text-lg font-semibold text-card-foreground capitalize">{org.billing_status || "-"}</div>
+                </div>
+              </>
+            ) : null
+          }
           actions={(
             <div className="flex items-center gap-2">
               {userCanEditOrg && (
@@ -1605,7 +1664,7 @@ const Org = () => {
                   className="flex items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
-                  Adicionar grupo
+                  {addGroupLabel}
                 </Button>
               )}
               {userCanEditOrg && (
@@ -1789,6 +1848,38 @@ const Org = () => {
 
         {(isDashboardRoute || isDefaultOrgHome) && (
           <div id="org-dashboard" className="space-y-6">
+            {showOrgOnboarding && (
+              <Card className="border-0 shadow-none">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold text-card-foreground">Organização pronta para começar</div>
+                      <p className="text-sm text-muted-foreground max-w-2xl">
+                        Esta organização ainda não tem grupos ativos. Para começar a operação, crie o primeiro grupo, cadastre um contato e sincronize atividade.
+                      </p>
+                      <div className="grid gap-2 text-sm mt-3">
+                        <div className="rounded-lg bg-secondary/20 px-3 py-2">1. Criar o primeiro grupo para iniciar a coleta de atividade.</div>
+                        <div className="rounded-lg bg-secondary/20 px-3 py-2">2. Cadastrar contato principal para atendimento e billing.</div>
+                        <div className="rounded-lg bg-secondary/20 px-3 py-2">3. Acompanhar atividade dos grupos após as primeiras mensagens.</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0">
+                      {userCanEditOrg && (
+                        <Button onClick={() => setAttachGroupOpen(true)} className="gap-2">
+                          <Plus className="h-4 w-4" />
+                          Criar primeiro grupo
+                        </Button>
+                      )}
+                      {userCanEditOrg && (
+                        <Button variant="outline" onClick={() => setEditContactOpen(true)}>
+                          {hasPrimaryContactData ? "Editar contato" : "Cadastrar contato"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             <Card className="border-0 shadow-none">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
@@ -1804,7 +1895,7 @@ const Org = () => {
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="rounded-xl bg-secondary/30 p-4">
+                  <div className={`rounded-xl ${allHealthKpisZero ? "bg-secondary/20 p-3" : "bg-secondary/30 p-4"}`}>
                     <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-card-foreground">
                       {formatNumberBR(totalGroupsCount ?? 0)}
                     </div>
@@ -1821,15 +1912,15 @@ const Org = () => {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className="text-xs text-muted-foreground">Total na organização</div>
+                    <div className="text-xs text-muted-foreground">Vinculados e não arquivados</div>
                   </div>
 
-                  <div className="rounded-xl bg-secondary/30 p-4">
+                  <div className={`rounded-xl ${allHealthKpisZero ? "bg-secondary/20 p-3" : "bg-secondary/30 p-4"}`}>
                     <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-success">
                       {formatNumberBR(activeGroupsValue ?? 0)}
                     </div>
                     <div className="mt-1 text-sm font-medium text-card-foreground flex items-center gap-1">
-                      <span>Em operação</span>
+                      <span>Com atividade recente</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
@@ -1841,10 +1932,10 @@ const Org = () => {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className="text-xs text-muted-foreground">Em operação</div>
+                    <div className="text-xs text-muted-foreground">Mensagens no período</div>
                   </div>
 
-                  <div className="rounded-xl bg-secondary/30 p-4">
+                  <div className={`rounded-xl ${allHealthKpisZero ? "bg-secondary/20 p-3" : "bg-secondary/30 p-4"}`}>
                     <div
                       className={
                         `text-2xl sm:text-3xl font-semibold tabular-nums ${
@@ -1867,12 +1958,12 @@ const Org = () => {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className="text-xs text-muted-foreground">Sem mensagens recentes</div>
+                    <div className="text-xs text-muted-foreground">Sem mensagens no período</div>
                   </div>
 
                   <div
                     className={
-                      `rounded-xl bg-secondary/30 p-4 ${
+                      `rounded-xl ${allHealthKpisZero ? "bg-secondary/20 p-3" : "bg-secondary/30 p-4"} ${
                         (alertGroupsCount ?? 0) > 0 ? "ring-1 ring-warning/25" : "ring-1 ring-success/10"
                       }`
                     }
@@ -1887,7 +1978,7 @@ const Org = () => {
                       {formatNumberBR(alertGroupsCount ?? 0)}
                     </div>
                     <div className="mt-1 text-sm font-medium text-card-foreground flex items-center gap-1">
-                      <span>Precisam de atenção</span>
+                      <span>Grupos com alerta</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
@@ -1899,11 +1990,13 @@ const Org = () => {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className="text-xs text-muted-foreground">Com alerta</div>
+                    <div className="text-xs text-muted-foreground">Risco de queda/inatividade</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {adminSummarySection}
 
             <Card className="border-0 shadow-none">
               <CardContent className="p-6">
@@ -1999,7 +2092,14 @@ const Org = () => {
                     />
                   </div>
                 ) : !orgCollaborators || orgCollaborators.length === 0 ? (
-                  <div className="mt-4 text-sm text-muted-foreground">Sem colaboradores encontrados.</div>
+                  <div className="mt-4">
+                    <EmptyState
+                      icon={Users}
+                      title="Nenhum colaborador identificado ainda"
+                      message="Os colaboradores aparecem quando há grupos vinculados com administradores e mensagens recentes."
+                      action={userCanEditOrg ? { label: addGroupLabel, onClick: () => setAttachGroupOpen(true) } : undefined}
+                    />
+                  </div>
                 ) : (
                   (() => {
                     const q = collaboratorSearch.trim().toLowerCase();
@@ -2014,6 +2114,18 @@ const Org = () => {
                       .sort((a, b) => Number(b.messages_total ?? 0) - Number(a.messages_total ?? 0));
 
                     const rows = filtered.slice(0, 60);
+
+                    if (rows.length === 0) {
+                      return (
+                        <div className="mt-4">
+                          <EmptyState
+                            icon={Users}
+                            title="Nenhum colaborador encontrado"
+                            message="Ajuste a busca por nome ou telefone para encontrar um colaborador."
+                          />
+                        </div>
+                      );
+                    }
 
                     return (
                       <>
@@ -2159,7 +2271,16 @@ const Org = () => {
                     <ErrorState message="Falha ao carregar panorama" retry={() => refetchSignals()} />
                   </div>
                 ) : panoramaTotal === 0 ? (
-                  <div className="mt-4 text-sm text-muted-foreground">Sem dados suficientes para montar o panorama.</div>
+                  <div className="mt-4">
+                    <EmptyState
+                      icon={FolderOpen}
+                      title="Ainda não há atividade suficiente para gerar o panorama"
+                      message={hasGroups
+                        ? "Quando os grupos enviarem mensagens, este resumo aparecerá aqui."
+                        : "Crie o primeiro grupo para começar a acompanhar atividade."}
+                      action={userCanEditOrg ? { label: addGroupLabel, onClick: () => setAttachGroupOpen(true) } : undefined}
+                    />
+                  </div>
                 ) : (
                   <div className="mt-4">
                     <div className="space-y-3 md:hidden">
@@ -2314,102 +2435,6 @@ const Org = () => {
             </Card>
           </div>
         )}
-
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Section: Contato da Organização */}
-          {(isDashboardRoute || isDefaultOrgHome) && (
-          <div className="rounded-2xl bg-secondary/20 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Contato da Organização
-              </h3>
-              {userCanEditOrg && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditContactOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  Editar contato
-                </Button>
-              )}
-            </div>
-            {contactLoading ? (
-              <p className="text-sm text-muted-foreground">Carregando contato...</p>
-            ) : contactError ? (
-              <p className="text-sm text-destructive">Falha ao carregar contato</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Nome</span>
-                  <p className="font-medium text-card-foreground">{contactName || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Email</span>
-                  <p className="font-medium text-card-foreground">{contactEmail || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Telefone</span>
-                  <p className="font-medium text-card-foreground">{contactPhone || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Cargo</span>
-                  <p className="font-medium text-card-foreground">{contactRole || '-'}</p>
-                </div>
-                {!primaryContact && !org?.contact_name && !org?.contact_email && !org?.contact_phone && (
-                  <p className="text-xs text-muted-foreground">Nenhum contato primário cadastrado.</p>
-                )}
-              </div>
-            )}
-          </div>
-          )}
-
-          {/* Section: Plano / Billing */}
-          {(isDashboardRoute || isDefaultOrgHome) && (
-          <div className="rounded-2xl bg-secondary/20 p-5 space-y-4">
-            <h3 className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Plano / Billing
-            </h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Plano</span>
-                <p className="font-medium text-card-foreground capitalize">{org.plan || '-'}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Status do Billing</span>
-                <p className={`font-medium capitalize ${
-                  org.billing_status === 'active' ? 'text-success' :
-                  (org.billing_status === 'past_due' || org.billing_status === 'overdue') ? 'text-destructive' :
-                  'text-muted-foreground'
-                }`}>
-                  {org.billing_status || '-'}
-                </p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Início do Trial</span>
-                <p className="font-medium text-card-foreground">
-                  {org.trial_started_at 
-                    ? new Date(org.trial_started_at).toLocaleDateString('pt-BR') 
-                    : '-'}
-                </p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Fim do Trial</span>
-                <p className="font-medium text-card-foreground">
-                  {org.trial_ends_at 
-                    ? new Date(org.trial_ends_at).toLocaleDateString('pt-BR') 
-                    : '-'}
-                </p>
-              </div>
-            </div>
-          </div>
-          )}
-        </div>
-
         {/* Collapsible sections for JSON data */}
         <div className="space-y-4">
           {/* Metadata */}
@@ -2661,7 +2686,7 @@ const Org = () => {
                   queryClient.invalidateQueries({ queryKey: ["org-total-members", orgId] });
                   queryClient.invalidateQueries({ queryKey: ["org-messages-7d", orgId] });
                 } catch (err: any) {
-                  const parsed = await parseInvokeError(err);
+                  const parsed = await parseSupabaseFunctionInvokeError(err);
                   if (parsed.code === "NETWORK_ERROR") {
                     notify.error("Falha de conexão", parsed.message);
                     return;

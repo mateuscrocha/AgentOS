@@ -15,6 +15,7 @@ export type NormalizedParticipant = {
   name: string;
   is_admin: boolean;
   is_super_admin: boolean;
+  lid: string;
   whatsapp_provider_id: string;
 };
 
@@ -27,6 +28,7 @@ type WebhookParticipant = {
 
 type WebhookGroup = {
   phone: string;
+  provider_phone: string;
   description: string;
   subject: string;
   name: string;
@@ -130,7 +132,8 @@ export const validateWebhookGroupPayload = (raw: unknown): WebhookGroup => {
   const obj = raw as Record<string, unknown>;
 
   const phone = readString(obj, 'phone', 'group.phone');
-  if (!phone.endsWith('-group')) fail('group.phone', 'deve terminar com "-group"');
+  const providerPhone = readOptionalString(obj, 'provider_phone', 'group.provider_phone') ?? phone;
+  if (!providerPhone.endsWith('-group')) fail('group.provider_phone', 'deve terminar com "-group"');
 
   const description = readString(obj, 'description', 'group.description');
   const subject = readString(obj, 'subject', 'group.subject');
@@ -169,6 +172,7 @@ export const validateWebhookGroupPayload = (raw: unknown): WebhookGroup => {
 
   return {
     phone,
+    provider_phone: providerPhone,
     description,
     subject,
     name,
@@ -195,6 +199,7 @@ const normalizeWebhookParticipants = (participants: WebhookParticipant[]): Norma
       name: p.phone,
       is_admin: isAdmin,
       is_super_admin: isSuperAdmin,
+      lid: p.lid,
       whatsapp_provider_id: p.lid || p.phone,
     };
   });
@@ -474,7 +479,7 @@ export const createValidateWhatsAppGroupHandler = (args?: {
       }
 
       const groupName = validatedGroup.name;
-      const providerId = validatedGroup.phone;
+      const providerId = validatedGroup.provider_phone || validatedGroup.phone;
 
       console.log('Bóris IS in the group', JSON.stringify({
         correlation_id: correlationId,
@@ -490,6 +495,7 @@ export const createValidateWhatsAppGroupHandler = (args?: {
         is_valid: true,
         is_boris_in_group: true,
         provider: 'whatsapp',
+        provider_phone: providerId,
         whatsapp_provider_id: providerId,
         group_name: groupName,
         owner_phone_e164: ownerPhoneE164,
@@ -562,4 +568,6 @@ export const createValidateWhatsAppGroupHandler = (args?: {
   };
 };
 
-serve(createValidateWhatsAppGroupHandler());
+if (import.meta.main) {
+  serve(createValidateWhatsAppGroupHandler());
+}

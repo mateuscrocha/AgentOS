@@ -28,6 +28,7 @@ interface ZapiPollVotePayload {
     options: ZapiPollOption[];
   };
   participantPhone?: string;
+  participantLid?: string;
   chatId?: string;
   groupProviderId?: string;
   provider?: string;
@@ -58,6 +59,11 @@ function normalizeMemberProviderId(input?: string | null): string | null {
   return digits || null;
 }
 
+function normalizeLid(input?: string | null): string | null {
+  const raw = (input || '').trim();
+  return raw || null;
+}
+
 function normalizeGroupProviderId(input: string): string {
   return (input || '')
     .trim()
@@ -76,6 +82,17 @@ function buildGroupProviderIdVariants(raw: string): string[] {
   if (s && !s.endsWith('-group')) out.add(`${s}-group`);
   if (s && !s.endsWith('@g.us')) out.add(`${s}@g.us`);
   return Array.from(out);
+}
+
+function isUnknownColumnError(err: any): boolean {
+  const code = String(err?.code || '');
+  const message = String(err?.message || '').toLowerCase();
+  return (
+    code === '42703' ||
+    (message.includes('column') && message.includes('does not exist')) ||
+    (message.includes('schema cache') && message.includes('column')) ||
+    (message.includes('could not find') && message.includes('column'))
+  );
 }
 
 function parseTimestampToIso(ts: unknown): string | null {
@@ -147,11 +164,14 @@ serve(async (req: Request) => {
 
     const getGroupProviderId = (): string | null => {
       return firstString(
+        payload.provider_phone,
         payload.groupProviderId,
         payload.chatId,
+        payload?.message?.provider_phone,
         payload?.message?.groupProviderId,
         payload?.message?.chatId,
         payload?.message?.chat?.id,
+        payload?.data?.provider_phone,
         payload?.data?.groupProviderId,
         payload?.data?.chatId,
         payload?.data?.chat?.id
@@ -162,12 +182,29 @@ serve(async (req: Request) => {
       const providerGroupId = getGroupProviderId();
       if (!providerGroupId) return null;
       const variants = buildGroupProviderIdVariants(providerGroupId);
-      const { data: group } = await supabase
+      let group: { id: string } | null = null;
+      let err: any = null;
+
+      ({ data: group, error: err } = await supabase
         .from('groups')
         .select('id')
-        .in('whatsapp_provider_id', variants)
+        .in('provider_phone', variants)
         .limit(1)
-        .maybeSingle();
+        .maybeSingle());
+
+      if ((!group && !err) || (err && isUnknownColumnError(err))) {
+        ({ data: group, error: err } = await supabase
+          .from('groups')
+          .select('id')
+          .in('whatsapp_provider_id', variants)
+          .limit(1)
+          .maybeSingle());
+      }
+
+      if (err) {
+        throw err;
+      }
+
       return group?.id || null;
     };
 
@@ -359,32 +396,53 @@ serve(async (req: Request) => {
       }
 
       // Ensure person exists (group_member)
+      const participantLid = normalizeLid(firstString(
+        votePayload.participantLid,
+        (payload as any)?.participantLid,
+        (payload as any)?.participant_lid,
+        (payload as any)?.senderLid,
+        (payload as any)?.sender_lid,
+        (payload as any)?.message?.participantLid,
+        (payload as any)?.message?.participant_lid,
+        (payload as any)?.message?.senderLid,
+        (payload as any)?.message?.sender_lid
+      ));
       const phone = normalizePhoneE164(votePayload.participantPhone || null);
       const participantProviderId = normalizeMemberProviderId(votePayload.participantPhone || null);
       let personId: string | null = null;
-      if (phone) {
-        const { data: existingMember } = await supabase
+      if (participantLid) {
+        const { data: existingByLid } = await supabase
+          .from('members')
+          .select('id')
+          .eq('group_id', groupId)
+          .eq('lid', participantLid)
+          .maybeSingle();
+        if (existingByLid?.id) personId = existingByLid.id;
+      }
+      if (!personId && phone) {
+        const { data: existingByPhone } = await supabase
           .from('members')
           .select('id')
           .eq('group_id', groupId)
           .eq('phone_e164', phone)
           .maybeSingle();
-        if (existingMember) {
-          personId = existingMember.id;
-        } else {
+        if (existingByPhone?.id) personId = existingByPhone.id;
+      }
+      if (!personId && (phone || participantLid)) {
           const nowIso = new Date().toISOString();
           const joinedAt = createdAt || nowIso;
-          const phoneDigits = phone.replace(/\D/g, '') || null;
+          const phoneDigits = phone ? (phone.replace(/\D/g, '') || null) : null;
           const whatsappProviderId = participantProviderId || phoneDigits;
           const { data: newMember } = await supabase
             .from('members')
             .insert({
               group_id: groupId,
               phone_e164: phone,
-              name: phone,
-              display_name: phone,
+              name: phone || participantLid,
+              display_name: phone || participantLid,
               provider: 'whatsapp',
               whatsapp_provider_id: whatsappProviderId,
+              lid: participantLid,
               first_seen_at: joinedAt,
               joined_at: joinedAt,
               status: 'active',
@@ -393,7 +451,6 @@ serve(async (req: Request) => {
             .select('id')
             .single();
           personId = newMember?.id || null;
-        }
       }
 
       let voteSequence: number | null = null;
@@ -485,6 +542,23 @@ serve(async (req: Request) => {
           null
       );
       const senderProviderId = normalizeMemberProviderId(senderProviderIdRaw);
+      const senderLid = normalizeLid(firstString(
+        payload.participantLid,
+        payload.participant_lid,
+        payload.senderLid,
+        payload.sender_lid,
+        payload.lid,
+        payload?.message?.participantLid,
+        payload?.message?.participant_lid,
+        payload?.message?.senderLid,
+        payload?.message?.sender_lid,
+        payload?.message?.lid,
+        payload?.data?.participantLid,
+        payload?.data?.participant_lid,
+        payload?.data?.senderLid,
+        payload?.data?.sender_lid,
+        payload?.data?.lid
+      ));
 
       const senderPhone = normalizePhoneE164(
         payload.participantPhone ||
@@ -636,21 +710,34 @@ serve(async (req: Request) => {
           const direction = fromMe ? 'outbound' : 'inbound';
 
           let memberId: string | null = null;
-          if (senderPhone) {
-            const { data: existingMember } = await supabase
+          if (senderLid) {
+            const { data: existingByLid } = await supabase
+              .from('members')
+              .select('id')
+              .eq('group_id', groupId)
+              .eq('lid', senderLid)
+              .maybeSingle();
+            if (existingByLid?.id) {
+              memberId = existingByLid.id;
+            }
+          }
+          if (!memberId && senderPhone) {
+            const { data: existingByPhone } = await supabase
               .from('members')
               .select('id')
               .eq('group_id', groupId)
               .eq('phone_e164', senderPhone)
               .maybeSingle();
-            if (existingMember?.id) {
-              memberId = existingMember.id;
-            } else if (!fromMe) {
+            if (existingByPhone?.id) {
+              memberId = existingByPhone.id;
+            }
+          }
+          if (!memberId && !fromMe && (senderPhone || senderLid)) {
               const nowIso = new Date().toISOString();
               const joinedAt = createdAtISO || nowIso;
-              const phoneDigits = senderPhone.replace(/\D/g, '') || null;
+              const phoneDigits = senderPhone ? (senderPhone.replace(/\D/g, '') || null) : null;
               const whatsappProviderId = senderProviderId || phoneDigits;
-              const memberName = senderName || senderPhone;
+              const memberName = senderName || senderPhone || senderLid;
               const { data: createdMember } = await supabase
                 .from('members')
                 .insert({
@@ -660,6 +747,7 @@ serve(async (req: Request) => {
                   display_name: memberName,
                   provider: 'whatsapp',
                   whatsapp_provider_id: whatsappProviderId,
+                  lid: senderLid,
                   first_seen_at: joinedAt,
                   joined_at: joinedAt,
                   status: 'active',
@@ -668,7 +756,6 @@ serve(async (req: Request) => {
                 .select('id')
                 .single();
               memberId = createdMember?.id || null;
-            }
           }
 
           const insertPayload: Record<string, unknown> = {

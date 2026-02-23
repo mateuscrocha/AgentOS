@@ -73,7 +73,7 @@ describe("GroupPageTop — aba Configurações", () => {
 
     await act(async () => {
       root.render(
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <GroupPageTop
             breadcrumbItems={[{ label: "Central do Bóris", href: "/" }]}
             group={{
@@ -106,7 +106,7 @@ describe("GroupPageTop — aba Configurações", () => {
 
     await act(async () => {
       root.render(
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <GroupPageTop
             breadcrumbItems={[{ label: "Central do Bóris", href: "/" }]}
             group={{
@@ -145,7 +145,7 @@ describe("GroupTabs — remoção da aba Atividade", () => {
 
     await act(async () => {
       root.render(
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <GroupTabs groupId="00000000-0000-4000-8000-000000000000" activeTab="painel" />
         </MemoryRouter>
       );
@@ -167,7 +167,7 @@ describe("GroupTabs — remoção da aba Atividade", () => {
 
     await act(async () => {
       root.render(
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <GroupTabs groupId="00000000-0000-4000-8000-000000000000" activeTab="painel" />
         </MemoryRouter>
       );
@@ -189,7 +189,7 @@ describe("GroupTabs — remoção da aba Atividade", () => {
 
     await act(async () => {
       root.render(
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <GroupTabs groupId="00000000-0000-4000-8000-000000000000" activeTab="painel" />
         </MemoryRouter>
       );
