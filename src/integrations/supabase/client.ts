@@ -13,8 +13,11 @@ const missingVars: string[] = [];
 if (!SUPABASE_URL) missingVars.push('VITE_SUPABASE_URL');
 if (!SUPABASE_KEY) missingVars.push('VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY');
 
+export const SUPABASE_CONFIG_ERROR =
+  missingVars.length > 0 ? `Supabase não configurado: ${missingVars.join(', ')}` : null;
+
 const createMisconfiguredSupabaseClient = () => {
-  const message = `Supabase não configurado: ${missingVars.join(', ')}`;
+  const message = SUPABASE_CONFIG_ERROR ?? 'Supabase não configurado';
 
   return new Proxy(
     {},

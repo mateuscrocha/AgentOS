@@ -12,6 +12,7 @@ import { AuthGuard } from "./components/auth/AuthGuard";
 import { AuthProvider } from "@/hooks/use-auth";
 import { queryClient } from "@/lib/query-client";
 import { installConsoleErrorNoiseFilter } from "@/lib/console-error-filter";
+import { SUPABASE_CONFIG_ERROR } from "@/integrations/supabase/client";
 
 const Index = lazy(() => import("./pages/Index"));
 const SystemEvents = lazy(() => import("./pages/SystemEvents"));
@@ -38,7 +39,27 @@ const Alerts = lazy(() => import("./pages/Alerts"));
 
 installConsoleErrorNoiseFilter();
 
+const MisconfiguredApp = ({ message }: { message: string }) => (
+  <main className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="mx-auto flex min-h-screen max-w-3xl items-center px-6 py-12">
+      <div className="w-full rounded-xl border border-rose-500/30 bg-slate-900/80 p-6 shadow-2xl">
+        <h1 className="text-xl font-semibold text-rose-300">Falha de configuração no deploy</h1>
+        <p className="mt-3 text-sm text-slate-300">
+          O frontend foi publicado sem as variáveis obrigatórias do Supabase no momento do build.
+        </p>
+        <pre className="mt-4 overflow-x-auto rounded-md bg-slate-950 p-3 text-xs text-rose-200">{message}</pre>
+        <p className="mt-4 text-sm text-slate-300">
+          Configure os build args/envs `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (ou `VITE_SUPABASE_ANON_KEY`) e gere um novo deploy.
+        </p>
+      </div>
+    </div>
+  </main>
+);
+
 const App = () => (
+  SUPABASE_CONFIG_ERROR ? (
+    <MisconfiguredApp message={SUPABASE_CONFIG_ERROR} />
+  ) : (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Sonner />
@@ -99,6 +120,7 @@ const App = () => (
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
+  )
 );
 
 export default App;
