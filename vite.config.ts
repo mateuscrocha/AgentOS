@@ -29,10 +29,6 @@ export default defineConfig(({ mode }) => {
           manualChunks(id) {
             if (!id.includes("node_modules")) return;
 
-            if (id.includes("recharts") || id.includes("d3-") || id.includes("victory-vendor")) {
-              return "charts-vendor";
-            }
-
             if (id.includes("@supabase/")) {
               return "supabase-vendor";
             }
