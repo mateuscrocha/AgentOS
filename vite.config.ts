@@ -49,17 +49,6 @@ export default defineConfig(({ mode }) => {
               return "motion-vendor";
             }
 
-            // Recharts can break with TDZ/circular init issues when Rollup splits its
-            // internals into multiple production chunks (e.g. chart + generateCategoricalChart).
-            // Keep charting stack together in one chunk.
-            if (
-              id.includes("/recharts/") ||
-              id.includes("/victory-vendor/") ||
-              id.includes("/d3-")
-            ) {
-              return "charts-vendor";
-            }
-
             if (id.includes("react") || id.includes("scheduler")) {
               return "react-vendor";
             }
