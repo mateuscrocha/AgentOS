@@ -43,6 +43,7 @@ interface BorisTableProps<T> {
   emptyMessage?: string;
   emptyIcon?: React.ElementType;
   skeletonWidths?: (number | string)[];
+  rowClassName?: (item: T) => string | undefined;
 }
 
 export function BorisTable<T>({
@@ -61,11 +62,12 @@ export function BorisTable<T>({
   emptyMessage = "Nenhum registro encontrado.",
   emptyIcon,
   skeletonWidths,
+  rowClassName,
 }: BorisTableProps<T>) {
   const totalPages = totalCount ? Math.ceil(totalCount / pageSize) : 1;
   const showPagination = totalCount && totalCount > pageSize;
 
-  const headerCls = "px-4 py-2.5 text-left text-[13px] font-semibold text-muted-foreground";
+  const headerCls = "px-4 py-3 text-left text-[13px] font-semibold text-foreground/75";
   const cellBaseCls = "px-4 py-2 text-[14px] font-normal text-card-foreground";
 
   if (loading) {
@@ -110,7 +112,7 @@ export function BorisTable<T>({
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border">
+            <tr className="border-b border-border bg-secondary/20">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -140,7 +142,8 @@ export function BorisTable<T>({
                 tabIndex={onRowClick ? 0 : undefined}
                 className={cn(
                   "transition-colors h-11",
-                  onRowClick && "cursor-pointer hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  onRowClick && "cursor-pointer hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                  rowClassName?.(item),
                 )}
               >
                 {columns.map((col) => (
@@ -200,7 +203,7 @@ export function BorisTable<T>({
 
 export function RowActions({ children }: { children: React.ReactNode }) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"

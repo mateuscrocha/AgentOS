@@ -18,7 +18,7 @@ export function GroupTabs({ groupId, activeTab, variant = "standalone" }: GroupT
     { key: "painel", label: "Painel", href: `/groups/${groupId}`, icon: LayoutDashboard },
     { key: "membros", label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
     { key: "mensagens", label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
-    { key: "resumos", label: "Conversas", href: `/groups/${groupId}/summaries`, icon: FileText },
+    { key: "resumos", label: "Diário", href: `/groups/${groupId}/summaries`, icon: FileText },
     { key: "enquetes", label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },
   ];
   if (isSystemAdmin) tabs.push({ key: "configuracoes", label: "Configurações", href: `/groups/${groupId}/edit`, icon: Settings });

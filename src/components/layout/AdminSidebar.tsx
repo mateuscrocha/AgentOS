@@ -83,7 +83,10 @@ export function AdminSidebar() {
 
   const isActive = useCallback(
     (href: string) => {
-      if (href === "/") return location.pathname === "/";
+      if (href === "/") return location.pathname === "/" || location.pathname === "/system";
+      if (href === "/system") return location.pathname === "/system" || location.pathname === "/";
+      if (href === "/alerts") return location.pathname === "/alerts" || location.pathname === "/system/alerts";
+      if (href === "/system/alerts") return location.pathname === "/system/alerts" || location.pathname === "/alerts";
       if (href === "/system/events") return location.pathname === "/system/events";
       if (/^\/groups\/[^/]+$/.test(href) || /^\/group\/[^/]+$/.test(href)) {
         return location.pathname === href || location.pathname === `${href}/dashboard`;
@@ -112,7 +115,7 @@ export function AdminSidebar() {
   }, [getAccessibleGroupIds, getAccessibleOrgIds, location.pathname]);
 
   const painelHref = useMemo(() => {
-    if (isSystemAdmin) return "/";
+    if (isSystemAdmin) return "/system";
     if (currentGroupId) return `/groups/${currentGroupId}`;
     if (orgIdForNavigation) return `/organization/${orgIdForNavigation}/dashboard`;
     if (groupIdFallback) return `/groups/${groupIdFallback}`;
@@ -130,22 +133,27 @@ export function AdminSidebar() {
     return "/system/organizations";
   }, [isSystemAdmin]);
 
+  const alertasHref = useMemo(() => {
+    if (!canUseAlerts) return null;
+    return isSystemAdmin ? "/system/alerts" : "/alerts";
+  }, [canUseAlerts, isSystemAdmin]);
+
   const generalItems: NavItem[] = useMemo(
     () => {
       const items: NavItem[] = [{ icon: LayoutDashboard, label: "Painel", href: painelHref }];
       if (organizacoesHref) items.push({ icon: Building2, label: "Organizações", href: organizacoesHref });
       items.push({ icon: Users, label: "Grupos", href: gruposHref });
-      if (canUseAlerts) {
+      if (alertasHref) {
         items.push({
           icon: Bell,
           label: "Alertas",
-          href: "/alerts",
+          href: alertasHref,
           badge: unreadAlertsQuery.data ? unreadAlertsQuery.data : undefined,
         });
       }
       return items;
     },
-    [canUseAlerts, gruposHref, organizacoesHref, painelHref, unreadAlertsQuery.data],
+    [alertasHref, gruposHref, organizacoesHref, painelHref, unreadAlertsQuery.data],
   );
 
   const groupItems: NavItem[] = useMemo(() => {
@@ -166,7 +174,7 @@ export function AdminSidebar() {
     return [
       { icon: Users, label: "Usuários", href: "/system/users" },
       { icon: Activity, label: "Atividade", href: "/system/activity" },
-      { icon: FileText, label: "Logs", href: "/system/events" },
+      { icon: FileText, label: "Eventos", href: "/system/events" },
       { icon: Settings, label: "Configurações do sistema", href: "/system/settings" },
     ];
   }, [isSystemAdmin]);

@@ -324,7 +324,7 @@ export default function GroupPoll() {
       <div className="space-y-6 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[
-            { label: "Central de Comando", href: "/" },
+            { label: "Central do Bóris", href: "/" },
             { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Enquete" },

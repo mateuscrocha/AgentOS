@@ -30,23 +30,31 @@ export function AdminPageHeader({
   onClearFilters,
   clearFiltersLabel,
 }: AdminPageHeaderProps) {
+  const hasTitleBlock = title != null || !!description || !!actions;
+
   return (
     <section className={cn("space-y-4 mb-6", className)}>
-      <div className="static sm:sticky sm:top-16 z-20 -mx-4 px-4 py-3 bg-background/80 backdrop-blur border-b border-border sm:-mx-6 sm:px-6">
-        <Breadcrumbs items={breadcrumbItems} />
+      <div className="pointer-events-none static sm:sticky sm:top-16 z-20 -mx-4 px-4 py-3 bg-background/80 backdrop-blur border-b border-border sm:-mx-6 sm:px-6">
+        <div className="pointer-events-auto">
+          <Breadcrumbs items={breadcrumbItems} />
+        </div>
       </div>
 
-      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
-        <div className="min-w-0">
-          <h2 className="text-xl font-semibold text-foreground sm:text-2xl">{title}</h2>
-          {description && (
-            <p className="text-sm text-muted-foreground">{description}</p>
+      {hasTitleBlock ? (
+        <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
+          <div className="min-w-0">
+            {title != null ? (
+              <h2 className="text-xl font-semibold text-foreground sm:text-2xl">{title}</h2>
+            ) : null}
+            {description && (
+              <p className="text-sm text-muted-foreground">{description}</p>
+            )}
+          </div>
+          {actions && (
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>
           )}
         </div>
-        {actions && (
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>
-        )}
-      </div>
+      ) : null}
 
       {generalKpis && (
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">

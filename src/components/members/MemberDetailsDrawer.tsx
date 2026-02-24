@@ -52,7 +52,7 @@ export function MemberDetailsDrawer({ open, onOpenChange, memberId, groupId, org
     queryFn: async () => {
       const { data } = await supabase
         .from("members")
-        .select("id, name, display_name, phone_e164, profile_pic_url, is_admin, is_super_admin, joined_at, left_at, last_seen_message_at, status, provider, whatsapp_provider_id, metadata, group_id")
+        .select("id, name, display_name, phone_e164, lid, profile_pic_url, is_admin, is_super_admin, joined_at, left_at, last_seen_message_at, status, provider, metadata, group_id")
         .eq("id", memberId)
         .maybeSingle();
       return data as any;

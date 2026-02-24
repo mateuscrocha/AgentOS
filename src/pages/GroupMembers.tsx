@@ -230,7 +230,7 @@ const GroupMembers = () => {
   // Loading state
   if (authLoading) {
     return (
-      <AdminLayout title="Members" subtitle="Verificando acesso...">
+      <AdminLayout title="Membros" subtitle="Verificando acesso...">
         <LoadingState message="Verificando permissões..." />
       </AdminLayout>
     );

@@ -98,16 +98,16 @@ export function AlertsSection({
     queryFn: async () => {
       if (!currentGroup || !mentionIds.length) return {} as Record<string, string>;
       const plusPhones = mentionIds.map(id => (id.startsWith("+") ? id : `+${id}`));
-      const providerCandidates = [
+      const lidCandidates = [
         ...mentionIds,
         ...mentionIds.map(id => `${id}@c.us`),
         ...mentionIds.map(id => `${id}@s.whatsapp.net`),
       ];
-      const { data: byProvider } = await supabase
+      const { data: byLid } = await supabase
         .from("members")
-        .select("whatsapp_provider_id, name, display_name")
+        .select("lid, name, display_name")
         .eq("group_id", currentGroup)
-        .in("whatsapp_provider_id", providerCandidates);
+        .in("lid", lidCandidates);
       const { data: byPhone } = await supabase
         .from("members")
         .select("phone_e164, name, display_name")
@@ -115,8 +115,8 @@ export function AlertsSection({
         .in("phone_e164", plusPhones);
       const map: Record<string, string> = {};
       const toDigits = (s: string) => s.replace(/\D/g, "");
-      (byProvider || []).forEach(m => {
-        const keyFull = (m as any).whatsapp_provider_id as string;
+      (byLid || []).forEach(m => {
+        const keyFull = (m as any).lid as string;
         const key = toDigits(keyFull || "");
         const val = ((m as any).display_name as string) || ((m as any).name as string);
         if (key) map[key] = val;

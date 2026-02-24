@@ -79,6 +79,7 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
       {children}
     </button>
   ),
+  DropdownMenuLabel: ({ children }: any) => <div>{children}</div>,
   DropdownMenuSeparator: () => <div />,
 }));
 
@@ -204,7 +205,8 @@ describe("SystemOrganizations page", () => {
   it("expõe filtro de suspensas e atualiza página ao paginar", async () => {
     const { container, root } = await renderPage();
 
-    expect(container.textContent).toContain("Suspensas:0");
+    expect(container.textContent).not.toContain("Suspensas:0");
+    expect(container.textContent).toContain("Status: suspensos");
     const statusSelect = Array.from(container.querySelectorAll("select")).find((s) =>
       Array.from(s.options).some((o) => o.value === "suspended"),
     );
@@ -242,21 +244,18 @@ describe("SystemOrganizations page", () => {
     hookState.orgGroupCountsQuery.data = { "org-1": 2 };
     const { container, root } = await renderPage();
 
-    const deleteButtonsBefore = Array.from(container.querySelectorAll("button")).filter((b) => b.textContent === "Excluir");
-    const deleteButton = deleteButtonsBefore[0];
+    const deleteButton = Array.from(container.querySelectorAll("button")).find((b) =>
+      b.textContent === "Excluir (remova grupos antes)",
+    );
+    expect(deleteButton).toBeTruthy();
+    expect(deleteButton?.disabled).toBe(true);
+
     await act(async () => {
       deleteButton?.click();
       await flush();
     });
 
-    const deleteButtonsAfter = Array.from(container.querySelectorAll("button")).filter((b) => b.textContent === "Excluir");
-    const confirmDelete = deleteButtonsAfter[deleteButtonsAfter.length - 1];
-    await act(async () => {
-      confirmDelete?.click();
-      await flush();
-    });
-
-    expect(notifyMock.warning).toHaveBeenCalledWith("Atenção", "Exclua os grupos antes de remover a organização.");
+    expect(notifyMock.warning).not.toHaveBeenCalled();
     expect(deleteEqMock).not.toHaveBeenCalled();
 
     await act(async () => root.unmount());

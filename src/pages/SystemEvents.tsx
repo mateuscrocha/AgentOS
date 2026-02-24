@@ -33,10 +33,10 @@ const PAGE_SIZE = 100;
 
 const ENTITY_TYPES = [
   { value: "all", label: "Todos" },
-  { value: "organization", label: "Organization" },
-  { value: "group", label: "Group" },
-  { value: "member", label: "Member" },
-  { value: "message", label: "Message" },
+  { value: "organization", label: "Organização" },
+  { value: "group", label: "Grupo" },
+  { value: "member", label: "Membro" },
+  { value: "message", label: "Mensagem" },
 ];
 
 export default function SystemEvents() {
@@ -162,7 +162,7 @@ export default function SystemEvents() {
     <AdminLayout title="Eventos do Sistema" subtitle="Auditoria e observabilidade">
       <div className="space-y-6">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Eventos" }]}
+          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Eventos" }]}
           title="Eventos do Sistema"
           description="Auditoria e observabilidade"
           filters={(

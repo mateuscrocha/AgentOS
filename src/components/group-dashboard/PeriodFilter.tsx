@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format, addDays } from "date-fns";
+import { addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
@@ -83,7 +83,7 @@ export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps
       isValidDate(customRange.from) &&
       isValidDate(customRange.to)
     ) {
-      return `${format(customRange.from, 'dd/MM', { locale: ptBR })} - ${format(customRange.to, 'dd/MM', { locale: ptBR })}`;
+      return `${formatInTimeZone(customRange.from, SAO_PAULO_TZ, 'dd/MM')} - ${formatInTimeZone(customRange.to, SAO_PAULO_TZ, 'dd/MM')}`;
     }
     return periodOptions.find(o => o.value === value)?.label || 'Período';
   };
@@ -92,7 +92,7 @@ export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps
     <div className="flex items-center gap-2">
       <Popover open={isCustomOpen} onOpenChange={setIsCustomOpen}>
         <Select value={value} onValueChange={(v) => handlePeriodChange(v as PeriodType)}>
-          <SelectTrigger className="w-[200px] bg-card border-border" aria-label="Mostrar dados de">
+          <SelectTrigger className="w-[160px] sm:w-[200px] bg-card border-border" aria-label="Mostrar dados de">
             <SelectValue placeholder="Período">
               {formatRangeLabel()}
             </SelectValue>
@@ -126,7 +126,7 @@ export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps
             <p className="text-sm font-medium">Escolha as datas</p>
             <p className="text-[13px] text-muted-foreground mt-1">
               {tempRange.from && tempRange.to 
-                ? `${format(tempRange.from, 'dd/MM/yyyy', { locale: ptBR })} - ${format(tempRange.to, 'dd/MM/yyyy', { locale: ptBR })}`
+                ? `${formatInTimeZone(tempRange.from, SAO_PAULO_TZ, 'dd/MM/yyyy')} - ${formatInTimeZone(tempRange.to, SAO_PAULO_TZ, 'dd/MM/yyyy')}`
                 : 'Selecione as datas'
               }
             </p>

@@ -608,7 +608,7 @@ export default function GroupEdit() {
   }
 
   const breadcrumbItems = [
-    { label: "Central de Comando", href: "/" },
+    { label: "Central do Bóris", href: "/" },
     { label: "Grupos", href: "/system/groups" },
     { label: group.name, href: `/groups/${group.id}` },
     { label: "Editar", href: `/groups/${group.id}/edit` },

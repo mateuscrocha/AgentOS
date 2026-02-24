@@ -57,7 +57,7 @@ export function StatsCard({
           ) : (
             <p
               className={cn(
-                "text-3xl sm:text-4xl font-semibold text-card-foreground tracking-tight tabular-nums whitespace-nowrap max-w-[55%] sm:max-w-none truncate shrink-0 text-right",
+                "text-2xl sm:text-4xl font-semibold text-card-foreground tracking-tight tabular-nums whitespace-nowrap max-w-[65%] sm:max-w-none truncate sm:overflow-visible sm:text-clip shrink-0 text-right",
                 valueClassName,
               )}
             >

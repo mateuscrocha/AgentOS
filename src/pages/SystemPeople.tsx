@@ -174,10 +174,10 @@ export default function SystemPeople() {
   ];
 
   return (
-    <AdminLayout title="Pessoas" subtitle="Central de Comando › Pessoas">
+    <AdminLayout title="Pessoas" subtitle="Central do Bóris › Pessoas">
       <div className="space-y-6 animate-fade-in">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Pessoas" }]}
+          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Pessoas" }]}
           title="Pessoas"
           description="Visão consolidada de pessoas no sistema"
           filters={(

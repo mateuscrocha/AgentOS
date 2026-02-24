@@ -562,11 +562,11 @@ const Org = () => {
 
   const breadcrumbItems = (() => {
     const items = [
-      { label: "Central de Comando", href: "/" },
+      { label: "Central do Bóris", href: "/" },
       { label: org?.name || "Organização" },
     ];
     if (isGroupsRoute) items.push({ label: "Grupos" });
-    if (isDashboardRoute) items.push({ label: "Painéis e métricas" });
+    if (isDashboardRoute) items.push({ label: "Painel" });
     if (isKeywordsRoute) items.push({ label: "Palavras-chave" });
     if (isProfileRoute) items.push({ label: "Perfil" });
     return items;
@@ -1414,6 +1414,7 @@ const Org = () => {
     setAttaching(true);
     setAttachError(null);
     try {
+      let attachedGroupId: string | null = null;
       const webhookUrl = ((import.meta as any).env.VITE_N8N_CHECK_GROUP_ENTRY_URL as string | undefined)?.trim();
       if (!webhookUrl) {
         setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
@@ -1450,18 +1451,36 @@ const Org = () => {
         return;
       }
 
-      if (groupAdded === null) {
-        const groupItem = extractN8nGroupItem(payload);
-        if (!groupItem) {
-          setAttachError("Resposta inesperada do verificador. Tente novamente em instantes.");
-          return;
-        }
+      const groupItem = extractN8nGroupItem(payload);
 
-        await ensureGroupFromN8nPayload({
+      if (groupAdded === null && !groupItem) {
+        setAttachError("Resposta inesperada do verificador. Tente novamente em instantes.");
+        return;
+      }
+
+      if (groupItem) {
+        const ensuredGroup = await ensureGroupFromN8nPayload({
           orgId,
           inviteLink: rawLink,
           item: groupItem,
         });
+        attachedGroupId = ensuredGroup.groupId;
+      } else {
+        const { data: existingGroupByInvite, error: existingGroupByInviteError } = await supabase
+          .from("groups")
+          .select("id")
+          .eq("organization_id", orgId)
+          .eq("invite_link", rawLink)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (existingGroupByInviteError) throw existingGroupByInviteError;
+        attachedGroupId = existingGroupByInvite?.id ?? null;
+      }
+
+      if (groupAdded === null && !attachedGroupId) {
+          setAttachError("Resposta inesperada do verificador. Tente novamente em instantes.");
+          return;
       }
 
       notify.success("Grupo adicionado com sucesso.", "");
@@ -1476,6 +1495,9 @@ const Org = () => {
       await queryClient.invalidateQueries({ queryKey: ["org-messages-7d", orgId] });
       await queryClient.invalidateQueries({ queryKey: ["org-collaborators", orgId] });
       await queryClient.invalidateQueries({ queryKey: ["org-team-collaborator-kpis", orgId] });
+      if (attachedGroupId) {
+        navigate(`/groups/${attachedGroupId}`);
+      }
     } catch {
       setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
     } finally {
@@ -1565,7 +1587,7 @@ const Org = () => {
           <div className="rounded-xl bg-secondary/20 p-4 space-y-4">
             <h3 className="text-sm font-medium text-card-foreground flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
-              Plano / Billing
+              Plano / Cobrança
             </h3>
 
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1649,7 +1671,7 @@ const Org = () => {
                   <div className="mt-1 text-lg font-semibold text-card-foreground capitalize">{org.plan || "-"}</div>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Billing</div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Cobrança</div>
                   <div className="mt-1 text-lg font-semibold text-card-foreground capitalize">{org.billing_status || "-"}</div>
                 </div>
               </>

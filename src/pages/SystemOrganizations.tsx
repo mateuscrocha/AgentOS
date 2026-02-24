@@ -6,8 +6,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { ArrowUpRight, Building2, CheckCircle, ChevronLeft, ChevronRight, Loader2, Plus, SlidersHorizontal, Users, XCircle } from "lucide-react";
+import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Building2, ChevronLeft, ChevronRight, Loader2, Plus, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { FunctionsHttpError } from "@supabase/supabase-js";
@@ -166,6 +166,8 @@ export default function SystemOrganizations() {
     const isDeletePending = removingOrgId === org.id;
     const isCascadePending = deletingCascadeOrgId === org.id;
     const actionsDisabled = isStatusPending || isDeletePending || isCascadePending;
+    const groupsCount = orgGroupCounts?.[org.id] ?? 0;
+    const canSimpleDelete = groupsCount === 0;
 
     return (
       <RowActions>
@@ -194,12 +196,15 @@ export default function SystemOrganizations() {
           {isStatusPending ? "Salvando..." : org.status === "active" ? "Desativar" : "Reativar"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuLabel className="px-2 py-1 text-xs font-medium text-muted-foreground">
+          Ações destrutivas
+        </DropdownMenuLabel>
         <DropdownMenuItem
           onSelect={() => setRemoveOrg(org)}
           className="text-destructive focus:text-destructive"
-          disabled={actionsDisabled}
+          disabled={actionsDisabled || !canSimpleDelete}
         >
-          Excluir
+          {canSimpleDelete ? "Excluir" : "Excluir (remova grupos antes)"}
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {
@@ -209,33 +214,13 @@ export default function SystemOrganizations() {
           className="text-destructive focus:text-destructive"
           disabled={actionsDisabled}
         >
-          Excluir com tudo
+          Excluir organização e dados
         </DropdownMenuItem>
       </RowActions>
     );
   };
 
   const columns = [
-    {
-      key: "open",
-      header: "",
-      className: "w-0",
-      render: (org: OrganizationListItem) => (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          aria-label={`Abrir ${org.name}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/org/${org.id}`);
-          }}
-        >
-          <ArrowUpRight className="h-4 w-4" />
-        </Button>
-      ),
-    },
     {
       key: "name",
       header: "Organização",
@@ -283,6 +268,8 @@ export default function SystemOrganizations() {
   ];
 
   const hasActiveFilters = !!search || statusFilter !== "all" || orderBy !== "name" || orderDir !== "asc";
+  const activeFiltersCount = Number(!!search) + Number(statusFilter !== "all") + Number(orderBy !== "name" || orderDir !== "asc");
+  const sortValue = `${orderBy}:${orderDir}`;
 
   const clearFilters = () => {
     setSearch("");
@@ -303,6 +290,7 @@ export default function SystemOrganizations() {
         <input
           type="text"
           placeholder="Buscar organização"
+          aria-label="Buscar organização por nome"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -332,34 +320,32 @@ export default function SystemOrganizations() {
         <option value="suspended">Status: suspensos</option>
       </select>
       <select
-        value={orderBy}
-        onChange={(e) => setOrderBy(e.target.value as any)}
-        className={`${filterSelectBase} w-full sm:w-auto min-w-[12rem]`}
-        aria-label="Ordenar por"
+        value={sortValue}
+        onChange={(e) => {
+          const [nextOrderBy, nextOrderDir] = e.target.value.split(":") as ["name" | "created_at", "asc" | "desc"];
+          setOrderBy(nextOrderBy);
+          setOrderDir(nextOrderDir);
+          setPage(1);
+        }}
+        className={`${filterSelectBase} w-full sm:w-auto min-w-[14rem]`}
+        aria-label="Ordenação"
       >
-        <option value="name">Ordenar: nome</option>
-        <option value="created_at">Ordenar: data</option>
-      </select>
-      <select
-        value={orderDir}
-        onChange={(e) => setOrderDir(e.target.value as any)}
-        className={`${filterSelectBase} w-full sm:w-auto min-w-[12rem]`}
-        aria-label="Direção"
-      >
-        <option value="asc">Direção: asc</option>
-        <option value="desc">Direção: desc</option>
+        <option value="name:asc">Ordenar: nome (A-Z)</option>
+        <option value="name:desc">Ordenar: nome (Z-A)</option>
+        <option value="created_at:desc">Ordenar: mais recentes</option>
+        <option value="created_at:asc">Ordenar: mais antigas</option>
       </select>
     </>
   );
 
   return (
     <AdminLayout title="Organizações" subtitle="Gerencie quem usa o Bóris e seus grupos">
-      <div className="space-y-8 animate-fade-in">
-        <div className="space-y-4">
+      <div className="space-y-6 animate-fade-in">
+        <div className="space-y-3">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <Breadcrumbs
-                items={[{ label: "Central de Comando", href: "/" }, { label: "Organizações" }]}
+                items={[{ label: "Central do Bóris", href: "/" }, { label: "Organizações" }]}
                 className="text-xs text-muted-foreground/80 [&_a]:text-muted-foreground/80 [&_a:hover]:text-foreground [&_span]:text-muted-foreground/80 [&_span]:font-normal"
               />
               {hasActiveFilters ? (
@@ -381,32 +367,11 @@ export default function SystemOrganizations() {
             </Button>
           </div>
 
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid max-w-2xl gap-3 grid-cols-1 sm:grid-cols-2">
             <StatsCard
               title="Total"
               value={overview?.orgsTotal?.toLocaleString("pt-BR") ?? "—"}
               icon={Building2}
-              variant="kpi"
-              isLoading={overviewLoading}
-            />
-            <StatsCard
-              title="Ativas"
-              value={overview?.orgsActive?.toLocaleString("pt-BR") ?? "—"}
-              icon={CheckCircle}
-              variant="kpi"
-              isLoading={overviewLoading}
-            />
-            <StatsCard
-              title="Inativas"
-              value={overview?.orgsInactive?.toLocaleString("pt-BR") ?? "—"}
-              icon={XCircle}
-              variant="kpi"
-              isLoading={overviewLoading}
-            />
-            <StatsCard
-              title="Suspensas"
-              value={overview?.orgsSuspended?.toLocaleString("pt-BR") ?? "—"}
-              icon={XCircle}
               variant="kpi"
               isLoading={overviewLoading}
             />
@@ -438,17 +403,39 @@ export default function SystemOrganizations() {
                 </span>
                 {hasActiveFilters && (
                   <Badge variant="secondary" className="h-6 px-2 text-[11px]">
-                    Ativo
+                    {activeFiltersCount} filtro{activeFiltersCount > 1 ? "s" : ""}
                   </Badge>
                 )}
               </Button>
             </div>
 
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="hidden md:inline-flex">
-                Limpar filtros
-              </Button>
-            )}
+            <div className="hidden md:flex items-center gap-2">
+              {hasActiveFilters && (
+                <>
+                  <Badge variant="secondary" className="h-6 px-2 text-[11px]">
+                    {activeFiltersCount} filtro{activeFiltersCount > 1 ? "s" : ""} ativo{activeFiltersCount > 1 ? "s" : ""}
+                  </Badge>
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    Limpar filtros
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card/70 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-card-foreground">Lista de organizações</span>
+              <Badge variant="secondary" className="tabular-nums">
+                {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
+              </Badge>
+              {orgsFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" /> : null}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {hasActiveFilters ? "Resultados filtrados" : "Todos os registros"}
+            </p>
           </div>
         </div>
 
@@ -475,7 +462,7 @@ export default function SystemOrganizations() {
                 </Button>
               )}
               <DrawerClose asChild>
-                <Button type="button">Ver resultados</Button>
+                <Button type="button">Fechar</Button>
               </DrawerClose>
             </DrawerFooter>
           </DrawerContent>
@@ -506,9 +493,17 @@ export default function SystemOrganizations() {
           ) : !orgsData?.items?.length ? (
             <EmptyState
               icon={Building2}
-              title="Nenhuma organização por aqui"
-              message="Quando você criar a primeira, ela vai aparecer nesta lista."
-              action={{ label: "Nova organização", onClick: () => setCreateOrgOpen(true) }}
+              title={hasActiveFilters ? "Nenhum resultado encontrado" : "Nenhuma organização por aqui"}
+              message={
+                hasActiveFilters
+                  ? "Tente ajustar os filtros para encontrar outras organizações."
+                  : "Quando você criar a primeira, ela vai aparecer nesta lista."
+              }
+              action={
+                hasActiveFilters
+                  ? { label: "Limpar filtros", onClick: clearFilters }
+                  : { label: "Nova organização", onClick: () => setCreateOrgOpen(true) }
+              }
             />
           ) : (
             <div className="space-y-3">
@@ -582,7 +577,11 @@ export default function SystemOrganizations() {
             error={!!orgsError}
             onRetry={() => refetchOrgs()}
             emptyIcon={Building2}
-            emptyMessage="Ainda não há organizações por aqui."
+            emptyMessage={
+              hasActiveFilters
+                ? "Nenhuma organização encontrada com os filtros atuais."
+                : "Ainda não há organizações por aqui."
+            }
           />
         </div>
 
@@ -639,7 +638,11 @@ export default function SystemOrganizations() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-3">
+              <label htmlFor="confirm-cascade-name" className="text-sm font-medium text-card-foreground">
+                Digite o nome da organização para confirmar
+              </label>
               <input
+                id="confirm-cascade-name"
                 type="text"
                 value={confirmCascadeName}
                 onChange={(e) => setConfirmCascadeName(e.target.value)}
@@ -652,7 +655,7 @@ export default function SystemOrganizations() {
               <AlertDialogAction
                 onClick={async () => {
                   if (!cascadeOrg) return;
-                  if (confirmCascadeName !== cascadeOrg.name) {
+                  if (confirmCascadeName.trim() !== cascadeOrg.name.trim()) {
                     notify.warning("Atenção", "O nome digitado não confere.");
                     return;
                   }
@@ -689,7 +692,10 @@ export default function SystemOrganizations() {
                     setDeletingCascadeOrgId(null);
                   }
                 }}
-                disabled={deletingCascadeOrgId === cascadeOrg?.id || confirmCascadeName !== cascadeOrg?.name}
+                disabled={
+                  deletingCascadeOrgId === cascadeOrg?.id ||
+                  confirmCascadeName.trim() !== (cascadeOrg?.name ?? "").trim()
+                }
               >
                 {deletingCascadeOrgId === cascadeOrg?.id ? "Excluindo..." : "Excluir com tudo"}
               </AlertDialogAction>

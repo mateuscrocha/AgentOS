@@ -7,7 +7,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { AuthGuard } from "./components/auth/AuthGuard";
 import { AuthProvider } from "@/hooks/use-auth";
 import { queryClient } from "@/lib/query-client";
@@ -56,6 +56,22 @@ const MisconfiguredApp = ({ message }: { message: string }) => (
   </main>
 );
 
+function LegacyOrgAliasRedirect() {
+  const { orgId, "*": rest } = useParams();
+  const location = useLocation();
+  if (!orgId) return <Navigate to="/" replace />;
+  const suffix = rest ? `/${rest}` : "";
+  return <Navigate to={`/organization/${orgId}${suffix}${location.search}${location.hash}`} replace />;
+}
+
+function LegacyGroupAliasRedirect() {
+  const { groupId, "*": rest } = useParams();
+  const location = useLocation();
+  if (!groupId) return <Navigate to="/" replace />;
+  const suffix = rest ? `/${rest}` : "";
+  return <Navigate to={`/groups/${groupId}${suffix}${location.search}${location.hash}`} replace />;
+}
+
 const App = () => (
   SUPABASE_CONFIG_ERROR ? (
     <MisconfiguredApp message={SUPABASE_CONFIG_ERROR} />
@@ -84,20 +100,14 @@ const App = () => (
               <Route path="/system/settings" element={<Settings />} />
               <Route path="/system/alerts" element={<Alerts />} />
               <Route path="/alerts" element={<Alerts />} />
-              <Route path="/org/:orgId" element={<Org />} />
+              <Route path="/org/:orgId/*" element={<LegacyOrgAliasRedirect />} />
               <Route path="/organization/:orgId" element={<Org />} />
               <Route path="/organization/:orgId/groups" element={<Org />} />
               <Route path="/organization/:orgId/dashboard" element={<Org />} />
               <Route path="/organization/:orgId/keywords" element={<Org />} />
+              <Route path="/organization/:orgId/profile" element={<Org />} />
               {/* Group Admin routes (legacy + standardized aliases) */}
-              <Route path="/group/:groupId" element={<Group />} />
-              <Route path="/group/:groupId/members" element={<GroupMembers />} />
-              <Route path="/group/:groupId/messages" element={<GroupMessages />} />
-              <Route path="/group/:groupId/summaries" element={<GroupSummaries />} />
-              <Route path="/group/:groupId/polls" element={<GroupPolls />} />
-              <Route path="/group/:groupId/polls/:pollId" element={<GroupPoll />} />
-              <Route path="/group/:groupId/events" element={<GroupEvents />} />
-              <Route path="/group/:groupId/edit" element={<GroupEdit />} />
+              <Route path="/group/:groupId/*" element={<LegacyGroupAliasRedirect />} />
               <Route path="/groups/:groupId" element={<Group />} />
               <Route path="/groups/:groupId/members" element={<GroupMembers />} />
               <Route path="/groups/:groupId/messages" element={<GroupMessages />} />

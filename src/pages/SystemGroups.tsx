@@ -535,10 +535,10 @@ export default function SystemGroups() {
   })();
 
   return (
-    <AdminLayout title="Grupos" subtitle="Central de Comando › Grupos">
+    <AdminLayout title="Grupos" subtitle="Central do Bóris › Grupos">
       <div className="space-y-6 animate-fade-in">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
+          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Grupos" }]}
           title="Grupos"
           description="Todos os grupos conectados ao Bóris"
           generalKpis={(

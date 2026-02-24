@@ -242,8 +242,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-in,
   .animate-shimmer {
     animation: none;
+  }
+
+  .ripple-surface,
+  .ripple-surface:hover,
+  .ripple-surface:active {
+    transition: none !important;
+    transform: none !important;
   }
 
   .ripple-surface:active::after {

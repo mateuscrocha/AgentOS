@@ -38,6 +38,7 @@ const GroupMessages = () => {
   const querySearch = searchParams.get("q") || "";
   const queryFrom = searchParams.get("from") || "";
   const queryTo = searchParams.get("to") || "";
+  const queryMessageId = searchParams.get("messageId") || "";
   const [search, setSearch] = useState(querySearch);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -49,6 +50,11 @@ const GroupMessages = () => {
   useEffect(() => {
     setPage(1);
   }, [queryFrom, queryTo]);
+
+  useEffect(() => {
+    if (!queryMessageId) return;
+    setSelectedMessageId(queryMessageId);
+  }, [queryMessageId]);
 
   const safeSearch = useMemo(() => search.trim().replace(/,/g, " "), [search]);
 
@@ -116,10 +122,18 @@ const GroupMessages = () => {
     setSearchParams(sp, { replace: true });
   };
 
+  const closeMessageDetails = () => {
+    setSelectedMessageId(null);
+    if (!queryMessageId) return;
+    const sp = new URLSearchParams(searchParams);
+    sp.delete("messageId");
+    setSearchParams(sp, { replace: true });
+  };
+
   // Loading state
   if (authLoading || rolesLoading) {
     return (
-      <AdminLayout title="Messages" subtitle="Verificando acesso...">
+      <AdminLayout title="Mensagens" subtitle="Verificando acesso...">
         <LoadingState message="Verificando permissões..." />
       </AdminLayout>
     );
@@ -315,7 +329,7 @@ const GroupMessages = () => {
         <MessageDetailsDrawer 
           open={!!selectedMessageId}
           onOpenChange={(open) => {
-            if (!open) setSelectedMessageId(null);
+            if (!open) closeMessageDetails();
           }}
           groupId={groupId as string}
           messageId={selectedMessageId as string}

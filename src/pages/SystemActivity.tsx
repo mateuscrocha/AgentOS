@@ -297,10 +297,10 @@ export default function SystemActivity() {
     orderDir !== "desc";
 
   return (
-    <AdminLayout title="Atividade" subtitle="Central de Comando › Atividade">
+    <AdminLayout title="Atividade" subtitle="Central do Bóris › Atividade">
       <div className="space-y-6 animate-fade-in">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Atividade" }]}
+          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Atividade" }]}
           title="Atividade"
           description="Uso por gestores de organização"
           filters={
@@ -431,14 +431,14 @@ export default function SystemActivity() {
           generalKpis={
             overview ? (
               <>
-                <StatsCard title="Orgs" value={overview.orgs_total ?? "—"} icon={Building2} variant="kpi" />
-                <StatsCard title="Orgs com atividade" value={overview.orgs_with_activity ?? "—"} icon={Activity} variant="kpi" />
+                <StatsCard title="Organizações" value={overview.orgs_total ?? "—"} icon={Building2} variant="kpi" />
+                <StatsCard title="Organizações com atividade" value={overview.orgs_with_activity ?? "—"} icon={Activity} variant="kpi" />
                 <StatsCard title="Ativas" value={overview.orgs_active ?? "—"} icon={BarChart3} variant="kpi" />
                 <StatsCard title="Mornas" value={overview.orgs_warm ?? "—"} icon={BarChart3} variant="kpi" />
                 <StatsCard title="Inativas" value={overview.orgs_inactive ?? "—"} icon={BarChart3} variant="kpi" />
                 <StatsCard title="Admins ativos" value={overview.org_admins_active ?? "—"} icon={Users} variant="kpi" />
                 <StatsCard title="Logins" value={overview.logins ?? "—"} icon={Activity} variant="kpi" />
-                <StatsCard title="Page views" value={overview.page_views ?? "—"} icon={Activity} variant="kpi" />
+                <StatsCard title="Visualizações de página" value={overview.page_views ?? "—"} icon={Activity} variant="kpi" />
               </>
             ) : null
           }

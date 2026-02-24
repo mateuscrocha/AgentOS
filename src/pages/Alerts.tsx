@@ -16,6 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -113,6 +115,7 @@ export default function Alerts() {
 
   const [statusFilter, setStatusFilter] = useState<"all" | AlertEvent["status"]>("unread");
   const [groupFilter, setGroupFilter] = useState<string>("all");
+  const [definitionFilter, setDefinitionFilter] = useState<string>("all");
   const [termFilter, setTermFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
@@ -190,6 +193,19 @@ export default function Alerts() {
     enabled: isAuthenticated && canUseAlerts,
   });
 
+  const definitionsOptionsQuery = useQuery<Array<Pick<AlertDefinition, "id" | "name">>>({
+    queryKey: ["alerts", "definitions-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("alert_definitions")
+        .select("id,name")
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Array<Pick<AlertDefinition, "id" | "name">>;
+    },
+    enabled: isAuthenticated && canUseAlerts,
+  });
+
   const termsQuery = useQuery<AlertTerm[]>({
     queryKey: ["alerts", "terms", definitionsQuery.data?.items.map((d) => d.id).join(",")],
     queryFn: async () => {
@@ -206,6 +222,19 @@ export default function Alerts() {
     enabled: isAuthenticated && canUseAlerts && !!definitionsQuery.data?.items.length,
   });
 
+  const allTermsQuery = useQuery<AlertTerm[]>({
+    queryKey: ["alerts", "terms-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("alert_terms")
+        .select("id,alert_definition_id,term_raw,term_norm,term_kind")
+        .order("term_raw", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as AlertTerm[];
+    },
+    enabled: isAuthenticated && canUseAlerts,
+  });
+
   const termsByDefinition = useMemo(() => {
     const map = new Map<string, AlertTerm[]>();
     for (const t of termsQuery.data ?? []) {
@@ -218,12 +247,12 @@ export default function Alerts() {
 
   const availableTerms = useMemo(() => {
     const items: Array<{ id: string; label: string }> = [];
-    for (const t of termsQuery.data ?? []) {
+    for (const t of allTermsQuery.data ?? []) {
       items.push({ id: t.id, label: t.term_raw });
     }
     items.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
     return items;
-  }, [termsQuery.data]);
+  }, [allTermsQuery.data]);
 
   const eventsQuery = useQuery<{ items: AlertEvent[]; total: number }>({
     queryKey: [
@@ -235,6 +264,7 @@ export default function Alerts() {
       customRange?.to?.toISOString(),
       statusFilter,
       groupFilter,
+      definitionFilter,
       termFilter,
       search,
     ],
@@ -255,6 +285,9 @@ export default function Alerts() {
       }
       if (groupFilter !== "all") {
         q = q.eq("group_id", groupFilter);
+      }
+      if (definitionFilter !== "all") {
+        q = q.eq("alert_definition_id", definitionFilter);
       }
       if (termFilter !== "all") {
         q = q.eq("alert_term_id", termFilter);
@@ -299,6 +332,20 @@ export default function Alerts() {
     onError: (e: any) => notify.error(e?.message ?? "Não foi possível atualizar o alerta."),
   });
 
+  const markUnreadMutation = useMutation({
+    mutationFn: async (alertId: string) => {
+      const { error } = await supabase.from("alert_events").update({ status: "unread" }).eq("id", alertId);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["alerts", "events"] }),
+        queryClient.invalidateQueries({ queryKey: ["alerts", "unread-count"] }),
+      ]);
+    },
+    onError: (e: any) => notify.error(e?.message ?? "Não foi possível reabrir o alerta."),
+  });
+
   const markAllReadMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("alert_events").update({ status: "read" }).eq("status", "unread");
@@ -329,6 +376,7 @@ export default function Alerts() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["alerts", "definitions"] }),
+        queryClient.invalidateQueries({ queryKey: ["alerts", "definitions-options"] }),
         queryClient.invalidateQueries({ queryKey: ["alerts", "terms"] }),
       ]);
       notify.success("Definição salva.");
@@ -349,6 +397,7 @@ export default function Alerts() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["alerts", "terms"] }),
+        queryClient.invalidateQueries({ queryKey: ["alerts", "terms-all"] }),
         queryClient.invalidateQueries({ queryKey: ["alerts", "events"] }),
       ]);
       setTermInput("");
@@ -365,6 +414,7 @@ export default function Alerts() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["alerts", "terms"] }),
+        queryClient.invalidateQueries({ queryKey: ["alerts", "terms-all"] }),
         queryClient.invalidateQueries({ queryKey: ["alerts", "events"] }),
       ]);
       notify.success("Termo removido.");
@@ -380,7 +430,9 @@ export default function Alerts() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["alerts", "definitions"] }),
+        queryClient.invalidateQueries({ queryKey: ["alerts", "definitions-options"] }),
         queryClient.invalidateQueries({ queryKey: ["alerts", "terms"] }),
+        queryClient.invalidateQueries({ queryKey: ["alerts", "terms-all"] }),
         queryClient.invalidateQueries({ queryKey: ["alerts", "events"] }),
         queryClient.invalidateQueries({ queryKey: ["alerts", "unread-count"] }),
       ]);
@@ -408,6 +460,46 @@ export default function Alerts() {
       resetForm();
     }
   }, [createOpen, resetForm]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const releaseStalePointerLock = () => {
+      const hasAppModalOpen = createOpen || !!removeDefinition || !!removeTerm;
+      if (hasAppModalOpen) return;
+
+      if (document.body.style.pointerEvents === "none") {
+        document.body.style.pointerEvents = "";
+      }
+      if (document.documentElement.style.pointerEvents === "none") {
+        document.documentElement.style.pointerEvents = "";
+      }
+    };
+
+    releaseStalePointerLock();
+
+    const observer = new MutationObserver(() => {
+      releaseStalePointerLock();
+    });
+
+    observer.observe(document.body, { attributes: true, attributeFilter: ["style"] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
+
+    const onWindowFocus = () => releaseStalePointerLock();
+    const onPointerDownCapture = () => releaseStalePointerLock();
+    window.addEventListener("focus", onWindowFocus);
+    document.addEventListener("pointerdown", onPointerDownCapture, true);
+
+    const timeoutId = window.setTimeout(releaseStalePointerLock, 0);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("focus", onWindowFocus);
+      document.removeEventListener("pointerdown", onPointerDownCapture, true);
+      window.clearTimeout(timeoutId);
+      releaseStalePointerLock();
+    };
+  }, [createOpen, removeDefinition, removeTerm]);
 
   const openCreate = () => {
     setEditing(null);
@@ -503,12 +595,20 @@ export default function Alerts() {
     const saved = await upsertDefinitionMutation.mutateAsync(payload as any);
 
     if (termDrafts.length) {
+      const termFailures: string[] = [];
       for (const rawTerm of termDrafts) {
         try {
           await addTermMutation.mutateAsync({ definitionId: saved.id, raw: rawTerm });
         } catch {
-          void 0;
+          termFailures.push(rawTerm);
         }
+      }
+      if (termFailures.length) {
+        notify.error(
+          termFailures.length === termDrafts.length
+            ? "Definição salva, mas nenhum termo foi adicionado."
+            : `Definição salva, mas ${termFailures.length} termo(s) falharam ao adicionar.`,
+        );
       }
     }
 
@@ -546,11 +646,14 @@ export default function Alerts() {
     return groups;
   }, [formOrgId, formScopeType, groupsQuery.data]);
 
+  const isWindowMode = formMatchMode === "WINDOW";
+
   const showClearFilters =
     selectedPeriod !== "7d" ||
     !!customRange ||
     statusFilter !== "unread" ||
     groupFilter !== "all" ||
+    definitionFilter !== "all" ||
     termFilter !== "all" ||
     !!search.trim();
 
@@ -597,6 +700,12 @@ export default function Alerts() {
       render: (ev) => <span className="text-muted-foreground">{ev.groups?.name ?? "—"}</span>,
     },
     {
+      key: "alert_definitions",
+      header: "Definição",
+      hideOn: "lg" as any,
+      render: (ev) => <span className="text-muted-foreground">{ev.alert_definitions?.name ?? "—"}</span>,
+    },
+    {
       key: "alert_terms",
       header: "Termo",
       render: (ev) => <span className="font-medium">{ev.alert_terms?.term_raw ?? "—"}</span>,
@@ -630,8 +739,20 @@ export default function Alerts() {
             Marcar como lido
           </DropdownMenuItem>
           <DropdownMenuItem
+            disabled={ev.status === "unread"}
             onSelect={() => {
-              navigate(`/groups/${ev.group_id}/messages`);
+              if (ev.status !== "unread") markUnreadMutation.mutate(ev.id);
+            }}
+          >
+            Marcar como não lido
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              navigate(
+                ev.last_message_id
+                  ? `/groups/${ev.group_id}/messages?messageId=${encodeURIComponent(ev.last_message_id)}`
+                  : `/groups/${ev.group_id}/messages`,
+              );
             }}
           >
             Abrir mensagens
@@ -726,8 +847,9 @@ export default function Alerts() {
             onSelect={() => {
               setTab("events");
               setStatusFilter("unread");
+              setDefinitionFilter(d.id);
               setEventsPage(1);
-              notify.success("Mostrando alertas não lidos.");
+              notify.success("Mostrando alertas da definição.");
             }}
           >
             Ver alertas
@@ -745,12 +867,41 @@ export default function Alerts() {
   ];
 
   const currentUnread = unreadCountQuery.data ?? 0;
+  const activeFilterChips = [
+    statusFilter !== "unread"
+      ? { key: "status", label: `Status: ${statusFilter === "all" ? "Todos" : statusFilter === "read" ? "Lidos" : statusFilter === "archived" ? "Arquivados" : "Não lidos"}`, clear: () => setStatusFilter("unread") }
+      : null,
+    groupFilter !== "all"
+      ? {
+          key: "group",
+          label: `Grupo: ${(groupsQuery.data ?? []).find((g) => g.id === groupFilter)?.name ?? "Selecionado"}`,
+          clear: () => setGroupFilter("all"),
+        }
+      : null,
+    definitionFilter !== "all"
+      ? {
+          key: "definition",
+          label: `Definição: ${(definitionsOptionsQuery.data ?? []).find((d) => d.id === definitionFilter)?.name ?? "Selecionada"}`,
+          clear: () => setDefinitionFilter("all"),
+        }
+      : null,
+    termFilter !== "all"
+      ? {
+          key: "term",
+          label: `Termo: ${availableTerms.find((t) => t.id === termFilter)?.label ?? "Selecionado"}`,
+          clear: () => setTermFilter("all"),
+        }
+      : null,
+    search.trim()
+      ? { key: "search", label: `Busca: ${search.trim()}`, clear: () => setSearch("") }
+      : null,
+  ].filter(Boolean) as Array<{ key: string; label: string; clear: () => void }>;
 
   return (
     <AdminLayout title="Alertas" subtitle="Centro de alertas por termos monitorados">
       <div className="space-y-6">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Alertas" }]}
+          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Alertas" }]}
           title="Alertas"
           description="Termos monitorados e alertas por mensagens"
           actions={(
@@ -766,9 +917,17 @@ export default function Alerts() {
             </div>
           )}
           filters={(
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
+            <div className="min-w-0 space-y-3">
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Filter className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-foreground">Período analisado</div>
+                    <div className="text-xs text-muted-foreground">{periodLabel}</div>
+                  </div>
+                </div>
                 <PeriodFilter
                   value={selectedPeriod}
                   customRange={customRange}
@@ -778,78 +937,114 @@ export default function Alerts() {
                     setEventsPage(1);
                   }}
                 />
-                <span className="text-xs text-muted-foreground">Período: {periodLabel}</span>
               </div>
 
-              <Select
-                value={statusFilter}
-                onValueChange={(v) => {
-                  setStatusFilter(v as any);
-                  setEventsPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unread">Não lidos</SelectItem>
-                  <SelectItem value="read">Lidos</SelectItem>
-                  <SelectItem value="archived">Arquivados</SelectItem>
-                  <SelectItem value="all">Todos</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">Status</div>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(v) => {
+                      setStatusFilter(v as any);
+                      setEventsPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unread">Não lidos</SelectItem>
+                      <SelectItem value="read">Lidos</SelectItem>
+                      <SelectItem value="archived">Arquivados</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <Select
-                value={groupFilter}
-                onValueChange={(v) => {
-                  setGroupFilter(v);
-                  setEventsPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Grupo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os grupos</SelectItem>
-                  {(groupsQuery.data ?? []).map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      {g.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">Grupo</div>
+                  <Select
+                    value={groupFilter}
+                    onValueChange={(v) => {
+                      setGroupFilter(v);
+                      setEventsPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Grupo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os grupos</SelectItem>
+                      {(groupsQuery.data ?? []).map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <Select
-                value={termFilter}
-                onValueChange={(v) => {
-                  setTermFilter(v);
-                  setEventsPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Termo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os termos</SelectItem>
-                  {availableTerms.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">Definição</div>
+                  <Select
+                    value={definitionFilter}
+                    onValueChange={(v) => {
+                      setDefinitionFilter(v);
+                      setEventsPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Definição" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as definições</SelectItem>
+                      {(definitionsOptionsQuery.data ?? []).map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="relative">
-                <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setEventsPage(1);
-                  }}
-                  placeholder="Buscar por trecho"
-                  className="pl-9 w-[260px]"
-                />
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">Termo</div>
+                  <Select
+                    value={termFilter}
+                    onValueChange={(v) => {
+                      setTermFilter(v);
+                      setEventsPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Termo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os termos</SelectItem>
+                      {availableTerms.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1 md:col-span-2 xl:col-span-1">
+                  <div className="text-xs font-medium text-muted-foreground">Busca por trecho</div>
+                  <div className="relative w-full">
+                    <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Input
+                      value={search}
+                      onChange={(e) => {
+                        setSearch(e.target.value);
+                        setEventsPage(1);
+                      }}
+                      placeholder="Ex: pix, queda, suporte"
+                      className="pl-9 w-full"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -859,6 +1054,7 @@ export default function Alerts() {
             setCustomRange(undefined);
             setStatusFilter("unread");
             setGroupFilter("all");
+            setDefinitionFilter("all");
             setTermFilter("all");
             setSearch("");
             setEventsPage(1);
@@ -872,16 +1068,96 @@ export default function Alerts() {
         />
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value="events">Centro de alertas</TabsTrigger>
-            <TabsTrigger value="definitions">Definições</TabsTrigger>
+          <TabsList className="grid w-full max-w-[520px] grid-cols-2">
+            <TabsTrigger value="events" className="gap-2">
+              <Bell className="h-4 w-4" />
+              <span>Centro de alertas</span>
+              <Badge variant="secondary" className="h-5 px-2 text-[11px]">
+                {eventsQuery.data?.total ?? 0}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="definitions" className="gap-2">
+              <Settings className="h-4 w-4" />
+              <span>Definições</span>
+              <Badge variant="secondary" className="h-5 px-2 text-[11px]">
+                {definitionsQuery.data?.total ?? 0}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="events" className="mt-4">
+            <div className="mb-4 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+              <Card className="border-border/80">
+                <CardContent className="p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-foreground">Visão atual</div>
+                      <p className="text-xs text-muted-foreground">
+                        {eventsQuery.data?.total ?? 0} alerta(s) no período selecionado. Novos alertas entram como não lidos.
+                      </p>
+                    </div>
+                    <Badge className="bg-primary/10 text-primary border-primary/20">
+                      {statusFilter === "all"
+                        ? "Todos os status"
+                        : statusFilter === "unread"
+                          ? "Filtrando: não lidos"
+                          : statusFilter === "read"
+                            ? "Filtrando: lidos"
+                            : "Filtrando: arquivados"}
+                    </Badge>
+                  </div>
+
+                  {activeFilterChips.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {activeFilterChips.map((chip) => (
+                        <button
+                          key={chip.key}
+                          type="button"
+                          className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/40 px-3 py-1 text-xs text-foreground transition-colors hover:bg-secondary/60"
+                          onClick={() => {
+                            chip.clear();
+                            setEventsPage(1);
+                          }}
+                          title="Remover filtro"
+                        >
+                          <span>{chip.label}</span>
+                          <span className="text-muted-foreground">remover</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                      Sem filtros adicionais ativos. A lista mostra todos os alertas do período com o status selecionado.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/80">
+                <CardContent className="p-4">
+                  <div className="text-sm font-semibold text-foreground">Legenda rápida</div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Use o status para priorizar revisão e limpeza do centro de alertas.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                      Não lido
+                    </span>
+                    <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
+                      Lido
+                    </span>
+                    <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                      Arquivado
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
             <BorisTable
               columns={eventColumns as any}
               data={eventsQuery.data?.items ?? []}
               keyExtractor={(e) => e.id}
+              rowClassName={(e) => (e.status === "unread" ? "bg-primary/5" : undefined)}
               page={eventsPage}
               pageSize={EVENTS_PAGE_SIZE}
               totalCount={eventsQuery.data?.total}
@@ -892,7 +1168,11 @@ export default function Alerts() {
               emptyMessage="Nenhum alerta neste período."
               onRowClick={(e) => {
                 if (e.status === "unread") markReadMutation.mutate(e.id);
-                navigate(`/groups/${e.group_id}/messages`);
+                navigate(
+                  e.last_message_id
+                    ? `/groups/${e.group_id}/messages?messageId=${encodeURIComponent(e.last_message_id)}`
+                    : `/groups/${e.group_id}/messages`,
+                );
               }}
             />
           </TabsContent>
@@ -916,6 +1196,7 @@ export default function Alerts() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        {createOpen ? (
         <DialogContent className="sm:max-w-[720px]">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar definição" : "Nova definição"}</DialogTitle>
@@ -1026,6 +1307,11 @@ export default function Alerts() {
                     <SelectItem value="PER_MESSAGE">Por mensagem</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  {isWindowMode
+                    ? "Agrupa ocorrências próximas no tempo em um único alerta."
+                    : "Cria um alerta para cada mensagem que bater no termo."}
+                </p>
               </div>
               <div className="space-y-2">
                 <div className="text-sm font-medium">Janela (seg)</div>
@@ -1034,14 +1320,21 @@ export default function Alerts() {
                   value={String(formDedupeWindowSec)}
                   onChange={(e) => setFormDedupeWindowSec(Number(e.target.value))}
                   min={0}
+                  disabled={!isWindowMode}
                 />
+                <p className="text-xs text-muted-foreground">
+                  {isWindowMode ? "Tempo de agrupamento/anti-duplicação no modo Janela." : "Ignorado no modo Por mensagem."}
+                </p>
               </div>
               <div className="space-y-2">
                 <div className="text-sm font-medium">Notificar no Admin</div>
                 <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2">
                   <Switch checked={formNotifyInApp} onCheckedChange={setFormNotifyInApp} />
-                  <span className="text-sm text-muted-foreground">Habilitado</span>
+                  <span className="text-sm text-muted-foreground">{formNotifyInApp ? "Habilitado" : "Desabilitado"}</span>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Quando desativado, a regra continua salva mas não gera alertas no painel.
+                </p>
               </div>
             </div>
 
@@ -1084,6 +1377,9 @@ export default function Alerts() {
                     </Button>
                   </div>
                   <div className="p-3">
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Clique em um termo para remover. O sistema compara texto normalizado (sem acento/pontuação).
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {(termsByDefinition.get(editing.id) ?? []).map((t) => (
                         <button
@@ -1122,12 +1418,22 @@ export default function Alerts() {
                     Incluir
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Separe por vírgula ou Enter. Você pode remover termos antes de salvar.
+                </p>
                 {termDrafts.length ? (
                   <div className="flex flex-wrap gap-2">
                     {termDrafts.map((t) => (
-                      <span key={t} className="inline-flex items-center rounded-full bg-secondary/30 px-3 py-1 text-sm">
-                        {t}
-                      </span>
+                      <button
+                        key={t}
+                        type="button"
+                        className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/30 px-3 py-1 text-sm"
+                        onClick={() => setTermDrafts((prev) => prev.filter((item) => item !== t))}
+                        title="Remover termo"
+                      >
+                        <span>{t}</span>
+                        <span className="text-xs text-muted-foreground">remover</span>
+                      </button>
                     ))}
                   </div>
                 ) : (
@@ -1149,9 +1455,11 @@ export default function Alerts() {
             </Button>
           </DialogFooter>
         </DialogContent>
+        ) : null}
       </Dialog>
 
       <AlertDialog open={!!removeDefinition} onOpenChange={(open) => !open && setRemoveDefinition(null)}>
+        {removeDefinition ? (
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir definição?</AlertDialogTitle>
@@ -1173,9 +1481,11 @@ export default function Alerts() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
+        ) : null}
       </AlertDialog>
 
       <AlertDialog open={!!removeTerm} onOpenChange={(open) => !open && setRemoveTerm(null)}>
+        {removeTerm ? (
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remover termo?</AlertDialogTitle>
@@ -1197,6 +1507,7 @@ export default function Alerts() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
+        ) : null}
       </AlertDialog>
     </AdminLayout>
   );

@@ -66,6 +66,36 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     dateRange,
   });
 
+  const withMemberExitStatus = async <T extends { id: string }>(
+    participants: T[],
+  ): Promise<Array<T & { leftAt?: string | null; status?: string | null }>> => {
+    if (!participants.length) return [];
+
+    const ids = Array.from(new Set(participants.map((p) => p.id).filter(Boolean)));
+    if (!ids.length) return participants;
+
+    const { data: membersMeta } = await supabase
+      .from("members")
+      .select("id, left_at, status")
+      .eq("group_id", groupId!)
+      .is("deleted_at", null)
+      .in("id", ids);
+
+    const metaById = new Map<string, { left_at: string | null; status: string | null }>();
+    for (const row of membersMeta ?? []) {
+      metaById.set(row.id, { left_at: row.left_at, status: row.status });
+    }
+
+    return participants.map((participant) => {
+      const meta = metaById.get(participant.id);
+      return {
+        ...participant,
+        leftAt: meta?.left_at ?? null,
+        status: meta?.status ?? null,
+      };
+    });
+  };
+
   useEffect(() => {
     if (!groupId || !isGroupIdValid || !isAuthenticated) return;
 
@@ -187,15 +217,24 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
       // Get top participant
       const { data: topParticipantData } = await supabase
-        .from('messages')
-        .select('member_id, members!inner(name, profile_pic_url)')
+        .from('v_messages_with_members')
+        .select('member_id_resolved, member_name, profile_pic_url')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .not('member_id', 'is', null)
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO);
+        .is('message_deleted_at', null)
+        .not('member_id_resolved', 'is', null)
+        .gte('message_created_at', currentPeriodStartISO)
+        .lte('message_created_at', currentPeriodEndISO);
 
-      const topParticipant = rankParticipantsByMessages(topParticipantData as any[])[0] ?? null;
+      const rankedTopParticipants = rankParticipantsByMessages(
+        (topParticipantData ?? []).map((row: any) => ({
+          member_id: row.member_id_resolved,
+          members: {
+            name: row.member_name,
+            profile_pic_url: row.profile_pic_url,
+          },
+        })),
+      );
+      const topParticipant = (await withMemberExitStatus(rankedTopParticipants.slice(0, 1)))[0] ?? null;
 
       // Get last message timestamp
       const { data: lastMessageData } = await supabase
@@ -302,15 +341,24 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
       // Get top participant in previous period
       const { data: topParticipantData } = await supabase
-        .from('messages')
-        .select('member_id, members!inner(name, profile_pic_url)')
+        .from('v_messages_with_members')
+        .select('member_id_resolved, member_name, profile_pic_url')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .not('member_id', 'is', null)
-        .gte('created_at', previousPeriodStartISO)
-        .lte('created_at', previousPeriodEndISO);
+        .is('message_deleted_at', null)
+        .not('member_id_resolved', 'is', null)
+        .gte('message_created_at', previousPeriodStartISO)
+        .lte('message_created_at', previousPeriodEndISO);
 
-      const topParticipant = rankParticipantsByMessages(topParticipantData as any[])[0] ?? null;
+      const rankedTopParticipants = rankParticipantsByMessages(
+        (topParticipantData ?? []).map((row: any) => ({
+          member_id: row.member_id_resolved,
+          members: {
+            name: row.member_name,
+            profile_pic_url: row.profile_pic_url,
+          },
+        })),
+      );
+      const topParticipant = (await withMemberExitStatus(rankedTopParticipants.slice(0, 1)))[0] ?? null;
 
       return {
         totalMessages: totalMessages || 0,
@@ -355,15 +403,18 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .is('deleted_at', null);
 
       const { data: messageCounts } = await supabase
-        .from('messages')
-        .select('member_id')
+        .from('v_messages_with_members')
+        .select('member_id_resolved')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .not('member_id', 'is', null)
-        .gte('created_at', previousPeriodStartISO)
-        .lte('created_at', previousPeriodEndISO);
+        .is('message_deleted_at', null)
+        .not('member_id_resolved', 'is', null)
+        .gte('message_created_at', previousPeriodStartISO)
+        .lte('message_created_at', previousPeriodEndISO);
 
-      return buildMemberEngagementDistribution(members as any[], messageCounts as any[]);
+      return buildMemberEngagementDistribution(
+        members as any[],
+        (messageCounts ?? []).map((row: any) => ({ member_id: row.member_id_resolved })) as any[],
+      );
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -642,15 +693,25 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryKey: ['group-dashboard-top-participants', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
       const { data } = await supabase
-        .from('messages')
-        .select('member_id, members!inner(name, profile_pic_url)')
+        .from('v_messages_with_members')
+        .select('member_id_resolved, member_name, profile_pic_url')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .not('member_id', 'is', null)
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO);
+        .is('message_deleted_at', null)
+        .not('member_id_resolved', 'is', null)
+        .gte('message_created_at', currentPeriodStartISO)
+        .lte('message_created_at', currentPeriodEndISO);
 
-      return rankParticipantsByMessages(data as any[]).slice(0, 5);
+      const rankedParticipants = rankParticipantsByMessages(
+        (data ?? []).map((row: any) => ({
+          member_id: row.member_id_resolved,
+          members: {
+            name: row.member_name,
+            profile_pic_url: row.profile_pic_url,
+          },
+        })),
+      ).slice(0, 5);
+
+      return withMemberExitStatus(rankedParticipants);
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });
@@ -666,15 +727,18 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .is('deleted_at', null);
 
       const { data: messageCounts } = await supabase
-        .from('messages')
-        .select('member_id')
+        .from('v_messages_with_members')
+        .select('member_id_resolved')
         .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .not('member_id', 'is', null)
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO);
+        .is('message_deleted_at', null)
+        .not('member_id_resolved', 'is', null)
+        .gte('message_created_at', currentPeriodStartISO)
+        .lte('message_created_at', currentPeriodEndISO);
 
-      return buildMemberEngagementDistribution(members as any[], messageCounts as any[]);
+      return buildMemberEngagementDistribution(
+        members as any[],
+        (messageCounts ?? []).map((row: any) => ({ member_id: row.member_id_resolved })) as any[],
+      );
     },
     enabled: !!groupId && !!group && isAuthenticated,
   });

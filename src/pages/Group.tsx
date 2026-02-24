@@ -197,7 +197,7 @@ const Group = () => {
 
   return (
     <AdminLayout 
-      title="Dashboard do Grupo" 
+      title="Painel do Grupo" 
       subtitle={group?.name || "Grupo"}
     >
       <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-8">

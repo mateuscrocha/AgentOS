@@ -96,7 +96,7 @@ export function ConnectionStatus() {
       {dbStatus === "connected" && !checking && (
         <div className="mt-4 rounded-lg border border-success/30 bg-success/5 p-3">
           <p className="text-xs text-success">
-            ✓ Projeto Supabase conectado: Central de Comando - Bóris
+            ✓ Projeto Supabase conectado: Central do Bóris
           </p>
         </div>
       )}

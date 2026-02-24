@@ -23,9 +23,9 @@ interface MemberEngagement {
 
 interface PeopleSectionProps {
   groupId: string;
-  topParticipant: { id?: string; name: string; count: number; avatarUrl?: string | null } | null;
-  previousTopParticipant?: { id?: string; name: string; count: number; avatarUrl?: string | null } | null;
-  topParticipants: { id: string; name: string; count: number; avatarUrl?: string | null }[];
+  topParticipant: { id?: string; name: string; count: number; avatarUrl?: string | null; leftAt?: string | null; status?: string | null } | null;
+  previousTopParticipant?: { id?: string; name: string; count: number; avatarUrl?: string | null; leftAt?: string | null; status?: string | null } | null;
+  topParticipants: { id: string; name: string; count: number; avatarUrl?: string | null; leftAt?: string | null; status?: string | null }[];
   memberEngagement?: MemberEngagement;
   previousMemberEngagement?: MemberEngagement | null;
   isLoading?: boolean;
@@ -41,6 +41,12 @@ export function PeopleSection({
   isLoading,
   periodLabel = "período",
 }: PeopleSectionProps) {
+  const hasLeftGroup = (participant?: { leftAt?: string | null; status?: string | null } | null) => {
+    if (!participant) return false;
+    if (participant.leftAt) return true;
+    return /\b(left|exited|saida|sa[ií]u)\b/i.test(participant.status || "");
+  };
+
   const formatPeriodSuffix = (label: string) => {
     if (!label || label === "período") return "no período";
     if (/^últimos\s+/i.test(label)) return `nos ${label}`;
@@ -162,18 +168,25 @@ export function PeopleSection({
                     </button>
 
                     <div className="min-w-0">
-                      <button
-                        type="button"
-                        className={cn(
-                          "max-w-full truncate text-lg sm:text-xl font-semibold text-card-foreground",
-                          canOpenTopMember ? "hover:underline" : "cursor-default"
-                        )}
-                        onClick={() => {
-                          if (canOpenTopMember) setTopMemberOpen(true);
-                        }}
-                      >
-                        {topParticipant.name}
-                      </button>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <button
+                          type="button"
+                          className={cn(
+                            "max-w-full truncate text-lg sm:text-xl font-semibold text-card-foreground",
+                            canOpenTopMember ? "hover:underline" : "cursor-default"
+                          )}
+                          onClick={() => {
+                            if (canOpenTopMember) setTopMemberOpen(true);
+                          }}
+                        >
+                          {topParticipant.name}
+                        </button>
+                        {hasLeftGroup(topParticipant) ? (
+                          <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                            Saiu do grupo
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-1 text-sm text-muted-foreground">
                         <span className="font-semibold text-card-foreground tabular-nums">{topParticipant.count}</span> mensagens {periodSuffix}
                       </p>
@@ -235,13 +248,20 @@ export function PeopleSection({
                         ) : (
                           <span className="w-4 text-xs text-muted-foreground tabular-nums text-center">{index + 1}</span>
                         )}
-                        <MemberInlineTrigger
-                          memberId={participant.id}
-                          groupId={groupId}
-                          name={participant.name}
-                          avatarUrl={participant.avatarUrl}
-                          size="sm"
-                        />
+                        <div className="flex items-center gap-2 min-w-0">
+                          <MemberInlineTrigger
+                            memberId={participant.id}
+                            groupId={groupId}
+                            name={participant.name}
+                            avatarUrl={participant.avatarUrl}
+                            size="sm"
+                          />
+                          {hasLeftGroup(participant) ? (
+                            <span className="hidden sm:inline text-[10px] text-muted-foreground whitespace-nowrap">
+                              saiu do grupo
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
 
                       <div className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
