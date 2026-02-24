@@ -54,7 +54,7 @@ export function TopicsKeywordsSection({
   };
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm">
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
           <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center">
@@ -76,7 +76,7 @@ export function TopicsKeywordsSection({
       {isLoading ? (
         <div className="mt-4 space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-lg border border-border bg-card/50 p-3">
+            <div key={i} className="rounded-lg border border-border/70 bg-card/80 p-3">
               <div className="flex items-center justify-between mb-2">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-4 w-16" />
@@ -99,7 +99,7 @@ export function TopicsKeywordsSection({
             const trend = getTrend(b.key, b.count);
             const width = maxCount > 0 ? Math.round((b.count / maxCount) * 100) : 0;
             return (
-              <li key={b.key} className="rounded-lg border border-border bg-card/50 p-3 hover:bg-secondary/40 transition-colors cursor-pointer" role="listitem" aria-label={b.label}>
+              <li key={b.key} className="rounded-lg border border-border/70 bg-card/80 p-3 hover:bg-secondary/35 transition-colors cursor-pointer" role="listitem" aria-label={b.label}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-[13px] font-semibold text-card-foreground truncate">{b.label}</span>
@@ -113,7 +113,7 @@ export function TopicsKeywordsSection({
                       <Badge
                         key={t}
                         variant="secondary"
-                        className="text-[12px] font-semibold tracking-tight px-2.5 py-1 bg-secondary/60 text-foreground border border-border/60"
+                        className="text-[12px] font-semibold tracking-tight px-2.5 py-1 bg-secondary/60 text-foreground border border-border/70"
                       >
                         {t}
                       </Badge>

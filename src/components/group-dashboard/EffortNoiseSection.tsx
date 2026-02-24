@@ -113,7 +113,7 @@ export function EffortNoiseSection({
     valueClassName?: string;
   }) => {
     return (
-      <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
+      <div className="rounded-xl border border-border/80 bg-card/95 p-3 sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <p className="text-xs font-medium text-muted-foreground leading-tight">{title}</p>
           <StatusTag variant={variant}>{tag}</StatusTag>
@@ -137,13 +137,13 @@ export function EffortNoiseSection({
   };
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm">
       <SectionHeader
         title="Esforço e Ruído"
         subtitle={`Leitura qualitativa (${periodLabel})`}
       />
 
-      <div className="rounded-lg border border-border bg-muted/20 px-4 py-3">
+      <div className="rounded-lg border border-border/70 bg-muted/15 px-4 py-3">
         {isLoading ? (
           <Skeleton className="h-4 w-4/5" />
         ) : (

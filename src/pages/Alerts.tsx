@@ -1061,8 +1061,28 @@ export default function Alerts() {
           }}
           generalKpis={(
             <>
-              <StatsCard title="Não lidos" value={currentUnread} icon={Bell} variant="kpi" />
-              <StatsCard title="Definições" value={definitionsQuery.data?.total ?? "—"} icon={Settings} variant="kpi" />
+              <StatsCard
+                title="Não lidos"
+                value={currentUnread}
+                icon={Bell}
+                variant="kpi"
+                help={{
+                  whatIs: "Quantidade atual de alertas ainda não marcados como lidos.",
+                  howToInterpret: "Mostra o tamanho da fila de atenção pendente no centro de alertas.",
+                  whatToObserve: "Se cresce continuamente, pode indicar acúmulo operacional ou excesso de ruído.",
+                }}
+              />
+              <StatsCard
+                title="Definições"
+                value={definitionsQuery.data?.total ?? "—"}
+                icon={Settings}
+                variant="kpi"
+                help={{
+                  whatIs: "Total de definições de alerta/monitoramento cadastradas.",
+                  howToInterpret: "Representa o tamanho da configuração ativa de regras/termos monitorados.",
+                  whatToObserve: "Revise se o volume está proporcional à capacidade de triagem para evitar ruído.",
+                }}
+              />
             </>
           )}
         />

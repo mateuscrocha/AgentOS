@@ -65,7 +65,7 @@ export function ConversationRhythmSection({
   })();
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card/70 p-5">
+    <section className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm">
       <SectionHeader 
         title="Ritmo da Conversa" 
         subtitle={`Mensagens por dia (${periodLabel})`}
@@ -74,7 +74,7 @@ export function ConversationRhythmSection({
       
       <div className="mt-4 space-y-3">
         {trendSummary ? (
-          <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+          <div className="rounded-xl border border-border/70 bg-muted/15 px-4 py-3">
             <p className="text-sm text-card-foreground/90">{trendSummary}</p>
           </div>
         ) : null}

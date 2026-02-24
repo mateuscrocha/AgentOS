@@ -1,10 +1,13 @@
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MetricHelp, type MetricHelpContent } from "@/components/ui/metric-help";
+import { buildMetricHelpFallback } from "@/components/ui/metric-help-fallback";
 
 interface StatsCardProps {
   title: string;
   value: string | number;
+  help?: MetricHelpContent;
   change?: string;
   changeType?: "positive" | "negative" | "neutral";
   icon: LucideIcon;
@@ -20,6 +23,7 @@ interface StatsCardProps {
 export function StatsCard({ 
   title, 
   value, 
+  help,
   change, 
   changeType = "neutral", 
   icon: Icon,
@@ -33,6 +37,7 @@ export function StatsCard({
 }: StatsCardProps) {
   const Component = onClick ? 'button' : 'div';
   const componentProps = onClick ? ({ type: "button" } as const) : undefined;
+  const resolvedHelp = help ?? buildMetricHelpFallback(title);
   
   if (variant === "kpi") {
     return (
@@ -40,17 +45,22 @@ export function StatsCard({
         {...componentProps}
         onClick={onClick}
         className={cn(
-          "rounded-md border border-border bg-card p-4 sm:p-5 shadow-none text-left w-full min-h-[132px]",
-          onClick && "ripple-surface cursor-pointer transition-colors transition-transform hover:bg-secondary/50 hover:scale-[1.02] active:scale-[0.99]",
+          "rounded-md border border-border/80 bg-card/95 p-4 sm:p-5 shadow-none text-left w-full min-h-[132px]",
+          onClick && "ripple-surface cursor-pointer transition-colors transition-transform hover:bg-secondary/35 hover:scale-[1.02] active:scale-[0.99]",
           className
         )}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/15 bg-primary/10">
               <Icon className="h-4 w-4 text-primary" />
             </div>
-            <p className={cn("text-xs font-medium leading-snug text-muted-foreground line-clamp-2", titleClassName)}>{title}</p>
+            <div className="flex items-start gap-1 min-w-0">
+              <p className={cn("text-xs font-medium leading-snug text-muted-foreground line-clamp-2", titleClassName)}>{title}</p>
+              {resolvedHelp ? (
+                <MetricHelp metricTitle={title} {...resolvedHelp} className="h-4 w-4 shrink-0" />
+              ) : null}
+            </div>
           </div>
           {isLoading ? (
             <Skeleton className="h-9 w-20 shrink-0" />
@@ -98,13 +108,18 @@ export function StatsCard({
         {...componentProps}
         onClick={onClick}
         className={cn(
-          "rounded-md border border-border bg-card p-3 shadow-none text-left w-full h-[64px]",
-          onClick && "ripple-surface cursor-pointer transition-colors transition-transform hover:bg-secondary/50 hover:scale-[1.02] active:scale-[0.99]",
+          "rounded-md border border-border/80 bg-card/95 p-3 shadow-none text-left w-full h-[64px]",
+          onClick && "ripple-surface cursor-pointer transition-colors transition-transform hover:bg-secondary/35 hover:scale-[1.02] active:scale-[0.99]",
           className
         )}
       >
         <div className="flex items-center justify-between">
-          <p className={cn("text-xs font-medium text-muted-foreground", titleClassName)}>{title}</p>
+          <div className="flex items-center gap-1 min-w-0">
+            <p className={cn("text-xs font-medium text-muted-foreground", titleClassName)}>{title}</p>
+            {resolvedHelp ? (
+              <MetricHelp metricTitle={title} {...resolvedHelp} className="h-4 w-4 shrink-0" />
+            ) : null}
+          </div>
           {isLoading ? (
             <Skeleton className="h-6 w-14" />
           ) : (
@@ -116,18 +131,23 @@ export function StatsCard({
   }
 
   return (
-    <Component 
+    <Component
       {...componentProps}
       onClick={onClick}
       className={cn(
-        "rounded-xl border border-border bg-card p-6 shadow-card animate-fade-in text-left w-full",
-        onClick && "ripple-surface cursor-pointer transition-colors transition-transform hover:bg-secondary/50 hover:scale-[1.02] active:scale-[0.99]",
+        "rounded-xl border border-border/80 bg-card/95 p-6 shadow-card animate-fade-in text-left w-full",
+        onClick && "ripple-surface cursor-pointer transition-colors transition-transform hover:bg-secondary/35 hover:scale-[1.02] active:scale-[0.99]",
         className
       )}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className={cn("text-sm font-medium text-muted-foreground", titleClassName)}>{title}</p>
+          <div className="flex items-center gap-1 min-w-0">
+            <p className={cn("text-sm font-medium text-muted-foreground", titleClassName)}>{title}</p>
+            {resolvedHelp ? (
+              <MetricHelp metricTitle={title} {...resolvedHelp} className="h-4 w-4 shrink-0" />
+            ) : null}
+          </div>
           {isLoading ? (
             <>
               <div className="mt-2">
@@ -156,7 +176,7 @@ export function StatsCard({
             </>
           )}
         </div>
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-primary/15 bg-primary/10">
           <Icon className="h-6 w-6 text-primary" />
         </div>
       </div>

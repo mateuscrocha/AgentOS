@@ -425,7 +425,7 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
                         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                           {message.media_duration_sec && <span>Duração: {formatDuration(message.media_duration_sec)}</span>}
                           {(message.text || message.content) && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-background/60 border border-border">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted/15 border border-border/70">
                               <CheckCircle2 className="h-3 w-3" />
                               Transcrição disponível
                             </span>

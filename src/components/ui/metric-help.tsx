@@ -67,7 +67,7 @@ export function MetricHelp({
           type="button"
           aria-label={`Ajuda sobre ${metricTitle}`}
           className={cn(
-            "inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/80 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/80 hover:text-foreground hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             className,
           )}
           onClick={() => {
@@ -131,4 +131,3 @@ export function MetricHelp({
     </Popover>
   );
 }
-

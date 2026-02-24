@@ -61,8 +61,6 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import AccessDenied from "./AccessDenied";
 import { StatsCard } from "@/components/dashboard/StatsCard";
-import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
-import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
 import { cn } from "@/lib/utils";
 import { APP_PASSWORD_HINT, APP_PASSWORD_MAX_LENGTH, validateAppPassword } from "@/lib/password-policy";
 
@@ -148,8 +146,6 @@ export default function Users() {
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
   const queryClient = useQueryClient();
   
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
-  const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<UserRole | null>(null);
@@ -169,6 +165,8 @@ export default function Users() {
   const [editUserName, setEditUserName] = useState("");
   const [editUserPhone, setEditUserPhone] = useState("");
   const [editUserStatus, setEditUserStatus] = useState<'active' | 'inactive' | 'unknown'>('active');
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>("all");
@@ -182,18 +180,12 @@ export default function Users() {
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
 
-  const currentRange = getDateRange(selectedPeriod, customRange);
-  const currentStartISO = currentRange.from.toISOString();
-  const currentEndISO = currentRange.to.toISOString();
-
   const { data: profiles, isLoading: profilesLoading, error: profilesError } = useQuery({
-    queryKey: ['all-profiles', selectedPeriod, customRange?.from?.toISOString(), customRange?.to?.toISOString()],
+    queryKey: ['all-profiles'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, phone_e164, status, created_at')
-        .gte('created_at', currentStartISO)
-        .lte('created_at', currentEndISO)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -304,16 +296,35 @@ export default function Users() {
       organizationId: string | null;
       groupId: string | null;
     }) => {
-      const { error } = await supabase
-        .from('user_roles')
-        .insert({
+      const { data, error } = await supabase.functions.invoke("admin-manage-user-role", {
+        body: {
+          action: "add",
           user_id: userId,
           role,
           organization_id: organizationId,
           group_id: groupId,
-        });
-      
-      if (error) throw error;
+        },
+      });
+
+      if (!error && data?.success) return data;
+
+      let message = error?.message || data?.message || "Falha ao adicionar papel";
+      let status: number | undefined = undefined;
+      let code: string | undefined = data?.code;
+      if (error instanceof FunctionsHttpError && (error as any).context) {
+        try {
+          const body = await (error as any).context.json();
+          if (body?.message) message = body.message;
+          if (typeof body?.status === "number") status = body.status;
+          if (typeof body?.code === "string") code = body.code;
+        } catch (_e) {
+          void 0;
+        }
+      }
+      const err: any = new Error(message);
+      err.status = status;
+      err.code = code;
+      throw err;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
@@ -322,8 +333,14 @@ export default function Users() {
       resetForm();
       markRecentlyChanged(variables.userId);
     },
-    onError: () => {
-      notify.error('Não foi possível concluir', 'Algo deu errado. Tente novamente.');
+    onError: (err: any) => {
+      const status = err?.status as number | undefined;
+      const code = String(err?.code || "");
+      if (status === 409 || code === "ROLE_ALREADY_EXISTS") {
+        notify.error('Papel já existe', 'Este papel já foi atribuído ao usuário.');
+        return;
+      }
+      notify.error('Não foi possível concluir', err?.message || 'Algo deu errado. Tente novamente.');
     },
   });
 
@@ -449,6 +466,55 @@ export default function Users() {
     },
   });
 
+  const resetUserPasswordMutation = useMutation({
+    mutationFn: async ({ userId, password }: { userId: string; password: string }) => {
+      const { data, error } = await supabase.functions.invoke("admin-update-user", {
+        body: { user_id: userId, password },
+      });
+
+      if (!error && data?.success) return data;
+
+      let message = error?.message || data?.message || "Falha ao redefinir senha";
+      let status: number | undefined = undefined;
+      let code: string | undefined = data?.code;
+      if (error instanceof FunctionsHttpError && (error as any).context) {
+        try {
+          const body = await (error as any).context.json();
+          if (body?.message) message = body.message;
+          if (typeof body?.status === "number") status = body.status;
+          if (typeof body?.code === "string") code = body.code;
+        } catch (_e) {
+          void 0;
+        }
+      }
+      const err: any = new Error(message);
+      err.status = status;
+      err.code = code;
+      throw err;
+    },
+    onSuccess: () => {
+      notify.success("Senha redefinida", "A nova senha foi salva com sucesso.");
+      setResetPasswordValue("");
+      setResetPasswordConfirm("");
+    },
+    onError: (err: any) => {
+      const raw = String(err?.message || "").toLowerCase();
+      if (err?.code === "PASSWORD_TOO_LONG" || raw.includes("muito longa")) {
+        notify.error("Senha muito longa", err?.message || "Use uma senha menor.");
+        return;
+      }
+      if (err?.code === "WEAK_PASSWORD" || raw.includes("senha deve")) {
+        notify.error("Senha inválida", err?.message || "A senha não atende à política.");
+        return;
+      }
+      if (err?.status === 403 || raw.includes("forbidden")) {
+        notify.error("Acesso negado", "Você não possui permissão para redefinir senha.");
+        return;
+      }
+      notify.error("Não foi possível redefinir", err?.message || "Algo deu errado. Tente novamente.");
+    },
+  });
+
   const deleteUserMutation = useMutation({
     mutationFn: async ({ userId }: { userId: string }) => {
       const { data, error } = await supabase.functions.invoke("admin-delete-user", {
@@ -505,12 +571,29 @@ export default function Users() {
   // Delete role mutation
   const deleteRoleMutation = useMutation({
     mutationFn: async (role: UserRole) => {
-      const { error } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('id', role.id);
-      
-      if (error) throw error;
+      const { data, error } = await supabase.functions.invoke("admin-manage-user-role", {
+        body: { action: "remove", role_id: role.id },
+      });
+
+      if (!error && data?.success) return data;
+
+      let message = error?.message || data?.message || "Falha ao remover papel";
+      let status: number | undefined = undefined;
+      let code: string | undefined = data?.code;
+      if (error instanceof FunctionsHttpError && (error as any).context) {
+        try {
+          const body = await (error as any).context.json();
+          if (body?.message) message = body.message;
+          if (typeof body?.status === "number") status = body.status;
+          if (typeof body?.code === "string") code = body.code;
+        } catch (_e) {
+          void 0;
+        }
+      }
+      const err: any = new Error(message);
+      err.status = status;
+      err.code = code;
+      throw err;
     },
     onSuccess: (_data, role) => {
       queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
@@ -518,8 +601,18 @@ export default function Users() {
       setRoleToDelete(null);
       markRecentlyChanged(role.user_id);
     },
-    onError: () => {
-      notify.error('Não foi possível concluir', 'Algo deu errado. Tente novamente.');
+    onError: (err: any) => {
+      const status = err?.status as number | undefined;
+      const code = String(err?.code || "");
+      if (status === 409 || code === "LAST_SYSTEM_ADMIN") {
+        notify.error('Operação bloqueada', err?.message || 'Não é possível remover o último administrador do sistema.');
+        return;
+      }
+      if (status === 404 || code === "ROLE_NOT_FOUND") {
+        notify.error('Papel não encontrado', err?.message || 'O papel pode já ter sido removido.');
+        return;
+      }
+      notify.error('Não foi possível concluir', err?.message || 'Algo deu errado. Tente novamente.');
     },
   });
 
@@ -568,6 +661,8 @@ export default function Users() {
     setUserToEdit(profile);
     setEditUserName(profile.name || "");
     setEditUserPhone(profile.phone_e164 || "");
+    setResetPasswordValue("");
+    setResetPasswordConfirm("");
     if (profile.status === 'inactive') {
       setEditUserStatus('inactive');
     } else if (profile.status === 'active') {
@@ -707,7 +802,7 @@ export default function Users() {
     return sorted;
   };
 
-  const headerCls = "px-4 py-3 text-left text-[13px] font-semibold text-muted-foreground";
+  const headerCls = "px-4 py-3 text-left text-[13px] font-semibold text-foreground/75";
   const cellCls = "px-4 py-3 text-[14px] font-normal text-card-foreground align-middle";
 
   const renderRolesBadges = (roles: UserRole[]) => {
@@ -804,7 +899,7 @@ export default function Users() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border">
+              <tr className="border-b border-border bg-secondary/20">
                 <th className={cn(headerCls, "w-[320px]")}> 
                   <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-2 hover:text-card-foreground transition-colors">
                     <span>Nome</span>
@@ -836,7 +931,7 @@ export default function Users() {
                 return (
                   <tr
                     key={profile.id}
-                    className={cn("transition-colors", isRecent && "bg-primary/5", "hover:bg-secondary/40")}
+                    className={cn("transition-colors h-11", isRecent && "bg-primary/5", "hover:bg-secondary/40")}
                   >
                     <td className={cellCls}>
                       <div className="flex items-start gap-3">
@@ -905,12 +1000,6 @@ export default function Users() {
           )}
           filters={(
             <div className="flex flex-wrap items-center gap-2">
-              <PeriodFilter
-                value={selectedPeriod}
-                customRange={customRange}
-                onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); }}
-              />
-
               <div className="relative">
                 <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
                 <Input
@@ -947,8 +1036,8 @@ export default function Users() {
               </Select>
             </div>
           )}
-          showClearFilters={selectedPeriod !== '7d' || !!customRange || !!searchQuery || statusFilter !== 'all' || roleFilter !== 'all'}
-          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setSearchQuery(''); setStatusFilter('all'); setRoleFilter('all'); }}
+          showClearFilters={!!searchQuery || statusFilter !== 'all' || roleFilter !== 'all'}
+          onClearFilters={() => { setSearchQuery(''); setStatusFilter('all'); setRoleFilter('all'); }}
           generalKpis={(
             <>
               <StatsCard
@@ -956,18 +1045,33 @@ export default function Users() {
                 value={allRoles?.filter(r => r.role === 'SYSTEM_ADMIN').length || 0}
                 icon={Crown}
                 variant="compact"
+                help={{
+                  whatIs: "Quantidade de usuários com papel de Administrador do Sistema.",
+                  howToInterpret: "Representa usuários com maior nível de permissão global.",
+                  whatToObserve: "Revise periodicamente para manter controle de acesso mínimo necessário.",
+                }}
               />
               <StatsCard
                 title="Gestores de Org"
                 value={allRoles?.filter(r => r.role === 'ORG_ADMIN').length || 0}
                 icon={Building2}
                 variant="compact"
+                help={{
+                  whatIs: "Quantidade de usuários com papel de gestor de organização.",
+                  howToInterpret: "Mostra quem administra organizações no sistema.",
+                  whatToObserve: "Compare com o número de organizações para avaliar cobertura de gestão.",
+                }}
               />
               <StatsCard
                 title="Gestores de Grupo"
                 value={allRoles?.filter(r => r.role === 'GROUP_MANAGER').length || 0}
                 icon={UserCog}
                 variant="compact"
+                help={{
+                  whatIs: "Quantidade de usuários com papel de gestor de grupo.",
+                  howToInterpret: "Indica quem tem permissão de gestão no nível de grupos.",
+                  whatToObserve: "Observe crescimento e distribuição em relação ao volume de grupos operados.",
+                }}
               />
             </>
           )}
@@ -1274,6 +1378,65 @@ export default function Users() {
                     <SelectItem value="unknown">Desconhecido</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+            <div className="space-y-3 pt-2 border-t border-border">
+              <div className="text-sm font-medium text-card-foreground">Redefinir senha</div>
+              <div>
+                <Input
+                  type="password"
+                  placeholder="Nova senha"
+                  value={resetPasswordValue}
+                  onChange={(e) => setResetPasswordValue(e.target.value)}
+                  minLength={10}
+                  maxLength={APP_PASSWORD_MAX_LENGTH}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">{APP_PASSWORD_HINT}</p>
+              </div>
+              <div>
+                <Input
+                  type="password"
+                  placeholder="Confirmar nova senha"
+                  value={resetPasswordConfirm}
+                  onChange={(e) => setResetPasswordConfirm(e.target.value)}
+                  minLength={10}
+                  maxLength={APP_PASSWORD_MAX_LENGTH}
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={resetUserPasswordMutation.isPending}
+                  onClick={() => {
+                    if (!userToEdit) return;
+                    const password = resetPasswordValue;
+                    const confirm = resetPasswordConfirm;
+                    if (!password || !confirm) {
+                      notify.warning("Atenção", "Preencha senha e confirmação.");
+                      return;
+                    }
+                    const passwordError = validateAppPassword(password);
+                    if (passwordError) {
+                      notify.warning("Atenção", passwordError);
+                      return;
+                    }
+                    if (password !== confirm) {
+                      notify.warning("Atenção", "Senha e confirmação devem ser iguais.");
+                      return;
+                    }
+                    resetUserPasswordMutation.mutate({ userId: userToEdit.id, password });
+                  }}
+                >
+                  {resetUserPasswordMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Redefinindo</span>
+                    </>
+                  ) : (
+                    <span>Redefinir senha</span>
+                  )}
+                </Button>
               </div>
             </div>
           </div>

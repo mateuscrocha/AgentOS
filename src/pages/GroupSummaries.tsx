@@ -138,34 +138,54 @@ function DiaryContent({
           value={kpis.daysLoaded || totalDays}
           subtitle={daysSubtitle}
           icon={CalendarDays}
-          className="shadow-none bg-card/60 border-border/60"
+          help={{
+            whatIs: "Quantidade de dias de resumo carregados após aplicar os filtros atuais.",
+            howToInterpret: "Define o tamanho da amostra visível para a leitura de dores, oportunidades e objeções.",
+            whatToObserve: "Compare com palavras-chave únicas e contagens por categoria para avaliar densidade do período.",
+          }}
+          className="shadow-none bg-card/90 border-border/80"
         />
         <KpiCard
           title="Dores"
           value={kpis.pains}
           subtitle="nos dias carregados"
           icon={AlertTriangle}
-          className="shadow-none bg-card/60 border-border/60"
+          help={{
+            whatIs: "Total de pontos de dor/problemas identificados nos resumos dos dias carregados.",
+            howToInterpret: "Mostra recorrência de fricções percebidas nas conversas analisadas.",
+            whatToObserve: "Observe repetição de temas e tendência ao longo dos dias para priorizar ações.",
+          }}
+          className="shadow-none bg-card/90 border-border/80"
         />
         <KpiCard
           title="Oportunidades"
           value={kpis.desires}
           subtitle="nos dias carregados"
           icon={Sparkles}
-          className="shadow-none bg-card/60 border-border/60"
+          help={{
+            whatIs: "Total de oportunidades/melhorias identificadas nos resumos dos dias carregados.",
+            howToInterpret: "Ajuda a mapear demandas latentes e sugestões com potencial de ação.",
+            whatToObserve: "Priorize oportunidades recorrentes e com relação direta a dores frequentes.",
+          }}
+          className="shadow-none bg-card/90 border-border/80"
         />
         <KpiCard
           title="Objeções"
           value={kpis.objections}
           subtitle="nos dias carregados"
           icon={Hash}
-          className="shadow-none bg-card/60 border-border/60"
+          help={{
+            whatIs: "Total de objeções, resistências ou barreiras registradas nos resumos do período carregado.",
+            howToInterpret: "Indica pontos de travamento, dúvida ou discordância que aparecem nas conversas.",
+            whatToObserve: "Cruze com dores e oportunidades para separar problema estrutural de dúvida pontual.",
+          }}
+          className="shadow-none bg-card/90 border-border/80"
         />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] gap-7">
         <div className="hidden md:block">
-          <Card className="rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5">
+          <Card className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-5 shadow-sm">
             <div className="space-y-1">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dias</div>
               <div className="text-xs text-muted-foreground/80">
@@ -195,7 +215,7 @@ function DiaryContent({
                         onClick={() => onSelectDay(day.id)}
                         className={cn(
                           "w-full min-w-0 max-w-full text-left rounded-xl border px-3 py-3 transition-colors",
-                          "bg-card/50 border-border/50 hover:bg-secondary/30",
+                          "bg-card/80 border-border/70 hover:bg-secondary/35",
                           isActive && "border-primary/40 bg-primary/10",
                         )}
                       >
@@ -335,11 +355,11 @@ function DiaryContent({
             />
 
             {keywordList.length === 0 ? (
-              <Card className="rounded-2xl border border-border/60 bg-card/60 p-5">
+              <Card className="rounded-2xl border border-border/80 bg-card/90 p-5">
                 <div className="text-sm text-muted-foreground">Sem palavras-chave neste período.</div>
               </Card>
             ) : (
-              <Card className="rounded-2xl border border-border/60 bg-card/60 p-5">
+              <Card className="rounded-2xl border border-border/80 bg-card/90 p-5">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="text-sm font-medium text-card-foreground">Filtrar por palavra-chave</div>
                   <div className="flex items-center gap-2">
@@ -392,7 +412,7 @@ function DiaryContent({
           <div className="space-y-2.5">
             <SectionDivider title="Resumo" subtitle={selectedSummary ? "Texto completo do dia" : undefined} />
 
-            <Card className="rounded-2xl border border-border/60 bg-card/60 p-5 sm:p-6">
+            <Card className="rounded-2xl border border-border/80 bg-card/90 p-5 sm:p-6">
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="text-sm font-medium text-card-foreground">Copiar</div>
@@ -421,7 +441,7 @@ function DiaryContent({
 
                 {selectedDayBlurb ? <div className="text-xs text-muted-foreground max-w-[90ch]">{selectedDayBlurb}</div> : null}
 
-                <div className="rounded-2xl bg-background/70 border border-border/60 px-5 py-5">
+                <div className="rounded-2xl bg-muted/15 border border-border/70 px-5 py-5">
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     {renderWhatsappToReact(selectedSummary?.summary_text || "")}
                   </div>
@@ -539,7 +559,7 @@ const GroupSummaries = () => {
       title="Diário"
       subtitle="Tópicos e palavras-chave por dia"
     >
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-6">
+      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-accent/10 space-y-6">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },

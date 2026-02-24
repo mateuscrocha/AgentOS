@@ -1,8 +1,8 @@
-import { LucideIcon, TrendingUp, TrendingDown, Minus, HelpCircle } from "lucide-react";
+import { LucideIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { MetricHelp, type MetricHelpContent } from "@/components/ui/metric-help";
+import { buildMetricHelpFallback } from "@/components/ui/metric-help-fallback";
 
 interface KpiCardProps {
   title: string;
@@ -33,6 +33,8 @@ export function KpiCard({
   isLoading,
   className 
 }: KpiCardProps) {
+  const resolvedHelp = help ?? buildMetricHelpFallback(title, helpText);
+
   const getTrendColor = () => {
     if (!trend) return '';
     if (trend.value > 0) return 'text-success';
@@ -58,31 +60,20 @@ export function KpiCard({
 
   return (
     <div className={cn(
-      "rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-card",
+      "rounded-xl border border-border/80 bg-card/95 p-4 transition-shadow hover:bg-card hover:shadow-card",
       className
     )}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">{title}</span>
-          {help ? (
+          {resolvedHelp ? (
             <MetricHelp
               metricTitle={title}
-              whatIs={help.whatIs}
-              howToInterpret={help.howToInterpret}
-              whatToObserve={help.whatToObserve}
-              groupContext={help.groupContext}
+              whatIs={resolvedHelp.whatIs}
+              howToInterpret={resolvedHelp.howToInterpret}
+              whatToObserve={resolvedHelp.whatToObserve}
+              groupContext={resolvedHelp.groupContext}
             />
-          ) : helpText ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
-                  <HelpCircle className="h-3.5 w-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                {helpText}
-              </TooltipContent>
-            </Tooltip>
           ) : null}
         </div>
         {Icon && <Icon className="h-4 w-4 text-primary" />}

@@ -36,11 +36,11 @@ export function InsightCard({
   const getSeverityStyles = () => {
     switch (severity) {
       case 'warning':
-        return 'border-warning/30 bg-warning/5';
+        return 'border-warning/35 bg-warning/5 shadow-sm';
       case 'success':
-        return 'border-success/30 bg-success/5';
+        return 'border-success/35 bg-success/5 shadow-sm';
       default:
-        return 'border-primary/20 bg-primary/5';
+        return 'border-primary/25 bg-primary/5 shadow-sm';
     }
   };
 

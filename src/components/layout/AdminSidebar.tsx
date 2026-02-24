@@ -6,6 +6,7 @@ import {
   Building2,
   ChevronDown,
   FileText,
+  Headset,
   LayoutDashboard,
   ListChecks,
   MessageSquare,
@@ -160,10 +161,12 @@ export function AdminSidebar() {
     if (!currentGroupId) return [];
     const items: NavItem[] = [
       { icon: LayoutDashboard, label: "Painel do grupo", href: `/groups/${currentGroupId}` },
+      { icon: Headset, label: "Atendimento", href: `/groups/${currentGroupId}/support` },
       { icon: FileText, label: "Diário", href: `/groups/${currentGroupId}/summaries` },
       { icon: MessageSquare, label: "Mensagens", href: `/groups/${currentGroupId}/messages` },
       { icon: Users, label: "Membros", href: `/groups/${currentGroupId}/members` },
       { icon: ListChecks, label: "Enquetes", href: `/groups/${currentGroupId}/polls` },
+      { icon: Activity, label: "Eventos", href: `/groups/${currentGroupId}/events` },
     ];
     if (isSystemAdmin) items.push({ icon: Settings, label: "Configurações do grupo", href: `/groups/${currentGroupId}/edit` });
     return items;
@@ -173,6 +176,7 @@ export function AdminSidebar() {
     if (!isSystemAdmin) return [];
     return [
       { icon: Users, label: "Usuários", href: "/system/users" },
+      { icon: Headset, label: "Atendimento", href: "/system/support" },
       { icon: Activity, label: "Atividade", href: "/system/activity" },
       { icon: FileText, label: "Eventos", href: "/system/events" },
       { icon: Settings, label: "Configurações do sistema", href: "/system/settings" },

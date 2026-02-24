@@ -1,23 +1,23 @@
-import { Wifi, WifiOff, AlertCircle } from "lucide-react";
+import { Wifi, WifiOff, AlertCircle, Users, Clock3, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface GroupHeaderProps {
-  groupId: string;
   name: string;
   provider: string;
   totalMembers: number;
+  messages24h?: number | null;
   lastMessageAt: string | null;
   syncStatus: string | null;
   bottomSlot?: ReactNode;
 }
 
 export function GroupHeader({ 
-  groupId,
   name, 
   provider: _provider, 
   totalMembers, 
+  messages24h,
   lastMessageAt,
   syncStatus,
   bottomSlot
@@ -48,12 +48,46 @@ export function GroupHeader({
     });
   };
 
+  const formatRelativeLastActivity = (dateStr: string | null) => {
+    if (!dateStr) return "Sem atividade";
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffMin = Math.max(0, Math.floor(diffMs / (1000 * 60)));
+    if (diffMin < 1) return "Agora";
+    if (diffMin < 60) return `${diffMin} min atrás`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `${diffHours} h atrás`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} d atrás`;
+  };
+
+  const metaItems = [
+    {
+      key: "members",
+      label: "Membros",
+      value: totalMembers.toLocaleString("pt-BR"),
+      Icon: Users,
+    },
+    {
+      key: "activity",
+      label: "Última atividade",
+      value: formatRelativeLastActivity(lastMessageAt),
+      hint: lastMessageAt ? formatDateTime(lastMessageAt) : undefined,
+      Icon: Clock3,
+    },
+    {
+      key: "messages24h",
+      label: "Mensagens (24h)",
+      value: messages24h == null ? "—" : messages24h.toLocaleString("pt-BR"),
+      Icon: MessageSquare,
+    },
+  ];
+
   return (
     <div className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 border-b border-border/60">
+      <div className="flex flex-col gap-4 p-5 border-b border-border/60">
         <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-3 min-w-0">
-            <h2 className="text-xl sm:text-2xl font-semibold text-card-foreground truncate min-w-0">{name}</h2>
+          <div className="flex flex-wrap items-start gap-3 min-w-0">
+            <h2 className="text-xl sm:text-2xl font-semibold text-card-foreground truncate min-w-0 max-w-full">{name}</h2>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span
@@ -78,9 +112,28 @@ export function GroupHeader({
             </Tooltip>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          {metaItems.map(({ key, label, value, hint, Icon }) => (
+            <div key={key} className="rounded-xl border border-border/50 bg-background/60 px-3 py-2.5">
+              <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                <Icon className="h-3.5 w-3.5" />
+                <span>{label}</span>
+              </div>
+              <div className="mt-1 text-sm font-semibold text-card-foreground truncate" title={hint || value}>
+                {value}
+              </div>
+              {hint && hint !== value ? (
+                <div className="text-[11px] text-muted-foreground truncate" title={hint}>
+                  {hint}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
       </div>
       {bottomSlot && (
-        <div className="px-5 py-3">
+        <div className="px-5 py-4 bg-muted/15">
           {bottomSlot}
         </div>
       )}

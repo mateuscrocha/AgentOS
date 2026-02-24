@@ -58,33 +58,33 @@ interface GroupRow {
 
 const FEATURE_LABELS: Record<FeatureKey, { name: string; description: string; hasContent: boolean }> = {
   WELCOME_MESSAGE: {
-    name: "Mensagem de boas-vindas",
+    name: "Boas-vindas para novos participantes",
     description: "Envia uma mensagem quando alguém entra no grupo.",
     hasContent: true,
   },
   SUMMARY_HEADER: {
-    name: "Cabeçalho do resumo",
-    description: "Texto exibido no topo do resumo.",
+    name: "Início do resumo diário",
+    description: "Texto que aparece antes do resumo.",
     hasContent: true,
   },
   SUMMARY: {
-    name: "Resumo",
-    description: "Bloco principal de conteúdo do resumo.",
+    name: "Resumo diário",
+    description: "Mensagem principal com o resumo do dia.",
     hasContent: true,
   },
   SUMMARY_FOOTER: {
-    name: "Rodapé do resumo",
-    description: "Complemento ao final do resumo.",
+    name: "Final do resumo diário",
+    description: "Texto que aparece no final do resumo.",
     hasContent: true,
   },
   REPORT: {
-    name: "Relatório",
-    description: "Texto de relatório detalhado.",
+    name: "Relatório detalhado",
+    description: "Texto mais completo para análises e relatórios.",
     hasContent: true,
   },
   AUDIO_TRANSCRIPTION: {
-    name: "Transcrição de áudio",
-    description: "Converte áudios em texto para consulta.",
+    name: "Áudio em texto",
+    description: "Converte áudios em texto para facilitar a consulta.",
     hasContent: false,
   },
 };
@@ -138,12 +138,34 @@ function isProbablyPhone(value?: string | null) {
   return digits.length >= 8;
 }
 
+function isValidTimeHHmm(value: string) {
+  const v = value.trim();
+  if (!v) return true;
+  const match = /^(\d{2}):(\d{2})$/.exec(v);
+  if (!match) return false;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+}
+
+function isValidIanaTimeZone(value: string) {
+  const v = value.trim();
+  if (!v) return true;
+  try {
+    new Intl.DateTimeFormat("pt-BR", { timeZone: v });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function GroupEdit() {
   const { groupId } = useParams();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   const { isLoading: rolesLoading, isSystemAdmin } = useUserRoles();
   const queryClient = useQueryClient();
   const deniedAccessLoggedRef = useRef(false);
+  const hydratedGroupIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (authLoading || rolesLoading) return;
@@ -196,6 +218,9 @@ export default function GroupEdit() {
   const [summaryTime, setSummaryTime] = useState<string>("");
   const [inviteLinkInput, setInviteLinkInput] = useState<string>("");
   const [revalidating, setRevalidating] = useState(false);
+  const [showTechnicalOptions, setShowTechnicalOptions] = useState(false);
+  const [showWhatsAppAdmins, setShowWhatsAppAdmins] = useState(false);
+  const [showSensitiveActions, setShowSensitiveActions] = useState(false);
 
   const { data: membersCount } = useQuery({
     queryKey: ["group-members-count", groupId],
@@ -251,33 +276,42 @@ export default function GroupEdit() {
 
   useEffect(() => {
     if (!group) return;
+
+    // Hydrate form once per group to avoid wiping unsaved drafts after partial refetches.
+    if (hydratedGroupIdRef.current !== group.id) {
+      hydratedGroupIdRef.current = group.id;
+      setName(group.name || "");
+      setDescription(group.description || "");
+      setStatus((group.status as any) === "inactive" ? "inactive" : "active");
+      setArchived(!!group.is_archived);
+
+      const m = group.metadata || {};
+      setLanguage((m.language as string) || "");
+      setTimezone((m.timezone as string) || "");
+
+      const ops = (m.operations || {}) as Record<string, any>;
+      setSummaryTime((ops.summary_time as string) || "");
+
+      const feats = (m.features || {}) as Record<string, any>;
+      const nextEnabled = (Object.keys(FEATURE_LABELS) as FeatureKey[]).reduce((acc, key) => {
+        const cfg = feats[key] || {};
+        acc[key] = !!cfg.enabled;
+        return acc;
+      }, {} as Record<FeatureKey, boolean>);
+      setFeaturesEnabled(nextEnabled);
+
+      const nextTemplates = (Object.keys(FEATURE_LABELS) as FeatureKey[]).reduce((acc, key) => {
+        const cfg = feats[key] || {};
+        acc[key] = (cfg.content as string) || "";
+        return acc;
+      }, {} as Record<FeatureKey, string>);
+      setTemplatesDraft(nextTemplates);
+      setInviteLinkInput(group.invite_link || "");
+      return;
+    }
+
+    // Keep readonly/display values synchronized without resetting user-edited drafts.
     setName(group.name || "");
-    setDescription(group.description || "");
-    setStatus((group.status as any) === "inactive" ? "inactive" : "active");
-    setArchived(!!group.is_archived);
-
-    const m = group.metadata || {};
-    setLanguage((m.language as string) || "");
-    setTimezone((m.timezone as string) || "");
-
-    const ops = (m.operations || {}) as Record<string, any>;
-    setSummaryTime((ops.summary_time as string) || "");
-
-    const feats = (m.features || {}) as Record<string, any>;
-    const nextEnabled = (Object.keys(FEATURE_LABELS) as FeatureKey[]).reduce((acc, key) => {
-      const cfg = feats[key] || {};
-      acc[key] = !!cfg.enabled;
-      return acc;
-    }, {} as Record<FeatureKey, boolean>);
-    setFeaturesEnabled(nextEnabled);
-
-    const nextTemplates = (Object.keys(FEATURE_LABELS) as FeatureKey[]).reduce((acc, key) => {
-      const cfg = feats[key] || {};
-      acc[key] = (cfg.content as string) || "";
-      return acc;
-    }, {} as Record<FeatureKey, string>);
-    setTemplatesDraft(nextTemplates);
-    setInviteLinkInput(group.invite_link || "");
   }, [group]);
 
   const saveAllMutation = useMutation({
@@ -313,6 +347,7 @@ export default function GroupEdit() {
           description: description.trim() || null,
           status,
           is_archived: archived,
+          invite_link: inviteLinkInput.trim() || null,
           metadata: nextMeta,
         })
         .eq("id", groupId!);
@@ -329,18 +364,6 @@ export default function GroupEdit() {
     },
   });
 
-  const updateStatusOnly = useMutation({
-    mutationFn: async (newStatus: "active" | "inactive") => {
-      const { error } = await supabase.from("groups").update({ status: newStatus }).eq("id", groupId!);
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      notify.success("Status atualizado", "Tudo certo.");
-      await refetch();
-    },
-    onError: () => notify.error("Não foi possível atualizar status", "Algo deu errado. Tente novamente."),
-  });
-
   const updateInviteMutation = useMutation({
     mutationFn: async () => {
       const v = inviteLinkInput.trim();
@@ -353,7 +376,7 @@ export default function GroupEdit() {
     },
     onSuccess: async () => {
       notify.success("Convite atualizado", "Tudo certo.");
-      await refetch();
+      queryClient.invalidateQueries({ queryKey: ["group-edit", groupId] });
     },
     onError: () => notify.error("Não foi possível atualizar convite", "Algo deu errado. Tente novamente."),
   });
@@ -446,7 +469,7 @@ export default function GroupEdit() {
       }
 
       notify.success("Admins atualizados", "Tudo certo.");
-      await refetch();
+      queryClient.invalidateQueries({ queryKey: ["group-edit", groupId] });
       queryClient.invalidateQueries({ queryKey: ["group-dashboard-admins"] });
       queryClient.invalidateQueries({ queryKey: ["group-dashboard-previous-admins"] });
       queryClient.invalidateQueries({ queryKey: ["group-members"] });
@@ -463,16 +486,17 @@ export default function GroupEdit() {
       if (error) throw error;
     },
     onSuccess: () => {
+      setArchived(true);
+      setConfirmRemoveOpen(false);
+      setConfirmText("");
       notify.success("Grupo arquivado", "Tudo certo.");
+      queryClient.invalidateQueries({ queryKey: ["group-edit", groupId] });
     },
     onError: () => notify.error("Não foi possível arquivar", "Algo deu errado. Tente novamente."),
   });
 
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
-
-  const [confirmStatusOpen, setConfirmStatusOpen] = useState(false);
-  const [confirmStatusText, setConfirmStatusText] = useState("");
 
   const { data: specialMembers } = useQuery({
     queryKey: ["group-special-members", groupId],
@@ -559,6 +583,24 @@ export default function GroupEdit() {
     return (Object.keys(FEATURE_LABELS) as FeatureKey[]).filter((k) => FEATURE_LABELS[k].hasContent);
   }, []);
 
+  const timezoneError = useMemo(() => {
+    if (!timezone.trim()) return null;
+    return isValidIanaTimeZone(timezone) ? null : "Timezone inválido. Use um identificador IANA (ex.: America/Sao_Paulo).";
+  }, [timezone]);
+
+  const summaryTimeError = useMemo(() => {
+    if (!summaryTime.trim()) return null;
+    return isValidTimeHHmm(summaryTime) ? null : "Horário inválido. Use o formato HH:mm (ex.: 08:00).";
+  }, [summaryTime]);
+
+  const hasValidationErrors = !!timezoneError || !!summaryTimeError;
+
+  useEffect(() => {
+    if (timezoneError || summaryTimeError) {
+      setShowTechnicalOptions(true);
+    }
+  }, [summaryTimeError, timezoneError]);
+
   const connectionStatus = useMemo(() => {
     if (group?.sync_status === "error") {
       return { variant: "error" as const, label: "Erro", Icon: WifiOff };
@@ -617,8 +659,8 @@ export default function GroupEdit() {
   const isSaving = saveAllMutation.isPending || updateInviteMutation.isPending;
 
   return (
-    <AdminLayout title="Editar grupo" subtitle="Central de controle do grupo — ajustes seguros e previsíveis.">
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-4">
+    <AdminLayout title="Configurações do grupo" subtitle="Ajustes simples para o funcionamento do grupo no Bóris.">
+      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-primary/5 space-y-4">
         <GroupPageTop
           breadcrumbItems={breadcrumbItems}
           group={{
@@ -641,81 +683,109 @@ export default function GroupEdit() {
         />
 
         <div className="w-full space-y-8">
-          <div className="rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-6">
+          <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
             <div className="space-y-1">
               <h2 className="text-lg sm:text-xl font-semibold">Identidade do grupo</h2>
-              <p className="text-sm text-muted-foreground">Informações básicas para orientar o Bóris. Nada muda até você salvar.</p>
+              <p className="text-sm text-muted-foreground">Informações básicas do grupo. As mudanças só valem depois de salvar.</p>
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">Nome do grupo</label>
-                <Input value={name} readOnly className="h-11 rounded-xl bg-muted/30" />
+                <label htmlFor="group-name" className="text-xs font-medium text-muted-foreground">Nome do grupo</label>
+                <Input id="group-name" value={name} readOnly className="h-11 rounded-xl bg-muted/30" />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">Descrição</label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição do grupo" />
+                <label htmlFor="group-description" className="text-xs font-medium text-muted-foreground">Descrição</label>
+                <Textarea id="group-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição do grupo" />
                 <div className="text-[11px] text-muted-foreground">Ajuda a contextualizar análises e relatórios.</div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">Idioma</label>
-                  <Input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="pt-BR" className="h-11 rounded-xl" />
+              <div className="rounded-xl border border-border/70 bg-secondary/15 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-card-foreground">Configurações para equipe técnica</div>
+                    <div className="text-xs text-muted-foreground">Idioma, fuso horário e horário do resumo.</div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-9 rounded-xl"
+                    onClick={() => setShowTechnicalOptions((v) => !v)}
+                  >
+                    {showTechnicalOptions ? "Ocultar" : "Mostrar"}
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">Timezone</label>
-                  <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="America/Sao_Paulo" className="h-11 rounded-xl" />
-                </div>
+
+                {showTechnicalOptions ? (
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="group-language" className="text-xs font-medium text-muted-foreground">Idioma</label>
+                      <Input id="group-language" value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="pt-BR" className="h-11 rounded-xl" />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="group-timezone" className="text-xs font-medium text-muted-foreground">Fuso horário</label>
+                      <Input
+                        id="group-timezone"
+                        value={timezone}
+                        onChange={(e) => setTimezone(e.target.value)}
+                        placeholder="America/Sao_Paulo"
+                        className={cn("h-11 rounded-xl", timezoneError ? "border-destructive focus-visible:ring-destructive/30" : "")}
+                        aria-invalid={!!timezoneError}
+                        aria-describedby={timezoneError ? "group-timezone-error" : undefined}
+                      />
+                      {timezoneError ? <div id="group-timezone-error" className="text-[11px] text-destructive">{timezoneError}</div> : null}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-6">
+          <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
             <div className="space-y-1">
               <h2 className="text-lg sm:text-xl font-semibold">Estado do grupo</h2>
-              <p className="text-sm text-muted-foreground">Controles operacionais. Não apaga dados.</p>
+              <p className="text-sm text-muted-foreground">Ligue ou pause o grupo. Isso não apaga nenhum dado.</p>
             </div>
 
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <label className="text-xs font-medium text-muted-foreground">Status</label>
+                  <label htmlFor="group-status" className="text-xs font-medium text-muted-foreground">Funcionamento</label>
                   <StatusTag variant={statusTag.variant}>{statusTag.label}</StatusTag>
                 </div>
                 <Select value={status} onValueChange={(v) => setStatus(v as any)}>
-                  <SelectTrigger className="h-11 rounded-xl">
+                  <SelectTrigger id="group-status" className="h-11 rounded-xl">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
+                    <SelectItem value="active">Ligado (normal)</SelectItem>
+                    <SelectItem value="inactive">Pausado</SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="text-[11px] text-muted-foreground">A mudança entra em vigor assim que você salvar.</div>
+                <div className="text-[11px] text-muted-foreground">Use "Pausado" se quiser interromper temporariamente o funcionamento.</div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">Grupo arquivado</label>
-                <div className="rounded-xl bg-secondary/10 px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm text-card-foreground">Arquivar este grupo</div>
-                    <Switch checked={archived} onCheckedChange={setArchived} />
-                  </div>
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-xs font-medium text-muted-foreground">Arquivamento</label>
+                  <StatusTag variant={archived ? "warning" : "neutral"}>{archived ? "Arquivado" : "Não arquivado"}</StatusTag>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-secondary/15 px-4 py-3">
+                    <div className="text-sm text-card-foreground">Arquivamento é uma ação com confirmação</div>
                   <div className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
-                    Arquivar o grupo pausa análises e registros, sem apagar dados.
+                    Use a seção "Ações sensíveis" para arquivar com confirmação. O grupo deixa de aparecer nas listas.
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-6">
+          <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
-                <h2 className="text-lg sm:text-xl font-semibold">WhatsApp e conexão</h2>
-                <p className="text-sm text-muted-foreground">Convite, saúde da conexão e administradores detectados.</p>
+                <h2 className="text-lg sm:text-xl font-semibold">WhatsApp</h2>
+                <p className="text-sm text-muted-foreground">Link do grupo, verificação e administradores detectados.</p>
               </div>
 
               <div
@@ -756,8 +826,9 @@ export default function GroupEdit() {
             <div className="mt-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">Link de convite do grupo</label>
+                  <label htmlFor="group-invite-link" className="text-xs font-medium text-muted-foreground">Link de convite</label>
                   <Input
+                    id="group-invite-link"
                     value={inviteLinkInput}
                     onChange={(e) => setInviteLinkInput(e.target.value)}
                     placeholder="https://chat.whatsapp.com/…"
@@ -777,54 +848,72 @@ export default function GroupEdit() {
                     </Button>
                   ) : null}
                   <Button className="h-11 rounded-xl" onClick={handleRevalidateGroup} disabled={revalidating}>
-                    Revalidar
+                    Verificar grupo
                   </Button>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-secondary/10 p-4">
-                <div className="text-sm font-semibold text-card-foreground">Administradores do grupo</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">Detectados a partir da última validação.</div>
+              <div className="rounded-xl border border-border/70 bg-secondary/15 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-card-foreground">Administradores do grupo</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">Lista atualizada na última verificação.</div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-9 rounded-xl"
+                    onClick={() => setShowWhatsAppAdmins((v) => !v)}
+                  >
+                    {showWhatsAppAdmins ? "Ocultar" : "Ver lista"}
+                  </Button>
+                </div>
 
-                {orderedSpecialMembers.length === 0 ? (
-                  <div className="mt-3 text-sm text-muted-foreground">Sem funções especiais configuradas.</div>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    {orderedSpecialMembers.map((m) => {
-                      const role = ROLE_META[m.roleKey];
-                      return (
-                        <div key={m.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border/60 bg-card/60">
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium text-card-foreground truncate">{m.fullName}</div>
-                            <div className="text-xs text-muted-foreground truncate">{m.username || m.whatsapp}</div>
+                {showWhatsAppAdmins ? (
+                  orderedSpecialMembers.length === 0 ? (
+                    <div className="mt-3 text-sm text-muted-foreground">Sem funções especiais configuradas.</div>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {orderedSpecialMembers.map((m) => {
+                        const role = ROLE_META[m.roleKey];
+                        return (
+                          <div key={m.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border/70 bg-card/85">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-card-foreground truncate">{m.fullName}</div>
+                              <div className="text-xs text-muted-foreground truncate">{m.username || m.whatsapp}</div>
+                            </div>
+                            <span
+                              className={cn(
+                                "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
+                                role.badgeClass,
+                              )}
+                            >
+                              {role.label}
+                            </span>
                           </div>
-                          <span
-                            className={cn(
-                              "inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-semibold leading-none",
-                              role.badgeClass,
-                            )}
-                          >
-                            {role.label}
-                          </span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
+                  <div className="mt-3 text-sm text-muted-foreground">
+                    Clique em "Ver lista" para visualizar os administradores detectados.
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-6">
+          <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
             <div className="space-y-1">
-              <h2 className="text-lg sm:text-xl font-semibold">Mensagens do Bóris</h2>
-              <p className="text-sm text-muted-foreground">Ative o que o Bóris deve enviar e ajuste os textos.</p>
+              <h2 className="text-lg sm:text-xl font-semibold">Mensagens automáticas</h2>
+              <p className="text-sm text-muted-foreground">Escolha o que o Bóris pode enviar no grupo.</p>
             </div>
 
             <div className="mt-5 space-y-4">
-              <div className="rounded-xl border border-border/60 bg-secondary/10 p-4">
-                <div className="text-sm font-semibold text-card-foreground">Recursos</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">Você controla o que o Bóris executa e envia.</div>
+              <div className="rounded-xl border border-border/70 bg-secondary/15 p-4">
+                <div className="text-sm font-semibold text-card-foreground">O que o Bóris pode fazer</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">Ative somente o que você deseja usar no grupo.</div>
 
                 <div className="mt-4 space-y-3">
                   {(Object.keys(FEATURE_LABELS) as FeatureKey[]).map((key) => {
@@ -835,17 +924,21 @@ export default function GroupEdit() {
                           <div className="text-sm font-medium text-card-foreground">{info.name}</div>
                           <div className="text-xs text-muted-foreground mt-0.5">{info.description}</div>
 
-                          {key === "SUMMARY" ? (
+                          {key === "SUMMARY" && showTechnicalOptions ? (
                             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <div className="space-y-2">
-                                <label className="text-xs font-medium text-muted-foreground">Horário do resumo (aprox.)</label>
+                                <label htmlFor="group-summary-time" className="text-xs font-medium text-muted-foreground">Horário do resumo (aprox.)</label>
                                 <Input
+                                  id="group-summary-time"
                                   value={summaryTime}
                                   onChange={(e) => setSummaryTime(e.target.value)}
                                   placeholder="08:00"
-                                  className="h-11 rounded-xl"
+                                  className={cn("h-11 rounded-xl", summaryTimeError ? "border-destructive focus-visible:ring-destructive/30" : "")}
+                                  aria-invalid={!!summaryTimeError}
+                                  aria-describedby={summaryTimeError ? "group-summary-time-error" : undefined}
                                 />
                                 <div className="text-[11px] text-muted-foreground">Define o horário aproximado de envio do resumo diário.</div>
+                                {summaryTimeError ? <div id="group-summary-time-error" className="text-[11px] text-destructive">{summaryTimeError}</div> : null}
                               </div>
                             </div>
                           ) : null}
@@ -861,19 +954,20 @@ export default function GroupEdit() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-secondary/10 p-4">
-                <div className="text-sm font-semibold text-card-foreground">Templates</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">Tudo que está aqui será usado como base para as mensagens.</div>
+              <div className="rounded-xl border border-border/70 bg-secondary/15 p-4">
+                <div className="text-sm font-semibold text-card-foreground">Textos personalizados (opcional)</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">Se preferir, você pode trocar os textos que o Bóris envia.</div>
 
-                <div className="mt-4 space-y-4">
-                  {templateKeys.map((key) => {
+                {showTechnicalOptions ? (
+                  <div className="mt-4 space-y-4">
+                    {templateKeys.map((key) => {
                     const title = FEATURE_LABELS[key].name;
                     const desc = FEATURE_LABELS[key].description;
                     const value = templatesDraft[key] || "";
                     const count = value.length;
                     const enabled = !!featuresEnabled[key];
                     return (
-                      <div key={key} className="rounded-2xl border border-border/60 bg-card/60 p-4">
+                      <div key={key} className="rounded-2xl border border-border/80 bg-card/90 p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="text-sm font-semibold text-card-foreground">{title}</div>
@@ -889,94 +983,100 @@ export default function GroupEdit() {
                             placeholder={enabled ? "Texto..." : "Ative o recurso acima para usar este template"}
                             disabled={!enabled}
                           />
-                          <div className="text-[11px] text-muted-foreground">{count} caracteres</div>
                         </div>
 
-                        <div className={cn("mt-4 rounded-xl border border-border/60 p-3", enabled ? "bg-muted/20" : "bg-muted/10 opacity-70")}>
+                        <div className={cn("mt-4 rounded-xl border border-border/70 p-3", enabled ? "bg-muted/15" : "bg-muted/10 opacity-70")}>
                           <div className="text-xs font-medium text-muted-foreground">Preview</div>
                           <div className="mt-2 flex justify-start">
-                            <div className="max-w-[520px] rounded-2xl bg-success/10 px-4 py-3 text-sm text-card-foreground whitespace-pre-wrap break-words">
-                              {value.trim().length ? value : "(vazio)"}
+                            <div
+                              className={cn(
+                                "max-w-[520px] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap break-words",
+                                enabled
+                                  ? "bg-success/10 text-card-foreground"
+                                  : "bg-muted/30 text-muted-foreground",
+                              )}
+                            >
+                              {!enabled
+                                ? "Recurso desativado. Ative acima para usar este template."
+                                : value.trim().length
+                                ? value
+                                : "(vazio)"}
                             </div>
                           </div>
                         </div>
                       </div>
                     );
-                  })}
-                </div>
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-xl border border-border/70 bg-secondary/10 px-4 py-3 text-sm text-muted-foreground">
+                    O Bóris vai usar os textos padrão. Para editar esses textos, abra "Configurações para equipe técnica".
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 sm:p-6">
-            <div className="space-y-1">
-              <h2 className="text-lg sm:text-xl font-semibold text-destructive">Ações sensíveis</h2>
-              <p className="text-sm text-muted-foreground">Ações destrutivas. Exigem confirmação.</p>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
+          <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h2 className="text-lg sm:text-xl font-semibold">Mais opções</h2>
+                <p className="text-sm text-muted-foreground">Opções menos usadas e ações que pedem confirmação.</p>
+              </div>
               <Button
-                className="h-11 rounded-xl"
-                variant={status === "active" ? "destructive" : "secondary"}
-                onClick={() => setConfirmStatusOpen(true)}
+                type="button"
+                variant="secondary"
+                className="h-10 rounded-xl"
+                onClick={() => setShowSensitiveActions((v) => !v)}
               >
-                {status === "active" ? "Desativar grupo" : "Reativar grupo"}
-              </Button>
-
-              <Button
-                variant="destructive"
-                className="h-11 rounded-xl inline-flex items-center gap-2"
-                onClick={() => setConfirmRemoveOpen(true)}
-              >
-                <Trash2 className="h-4 w-4" />
-                Arquivar grupo
+                {showSensitiveActions ? "Ocultar" : "Mostrar"}
               </Button>
             </div>
+
+            {showSensitiveActions ? (
+              <div className="mt-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold text-destructive">Ações sensíveis</h3>
+                  <p className="text-sm text-muted-foreground">Use somente quando tiver certeza. Será pedido uma confirmação.</p>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button
+                    variant="destructive"
+                    className="h-11 rounded-xl inline-flex items-center gap-2"
+                    onClick={() => setConfirmRemoveOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Arquivar grupo
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-border/70 bg-secondary/10 px-4 py-3 text-sm text-muted-foreground">
+                A maioria das pessoas não precisa mexer nessas opções no dia a dia.
+              </div>
+            )}
           </div>
 
           <div className="sm:mt-2" />
         </div>
 
-        <div className="sm:mt-6 sm:static sticky bottom-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-6 pt-3 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+        <div className="sm:mt-6 sm:static sticky bottom-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-6 pt-3 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
           <div className="w-full">
-            <div className="rounded-2xl border border-border/60 bg-background/80 backdrop-blur px-4 py-3">
-              <div className="text-[11px] text-muted-foreground">As alterações entram em vigor imediatamente. Nenhum dado será apagado.</div>
+            <div className="rounded-2xl border border-border/80 bg-card/90 backdrop-blur px-4 py-3 shadow-sm">
+              <div className={cn("text-[11px]", hasValidationErrors ? "text-destructive" : "text-muted-foreground")}>
+                {hasValidationErrors
+                  ? "Corrija os campos inválidos antes de salvar."
+                  : "Clique em salvar para aplicar as mudanças. Ações sensíveis têm confirmação separada."}
+              </div>
               <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-                <Button className="h-12 sm:h-11 sm:px-6 rounded-xl" onClick={() => saveAllMutation.mutate()} disabled={isSaving}>
+                <Button className="h-12 sm:h-11 sm:px-6 rounded-xl" onClick={() => saveAllMutation.mutate()} disabled={isSaving || hasValidationErrors}>
                   Salvar alterações
                 </Button>
               </div>
             </div>
           </div>
         </div>
-
-        <AlertDialog open={confirmStatusOpen} onOpenChange={setConfirmStatusOpen}>
-          <AlertDialogContent className="bg-card border-border">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-card-foreground">
-                {status === "active" ? "Desativar grupo" : "Reativar grupo"}
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-muted-foreground">
-                Digite <span className="font-semibold">CONFIRMAR</span> para continuar.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="mt-2">
-              <Input value={confirmStatusText} onChange={(e) => setConfirmStatusText(e.target.value)} placeholder="CONFIRMAR" />
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                disabled={updateStatusOnly.isPending || confirmStatusText.trim().toUpperCase() !== "CONFIRMAR"}
-                onClick={() => {
-                  updateStatusOnly.mutate(status === "active" ? "inactive" : "active");
-                  setConfirmStatusText("");
-                }}
-              >
-                Confirmar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         <AlertDialog open={confirmRemoveOpen} onOpenChange={setConfirmRemoveOpen}>
           <AlertDialogContent className="bg-card border-border">

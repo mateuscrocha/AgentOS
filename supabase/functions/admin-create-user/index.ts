@@ -125,6 +125,14 @@ export function createAdminCreateUserHandler(args?: {
 
     const supabaseAdmin = createClientImpl(url, service);
 
+    const rollbackCreatedUser = async (userId: string) => {
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+      } catch (_e) {
+        void 0;
+      }
+    };
+
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email: payload.email,
       password: payload.password,
@@ -149,10 +157,15 @@ export function createAdminCreateUserHandler(args?: {
 
     const phone = normalizePhoneE164(payload.whatsapp_phone || "");
 
-    await supabaseAdmin
+    const { error: profileUpdateErr } = await supabaseAdmin
       .from("profiles")
       .update({ name: payload.name, phone_e164: phone, status: "active" })
       .eq("id", newUserId);
+    if (profileUpdateErr) {
+      await rollbackCreatedUser(newUserId);
+      console.log(JSON.stringify({ stage: 'update_profile_after_create', error: profileUpdateErr.message, status: 400 }));
+      return json({ success: false, message: "Erro ao atualizar perfil do usuário", code: 'UPDATE_PROFILE_FAILED' }, 400);
+    }
 
     const { error: scopeErr } = await supabaseAdmin
       .from("user_access_scope")
@@ -163,7 +176,7 @@ export function createAdminCreateUserHandler(args?: {
       });
 
     if (scopeErr) {
-      await supabaseAdmin.auth.admin.deleteUser(newUserId);
+      await rollbackCreatedUser(newUserId);
       const msg = scopeErr.message || "Erro ao criar escopo inicial";
       console.log(JSON.stringify({ stage: 'insert_user_access_scope', error: msg, status: 400 }));
       return json({ success: false, message: msg, code: 'INSERT_SCOPE_FAILED' }, 400);
@@ -177,12 +190,14 @@ export function createAdminCreateUserHandler(args?: {
           organization_id: payload.scope_id,
         });
       if (roleErr) {
+        await rollbackCreatedUser(newUserId);
         console.log(JSON.stringify({ stage: 'assign_org_admin', error: roleErr.message, status: 400 }));
         return json({ success: false, message: 'Falha ao atribuir privilégios de admin organizacional', code: 'ASSIGN_ORG_ADMIN_FAILED' }, 400);
       }
       const { data: canEditOrg, error: canEditErr } = await supabaseAdmin.rpc("can_edit_org", { _user_id: newUserId, _org_id: payload.scope_id });
       const { data: hasOrgAccess, error: hasAccessErr } = await supabaseAdmin.rpc("has_org_access", { _user_id: newUserId, _org_id: payload.scope_id });
       if (canEditErr || hasAccessErr || !canEditOrg || !hasOrgAccess) {
+        await rollbackCreatedUser(newUserId);
         console.log(JSON.stringify({ stage: 'verify_org_admin', canEditErr: canEditErr?.message, hasAccessErr: hasAccessErr?.message, canEditOrg, hasOrgAccess, status: 500 }));
         return json({ success: false, message: 'Verificação de privilégios falhou', code: 'VERIFY_ORG_ADMIN_FAILED' }, 500);
       }

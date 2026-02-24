@@ -19,9 +19,11 @@ const SystemEvents = lazy(() => import("./pages/SystemEvents"));
 const SystemOrganizations = lazy(() => import("./pages/SystemOrganizations"));
 const SystemGroups = lazy(() => import("./pages/SystemGroups"));
 const SystemActivity = lazy(() => import("./pages/SystemActivity"));
+const SystemSupport = lazy(() => import("./pages/SystemSupport"));
 const Org = lazy(() => import("./pages/Org"));
 const Group = lazy(() => import("./pages/Group"));
 const GroupMembers = lazy(() => import("./pages/GroupMembers"));
+const GroupSupport = lazy(() => import("./pages/GroupSupport"));
 const GroupMessages = lazy(() => import("./pages/GroupMessages"));
 const GroupSummaries = lazy(() => import("./pages/GroupSummaries"));
 const GroupEvents = lazy(() => import("./pages/GroupEvents"));
@@ -94,6 +96,7 @@ const App = () => (
               <Route path="/overview" element={<Navigate to="/" replace />} />
               <Route path="/system/organizations" element={<SystemOrganizations />} />
               <Route path="/system/groups" element={<SystemGroups />} />
+              <Route path="/system/support" element={<SystemSupport />} />
               <Route path="/system/users" element={<Users />} />
               <Route path="/system/events" element={<SystemEvents />} />
               <Route path="/system/activity" element={<SystemActivity />} />
@@ -110,6 +113,7 @@ const App = () => (
               <Route path="/group/:groupId/*" element={<LegacyGroupAliasRedirect />} />
               <Route path="/groups/:groupId" element={<Group />} />
               <Route path="/groups/:groupId/members" element={<GroupMembers />} />
+              <Route path="/groups/:groupId/support" element={<GroupSupport />} />
               <Route path="/groups/:groupId/messages" element={<GroupMessages />} />
               <Route path="/groups/:groupId/summaries" element={<GroupSummaries />} />
               <Route path="/groups/:groupId/polls" element={<GroupPolls />} />

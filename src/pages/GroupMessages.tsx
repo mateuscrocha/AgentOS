@@ -7,7 +7,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, MessageSquare, Upload } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { buildPagination, cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import AccessDenied from "./AccessDenied";
@@ -40,10 +40,12 @@ const GroupMessages = () => {
   const queryTo = searchParams.get("to") || "";
   const queryMessageId = searchParams.get("messageId") || "";
   const [search, setSearch] = useState(querySearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(querySearch);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     setSearch(querySearch);
+    setDebouncedSearch(querySearch);
     setPage(1);
   }, [querySearch]);
 
@@ -56,21 +58,36 @@ const GroupMessages = () => {
     setSelectedMessageId(queryMessageId);
   }, [queryMessageId]);
 
-  const safeSearch = useMemo(() => search.trim().replace(/,/g, " "), [search]);
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const trimmed = search.trim();
+      setDebouncedSearch(trimmed);
+      setSearchParams((prev) => {
+        const sp = new URLSearchParams(prev);
+        if (trimmed) sp.set("q", trimmed);
+        else sp.delete("q");
+        return sp;
+      }, { replace: true });
+    }, 300);
 
-  const safeFrom = useMemo(() => {
+    return () => window.clearTimeout(t);
+  }, [search, setSearchParams]);
+
+  const safeSearch = debouncedSearch.trim().replace(/,/g, " ");
+
+  const safeFrom = (() => {
     if (!queryFrom) return null;
-    const d = new Date(queryFrom);
+    const d = new Date(`${queryFrom}T00:00:00`);
     if (Number.isNaN(d.getTime())) return null;
     return d.toISOString();
-  }, [queryFrom]);
+  })();
 
-  const safeTo = useMemo(() => {
+  const safeTo = (() => {
     if (!queryTo) return null;
-    const d = new Date(queryTo);
+    const d = new Date(`${queryTo}T23:59:59.999`);
     if (Number.isNaN(d.getTime())) return null;
     return d.toISOString();
-  }, [queryTo]);
+  })();
 
   const {
     groupInfo,
@@ -154,7 +171,7 @@ const GroupMessages = () => {
       title="Mensagens" 
       subtitle={`${messagesData?.count ?? 0} mensagens`}
     >
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-6">
+      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-success/5 space-y-6">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
@@ -177,17 +194,29 @@ const GroupMessages = () => {
               onSearchChange={(next) => {
                 setSearch(next);
                 setPage(1);
-                const sp = new URLSearchParams(searchParams);
-                const trimmed = next.trim();
-                if (trimmed) sp.set("q", trimmed);
-                else sp.delete("q");
-                setSearchParams(sp, { replace: true });
               }}
               onClearSearch={() => {
                 setSearch("");
+                setDebouncedSearch("");
                 setPage(1);
                 const sp = new URLSearchParams(searchParams);
                 sp.delete("q");
+                setSearchParams(sp, { replace: true });
+              }}
+              fromDate={queryFrom}
+              toDate={queryTo}
+              onFromDateChange={(next) => {
+                setPage(1);
+                const sp = new URLSearchParams(searchParams);
+                if (next) sp.set("from", next);
+                else sp.delete("from");
+                setSearchParams(sp, { replace: true });
+              }}
+              onToDateChange={(next) => {
+                setPage(1);
+                const sp = new URLSearchParams(searchParams);
+                if (next) sp.set("to", next);
+                else sp.delete("to");
                 setSearchParams(sp, { replace: true });
               }}
               typeFilter={typeFilter}
@@ -199,7 +228,7 @@ const GroupMessages = () => {
               filtersOpen={filtersOpen}
               setFiltersOpen={setFiltersOpen}
               onClearAll={clearAllFilters}
-              isFetching={messagesFetching}
+              isFetching={messagesFetching || search.trim() !== debouncedSearch.trim()}
             />
           )}
           showClearFilters={hasActiveFilters}
@@ -236,16 +265,25 @@ const GroupMessages = () => {
           />
         ) : (
           <div className="space-y-4">
-            <div className="space-y-3">
-              {(messagesData?.items ?? []).map((m) => (
-                <MessageCard
-                  key={m.message_id}
-                  message={m}
-                  groupId={groupId as string}
-                  onOpenDetails={handleViewDetail}
-                  reactions={reactionsMap[m.message_id] || []}
-                />
-              ))}
+            <div className="rounded-3xl border border-border/60 bg-gradient-to-br from-emerald-50/60 via-background to-teal-50/40 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/10 p-3 sm:p-4 shadow-sm">
+              <div
+                className="rounded-2xl border border-white/40 dark:border-white/5 p-2 sm:p-3 space-y-3"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle at 1px 1px, rgba(120,120,120,0.09) 1px, transparent 0)",
+                  backgroundSize: "18px 18px",
+                }}
+              >
+                {(messagesData?.items ?? []).map((m) => (
+                  <MessageCard
+                    key={m.message_id}
+                    message={m}
+                    groupId={groupId as string}
+                    onOpenDetails={handleViewDetail}
+                    reactions={reactionsMap[m.message_id] || []}
+                  />
+                ))}
+              </div>
             </div>
 
             {(() => {
@@ -254,7 +292,7 @@ const GroupMessages = () => {
               if (totalPages <= 1) return null;
               const items = buildPagination(page, totalPages);
               return (
-                <div className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3">
+                <div className="rounded-2xl border border-success/20 bg-card/90 px-4 py-3 shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="text-sm text-muted-foreground">
                       Página <span className="font-medium text-foreground tabular-nums">{page}</span> de{" "}

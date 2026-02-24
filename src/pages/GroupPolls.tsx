@@ -63,6 +63,8 @@ export default function GroupPolls() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const currentRange = getDateRange(selectedPeriod, customRange);
   const hasActiveFilters = selectedPeriod !== '7d' || !!customRange || !!search.trim();
+  const searchTrimmed = search.trim();
+  const searchTooShort = searchTrimmed.length > 0 && searchTrimmed.length < 2;
 
   useEffect(() => {
     const next = search.trim();
@@ -222,7 +224,7 @@ export default function GroupPolls() {
 
   return (
     <AdminLayout title="Enquetes" subtitle={`${groupInfo?.groupName ? `${groupInfo.groupName} — ` : ""}${pollsData?.count ?? 0} no período selecionado`}>
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-6">
+      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-warning/5 space-y-6">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },
@@ -240,7 +242,7 @@ export default function GroupPolls() {
             syncStatus: groupInfo?.syncStatus || null,
           }}
           filters={(
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Input
                 value={search}
                 onChange={(e) => {
@@ -248,9 +250,14 @@ export default function GroupPolls() {
                   setPage(1);
                 }}
                 placeholder="Buscar pergunta…"
-                className="h-9 w-[220px] max-w-[45vw] bg-card"
+                className="h-9 w-[220px] max-w-[45vw] bg-card/95 border-border/80"
                 aria-label="Buscar por texto da pergunta"
               />
+              {searchTooShort ? (
+                <span className="text-xs text-muted-foreground">
+                  Digite ao menos 2 caracteres para filtrar.
+                </span>
+              ) : null}
               <PeriodFilter
                 value={selectedPeriod}
                 customRange={customRange}
@@ -285,7 +292,7 @@ export default function GroupPolls() {
         ) : isLoading ? (
           <div className="space-y-4" aria-label="Carregando enquetes">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
+              <div key={i} className="rounded-2xl border border-warning/20 bg-card/90 overflow-hidden shadow-sm">
                 <div className="p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1 space-y-2">
@@ -326,145 +333,171 @@ export default function GroupPolls() {
         ) : !pollsData?.items?.length ? (
           <EmptyState
             icon={ListChecks}
-            title="Sem enquetes"
-            message="Ainda não há enquetes neste grupo."
+            title={
+              debouncedSearch
+                ? "Nenhuma enquete encontrada"
+                : hasActiveFilters
+                  ? "Sem enquetes neste período"
+                  : "Sem enquetes"
+            }
+            message={
+              debouncedSearch
+                ? `Nenhuma enquete corresponde à busca "${debouncedSearch}".`
+                : hasActiveFilters
+                  ? "Ajuste o período ou limpe os filtros para ver outras enquetes."
+                  : "Ainda não há enquetes neste grupo."
+            }
+            action={hasActiveFilters ? {
+              label: "Limpar filtros",
+              onClick: () => {
+                setSelectedPeriod('7d');
+                setCustomRange(undefined);
+                setSearch("");
+                setPage(1);
+              }
+            } : undefined}
           />
         ) : (
           <div className="space-y-4">
-            {(pollsData.items || []).map((p) => {
-              const options = (resultsMap?.[p.id] || [])
-                .slice()
-                .sort((a, b) => a.optionIndex - b.optionIndex);
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {(pollsData.items || []).map((p) => {
+                const options = (resultsMap?.[p.id] || [])
+                  .slice()
+                  .sort((a, b) => a.optionIndex - b.optionIndex);
 
-              const totalVotes = options.reduce((sum, o) => sum + o.votesCount, 0);
-              const maxVotes = options.reduce((m, o) => Math.max(m, o.votesCount), 0);
-              const summary = summaryMap?.[p.id];
-              const voteEventsCount = summary?.voteEventsCount ?? 0;
-              const selectionsCount = summary?.selectionsCount ?? 0;
-              const percentBase = selectionsCount > 0 ? selectionsCount : totalVotes;
-              const createdAtLabel = formatDateSimpleBR(p.created_at);
-              const winner = options.length ? options.reduce((best, cur) => (cur.votesCount > best.votesCount ? cur : best), options[0] as PollOptionResult) : null;
-              const showQuestionToggle = (p.question || "").length >= 130 || /\n/.test(p.question || "");
-              const isQuestionExpanded = !!expandedQuestions[p.id];
+                const totalVotes = options.reduce((sum, o) => sum + o.votesCount, 0);
+                const maxVotes = options.reduce((m, o) => Math.max(m, o.votesCount), 0);
+                const summary = summaryMap?.[p.id];
+                const voteEventsCount = summary?.voteEventsCount ?? 0;
+                const selectionsCount = summary?.selectionsCount ?? 0;
+                const percentBase = selectionsCount > 0 ? selectionsCount : totalVotes;
+                const createdAtLabel = formatDateSimpleBR(p.created_at);
+                const winner = options.length ? options.reduce((best, cur) => (cur.votesCount > best.votesCount ? cur : best), options[0] as PollOptionResult) : null;
+                const winnerCount = options.filter((o) => maxVotes > 0 && o.votesCount === maxVotes).length;
+                const hasTie = winnerCount > 1;
+                const showQuestionToggle = (p.question || "").length >= 130 || /\n/.test(p.question || "");
+                const isQuestionExpanded = !!expandedQuestions[p.id];
 
-              return (
-                <section
-                  key={p.id}
-                  className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden"
-                  role="article"
-                  aria-labelledby={`poll-${p.id}-title`}
-                >
-                  <motion.div layout initial={false} transition={QUESTION_LAYOUT_TRANSITION} className="p-4 sm:p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <motion.div layout transition={QUESTION_LAYOUT_TRANSITION} className="min-w-0">
-                        <motion.h3
-                          layout
-                          transition={QUESTION_LAYOUT_TRANSITION}
-                          id={`poll-${p.id}-title`}
-                          className={cn(
-                            "text-[16px] sm:text-[18px] font-semibold text-foreground leading-snug",
-                            !isQuestionExpanded && "line-clamp-3"
-                          )}
-                        >
-                          {p.question || "Enquete"}
-                        </motion.h3>
-
-                        {showQuestionToggle ? (
-                          <button
-                            type="button"
-                            className="mt-2 text-xs font-medium text-primary hover:underline underline-offset-2"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setExpandedQuestions((prev) => ({ ...prev, [p.id]: !prev[p.id] }));
-                            }}
+                return (
+                  <section
+                    key={p.id}
+                    className="rounded-2xl border border-warning/20 bg-card/90 overflow-hidden shadow-sm h-full"
+                    role="article"
+                    aria-labelledby={`poll-${p.id}-title`}
+                  >
+                    <motion.div layout initial={false} transition={QUESTION_LAYOUT_TRANSITION} className="p-4 sm:p-5 h-full">
+                      <div className="flex items-start justify-between gap-3">
+                        <motion.div layout transition={QUESTION_LAYOUT_TRANSITION} className="min-w-0">
+                          <motion.h3
+                            layout
+                            transition={QUESTION_LAYOUT_TRANSITION}
+                            id={`poll-${p.id}-title`}
+                            className={cn(
+                              "text-[16px] sm:text-[18px] font-semibold text-foreground leading-snug",
+                              !isQuestionExpanded && "line-clamp-3"
+                            )}
                           >
-                            {isQuestionExpanded ? "Recolher pergunta" : "Ler pergunta completa"}
-                          </button>
-                        ) : null}
+                            {p.question || "Enquete"}
+                          </motion.h3>
 
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          <span className="tabular-nums">Criada em {createdAtLabel}</span> • <span className="tabular-nums">{voteEventsCount}</span> votos registrados
-                        </div>
-                      </motion.div>
+                          {showQuestionToggle ? (
+                            <button
+                              type="button"
+                              className="mt-2 text-xs font-medium text-primary hover:underline underline-offset-2"
+                              aria-expanded={isQuestionExpanded}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setExpandedQuestions((prev) => ({ ...prev, [p.id]: !prev[p.id] }));
+                              }}
+                            >
+                              {isQuestionExpanded ? "Recolher pergunta" : "Ler pergunta completa"}
+                            </button>
+                          ) : null}
 
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/groups/${groupId}/polls/${p.id}`)}
-                        className="shrink-0 text-primary hover:bg-primary/10"
-                        aria-label="Abrir detalhes da enquete"
-                      >
-                        <span className="hidden sm:inline">Entender respostas</span>
-                        <ChevronRight className="h-4 w-4 sm:ml-1" />
-                      </Button>
-                    </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            <span className="tabular-nums">Criada em {createdAtLabel}</span> • <span className="tabular-nums">{voteEventsCount}</span> votos registrados
+                          </div>
+                        </motion.div>
 
-                    {options.length === 0 ? (
-                      <div className="mt-4">
-                        <p className="text-sm text-muted-foreground">Ainda não há respostas registradas para esta enquete.</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/groups/${groupId}/polls/${p.id}`)}
+                          className="shrink-0 text-primary hover:bg-primary/10"
+                          aria-label="Abrir detalhes da enquete"
+                        >
+                          <span className="hidden sm:inline">Entender respostas</span>
+                          <ChevronRight className="h-4 w-4 sm:ml-1" />
+                        </Button>
                       </div>
-                    ) : (
-                      <div className="mt-4 space-y-3">
-                        {winner ? (
-                          <div className="rounded-2xl border border-primary/20 bg-primary/10 px-3.5 py-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-xs font-semibold uppercase tracking-wide text-primary">Resultado principal</div>
-                                <div className="mt-1 flex items-center gap-2">
-                                  <div className="text-sm font-semibold text-foreground break-words">{winner.optionText}</div>
-                                  <Badge variant="secondary" className="h-6 px-2 text-[11px] bg-primary text-primary-foreground">
-                                    Mais votada
-                                  </Badge>
+
+                      {options.length === 0 ? (
+                        <div className="mt-4">
+                          <p className="text-sm text-muted-foreground">Ainda não há respostas registradas para esta enquete.</p>
+                        </div>
+                      ) : (
+                        <div className="mt-4 space-y-3">
+                          {winner ? (
+                            <div className="rounded-2xl border border-primary/20 bg-primary/10 px-3.5 py-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-xs font-semibold uppercase tracking-wide text-primary">Resultado principal</div>
+                                  <div className="mt-1 flex items-center gap-2">
+                                    <div className="text-sm font-semibold text-foreground break-words">{winner.optionText}</div>
+                                    <Badge variant="secondary" className="h-6 px-2 text-[11px] bg-primary text-primary-foreground">
+                                      {hasTie ? "Empate" : "Mais votada"}
+                                    </Badge>
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="shrink-0 text-xs text-primary tabular-nums font-medium">
-                                {winner.votesCount} voto(s)
+                                <div className="shrink-0 text-xs text-primary tabular-nums font-medium">
+                                  {winner.votesCount} voto(s){hasTie ? " (empatada)" : ""}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ) : null}
+                          ) : null}
 
-                        <div className="space-y-2">
-                          {options.map((opt) => {
-                            const pct = computePollPercent(opt.votesCount, percentBase, 0);
-                            const isWinner = maxVotes > 0 && opt.votesCount === maxVotes;
-                            return (
-                              <div key={`${p.id}-${opt.optionIndex}`} className={cn("rounded-xl px-2 py-2", isWinner ? "bg-primary/5" : "bg-transparent")}>
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className={cn("text-sm", isWinner ? "text-primary font-medium" : "text-foreground")}>{opt.optionText}</span>
+                          <div className="space-y-2">
+                            {options.map((opt) => {
+                              const pct = computePollPercent(opt.votesCount, percentBase, 0);
+                              const isWinner = maxVotes > 0 && opt.votesCount === maxVotes;
+                              return (
+                                <div key={`${p.id}-${opt.optionIndex}`} className={cn("rounded-xl px-2 py-2", isWinner ? "bg-primary/5" : "bg-transparent")}>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className={cn("text-sm", isWinner ? "text-primary font-medium" : "text-foreground")}>{opt.optionText}</span>
+                                      </div>
                                     </div>
+                                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{opt.votesCount} • {pct}%</span>
                                   </div>
-                                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{opt.votesCount} • {pct}%</span>
-                                </div>
 
-                                <div className="mt-2 h-2 rounded-full bg-muted/60 overflow-hidden">
-                                  {opt.votesCount <= 0 ? (
-                                    <div className="h-full w-full rounded-full border border-dashed border-foreground/20" />
-                                  ) : (
-                                    <div
-                                      className={cn(
-                                        "h-full rounded-full transition-[width] duration-500 ease-out",
-                                        isWinner ? "bg-primary" : "bg-foreground/20",
-                                      )}
-                                      style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
-                                    />
-                                  )}
+                                  <div className="mt-2 h-2 rounded-full bg-muted/60 overflow-hidden">
+                                    {opt.votesCount <= 0 ? (
+                                      <div className="h-full w-full rounded-full border border-dashed border-foreground/20" />
+                                    ) : (
+                                      <div
+                                        className={cn(
+                                          "h-full rounded-full transition-[width] duration-500 ease-out",
+                                          isWinner ? "bg-primary" : "bg-foreground/20",
+                                        )}
+                                        style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+                                      />
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </motion.div>
-                </section>
-              );
-            })}
+                      )}
+                    </motion.div>
+                  </section>
+                );
+              })}
+            </div>
 
             {(pollsData.count ?? 0) > PAGE_SIZE ? (
-              <div className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3">
+              <div className="rounded-2xl border border-warning/20 bg-card/90 px-4 py-3 shadow-sm">
                 {(() => {
                   const totalPages = Math.max(1, Math.ceil((pollsData.count ?? 0) / PAGE_SIZE));
                   const items = buildPagination(page, totalPages);
@@ -478,20 +511,21 @@ export default function GroupPolls() {
                       <Pagination className="sm:justify-end">
                         <PaginationContent>
                           <PaginationItem>
-                            <PaginationLink
-                              href="#"
-                              size="default"
-                              onClick={(e) => {
-                                e.preventDefault();
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
                                 if (page <= 1) return;
                                 setPage(page - 1);
                               }}
-                              className={cn("gap-1 pl-2.5", page <= 1 && "pointer-events-none opacity-50")}
+                              disabled={page <= 1}
+                              className="gap-1 pl-2.5"
                               aria-label="Página anterior"
                             >
                               <ChevronLeft className="h-4 w-4" />
                               <span>Anterior</span>
-                            </PaginationLink>
+                            </Button>
                           </PaginationItem>
 
                           <div className="hidden sm:flex items-center gap-1">
@@ -500,37 +534,37 @@ export default function GroupPolls() {
                                 {it === "ellipsis" ? (
                                   <PaginationEllipsis />
                                 ) : (
-                                  <PaginationLink
-                                    href="#"
-                                    isActive={it === page}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      setPage(it);
-                                    }}
+                                  <Button
+                                    type="button"
+                                    variant={it === page ? "outline" : "ghost"}
+                                    size="icon"
+                                    onClick={() => setPage(it)}
                                     aria-label={`Ir para página ${it}`}
+                                    aria-current={it === page ? "page" : undefined}
                                   >
                                     {it}
-                                  </PaginationLink>
+                                  </Button>
                                 )}
                               </PaginationItem>
                             ))}
                           </div>
 
                           <PaginationItem>
-                            <PaginationLink
-                              href="#"
-                              size="default"
-                              onClick={(e) => {
-                                e.preventDefault();
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
                                 if (page >= totalPages) return;
                                 setPage(page + 1);
                               }}
-                              className={cn("gap-1 pr-2.5", page >= totalPages && "pointer-events-none opacity-50")}
+                              disabled={page >= totalPages}
+                              className="gap-1 pr-2.5"
                               aria-label="Próxima página"
                             >
                               <span>Próxima</span>
                               <ChevronRight className="h-4 w-4" />
-                            </PaginationLink>
+                            </Button>
                           </PaginationItem>
                         </PaginationContent>
                       </Pagination>

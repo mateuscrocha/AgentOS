@@ -87,7 +87,7 @@ export function RecentActivitySection({
   );
 
   return (
-    <section id="group-themes" className="rounded-xl border border-border bg-card p-5">
+    <section id="group-themes" className="rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm">
       <SectionHeader
         title="Padrões recentes de atividade"
         subtitle={`Leitura rápida (${periodLabel})`}
@@ -102,6 +102,11 @@ export function RecentActivitySection({
             subtitle={isLoading ? undefined : mostActiveDay ? `${mostActiveDay.count} msgs` : "Sem dados"}
             icon={CalendarDays}
             isLoading={isLoading}
+            help={{
+              whatIs: "Dia com maior volume de mensagens dentro do período analisado.",
+              howToInterpret: "Mostra o pico diário de atividade recente do grupo.",
+              whatToObserve: "Veja se o pico foi pontual (evento/campanha) ou parte de uma tendência de alta no período.",
+            }}
           />
           {!isLoading && mostActiveDay && busyDayAvatars.length > 0 && (
             <div className="space-y-1">
@@ -118,6 +123,11 @@ export function RecentActivitySection({
             subtitle={isLoading ? undefined : peakTwoHourWindow ? `${peakTwoHourWindow.count} msgs` : "Sem dados"}
             icon={Clock}
             isLoading={isLoading}
+            help={{
+              whatIs: "Faixa horária com maior concentração de mensagens no período analisado.",
+              howToInterpret: "Ajuda a identificar quando o grupo costuma ter mais movimento.",
+              whatToObserve: "Use para ajustar horário de ações, avisos e acompanhamento do time.",
+            }}
           />
           {/* Removed widget "Membros mais ativos nesse horário" */}
         </div>

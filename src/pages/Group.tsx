@@ -200,7 +200,7 @@ const Group = () => {
       title="Painel do Grupo" 
       subtitle={group?.name || "Grupo"}
     >
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-8">
+      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-primary/5 space-y-8">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central do Bóris", href: "/" },

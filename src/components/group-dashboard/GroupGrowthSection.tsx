@@ -69,7 +69,7 @@ export function GroupGrowthSection({
   const displayedCurrentMembers = Math.max(0, currentMembers);
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card/70 p-5">
+    <section className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm">
       <SectionHeader
         title="Evolução do grupo"
         subtitle={`Mudanças de entrada/saída (${periodLabel})`}
@@ -78,7 +78,7 @@ export function GroupGrowthSection({
 
       <div className="space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 auto-rows-fr">
-          <div className="rounded-xl border border-border/60 bg-card/60 p-4 min-h-[96px] flex flex-col justify-between">
+          <div className="rounded-xl border border-border/70 bg-card/85 p-4 min-h-[96px] flex flex-col justify-between">
             {isLoading ? (
               <Skeleton className="h-10 w-28" />
             ) : (
@@ -91,7 +91,7 @@ export function GroupGrowthSection({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-card/60 p-4 min-h-[96px] flex flex-col justify-between">
+          <div className="rounded-xl border border-border/70 bg-card/85 p-4 min-h-[96px] flex flex-col justify-between">
             {isLoading ? (
               <Skeleton className="h-9 w-20" />
             ) : (
@@ -104,7 +104,7 @@ export function GroupGrowthSection({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-card/60 p-4 min-h-[96px] flex flex-col justify-between">
+          <div className="rounded-xl border border-border/70 bg-card/85 p-4 min-h-[96px] flex flex-col justify-between">
             {isLoading ? (
               <Skeleton className="h-9 w-20" />
             ) : (
@@ -115,7 +115,7 @@ export function GroupGrowthSection({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-card/60 p-4 min-h-[96px] flex flex-col justify-between">
+          <div className="rounded-xl border border-border/70 bg-card/85 p-4 min-h-[96px] flex flex-col justify-between">
             {isLoading ? (
               <Skeleton className="h-9 w-20" />
             ) : (

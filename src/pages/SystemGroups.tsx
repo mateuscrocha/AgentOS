@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, SlidersHorizontal, Users, CheckCircle, XCircle, BarChart3, X } from "lucide-react";
+import { Loader2, SlidersHorizontal, Users, CheckCircle, XCircle, BarChart3 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
 import { Badge } from "@/components/ui/badge";
+import { FilterChips } from "@/components/ui/filter-chips";
+import { FilterTriggerButton } from "@/components/ui/filter-trigger-button";
 import { StatusTag } from "@/components/ui/status-tag";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -549,6 +551,11 @@ export default function SystemGroups() {
                 icon={Users}
                 variant="kpi"
                 isLoading={overviewLoading}
+                help={{
+                  whatIs: "Quantidade total de grupos cadastrados no sistema (considerando os filtros da tela, quando aplicável).",
+                  howToInterpret: "Mostra o tamanho da base de grupos monitorados.",
+                  whatToObserve: "Compare com ‘Ativos’ e ‘Inativos’ para entender a distribuição do status dos grupos.",
+                }}
               />
               <StatsCard
                 title="Ativos"
@@ -556,6 +563,11 @@ export default function SystemGroups() {
                 icon={CheckCircle}
                 variant="kpi"
                 isLoading={overviewLoading}
+                help={{
+                  whatIs: "Quantidade de grupos com status ativo.",
+                  howToInterpret: "Representa grupos habilitados/operando normalmente na base.",
+                  whatToObserve: "Acompanhe a proporção sobre o total e mudanças após ações operacionais.",
+                }}
               />
               <StatsCard
                 title="Inativos"
@@ -563,6 +575,11 @@ export default function SystemGroups() {
                 icon={XCircle}
                 variant="kpi"
                 isLoading={overviewLoading}
+                help={{
+                  whatIs: "Quantidade de grupos com status inativo.",
+                  howToInterpret: "Mostra grupos desativados ou fora de operação no cadastro do sistema.",
+                  whatToObserve: "Observe tendência de crescimento e se há concentração em alguma organização.",
+                }}
               />
               <StatsCard
                 title="Média de membros"
@@ -570,6 +587,11 @@ export default function SystemGroups() {
                 icon={BarChart3}
                 variant="kpi"
                 isLoading={overviewLoading}
+                help={{
+                  whatIs: "Número médio de membros por grupo na base atual.",
+                  howToInterpret: "Ajuda a entender o porte médio dos grupos, sem depender apenas de casos extremos.",
+                  whatToObserve: "Compare com atividade para distinguir grupos grandes pouco ativos de grupos menores mais engajados.",
+                }}
               />
             </>
           )}
@@ -638,23 +660,12 @@ export default function SystemGroups() {
               </div>
 
               <div className="md:hidden w-full">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  className="w-full justify-between bg-background/60"
+                <FilterTriggerButton
                   onClick={() => setFiltersOpen(true)}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filtrar
-                  </span>
-                  {hasActiveFilters && (
-                    <Badge variant="secondary" className="h-6 px-2 text-[11px]">
-                      Ativo
-                    </Badge>
-                  )}
-                </Button>
+                  icon={SlidersHorizontal}
+                  activeCount={hasActiveFilters ? 1 : undefined}
+                  countLabel="Ativo"
+                />
               </div>
             </div>
           )}
@@ -663,21 +674,13 @@ export default function SystemGroups() {
         />
 
         {activeFilterChips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            {activeFilterChips.map((chip) => (
-              <Button
-                key={chip.key}
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={chip.onClear}
-                className="h-7 px-2 gap-1"
-              >
-                <span className="truncate max-w-[220px]">{chip.label}</span>
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            ))}
-          </div>
+          <FilterChips
+            items={activeFilterChips.map((chip) => ({
+              key: chip.key,
+              label: chip.label,
+              onRemove: chip.onClear,
+            }))}
+          />
         )}
 
         <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>

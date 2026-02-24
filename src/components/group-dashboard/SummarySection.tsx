@@ -73,6 +73,11 @@ export function SummarySection({
             <StatsCard 
               title="Mensagens"
               value={isLoading ? '—' : curr.toLocaleString('pt-BR')}
+              help={{
+                whatIs: "Total de mensagens enviadas no grupo durante o período selecionado.",
+                howToInterpret: "Mostra o volume bruto da conversa. Compare com o período anterior para identificar aceleração, estabilidade ou queda.",
+                whatToObserve: "Leia junto de ‘Ativos’ e ‘Participação’ para ver se o volume está distribuído ou concentrado em poucas pessoas.",
+              }}
               change={isLoading ? undefined : changeLabel}
               changeType={changeType}
               icon={MessageSquare}
@@ -107,12 +112,17 @@ export function SummarySection({
             <StatsCard 
               title="Ativos"
               value={isLoading ? '—' : curr.toLocaleString('pt-BR')}
+              help={{
+                whatIs: "Quantidade de membros do grupo que enviaram pelo menos uma mensagem no período.",
+                howToInterpret: "Mede o tamanho da base participante real, não apenas o total de membros cadastrados.",
+                whatToObserve: "Compare com o percentual mostrado em ‘Participação’ e com o total de membros do grupo.",
+              }}
               change={isLoading ? undefined : changeLabel}
               changeType={changeType}
               icon={Users}
               variant="kpi"
               description={`${activePercent}% do grupo`}
-              className="rounded-xl border-border/60 bg-card/70 p-4 h-[104px]"
+              className="rounded-xl border-border/80 bg-card/90 p-4 h-[104px]"
               valueClassName="text-3xl"
             />
           );
@@ -143,11 +153,16 @@ export function SummarySection({
             <StatsCard 
               title="Participação"
               value={isLoading ? '—' : `${Math.round(currPct)}%`}
+              help={{
+                whatIs: "Percentual de membros do grupo que participaram com mensagem no período.",
+                howToInterpret: "Valores maiores indicam que uma parcela maior da base falou no período.",
+                whatToObserve: "Se cair com mensagens estáveis, a conversa pode estar concentrada em menos participantes.",
+              }}
               change={isLoading ? undefined : changeLabel}
               changeType={changeType}
               icon={TrendingUp}
               variant="kpi"
-              className="rounded-xl border-border/60 bg-card/70 p-4 h-[104px]"
+              className="rounded-xl border-border/80 bg-card/90 p-4 h-[104px]"
               valueClassName="text-3xl"
             />
           );
@@ -173,11 +188,16 @@ export function SummarySection({
             <StatsCard 
               title="Crescimento"
               value={isLoading ? '—' : (netGrowth >= 0 ? `+${netGrowth}` : String(netGrowth))}
+              help={{
+                whatIs: "Saldo de crescimento do grupo no período (entradas menos saídas).",
+                howToInterpret: "Valor positivo indica expansão da base; valor negativo indica retração.",
+                whatToObserve: "Observe a sequência de períodos e compare com participação para avaliar qualidade do crescimento.",
+              }}
               change={isLoading ? undefined : changeLabel}
               changeType={changeType}
               icon={icon}
               variant="kpi"
-              className="rounded-xl border-border/60 bg-card/70 p-4 h-[104px]"
+              className="rounded-xl border-border/80 bg-card/90 p-4 h-[104px]"
               valueClassName="text-3xl"
             />
           );

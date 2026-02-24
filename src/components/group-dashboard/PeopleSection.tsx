@@ -119,7 +119,7 @@ export function PeopleSection({
   }, [memberEngagement, previousMemberEngagement]);
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card/70 p-5">
+    <section className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm">
       <SectionHeader 
         title="Pessoas do Grupo" 
         subtitle="Quem sustenta a conversa"
@@ -219,7 +219,7 @@ export function PeopleSection({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-border/60 bg-card/60 p-5">
+          <div className="rounded-2xl border border-border/80 bg-card/90 p-5">
             <div className="mb-4">
               <p className="text-sm font-medium text-card-foreground">Top participantes</p>
               <p className="text-xs text-muted-foreground mt-0.5">{basedOnText}</p>
@@ -274,7 +274,7 @@ export function PeopleSection({
             )}
           </div>
 
-          <div className="rounded-2xl border border-border/60 bg-card/60 p-5">
+          <div className="rounded-2xl border border-border/80 bg-card/90 p-5">
             <div className="flex items-start justify-between gap-2 mb-4">
               <div>
                 <p className="text-sm font-medium text-card-foreground">Distribuição de engajamento</p>

@@ -3,7 +3,7 @@ import { Breadcrumbs, type BreadcrumbItem } from "@/components/ui/breadcrumbs";
 import { GroupHeader } from "@/components/group-dashboard/GroupHeader";
 import { cn, formatPhoneE164BR, getInitialsFromName, getPhoneFallback, isProbablyPhone } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Shield, Star } from "lucide-react";
+import { ChevronRight, Shield, Star, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -106,6 +106,23 @@ export function GroupPageTop({
     enabled: !!group.groupId,
   });
 
+  const { data: messages24hCount } = useQuery({
+    queryKey: ["group-messages-24h-count", group.groupId],
+    queryFn: async () => {
+      const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { count, error } = await supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("group_id", group.groupId)
+        .is("deleted_at", null)
+        .gte("created_at", sinceIso);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!group.groupId,
+    staleTime: 60_000,
+  });
+
   const orderedSpecialMembers = useMemo(() => {
     const list = (specialMembers ?? []).map((m) => {
       const roleKey = m.is_super_admin ? ("SUPERADMIN" as const) : ("ADMIN" as const);
@@ -146,25 +163,39 @@ export function GroupPageTop({
     const total = orderedSpecialMembers.length;
     if (total === 0) {
       return (
-        <div className="space-y-1.5">
-          <div className="text-[11px] font-semibold tracking-wide text-muted-foreground">Administração do grupo</div>
-          <div className="text-sm text-muted-foreground">Sem funções especiais configuradas.</div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Administração do grupo
+            </div>
+            <div className="text-xs text-muted-foreground">Sem funções especiais configuradas</div>
+          </div>
         </div>
       );
     }
 
     return (
       <>
-        <div className="space-y-1.5">
-          <div className="text-[11px] font-semibold tracking-wide text-muted-foreground">Administração do grupo</div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Administração do grupo
+            </div>
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
+              <span>{total} {total === 1 ? "administrador" : "administradores"}</span>
+            </div>
+          </div>
+
           <Button
             type="button"
-            variant="link"
+            variant="ghost"
             size="sm"
-            className="h-auto px-0 py-0 text-xs text-muted-foreground"
+            className="h-8 px-2.5 text-xs text-muted-foreground"
             onClick={() => setAdminsModalOpen(true)}
           >
-            Ver administradores ({total})
+            Ver administradores
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
@@ -236,10 +267,10 @@ export function GroupPageTop({
       </div>
       <div className="space-y-0">
         <GroupHeader
-          groupId={group.groupId}
           name={group.name}
           provider={group.provider}
           totalMembers={group.totalMembers}
+          messages24h={typeof messages24hCount === "number" ? messages24hCount : null}
           lastMessageAt={group.lastMessageAt}
           syncStatus={group.syncStatus}
           bottomSlot={headerAdminSection}
@@ -247,12 +278,12 @@ export function GroupPageTop({
       </div>
 
       {filters && (
-        <div className="rounded-xl border border-border/60 bg-card/70 p-3">
+        <div className="rounded-lg border border-border bg-card p-3">
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div className="flex flex-wrap items-center gap-3">{filters}</div>
             <div className="flex items-center gap-2">
               {_showClearFilters && _onClearFilters ? (
-                <Button type="button" variant="secondary" size="sm" onClick={_onClearFilters}>
+                <Button type="button" variant="ghost" size="sm" onClick={_onClearFilters}>
                   Limpar filtros
                 </Button>
               ) : null}

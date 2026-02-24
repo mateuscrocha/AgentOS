@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, NavLink } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import AccessDenied from "./AccessDenied";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -46,6 +48,7 @@ type PollOptionItem = {
 
 export default function GroupPoll() {
   const { groupId, pollId } = useParams();
+  const queryClient = useQueryClient();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [copyFallbackOpen, setCopyFallbackOpen] = useState(false);
   const [copyFallbackText, setCopyFallbackText] = useState("");
@@ -109,7 +112,7 @@ export default function GroupPoll() {
     enabled: !!groupId && isAuthenticated,
   });
 
-  const { data: poll, error: pollError } = useQuery({
+  const { data: poll, error: pollError, isLoading: pollLoading } = useQuery({
     queryKey: ["poll", pollId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -123,7 +126,7 @@ export default function GroupPoll() {
     enabled: !!pollId && isAuthenticated,
   });
 
-  const { data: pollOptions } = useQuery({
+  const { data: pollOptions, error: pollOptionsError } = useQuery({
     queryKey: ["poll-options-results", pollId],
     queryFn: async () => {
       const { data } = await supabase
@@ -141,7 +144,7 @@ export default function GroupPoll() {
     enabled: !!pollId && isAuthenticated,
   });
 
-  const { data: pollSummary } = useQuery({
+  const { data: pollSummary, error: pollSummaryError } = useQuery({
     queryKey: ["poll-summary", pollId],
     queryFn: async () => {
       const { data } = await supabase
@@ -154,7 +157,7 @@ export default function GroupPoll() {
     enabled: !!pollId && isAuthenticated,
   });
 
-  const { data: pollVotesByPerson, isLoading: pollVotesByPersonLoading } = useQuery({
+  const { data: pollVotesByPerson, isLoading: pollVotesByPersonLoading, error: pollVotesByPersonError } = useQuery({
     queryKey: ["poll-votes-by-person", pollId],
     queryFn: async () => {
       const { data } = await supabase
@@ -182,7 +185,7 @@ export default function GroupPoll() {
     return Array.from(new Set(ids)).sort();
   }, [pollVotesByPerson]);
 
-  const { data: voterAvatarMap } = useQuery({
+  const { data: voterAvatarMap, error: voterAvatarError } = useQuery({
     queryKey: ["poll-voters-avatars", groupId, voterIds],
     queryFn: async () => {
       if (!voterIds.length || !groupId) return {} as Record<string, string | null>;
@@ -201,6 +204,7 @@ export default function GroupPoll() {
     enabled: !!groupId && voterIds.length > 0 && isAuthenticated,
     staleTime: 5 * 60 * 1000,
   });
+  const detailError = pollOptionsError || pollSummaryError || pollVotesByPersonError || voterAvatarError;
 
   if (authLoading) {
     return (
@@ -221,14 +225,43 @@ export default function GroupPoll() {
     return <AccessDenied message="Você não tem permissão para acessar esta enquete." />;
   }
 
+  if (pollError || detailError) {
+    return (
+      <AdminLayout title="Enquete" subtitle="Detalhes da enquete">
+        <ErrorState
+          title="Não foi possível carregar a enquete."
+          message="Tente novamente em instantes."
+          retry={() => {
+            queryClient.invalidateQueries({ queryKey: ["poll", pollId] });
+            queryClient.invalidateQueries({ queryKey: ["poll-options-results", pollId] });
+            queryClient.invalidateQueries({ queryKey: ["poll-summary", pollId] });
+            queryClient.invalidateQueries({ queryKey: ["poll-votes-by-person", pollId] });
+            queryClient.invalidateQueries({ queryKey: ["poll-voters-avatars"] });
+          }}
+        />
+      </AdminLayout>
+    );
+  }
+
   const totalVotes = (pollOptions ?? []).reduce((sum, o) => sum + o.votesCount, 0);
   const votersCount = Number(pollSummary?.voters_count ?? 0);
   const voteEventsCount = Number(pollSummary?.vote_events_count ?? 0);
   const selectionsCount = Number(pollSummary?.selections_count ?? 0);
   const percentBase = selectionsCount > 0 ? selectionsCount : totalVotes;
   const sortedOptions = [...(pollOptions ?? [])].sort((a, b) => b.votesCount - a.votesCount);
-  const chartData = sortedOptions.map((o) => ({ name: o.optionText, value: o.votesCount }));
+  const truncateChartLabel = (text: string, max = 18) => {
+    const value = String(text ?? "").trim();
+    if (value.length <= max) return value;
+    return `${value.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+  };
+  const chartData = sortedOptions.map((o) => ({
+    name: truncateChartLabel(o.optionText),
+    fullName: o.optionText,
+    value: o.votesCount,
+  }));
   const topValue = sortedOptions.reduce((m, o) => Math.max(m, Number(o.votesCount ?? 0)), 0);
+  const topWinners = sortedOptions.filter((o) => topValue > 0 && o.votesCount === topValue);
+  const hasTieForFirst = topWinners.length > 1;
   const createdAtLabel = poll?.created_at ? formatDateDescriptiveBR(poll.created_at) : "";
 
   const participationPercent = (totalMembersCount ?? 0) > 0
@@ -286,6 +319,9 @@ export default function GroupPoll() {
     if (percentBase <= 0 || totalVotes <= 0) {
       lines.push("Sem votos ainda");
     } else {
+      if (hasTieForFirst) {
+        lines.push(`Empate na liderança entre ${topWinners.length} opções (${topValue} voto(s))`);
+      }
       opts.forEach((o, idx) => {
         const votes = Number(o.votesCount ?? 0);
         const pct = computePollPercent(votes, percentBase, 1);
@@ -332,14 +368,19 @@ export default function GroupPoll() {
           title="Enquete"
           description={createdAtLabel}
           actions={(
-            <NavLink to={`/groups/${groupId}/messages`} className="ml-auto">
-              <Button variant="outline" size="sm">Voltar às mensagens</Button>
-            </NavLink>
+            <>
+              <NavLink to={`/groups/${groupId}/polls`} className="ml-auto">
+                <Button variant="outline" size="sm">Voltar às enquetes</Button>
+              </NavLink>
+              <NavLink to={`/groups/${groupId}/messages`}>
+                <Button variant="ghost" size="sm">Mensagens</Button>
+              </NavLink>
+            </>
           )}
         />
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-3 p-5 border-b border-border">
+        <div className="rounded-xl border border-warning/20 bg-card/95 overflow-hidden shadow-sm">
+          <div className="flex items-center gap-3 p-5 border-b border-border/80">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <Activity className="h-6 w-6 text-primary" />
             </div>
@@ -351,6 +392,7 @@ export default function GroupPoll() {
 
           <div className="p-4 space-y-4">
             {!poll ? (
+              pollLoading ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -380,6 +422,12 @@ export default function GroupPoll() {
                   ))}
                 </div>
               </div>
+              ) : (
+                <EmptyState
+                  title="Enquete não encontrada"
+                  message="A enquete pode ter sido removida ou você não tem mais acesso a ela."
+                />
+              )
             ) : (
                 <div className="space-y-5">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -393,7 +441,11 @@ export default function GroupPoll() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-card-foreground">Resumo do Resultado</div>
-                      <div className="text-xs text-muted-foreground">Copie para WhatsApp com a formatação correta.</div>
+                      <div className="text-xs text-muted-foreground">
+                        {hasTieForFirst
+                          ? `Empate na liderança entre ${topWinners.length} opções.`
+                          : "Copie para WhatsApp com a formatação correta."}
+                      </div>
                     </div>
                     <Button
                       variant="outline"
@@ -408,7 +460,7 @@ export default function GroupPoll() {
                   </div>
 
                 {chartData.length === 0 ? (
-                  <div className="h-[260px] flex items-center justify-center bg-secondary/30 rounded-lg">
+                  <div className="h-[260px] flex items-center justify-center bg-muted/20 border border-border/70 rounded-lg">
                     <p className="text-sm text-muted-foreground">Sem dados para o gráfico</p>
                   </div>
                 ) : (
@@ -417,7 +469,13 @@ export default function GroupPoll() {
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} className="text-muted-foreground" axisLine={false} tickLine={false} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" axisLine={false} tickLine={false} width={40} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ChartTooltip
+                        content={<ChartTooltipContent />}
+                        formatter={(value, _name, item) => [
+                          value,
+                          (item?.payload as { fullName?: string } | undefined)?.fullName || "Opção",
+                        ]}
+                      />
                       <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
                         {chartData.map((entry, idx) => {
                           const isWinner = topValue > 0 && entry.value === topValue;
@@ -478,7 +536,7 @@ export default function GroupPoll() {
                       {pollVotesByPersonLoading ? (
                         <div className="space-y-2">
                           {Array.from({ length: 5 }).map((_, i) => (
-                            <div key={i} className="flex items-start gap-3 rounded-lg bg-card/50 px-3 py-2">
+                            <div key={i} className="flex items-start gap-3 rounded-lg border border-border/70 bg-card/80 px-3 py-2">
                               <Skeleton className="h-8 w-8 rounded-full" />
                               <div className="flex-1 space-y-2">
                                 <Skeleton className="h-3 w-40" />
@@ -492,7 +550,7 @@ export default function GroupPoll() {
                       ) : (
                         <div className="space-y-2">
                           {pollVotesByPerson.map((v: any, idx: number) => (
-                            <div key={`${v.personId || idx}-${v.createdAt}`} className="flex items-start justify-between gap-3 rounded-lg bg-card/50 px-3 py-2">
+                            <div key={`${v.personId || idx}-${v.createdAt}`} className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-card/80 px-3 py-2">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <div className="flex items-center gap-2 min-w-0">
@@ -531,7 +589,7 @@ export default function GroupPoll() {
                                 </div>
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   {(v.votedOptions as string[]).map((o: string, i: number) => (
-                                    <span key={`${o}-${i}`} className="text-[11px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{o}</span>
+                                    <span key={`${o}-${i}`} className="text-[11px] px-2 py-0.5 rounded border border-border/60 bg-secondary text-secondary-foreground">{o}</span>
                                   ))}
                                 </div>
                               </div>

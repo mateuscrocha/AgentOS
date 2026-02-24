@@ -125,7 +125,7 @@ export function PurposeAlignmentSection({
 
   if (disabled) {
     return (
-      <section className="rounded-2xl border border-border/60 bg-card/60 p-5">
+      <section className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm">
         <SectionHeader
           title="Alinhamento com o Propósito"
           titleAddon={
@@ -262,9 +262,9 @@ export function PurposeAlignmentSection({
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+        <div className="rounded-xl border border-border/70 bg-muted/15 p-3">
           <Accordion type="multiple" className="w-full">
-            <AccordionItem value="axes" className="border-border/60">
+            <AccordionItem value="axes" className="border-border/70">
               <AccordionTrigger className="text-sm text-muted-foreground hover:text-foreground">Como ler os eixos</AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2 text-sm text-muted-foreground">
@@ -307,7 +307,7 @@ export function PurposeAlignmentSection({
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="about" className="border-border/60">
+            <AccordionItem value="about" className="border-border/70">
               <AccordionTrigger className="text-sm text-muted-foreground hover:text-foreground">Sobre esta leitura</AccordionTrigger>
               <AccordionContent>
                 <ul className="space-y-1 text-sm text-muted-foreground">

@@ -10,6 +10,12 @@ let initialGroupEditData: any | undefined;
 let GroupEditComponent: any;
 let isSystemAdminValue = true;
 
+function setNativeValue(element: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  const proto = Object.getPrototypeOf(element);
+  const descriptor = Object.getOwnPropertyDescriptor(proto, "value");
+  descriptor?.set?.call(element, value);
+}
+
 vi.mock("@/hooks/use-auth", () => {
   return {
     useAuth: () => ({ loading: false, isAuthenticated: true, user: { id: "00000000-0000-4000-8000-000000000099" } }),
@@ -203,6 +209,104 @@ describe("GroupEdit — ajustes de UI", () => {
     expect(container.textContent).toContain("Acesso Negado");
     expect(container.textContent).toContain("SYSTEM_ADMIN");
     expect(insertEventMock).toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("mostra erros de validação e desabilita salvar para timezone/horário inválidos", async () => {
+    groupEditData = {
+      ...initialGroupEditData,
+      metadata: {
+        ...(initialGroupEditData?.metadata || {}),
+        timezone: "Invalid/Timezone",
+        operations: {
+          ...((initialGroupEditData?.metadata as any)?.operations || {}),
+          summary_time: "25:99",
+        },
+      },
+    };
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter
+          initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
+          <Routes>
+            <Route path="/groups/:groupId/edit" element={<GroupEditComponent />} />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+
+    expect(container.textContent).toContain("Timezone inválido");
+    expect(container.textContent).toContain("Horário inválido");
+
+    const saveButton = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Salvar alterações"));
+    expect(saveButton).toBeDefined();
+    expect((saveButton as HTMLButtonElement).disabled).toBe(true);
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("preserva rascunho local após refetch parcial da query", async () => {
+    groupEditData = {
+      ...initialGroupEditData,
+      description: "",
+      invite_link: null,
+    };
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    const renderPage = async () => {
+      await act(async () => {
+        root.render(
+          <MemoryRouter
+            initialEntries={["/groups/00000000-0000-4000-8000-000000000000/edit"]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
+            <Routes>
+              <Route path="/groups/:groupId/edit" element={<GroupEditComponent />} />
+            </Routes>
+          </MemoryRouter>
+        );
+      });
+    };
+
+    await renderPage();
+
+    const descriptionTextarea = container.querySelector("#group-description") as HTMLTextAreaElement | null;
+    expect(descriptionTextarea).not.toBeNull();
+
+    await act(async () => {
+      setNativeValue(descriptionTextarea!, "Rascunho local");
+      descriptionTextarea!.dispatchEvent(new Event("input", { bubbles: true }));
+      descriptionTextarea!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(descriptionTextarea?.value).toBe("Rascunho local");
+
+    groupEditData = {
+      ...groupEditData,
+      invite_link: "https://chat.whatsapp.com/updated-on-server",
+      sync_status: "ok",
+    };
+
+    await renderPage();
+
+    const descriptionAfterRerender = container.querySelector("#group-description") as HTMLTextAreaElement | null;
+    expect(descriptionAfterRerender?.value).toBe("Rascunho local");
 
     await act(async () => {
       root.unmount();

@@ -219,6 +219,11 @@ export default function SystemEvents() {
               value={eventsData?.total ?? '—'}
               icon={Activity}
               variant="kpi"
+              help={{
+                whatIs: "Total de eventos do sistema encontrados no período e filtros selecionados.",
+                howToInterpret: "Mede volume de ocorrências registradas (auditoria/telemetria) no recorte atual.",
+                whatToObserve: "Observe picos e use os filtros por entidade/tipo para investigar a origem.",
+              }}
             />
           )}
         />

@@ -31,7 +31,7 @@ interface AdminsSectionProps {
 export function AdminsSection({ adminStats, previousAdminStats, isLoading, periodLabel = "período" }: AdminsSectionProps) {
   if (isLoading) {
     return (
-      <section className="rounded-xl border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm">
       <SectionHeader 
         title="Admins do Grupo" 
         subtitle={`Comportamento de liderança (${periodLabel})`}
@@ -43,7 +43,7 @@ export function AdminsSection({ adminStats, previousAdminStats, isLoading, perio
 
   if (!adminStats || adminStats.total === 0) {
     return (
-      <section className="rounded-xl border border-border bg-card p-5">
+      <section className="rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm">
       <SectionHeader 
         title="Admins do Grupo" 
         subtitle={`Comportamento de liderança (${periodLabel})`}
@@ -76,7 +76,7 @@ export function AdminsSection({ adminStats, previousAdminStats, isLoading, perio
     : undefined;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm">
       <SectionHeader 
         title="Admins do Grupo" 
         subtitle={`Comportamento de liderança (${periodLabel})`}

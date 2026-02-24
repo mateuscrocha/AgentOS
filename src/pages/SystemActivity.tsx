@@ -431,14 +431,94 @@ export default function SystemActivity() {
           generalKpis={
             overview ? (
               <>
-                <StatsCard title="Organizações" value={overview.orgs_total ?? "—"} icon={Building2} variant="kpi" />
-                <StatsCard title="Organizações com atividade" value={overview.orgs_with_activity ?? "—"} icon={Activity} variant="kpi" />
-                <StatsCard title="Ativas" value={overview.orgs_active ?? "—"} icon={BarChart3} variant="kpi" />
-                <StatsCard title="Mornas" value={overview.orgs_warm ?? "—"} icon={BarChart3} variant="kpi" />
-                <StatsCard title="Inativas" value={overview.orgs_inactive ?? "—"} icon={BarChart3} variant="kpi" />
-                <StatsCard title="Admins ativos" value={overview.org_admins_active ?? "—"} icon={Users} variant="kpi" />
-                <StatsCard title="Logins" value={overview.logins ?? "—"} icon={Activity} variant="kpi" />
-                <StatsCard title="Visualizações de página" value={overview.page_views ?? "—"} icon={Activity} variant="kpi" />
+                <StatsCard
+                  title="Organizações"
+                  value={overview.orgs_total ?? "—"}
+                  icon={Building2}
+                  variant="kpi"
+                  help={{
+                    whatIs: "Total de organizações avaliadas no painel de atividade para o período/filtros atuais.",
+                    howToInterpret: "É a base de referência para comparar quantas estão ativas, mornas ou inativas.",
+                    whatToObserve: "Compare com ‘Organizações com atividade’ para medir cobertura de uso.",
+                  }}
+                />
+                <StatsCard
+                  title="Organizações com atividade"
+                  value={overview.orgs_with_activity ?? "—"}
+                  icon={Activity}
+                  variant="kpi"
+                  help={{
+                    whatIs: "Organizações que tiveram sinais de atividade no período (eventos de uso, acessos ou interação).",
+                    howToInterpret: "Mostra adoção real no intervalo analisado, não apenas organizações cadastradas.",
+                    whatToObserve: "Acompanhe a proporção sobre o total e sua evolução ao alterar o período.",
+                  }}
+                />
+                <StatsCard
+                  title="Ativas"
+                  value={overview.orgs_active ?? "—"}
+                  icon={BarChart3}
+                  variant="kpi"
+                  help={{
+                    whatIs: "Organizações classificadas como ativas segundo as regras do painel (dias/recência de atividade).",
+                    howToInterpret: "Representa a faixa mais saudável de engajamento operacional no período.",
+                    whatToObserve: "Observe migração entre ‘Ativas’, ‘Mornas’ e ‘Inativas’ ao longo do tempo.",
+                  }}
+                />
+                <StatsCard
+                  title="Mornas"
+                  value={overview.orgs_warm ?? "—"}
+                  icon={BarChart3}
+                  variant="kpi"
+                  help={{
+                    whatIs: "Organizações com atividade intermediária (nem inativas, nem plenamente ativas).",
+                    howToInterpret: "É uma faixa de atenção: existe uso, mas abaixo do patamar considerado saudável.",
+                    whatToObserve: "Acompanhe se estão migrando para ‘Ativas’ ou escorregando para ‘Inativas’.",
+                  }}
+                />
+                <StatsCard
+                  title="Inativas"
+                  value={overview.orgs_inactive ?? "—"}
+                  icon={BarChart3}
+                  variant="kpi"
+                  help={{
+                    whatIs: "Organizações sem atividade suficiente no período, segundo a regra deste painel.",
+                    howToInterpret: "Indica risco de desengajamento ou ausência de uso recente.",
+                    whatToObserve: "Priorize concentração por carteira/segmento e tendência de crescimento.",
+                  }}
+                />
+                <StatsCard
+                  title="Admins ativos"
+                  value={overview.org_admins_active ?? "—"}
+                  icon={Users}
+                  variant="kpi"
+                  help={{
+                    whatIs: "Quantidade de administradores de organização com atividade no período.",
+                    howToInterpret: "Mostra engajamento operacional de quem gerencia organizações.",
+                    whatToObserve: "Compare com logins e visualizações para avaliar qualidade de uso administrativo.",
+                  }}
+                />
+                <StatsCard
+                  title="Logins"
+                  value={overview.logins ?? "—"}
+                  icon={Activity}
+                  variant="kpi"
+                  help={{
+                    whatIs: "Quantidade de logins registrados no período selecionado.",
+                    howToInterpret: "Mede acessos à plataforma e ajuda a inferir frequência de uso.",
+                    whatToObserve: "Leia junto de admins ativos e page views para evitar interpretação isolada.",
+                  }}
+                />
+                <StatsCard
+                  title="Visualizações de página"
+                  value={overview.page_views ?? "—"}
+                  icon={Activity}
+                  variant="kpi"
+                  help={{
+                    whatIs: "Total de páginas visualizadas na aplicação durante o período.",
+                    howToInterpret: "Indica intensidade de navegação/uso. Pode crescer por maior adoção ou por mais sessões por usuário.",
+                    whatToObserve: "Compare com logins para entender profundidade média de navegação.",
+                  }}
+                />
               </>
             ) : null
           }

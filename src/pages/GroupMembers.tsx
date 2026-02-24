@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge, RoleBadge, StatusBadge, type MemberStatusKey } from "@/components/ui/badge";
+import { FilterTriggerButton } from "@/components/ui/filter-trigger-button";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink } from "@/components/ui/pagination";
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -256,7 +257,7 @@ const GroupMembers = () => {
       subtitle={`${(totalMembersCount ?? 0).toLocaleString("pt-BR")} membros${search.trim() ? ` • ${(membersData?.count ?? 0).toLocaleString("pt-BR")} encontrados` : ""}`}
     >
       <TooltipProvider>
-        <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-background space-y-6">
+        <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-info/5 space-y-6">
           <GroupPageTop
             breadcrumbItems={[
               { label: "Central do Bóris", href: "/" },
@@ -287,7 +288,7 @@ const GroupMembers = () => {
                         setSearch(e.target.value);
                         setPage(1);
                       }}
-                      className="w-full pl-10 pr-16 h-11 rounded-xl border border-border/60 bg-card/70 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className="w-full pl-10 pr-16 h-11 rounded-xl border border-border/80 bg-card/95 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     />
 
                     {isSearching || isFetching ? (
@@ -310,22 +311,12 @@ const GroupMembers = () => {
                   </div>
 
                   <div className="sm:hidden">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-11 rounded-xl bg-card/70"
+                    <FilterTriggerButton
+                      className="w-auto"
                       onClick={() => setFiltersOpen(true)}
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        <Filter className="h-4 w-4" />
-                        Filtrar
-                      </span>
-                      {hasActiveFilters ? (
-                        <Badge variant="secondary" className="ml-2 h-6 px-2 text-[11px] tabular-nums">
-                          {activeFiltersCount}
-                        </Badge>
-                      ) : null}
-                    </Button>
+                      icon={Filter}
+                      activeCount={hasActiveFilters ? activeFiltersCount : undefined}
+                    />
                   </div>
                 </div>
 
@@ -339,7 +330,7 @@ const GroupMembers = () => {
                           "px-3 py-2 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                           roleFilter === opt.key
                             ? "bg-primary text-primary-foreground border-transparent"
-                            : "bg-card/70 border-border/60 text-foreground"
+                            : "bg-card/95 border-border/80 text-foreground hover:bg-secondary/35"
                         )}
                         onClick={() => {
                           setRoleFilter(opt.key);
@@ -385,7 +376,7 @@ const GroupMembers = () => {
                                 "px-3 py-2 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                                 roleFilter === opt.key
                                   ? "bg-primary text-primary-foreground border-transparent"
-                                  : "bg-background/60 border-border text-foreground"
+                                  : "bg-card/90 border-border/80 text-foreground hover:bg-secondary/25"
                               )}
                               onClick={() => {
                                 setRoleFilter(opt.key);
@@ -435,6 +426,12 @@ const GroupMembers = () => {
               value={(totalMembersCount ?? 0).toLocaleString("pt-BR")}
               icon={Users}
               variant="kpi"
+              help={{
+                whatIs: "Quantidade total de membros cadastrados neste grupo.",
+                howToInterpret: "Mostra o tamanho atual da base do grupo, independentemente de atividade recente.",
+                whatToObserve: "Compare com ‘Admins’ e com métricas de atividade para entender distribuição e engajamento.",
+              }}
+              className="border-info/20"
               isLoading={overviewLoading}
             />
             <StatsCard
@@ -442,6 +439,12 @@ const GroupMembers = () => {
               value={(membersOverview?.adminsCount ?? 0).toLocaleString("pt-BR")}
               icon={Shield}
               variant="kpi"
+              help={{
+                whatIs: "Quantidade de administradores entre os membros do grupo.",
+                howToInterpret: "Indica o tamanho da camada de gestão/liderança no grupo.",
+                whatToObserve: "Observe a proporção de admins sobre o total para evitar excesso ou falta de cobertura.",
+              }}
+              className="border-info/20"
               isLoading={overviewLoading}
             />
             <StatsCard
@@ -449,6 +452,12 @@ const GroupMembers = () => {
               value={(membersOverview?.avgMsgsPerActiveLast30d ?? 0).toFixed(1).replace(".", ",")}
               icon={BarChart3}
               variant="kpi"
+              help={{
+                whatIs: "Média de mensagens por membro ativo neste grupo nos últimos 30 dias.",
+                howToInterpret: "Mede intensidade média de participação entre quem falou no período.",
+                whatToObserve: "Se subir com menos ativos, pode indicar concentração da conversa em poucas pessoas.",
+              }}
+              className="border-info/20"
               isLoading={overviewLoading}
             />
           </div>
@@ -479,7 +488,7 @@ const GroupMembers = () => {
                 return (
                   <article
                     key={m.id}
-                    className="rounded-2xl border border-border/60 bg-card/70 px-4 py-4 sm:px-5 cursor-pointer transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="rounded-2xl border border-border/80 bg-card/90 px-4 py-4 sm:px-5 cursor-pointer transition-[transform,background-color,box-shadow] hover:bg-card hover:shadow-sm hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     onClick={() => setSelectedMemberId(m.id)}
                     role="button"
                     tabIndex={0}
@@ -544,7 +553,7 @@ const GroupMembers = () => {
               if (totalPages <= 1) return null;
               const items = buildPagination(page, totalPages);
               return (
-                <div className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3">
+                <div className="rounded-2xl border border-info/20 bg-card/90 px-4 py-3 shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="text-sm text-muted-foreground">
                       Página <span className="font-medium text-foreground tabular-nums">{page}</span> de{" "}

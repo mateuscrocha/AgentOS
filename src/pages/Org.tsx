@@ -36,6 +36,13 @@ import { EditGroupModal } from "@/components/modals/EditGroupModal";
 import { Button } from "@/components/ui/button";
 import { notify } from "@/components/ui/sonner";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { StatusTag } from "@/components/ui/status-tag";
 import { Card, CardContent } from "@/components/ui/card";
@@ -797,48 +804,51 @@ const Org = () => {
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-            <input
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4">
+            <Input
               type="text"
               placeholder="Buscar por nome ou descrição"
               value={profileSearch}
               onChange={(e) => setProfileSearch(e.target.value)}
-              className="h-9 w-full px-3 rounded-lg border border-border/60 bg-background text-sm"
+              className="h-9"
             />
-            <select
-              value={profileStatusFilter}
-              onChange={(e) => setProfileStatusFilter(e.target.value as any)}
-              className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
-            >
-              <option value="all">Status</option>
-              <option value="active">Ativos</option>
-              <option value="inactive">Inativos</option>
-            </select>
-            <input
+            <Select value={profileStatusFilter} onValueChange={(v) => setProfileStatusFilter(v as any)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Status</SelectItem>
+                <SelectItem value="active">Ativos</SelectItem>
+                <SelectItem value="inactive">Inativos</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
               type="text"
               placeholder="Filtrar por líder"
               value={profileLeaderFilter}
               onChange={(e) => setProfileLeaderFilter(e.target.value)}
-              className="h-9 w-full px-3 rounded-lg border border-border/60 bg-background text-sm"
+              className="h-9"
             />
-            <div className="flex gap-2">
-              <select
-                value={profileOrderBy}
-                onChange={(e) => setProfileOrderBy(e.target.value as any)}
-                className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
-              >
-                <option value="name">Ordenar: nome</option>
-                <option value="members">Ordenar: integrantes</option>
-                <option value="status">Ordenar: status</option>
-              </select>
-              <select
-                value={profileOrderDir}
-                onChange={(e) => setProfileOrderDir(e.target.value as any)}
-                className="h-9 px-3 rounded-lg border border-border/60 bg-background text-sm"
-              >
-                <option value="asc">Asc</option>
-                <option value="desc">Desc</option>
-              </select>
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={profileOrderBy} onValueChange={(v) => setProfileOrderBy(v as any)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Ordenar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Ordenar: nome</SelectItem>
+                  <SelectItem value="members">Ordenar: integrantes</SelectItem>
+                  <SelectItem value="status">Ordenar: status</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={profileOrderDir} onValueChange={(v) => setProfileOrderDir(v as any)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Direção" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">Asc</SelectItem>
+                  <SelectItem value="desc">Desc</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -2154,17 +2164,17 @@ const Org = () => {
                         <div className="mt-4 hidden md:block">
                           <div className="overflow-hidden rounded-xl border border-border">
                             <table className="w-full text-sm">
-                              <thead className="bg-secondary/30">
+                              <thead className="bg-secondary/20">
                                 <tr>
-                                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Colaborador</th>
-                                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Tipo</th>
-                                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Grupos</th>
-                                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Grupos (período)</th>
-                                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Msgs (7d)</th>
-                                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Ação</th>
+                                  <th className="px-4 py-3 text-left text-[13px] font-semibold text-foreground/75">Colaborador</th>
+                                  <th className="px-4 py-3 text-left text-[13px] font-semibold text-foreground/75">Tipo</th>
+                                  <th className="px-4 py-3 text-right text-[13px] font-semibold text-foreground/75">Grupos</th>
+                                  <th className="px-4 py-3 text-right text-[13px] font-semibold text-foreground/75">Grupos (período)</th>
+                                  <th className="px-4 py-3 text-right text-[13px] font-semibold text-foreground/75">Msgs (7d)</th>
+                                  <th className="px-4 py-3 text-right text-[13px] font-semibold text-foreground/75">Ação</th>
                                 </tr>
                               </thead>
-                              <tbody>
+                              <tbody className="divide-y divide-border">
                                 {rows.map((c) => {
                                   const isExternal = String(c.classification) === "external";
                                   const label = String(c.display_name || c.provider_member_id || c.phone_e164 || "Colaborador");
@@ -2172,20 +2182,20 @@ const Org = () => {
                                   const providerMemberId = (c.provider_member_id ?? null) as string | null;
 
                                   return (
-                                    <tr key={String(c.collaborator_ref)} className="border-t border-border">
-                                      <td className="px-3 py-3">
+                                    <tr key={String(c.collaborator_ref)} className="h-11">
+                                      <td className="px-4 py-2 text-[14px] align-middle">
                                         <div className="font-medium text-card-foreground">{label}</div>
                                         <div className="text-xs text-muted-foreground">{phone || providerMemberId || "—"}</div>
                                       </td>
-                                      <td className="px-3 py-3">
+                                      <td className="px-4 py-2 text-[14px] align-middle">
                                         <StatusTag variant={isExternal ? "neutral" : "success"}>
                                           {isExternal ? "Externo/Cliente" : "Colaborador"}
                                         </StatusTag>
                                       </td>
-                                      <td className="px-3 py-3 text-right tabular-nums">{formatNumberBR(Number(c.groups_count ?? 0))}</td>
-                                      <td className="px-3 py-3 text-right tabular-nums">{formatNumberBR(Number(c.groups_active ?? 0))}</td>
-                                      <td className="px-3 py-3 text-right tabular-nums">{formatNumberBR(Number(c.messages_total ?? 0))}</td>
-                                      <td className="px-3 py-3 text-right">
+                                      <td className="px-4 py-2 text-[14px] text-right tabular-nums align-middle">{formatNumberBR(Number(c.groups_count ?? 0))}</td>
+                                      <td className="px-4 py-2 text-[14px] text-right tabular-nums align-middle">{formatNumberBR(Number(c.groups_active ?? 0))}</td>
+                                      <td className="px-4 py-2 text-[14px] text-right tabular-nums align-middle">{formatNumberBR(Number(c.messages_total ?? 0))}</td>
+                                      <td className="px-4 py-2 text-right align-middle">
                                         <Button
                                           size="sm"
                                           variant="outline"

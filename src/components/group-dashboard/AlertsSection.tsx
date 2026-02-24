@@ -143,7 +143,7 @@ export function AlertsSection({
   const themes = (ikigaiSuggestions?.themes || []).slice(0, 3);
   const hasProblems = atRiskMembers.length > 0;
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm">
       <SectionHeader 
         title="Alertas e Oportunidades" 
         subtitle="Pontos de atenção para o gestor"

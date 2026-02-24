@@ -31,6 +31,8 @@ import { notify } from "@/components/ui/sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
 import { Badge } from "@/components/ui/badge";
+import { FilterChips } from "@/components/ui/filter-chips";
+import { FilterTriggerButton } from "@/components/ui/filter-trigger-button";
 import { useSystemOrganizations, type OrganizationListItem } from "@/hooks/use-system-organizations";
 
 const PAGE_SIZE = 10;
@@ -270,6 +272,13 @@ export default function SystemOrganizations() {
   const hasActiveFilters = !!search || statusFilter !== "all" || orderBy !== "name" || orderDir !== "asc";
   const activeFiltersCount = Number(!!search) + Number(statusFilter !== "all") + Number(orderBy !== "name" || orderDir !== "asc");
   const sortValue = `${orderBy}:${orderDir}`;
+  const sortLabel = (() => {
+    if (orderBy === "name" && orderDir === "asc") return "";
+    if (orderBy === "name" && orderDir === "desc") return "Ordenação: nome (Z-A)";
+    if (orderBy === "created_at" && orderDir === "desc") return "Ordenação: mais recentes";
+    if (orderBy === "created_at" && orderDir === "asc") return "Ordenação: mais antigas";
+    return "Ordenação personalizada";
+  })();
 
   const clearFilters = () => {
     setSearch("");
@@ -374,6 +383,11 @@ export default function SystemOrganizations() {
               icon={Building2}
               variant="kpi"
               isLoading={overviewLoading}
+              help={{
+                whatIs: "Quantidade total de organizações cadastradas no sistema.",
+                howToInterpret: "Mostra o tamanho da base de clientes/organizações na plataforma.",
+                whatToObserve: "Compare com ‘Grupos’ para acompanhar crescimento de estrutura por organização.",
+              }}
             />
             <StatsCard
               title="Grupos"
@@ -381,32 +395,26 @@ export default function SystemOrganizations() {
               icon={Users}
               variant="kpi"
               isLoading={overviewLoading}
+              help={{
+                whatIs: "Total de grupos vinculados às organizações cadastradas.",
+                howToInterpret: "Mostra a escala operacional distribuída entre as organizações.",
+                whatToObserve: "Mudanças bruscas podem refletir criação/remoção em lote ou ajustes de vínculo.",
+              }}
             />
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card/60 p-3 sm:p-4">
+        <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="hidden md:flex flex-wrap items-center gap-2">{filtersForm}</div>
 
             <div className="md:hidden w-full">
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="w-full justify-between bg-background/60"
+              <FilterTriggerButton
                 onClick={() => setFiltersOpen(true)}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filtrar
-                </span>
-                {hasActiveFilters && (
-                  <Badge variant="secondary" className="h-6 px-2 text-[11px]">
-                    {activeFiltersCount} filtro{activeFiltersCount > 1 ? "s" : ""}
-                  </Badge>
-                )}
-              </Button>
+                icon={SlidersHorizontal}
+                activeCount={hasActiveFilters ? activeFiltersCount : undefined}
+                countLabel={`${activeFiltersCount} filtro${activeFiltersCount > 1 ? "s" : ""}`}
+              />
             </div>
 
             <div className="hidden md:flex items-center gap-2">
@@ -422,9 +430,51 @@ export default function SystemOrganizations() {
               )}
             </div>
           </div>
+
+          {hasActiveFilters ? (
+            <FilterChips
+              className="mt-3"
+              items={[
+                ...(search
+                  ? [{
+                      key: "search",
+                      label: `Busca: ${search}`,
+                      onRemove: () => {
+                        setSearch("");
+                        setPage(1);
+                      },
+                      ariaLabel: "Remover filtro de busca",
+                    }]
+                  : []),
+                ...(statusFilter !== "all"
+                  ? [{
+                      key: "status",
+                      label: `Status: ${statusFilter === "active" ? "ativas" : statusFilter === "inactive" ? "inativas" : "suspensas"}`,
+                      onRemove: () => {
+                        setStatusFilter("all");
+                        setPage(1);
+                      },
+                      ariaLabel: "Remover filtro de status",
+                    }]
+                  : []),
+                ...(sortLabel
+                  ? [{
+                      key: "sort",
+                      label: sortLabel,
+                      onRemove: () => {
+                        setOrderBy("name");
+                        setOrderDir("asc");
+                        setPage(1);
+                      },
+                      ariaLabel: "Remover ordenação personalizada",
+                    }]
+                  : []),
+              ]}
+            />
+          ) : null}
         </div>
 
-        <div className="rounded-xl border border-border bg-card/70 px-4 py-3">
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-card-foreground">Lista de organizações</span>

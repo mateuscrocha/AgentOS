@@ -204,6 +204,11 @@ export default function SystemPeople() {
               value={data?.count ?? '—'}
               icon={Users}
               variant="kpi"
+              help={{
+                whatIs: "Quantidade de pessoas retornadas pela consulta no período e filtros selecionados.",
+                howToInterpret: "Mostra a abrangência da visão atual de pessoas na janela analisada.",
+                whatToObserve: "Compare ao mudar período/filtros para entender alcance e variação da base observada.",
+              }}
             />
           )}
         />

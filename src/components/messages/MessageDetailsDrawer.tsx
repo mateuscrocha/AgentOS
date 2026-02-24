@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { applyWhatsAppStylesToParts, formatWhatsAppStyles } from "@/lib/whatsapp-format";
 import { translateMessageType } from "@/lib/messages";
 import { Link as LinkIcon, Image, Mic, Video, FileText, MessageSquare, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 type Variant = "sheet" | "dialog";
 
@@ -85,6 +86,8 @@ const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string,
 
 export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, variant = "sheet" }: MessageDetailsDrawerProps) {
   const sectionClassName = "rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3";
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const formatDateFriendly = (input?: string | Date): string => {
     if (!input) return "—";
@@ -278,6 +281,17 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
     return { before, after };
   }, [contextBefore, contextAfter]);
 
+  const openContextMessage = (targetMessageId: string) => {
+    const targetPath = `/groups/${groupId}/messages`;
+    if (location.pathname === targetPath) {
+      const sp = new URLSearchParams(location.search);
+      sp.set("messageId", targetMessageId);
+      navigate({ pathname: targetPath, search: `?${sp.toString()}` }, { replace: true });
+      return;
+    }
+    navigate(`${targetPath}?messageId=${encodeURIComponent(targetMessageId)}`);
+  };
+
   const headerSection = (
     <div className="space-y-2">
       <div className="flex items-start gap-3">
@@ -450,7 +464,12 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
           ) : (
             <div className="space-y-2">
               {contextRows.before.map((c) => (
-                <div key={`before-${c.message_id}`} className="rounded-lg px-3 py-2 hover:bg-secondary/20 transition-colors">
+                <button
+                  key={`before-${c.message_id}`}
+                  type="button"
+                  onClick={() => openContextMessage(c.message_id)}
+                  className="w-full text-left rounded-lg px-3 py-2 hover:bg-secondary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
                   <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                     <span>{formatDateFriendly(c.created_at)}</span>
                     <span className="text-muted-foreground/60">•</span>
@@ -461,7 +480,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                       ? formatWhatsAppStyles(c.content_preview || `[${translateMessageType(c.message_type)}]`)
                       : (c.content_preview || `[${translateMessageType(c.message_type)}]`)}
                   </div>
-                </div>
+                </button>
               ))}
 
               <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
@@ -475,7 +494,12 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
               </div>
 
               {contextRows.after.map((c) => (
-                <div key={`after-${c.message_id}`} className="rounded-lg px-3 py-2 hover:bg-secondary/20 transition-colors">
+                <button
+                  key={`after-${c.message_id}`}
+                  type="button"
+                  onClick={() => openContextMessage(c.message_id)}
+                  className="w-full text-left rounded-lg px-3 py-2 hover:bg-secondary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
                   <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                     <span>{formatDateFriendly(c.created_at)}</span>
                     <span className="text-muted-foreground/60">•</span>
@@ -486,12 +510,12 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                       ? formatWhatsAppStyles(c.content_preview || `[${translateMessageType(c.message_type)}]`)
                       : (c.content_preview || `[${translateMessageType(c.message_type)}]`)}
                   </div>
-                </div>
+                </button>
               ))}
 
               <div className="flex justify-end">
                 <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs">
-                  <a href={`/groups/${groupId}/messages`}>Ver na conversa completa</a>
+                  <a href={`/groups/${groupId}/messages?messageId=${encodeURIComponent(messageId)}`}>Ver na conversa completa</a>
                 </Button>
               </div>
             </div>

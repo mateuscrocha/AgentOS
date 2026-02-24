@@ -92,7 +92,7 @@ export function PeriodFilter({ value, customRange, onChange }: PeriodFilterProps
     <div className="flex items-center gap-2">
       <Popover open={isCustomOpen} onOpenChange={setIsCustomOpen}>
         <Select value={value} onValueChange={(v) => handlePeriodChange(v as PeriodType)}>
-          <SelectTrigger className="w-[160px] sm:w-[200px] bg-card border-border" aria-label="Mostrar dados de">
+          <SelectTrigger className="w-[160px] sm:w-[200px] bg-card/95 border-border/80" aria-label="Mostrar dados de">
             <SelectValue placeholder="Período">
               {formatRangeLabel()}
             </SelectValue>

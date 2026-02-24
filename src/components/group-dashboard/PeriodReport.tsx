@@ -40,7 +40,7 @@ export function PeriodReport(props: PeriodReportProps) {
     : "O grupo ficou mais em modo observação neste período.";
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card/70 p-5">
+    <section className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm">
       <SectionHeader 
         title="Resumo do período" 
         subtitle={`Leitura rápida da base ativa — últimos ${periodDays} dias`}
@@ -69,7 +69,7 @@ export function PeriodReport(props: PeriodReportProps) {
                 "Se o volume de mensagens cresce, mas este número cai, a conversa pode estar acontecendo em poucos momentos concentrados.",
             }}
             valueClassName="text-primary/80"
-            className="shadow-none bg-card/60 border-border/60"
+            className="shadow-none bg-card/90 border-border/80"
           />
           <KpiCard
             title="Base ativa no período"
@@ -83,7 +83,7 @@ export function PeriodReport(props: PeriodReportProps) {
                 "Compare com ‘Observadores’. Quando a base ativa encolhe e os observadores crescem, o grupo tende a ficar mais em modo leitura.",
             }}
             valueClassName="text-card-foreground"
-            className="shadow-none bg-card/60 border-border/60"
+            className="shadow-none bg-card/90 border-border/80"
           />
           <KpiCard
             title="Observadores"
@@ -97,7 +97,7 @@ export function PeriodReport(props: PeriodReportProps) {
                 "Se os observadores aumentam por vários períodos seguidos, pode valer testar perguntas simples ou convites à participação.",
             }}
             valueClassName="text-muted-foreground"
-            className="shadow-none bg-card/60 border-border/60"
+            className="shadow-none bg-card/90 border-border/80"
           />
         </div>
 

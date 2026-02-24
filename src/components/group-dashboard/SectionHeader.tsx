@@ -51,7 +51,7 @@ export function SectionHeader({
           )}
         >
           {TitleIcon && (
-            <span className={cn("inline-flex items-center justify-center rounded-md", isCompact ? "h-6 w-6 bg-secondary/60" : "h-7 w-7 bg-secondary/60")}>
+            <span className={cn("inline-flex items-center justify-center rounded-md border border-border/70 bg-muted/20", isCompact ? "h-6 w-6" : "h-7 w-7")}>
               <TitleIcon className={cn("text-muted-foreground", isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} />
             </span>
           )}

@@ -626,6 +626,11 @@ const Index = () => {
         value={systemTotalsError ? "Erro" : String(systemTotals?.messages ?? 0)}
         isLoading={systemTotalsLoading}
         icon={MessageSquare}
+        help={{
+          whatIs: "Total acumulado de mensagens registradas em toda a base do sistema.",
+          howToInterpret: "É um indicador histórico/cumulativo. Tende a crescer continuamente com o uso.",
+          whatToObserve: "Use junto de ‘Mensagens (30d)’ para diferenciar tamanho da base de ritmo recente.",
+        }}
         description="Mensagens acumuladas na base"
         variant="kpi"
       />
@@ -636,6 +641,11 @@ const Index = () => {
         change={kpiMessagesLoading ? undefined : messagesChangeLabel}
         changeType={messagesChangeType}
         icon={MessageSquare}
+        help={{
+          whatIs: "Quantidade de mensagens enviadas no sistema nos últimos 30 dias.",
+          howToInterpret: "Mostra o volume recente de uso. Compare com o período anterior para ver tendência.",
+          whatToObserve: "Leia junto de membros ativos e participação para entender distribuição do volume.",
+        }}
         description="Total de mensagens enviadas nos últimos 30 dias"
         variant="kpi"
       />
@@ -646,6 +656,11 @@ const Index = () => {
         change={kpiActiveMembersLoading ? undefined : activeMembersChange.label}
         changeType={activeMembersChange.type}
         icon={UsersIcon}
+        help={{
+          whatIs: "Pessoas que enviaram ao menos uma mensagem no sistema nos últimos 30 dias.",
+          howToInterpret: "Mede o tamanho da base realmente ativa no período.",
+          whatToObserve: "Compare com participação (%) para avaliar alcance relativo do uso.",
+        }}
         description="Pessoas que enviaram pelo menos 1 mensagem nos últimos 30 dias"
         variant="kpi"
       />
@@ -656,6 +671,11 @@ const Index = () => {
         change={participationChange.label}
         changeType={participationChange.type}
         icon={UsersIcon}
+        help={{
+          whatIs: "Percentual de membros do sistema que participaram com mensagem nos últimos 30 dias.",
+          howToInterpret: "Mostra engajamento relativo da base. Valores maiores indicam maior alcance de participação.",
+          whatToObserve: "Observe tendência e leia em conjunto com o volume de mensagens.",
+        }}
         description="Percentual de membros que participaram com mensagem nos últimos 30 dias"
         variant="kpi"
       />
@@ -664,6 +684,11 @@ const Index = () => {
         value={systemTotalsError ? "Erro" : String(systemTotals?.organizations ?? 0)}
         isLoading={systemTotalsLoading}
         icon={Activity}
+        help={{
+          whatIs: "Quantidade total de organizações cadastradas no Bóris.",
+          howToInterpret: "Mostra a escala da base de organizações na plataforma.",
+          whatToObserve: "Compare com grupos para acompanhar expansão estrutural.",
+        }}
         description="Quantidade total de organizações"
         variant="kpi"
       />
@@ -672,6 +697,11 @@ const Index = () => {
         value={systemTotalsError ? "Erro" : String(systemTotals?.groups ?? 0)}
         isLoading={systemTotalsLoading}
         icon={Layers}
+        help={{
+          whatIs: "Quantidade total de grupos monitorados no sistema.",
+          howToInterpret: "Mostra a escala operacional em número de grupos conectados.",
+          whatToObserve: "Compare com mensagens e membros ativos para entender uso por grupo.",
+        }}
         description="Quantidade total de grupos monitorados"
         variant="kpi"
       />
