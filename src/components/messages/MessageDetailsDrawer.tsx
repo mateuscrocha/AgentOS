@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -11,7 +11,7 @@ import { formatDateTimeBR } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { applyWhatsAppStylesToParts, formatWhatsAppStyles } from "@/lib/whatsapp-format";
 import { translateMessageType } from "@/lib/messages";
-import { Link as LinkIcon, Image, Mic, Video, FileText, MessageSquare, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Link as LinkIcon, Image, Mic, Video, FileText, MessageSquare, ArrowDownLeft, ArrowUpRight, Smile } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 type Variant = "sheet" | "dialog";
@@ -83,6 +83,93 @@ const renderTextWithMentionsAndLinks = (text: string, mentionMap: Record<string,
   if (lastIndex < text.length) result.push(text.slice(lastIndex));
   return applyWhatsAppStylesToParts(result);
 };
+
+function MediaPreviewPanel({
+  src,
+  alt,
+  title,
+  kind = "image",
+  icon: Icon,
+  posterSrc,
+}: {
+  src?: string | null;
+  alt: string;
+  title: string;
+  kind?: "image" | "sticker" | "video";
+  icon: typeof Image;
+  posterSrc?: string | null;
+}) {
+  const [failed, setFailed] = useState(false);
+  const hasMedia = !!src && !failed;
+
+  return (
+    <div className="rounded-xl border border-border bg-secondary/20 p-2">
+      {hasMedia ? (
+        <a
+          href={src || "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <div
+            className={cn(
+              "relative overflow-hidden rounded-lg border border-border/50",
+              kind === "sticker" && "bg-[radial-gradient(circle_at_1px_1px,rgba(120,120,120,0.15)_1px,transparent_0)] bg-[size:14px_14px]",
+            )}
+          >
+            <img
+              src={(kind === "video" ? posterSrc : src) || src || ""}
+              alt={alt}
+              className={cn(
+                "mx-auto w-full",
+                kind === "sticker"
+                  ? "max-h-[260px] object-contain bg-transparent"
+                  : kind === "video"
+                    ? "max-h-[420px] object-cover bg-black"
+                    : "max-h-[420px] object-contain bg-muted",
+              )}
+              onError={() => setFailed(true)}
+            />
+            {kind === "video" ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm">
+                  <Video className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            ) : null}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-black/35 px-2 py-0.5 text-[11px] text-white">
+                <Icon className="h-3 w-3" />
+                <span>{title}</span>
+              </div>
+            </div>
+          </div>
+        </a>
+      ) : (
+        <div className="rounded-lg border border-border bg-background/50 p-6 text-center text-sm text-muted-foreground">
+          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+            <Icon className="h-5 w-5" />
+          </div>
+          Prévia indisponível
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MediaActionButtons({ url, label = "Abrir original" }: { url?: string | null; label?: string }) {
+  if (!url) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Button asChild variant="outline" size="sm">
+        <a href={url} target="_blank" rel="noopener noreferrer"> {label} </a>
+      </Button>
+      <Button asChild variant="secondary" size="sm">
+        <a href={url} download>Baixar</a>
+      </Button>
+    </div>
+  );
+}
 
 export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, variant = "sheet" }: MessageDetailsDrawerProps) {
   const sectionClassName = "rounded-xl border border-border bg-card/50 p-4 sm:p-5 space-y-3";
@@ -159,7 +246,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
       ];
       const { data: byProvider } = await supabase
         .from("members")
-        .select("whatsapp_provider_id,name,display_name")
+        .select("whatsapp_provider_id,name,display_name,phone_e164")
         .eq("group_id", groupId)
         .in("whatsapp_provider_id", providerCandidates);
       const { data: byPhone } = await supabase
@@ -172,13 +259,13 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
       (byProvider || []).forEach(m => {
         const keyFull = (m as any).whatsapp_provider_id as string;
         const key = toDigits(keyFull || "");
-        const val = ((m as any).display_name as string) || ((m as any).name as string);
+        const val = ((m as any).display_name as string) || ((m as any).name as string) || ((m as any).phone_e164 as string);
         if (key) map[key] = val;
       });
       (byPhone || []).forEach(m => {
         const phone = ((m as any).phone_e164 as string) || "";
         const key = phone.replace(/^\+/, "");
-        const val = ((m as any).display_name as string) || ((m as any).name as string);
+        const val = ((m as any).display_name as string) || ((m as any).name as string) || phone;
         if (key) map[key] = val;
       });
       return map;
@@ -234,7 +321,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
 
   const roleLabel = useMemo(() => {
     if (!message) return "";
-    if (!message.member_id) return "Sistema";
+    if (!message.member_id) return message.message_type === "system" ? "Sistema" : "Remetente não identificado";
     const isAdmin = author?.is_admin || author?.is_super_admin;
     return isAdmin ? "Administrador do grupo" : "Membro";
   }, [message, author]);
@@ -330,7 +417,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
             {message?.member_id ? (
               <MemberInlineTrigger memberId={message.member_id} groupId={groupId} name={author?.display_name || author?.name || message.sender_name || "Membro"} avatarUrl={(author as any)?.profile_pic_url || null} variant={variant} />
             ) : (
-              <span className="text-muted-foreground">Sistema</span>
+              <span className="text-muted-foreground">{message?.message_type === "system" ? "Sistema" : "Remetente não identificado"}</span>
             )}
             {roleLabel ? (
               <Badge variant="secondary" className="text-[10px] px-2 py-0.5">{roleLabel}</Badge>
@@ -349,7 +436,51 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
       ) : !message ? (
         <div className="text-sm text-muted-foreground">Sem conteúdo</div>
       ) : (
-        <div className="space-y-3">
+        <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-emerald-50/40 via-background to-teal-50/30 dark:from-emerald-950/10 dark:via-background dark:to-teal-950/10 p-3">
+          <div
+            className="rounded-xl border border-white/40 dark:border-white/5 p-2"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 1px 1px, rgba(120,120,120,0.09) 1px, transparent 0)",
+              backgroundSize: "18px 18px",
+            }}
+          >
+            <div className="flex items-start gap-2.5">
+              <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                <TypeIcon className="h-4 w-4" />
+              </div>
+              <div className="relative min-w-0 w-full max-w-[42rem]">
+                <div className={cn(
+                  "relative rounded-2xl rounded-tl-md border px-3 py-2.5 shadow-sm",
+                  message.message_type === "system"
+                    ? "bg-muted/50 border-border/60"
+                    : "bg-emerald-50/90 border-emerald-200/80 dark:bg-emerald-950/30 dark:border-emerald-900/50",
+                )}>
+                  <div className={cn(
+                    "absolute -left-[5px] top-3 h-3 w-3 rotate-45 rounded-[2px] border-l border-b",
+                    message.message_type === "system"
+                      ? "bg-muted/50 border-border/60"
+                      : "bg-emerald-50/90 border-emerald-200/80 dark:bg-emerald-950/30 dark:border-emerald-900/50",
+                  )} />
+
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold text-foreground truncate">
+                        {message.member_id
+                          ? (author?.display_name || author?.name || message.sender_name || "Membro")
+                          : (message.message_type === "system" ? "Sistema" : "Remetente não identificado")}
+                      </div>
+                      <div className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <TypeIcon className="h-3 w-3" />
+                        <span>{messageTypeLabel}</span>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                      {new Date(message.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
           {(message.message_type === "text" || message.message_type === "system") && (
             <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-card-foreground whitespace-pre-wrap break-words">
               {message.text
@@ -360,16 +491,25 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
 
           {message.message_type === "image" && (
             <div className="space-y-3">
-              {message.media_url ? (
-                <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl">
-                  <img src={message.media_url} alt="Imagem" className="max-w-full max-h-[420px] rounded-xl object-contain bg-muted mx-auto cursor-zoom-in" />
-                </a>
-              ) : (
-                <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">Mídia indisponível</div>
-              )}
+              <MediaPreviewPanel src={message.media_url} alt="Imagem" title="Foto" kind="image" icon={Image} />
+              <MediaActionButtons url={message.media_url} label="Abrir imagem" />
               {message.media_caption ? (
-                <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-card-foreground whitespace-pre-wrap break-words">{message.media_caption}</div>
+                <div className="rounded-xl border border-emerald-200/70 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/20 p-4">
+                  <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Legenda</div>
+                  <div className="text-sm text-card-foreground whitespace-pre-wrap break-words">{message.media_caption}</div>
+                </div>
               ) : null}
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                {message.media_mime_type ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>{message.media_mime_type}</span> : null}
+                {message.media_size_bytes ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>{formatFileSize(message.media_size_bytes)}</span> : null}
+              </div>
+            </div>
+          )}
+
+          {message.message_type === "sticker" && (
+            <div className="space-y-3">
+              <MediaPreviewPanel src={message.media_url || message.thumbnail_url} alt="Figurinha" title="Figurinha" kind="sticker" icon={Smile} />
+              <MediaActionButtons url={message.media_url || message.thumbnail_url} label="Abrir figurinha" />
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                 {message.media_mime_type ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>{message.media_mime_type}</span> : null}
                 {message.media_size_bytes ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>{formatFileSize(message.media_size_bytes)}</span> : null}
@@ -401,13 +541,27 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
 
           {message.message_type === "video" && (
             <div className="space-y-3">
-              {message.media_url ? (
-                <video controls className="w-full max-h-[420px] rounded-xl bg-black" poster={message.thumbnail_url || undefined} src={message.media_url} />
+              {(message.thumbnail_url || message.media_url) ? (
+                <MediaPreviewPanel
+                  src={message.media_url}
+                  posterSrc={message.thumbnail_url}
+                  alt="Vídeo"
+                  title="Vídeo"
+                  kind="video"
+                  icon={Video}
+                />
               ) : (
                 <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">Mídia indisponível</div>
               )}
+              <MediaActionButtons url={message.media_url} label="Abrir vídeo" />
+              {message.media_url ? (
+                <video controls className="w-full max-h-[420px] rounded-xl bg-black" poster={message.thumbnail_url || undefined} src={message.media_url} />
+              ) : null}
               {message.media_caption ? (
-                <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-card-foreground whitespace-pre-wrap break-words">{message.media_caption}</div>
+                <div className="rounded-xl border border-emerald-200/70 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/20 p-4">
+                  <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Legenda</div>
+                  <div className="text-sm text-card-foreground whitespace-pre-wrap break-words">{message.media_caption}</div>
+                </div>
               ) : null}
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                 {message.media_mime_type ? <span className={cn(badgeVariants({ variant: "secondary" }), "rounded-lg px-2.5 py-1 text-[11px]")}>{message.media_mime_type}</span> : null}
@@ -434,15 +588,21 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                   </Button>
                 ) : null}
               </div>
+              <MediaActionButtons url={message.media_url} label="Abrir documento" />
             </div>
           )}
 
-          {message.message_type && !["text", "system", "image", "audio", "video", "document"].includes(message.message_type) ? (
+          {message.message_type && !["text", "system", "image", "audio", "video", "document", "sticker"].includes(message.message_type) ? (
               <div className="rounded-xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground inline-flex items-center gap-2">
               <LinkIcon className="h-4 w-4" />
                 Conteúdo do tipo {translateMessageType(message.message_type)}
             </div>
           ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </section>
@@ -462,13 +622,21 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
           {[...(contextBefore || []), ...(contextAfter || [])].length === 0 ? (
             <p className="text-sm text-muted-foreground">Sem mensagens próximas.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-emerald-50/30 via-background to-teal-50/20 dark:from-emerald-950/10 dark:via-background dark:to-teal-950/10 p-3">
+              <div
+                className="rounded-xl border border-white/40 dark:border-white/5 p-2 space-y-2"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle at 1px 1px, rgba(120,120,120,0.09) 1px, transparent 0)",
+                  backgroundSize: "18px 18px",
+                }}
+              >
               {contextRows.before.map((c) => (
                 <button
                   key={`before-${c.message_id}`}
                   type="button"
                   onClick={() => openContextMessage(c.message_id)}
-                  className="w-full text-left rounded-lg px-3 py-2 hover:bg-secondary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="w-full text-left rounded-xl border border-border/60 bg-background/85 px-3 py-2 hover:bg-background transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                     <span>{formatDateFriendly(c.created_at)}</span>
@@ -483,13 +651,19 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                 </button>
               ))}
 
-              <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
-                <div className="text-[11px] font-medium text-muted-foreground">Mensagem selecionada</div>
-                <div className="mt-1 text-sm text-card-foreground whitespace-pre-wrap break-words">
-                  {(() => {
-                    const raw = (message?.text || message?.content || message?.media_caption || "").toString().trim() || `[${translateMessageType(message?.message_type || "text")}]`;
-                    return message?.message_type === "system" ? formatWhatsAppStyles(raw) : raw;
-                  })()}
+              <div className="flex justify-end">
+                <div className="max-w-[92%] rounded-2xl rounded-tr-md border border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/90 dark:bg-emerald-950/25 px-3 py-2 shadow-sm">
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="font-medium text-emerald-700 dark:text-emerald-300">Mensagem selecionada</span>
+                    <span className="text-muted-foreground/60">•</span>
+                    <span>{formatDateFriendly(message?.created_at)}</span>
+                  </div>
+                  <div className="mt-1 text-sm text-card-foreground whitespace-pre-wrap break-words">
+                    {(() => {
+                      const raw = (message?.text || message?.content || message?.media_caption || "").toString().trim() || `[${translateMessageType(message?.message_type || "text")}]`;
+                      return message?.message_type === "system" ? formatWhatsAppStyles(raw) : raw;
+                    })()}
+                  </div>
                 </div>
               </div>
 
@@ -498,7 +672,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                   key={`after-${c.message_id}`}
                   type="button"
                   onClick={() => openContextMessage(c.message_id)}
-                  className="w-full text-left rounded-lg px-3 py-2 hover:bg-secondary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="w-full text-left rounded-xl border border-border/60 bg-background/85 px-3 py-2 hover:bg-background transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                     <span>{formatDateFriendly(c.created_at)}</span>
@@ -517,6 +691,7 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
                 <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs">
                   <a href={`/groups/${groupId}/messages?messageId=${encodeURIComponent(messageId)}`}>Ver na conversa completa</a>
                 </Button>
+              </div>
               </div>
             </div>
           )}

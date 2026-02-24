@@ -4,6 +4,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
+import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -174,10 +176,10 @@ export default function SystemPeople() {
   ];
 
   return (
-    <AdminLayout title="Pessoas" subtitle="Central do Bóris › Pessoas">
+    <AdminLayout title="Pessoas" subtitle="Central de Comando › Pessoas">
       <div className="space-y-6 animate-fade-in">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Pessoas" }]}
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Pessoas" }]}
           title="Pessoas"
           description="Visão consolidada de pessoas no sistema"
           filters={(
@@ -204,6 +206,7 @@ export default function SystemPeople() {
               value={data?.count ?? '—'}
               icon={Users}
               variant="kpi"
+              numericValue
               help={{
                 whatIs: "Quantidade de pessoas retornadas pela consulta no período e filtros selecionados.",
                 howToInterpret: "Mostra a abrangência da visão atual de pessoas na janela analisada.",
@@ -211,6 +214,13 @@ export default function SystemPeople() {
               }}
             />
           )}
+        />
+
+        <ListSectionHeader
+          title="Lista de pessoas"
+          count={typeof data?.count === "number" ? data.count.toLocaleString("pt-BR") : "—"}
+          statusLabel={search ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.periodRecords}
+          isLoading={isLoading}
         />
 
         <BorisTable

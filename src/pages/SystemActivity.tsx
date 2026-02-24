@@ -8,6 +8,9 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
+import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
+import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { BorisTable } from "@/components/ui/boris-table";
 import { StatusTag } from "@/components/ui/status-tag";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -297,10 +300,10 @@ export default function SystemActivity() {
     orderDir !== "desc";
 
   return (
-    <AdminLayout title="Atividade" subtitle="Central do Bóris › Atividade">
+    <AdminLayout title="Atividade" subtitle="Central de Comando › Atividade">
       <div className="space-y-6 animate-fade-in">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Atividade" }]}
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Atividade" }]}
           title="Atividade"
           description="Uso por gestores de organização"
           filters={
@@ -436,6 +439,7 @@ export default function SystemActivity() {
                   value={overview.orgs_total ?? "—"}
                   icon={Building2}
                   variant="kpi"
+                  numericValue
                   help={{
                     whatIs: "Total de organizações avaliadas no painel de atividade para o período/filtros atuais.",
                     howToInterpret: "É a base de referência para comparar quantas estão ativas, mornas ou inativas.",
@@ -447,6 +451,7 @@ export default function SystemActivity() {
                   value={overview.orgs_with_activity ?? "—"}
                   icon={Activity}
                   variant="kpi"
+                  numericValue
                   help={{
                     whatIs: "Organizações que tiveram sinais de atividade no período (eventos de uso, acessos ou interação).",
                     howToInterpret: "Mostra adoção real no intervalo analisado, não apenas organizações cadastradas.",
@@ -458,6 +463,7 @@ export default function SystemActivity() {
                   value={overview.orgs_active ?? "—"}
                   icon={BarChart3}
                   variant="kpi"
+                  numericValue
                   help={{
                     whatIs: "Organizações classificadas como ativas segundo as regras do painel (dias/recência de atividade).",
                     howToInterpret: "Representa a faixa mais saudável de engajamento operacional no período.",
@@ -469,6 +475,7 @@ export default function SystemActivity() {
                   value={overview.orgs_warm ?? "—"}
                   icon={BarChart3}
                   variant="kpi"
+                  numericValue
                   help={{
                     whatIs: "Organizações com atividade intermediária (nem inativas, nem plenamente ativas).",
                     howToInterpret: "É uma faixa de atenção: existe uso, mas abaixo do patamar considerado saudável.",
@@ -480,6 +487,7 @@ export default function SystemActivity() {
                   value={overview.orgs_inactive ?? "—"}
                   icon={BarChart3}
                   variant="kpi"
+                  numericValue
                   help={{
                     whatIs: "Organizações sem atividade suficiente no período, segundo a regra deste painel.",
                     howToInterpret: "Indica risco de desengajamento ou ausência de uso recente.",
@@ -491,6 +499,7 @@ export default function SystemActivity() {
                   value={overview.org_admins_active ?? "—"}
                   icon={Users}
                   variant="kpi"
+                  numericValue
                   help={{
                     whatIs: "Quantidade de administradores de organização com atividade no período.",
                     howToInterpret: "Mostra engajamento operacional de quem gerencia organizações.",
@@ -502,6 +511,7 @@ export default function SystemActivity() {
                   value={overview.logins ?? "—"}
                   icon={Activity}
                   variant="kpi"
+                  numericValue
                   help={{
                     whatIs: "Quantidade de logins registrados no período selecionado.",
                     howToInterpret: "Mede acessos à plataforma e ajuda a inferir frequência de uso.",
@@ -513,6 +523,7 @@ export default function SystemActivity() {
                   value={overview.page_views ?? "—"}
                   icon={Activity}
                   variant="kpi"
+                  numericValue
                   help={{
                     whatIs: "Total de páginas visualizadas na aplicação durante o período.",
                     howToInterpret: "Indica intensidade de navegação/uso. Pode crescer por maior adoção ou por mais sessões por usuário.",
@@ -531,9 +542,15 @@ export default function SystemActivity() {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <section className="rounded-xl border border-border bg-card p-5">
-            <div className="text-sm font-semibold text-card-foreground">Admins ativos por dia</div>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <section className="rounded-xl border border-border/70 bg-gradient-to-b from-card to-card/95 p-5">
+            <ExecutiveSectionHeader
+              eyebrow="Série temporal"
+              title="Admins ativos por dia"
+              description="Evolução diária de gestores de organização com atividade no período selecionado."
+              icon={Activity}
+              className="mb-2"
+            />
             <div className="mt-3">
               {dailyQuery.isLoading ? (
                 <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">Carregando…</div>
@@ -573,8 +590,14 @@ export default function SystemActivity() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-border bg-card p-5">
-            <div className="text-sm font-semibold text-card-foreground">Top páginas</div>
+          <section className="rounded-xl border border-border/70 bg-gradient-to-b from-card to-card/95 p-5">
+            <ExecutiveSectionHeader
+              eyebrow="Navegação"
+              title="Top páginas"
+              description="Páginas mais visualizadas por admins no intervalo selecionado."
+              icon={BarChart3}
+              className="mb-2"
+            />
             <div className="mt-3 space-y-2">
               {topPagesQuery.isLoading ? (
                 <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">Carregando…</div>
@@ -601,13 +624,20 @@ export default function SystemActivity() {
           </section>
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-          <TabsList>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="space-y-3">
+          <TabsList className="h-10 rounded-lg border border-border/70 bg-card p-1">
             <TabsTrigger value="orgs">Organizações</TabsTrigger>
             <TabsTrigger value="admins">Gestores</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="orgs">
+          <TabsContent value="orgs" className="mt-0 space-y-0">
+            <ListSectionHeader
+              className="mb-3"
+              title="Lista de organizações"
+              count={typeof orgsQuery.data?.total === "number" ? orgsQuery.data.total.toLocaleString("pt-BR") : "—"}
+              statusLabel={orgStatus === "all" ? ADMIN_MICROCOPY.listStatus.periodRecords : `${ADMIN_MICROCOPY.listStatus.filtered} • ${getStatusLabel(orgStatus)}`}
+              isLoading={orgsQuery.isLoading}
+            />
             <BorisTable
               columns={orgColumns as any}
               data={orgsQuery.data?.items ?? []}
@@ -623,7 +653,14 @@ export default function SystemActivity() {
             />
           </TabsContent>
 
-          <TabsContent value="admins">
+          <TabsContent value="admins" className="mt-0 space-y-0">
+            <ListSectionHeader
+              className="mb-3"
+              title="Lista de gestores"
+              count={typeof adminsQuery.data?.total === "number" ? adminsQuery.data.total.toLocaleString("pt-BR") : "—"}
+              statusLabel={search ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.periodRecords}
+              isLoading={adminsQuery.isLoading}
+            />
             <BorisTable
               columns={adminColumns as any}
               data={adminsQuery.data?.items ?? []}

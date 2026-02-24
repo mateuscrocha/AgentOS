@@ -7,6 +7,8 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { BorisTable, type BorisColumn } from "@/components/ui/boris-table";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
+import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -162,7 +164,7 @@ export default function SystemEvents() {
     <AdminLayout title="Eventos do Sistema" subtitle="Auditoria e observabilidade">
       <div className="space-y-6">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Eventos" }]}
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Eventos" }]}
           title="Eventos do Sistema"
           description="Auditoria e observabilidade"
           filters={(
@@ -174,7 +176,7 @@ export default function SystemEvents() {
                   customRange={customRange}
                   onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
                 />
-                <span className="text-xs text-muted-foreground">Período: {periodLabel}</span>
+                <span className="text-xs text-muted-foreground">{ADMIN_MICROCOPY.labels.selectedPeriod}: {periodLabel}</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -219,6 +221,7 @@ export default function SystemEvents() {
               value={eventsData?.total ?? '—'}
               icon={Activity}
               variant="kpi"
+              numericValue
               help={{
                 whatIs: "Total de eventos do sistema encontrados no período e filtros selecionados.",
                 howToInterpret: "Mede volume de ocorrências registradas (auditoria/telemetria) no recorte atual.",
@@ -226,6 +229,17 @@ export default function SystemEvents() {
               }}
             />
           )}
+        />
+
+        <ListSectionHeader
+          title="Lista de eventos"
+          count={typeof eventsData?.total === "number" ? eventsData.total.toLocaleString("pt-BR") : "—"}
+          statusLabel={
+            entityType !== "all" || eventType !== "all"
+              ? ADMIN_MICROCOPY.listStatus.filtered
+              : ADMIN_MICROCOPY.listStatus.periodRecords
+          }
+          isLoading={eventsLoading}
         />
 
         {/* Events Table */}

@@ -759,6 +759,6 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
   };
 };
 
-if (import.meta.main) {
+if ((import.meta as any).main) {
   serve(createProvisionOnboardingHandler());
 }

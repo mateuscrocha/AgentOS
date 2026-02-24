@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
+import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,7 +18,6 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
 import { Activity, AlertTriangle, Layers, Users as UsersIcon, MessageSquare, ChevronRight, ArrowUp, Info, Minus } from "lucide-react";
-import { SectionHeader } from "@/components/group-dashboard/SectionHeader";
 import {
   PeriodType,
   getDateRange,
@@ -73,6 +74,7 @@ type SystemTotalsSummary = {
 
 const Index = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const {
     isLoading: rolesLoading,
@@ -449,6 +451,40 @@ const Index = () => {
     retry: 1,
   });
 
+  useEffect(() => {
+    if (!isAuthenticated || !isSystemAdmin) return;
+    if (typeof (supabase as any).channel !== "function") return;
+
+    let refreshTimer: number | null = null;
+    const scheduleSystemRefresh = () => {
+      if (refreshTimer !== null) return;
+      refreshTimer = globalThis.setTimeout(() => {
+        refreshTimer = null;
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["kpi-members-total"] }),
+          queryClient.invalidateQueries({ queryKey: ["system-totals-summary"] }),
+          queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h"] }),
+          queryClient.invalidateQueries({ queryKey: ["kpi-summary-period"] }),
+          queryClient.invalidateQueries({ queryKey: ["kpi-summary-prev-period"] }),
+          queryClient.invalidateQueries({ queryKey: ["signal-concentration-24h"] }),
+        ]);
+      }, 400);
+    };
+
+    const channel = supabase
+      .channel("realtime:system-dashboard")
+      .on("postgres_changes", { event: "*", schema: "public", table: "organizations" }, scheduleSystemRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "groups" }, scheduleSystemRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "members" }, scheduleSystemRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, scheduleSystemRefresh)
+      .subscribe();
+
+    return () => {
+      if (refreshTimer !== null) globalThis.clearTimeout(refreshTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [isAuthenticated, isSystemAdmin, queryClient]);
+
   const describePercentChange = (delta: number, suffix: string) => {
     if (Math.abs(delta) <= 2) return `Estável em relação ao ${suffix}`;
     if (delta > 0) return `Subiu ${delta}% em relação ao ${suffix}`;
@@ -598,7 +634,7 @@ const Index = () => {
 
   if (authLoading || rolesLoading) {
     return (
-      <AdminLayout title="Central do Bóris" subtitle="Carregando...">
+      <AdminLayout title="Central de Comando" subtitle="Carregando...">
         <PageSkeleton />
       </AdminLayout>
     );
@@ -633,6 +669,10 @@ const Index = () => {
         }}
         description="Mensagens acumuladas na base"
         variant="kpi"
+        className="bg-gradient-to-b from-card to-card/90"
+        titleClassName="text-muted-foreground/80"
+        valueClassName="font-mono"
+        numericValue
       />
       <StatsCard
         title="Mensagens (30d)"
@@ -648,6 +688,10 @@ const Index = () => {
         }}
         description="Total de mensagens enviadas nos últimos 30 dias"
         variant="kpi"
+        className="bg-gradient-to-b from-primary/[0.03] to-card"
+        titleClassName="text-primary/80"
+        valueClassName="font-mono text-primary"
+        numericValue
       />
       <StatsCard
         title="Membros ativos (30d)"
@@ -663,6 +707,10 @@ const Index = () => {
         }}
         description="Pessoas que enviaram pelo menos 1 mensagem nos últimos 30 dias"
         variant="kpi"
+        className="bg-gradient-to-b from-card to-card/90"
+        titleClassName="text-muted-foreground/80"
+        valueClassName="font-mono"
+        numericValue
       />
       <StatsCard
         title="Participação (30d)"
@@ -678,6 +726,10 @@ const Index = () => {
         }}
         description="Percentual de membros que participaram com mensagem nos últimos 30 dias"
         variant="kpi"
+        className="bg-gradient-to-b from-primary/[0.03] to-card"
+        titleClassName="text-primary/80"
+        valueClassName="font-mono text-primary"
+        numericValue
       />
       <StatsCard
         title="Organizações"
@@ -691,6 +743,10 @@ const Index = () => {
         }}
         description="Quantidade total de organizações"
         variant="kpi"
+        className="bg-gradient-to-b from-card to-card/90"
+        titleClassName="text-muted-foreground/80"
+        valueClassName="font-mono"
+        numericValue
       />
       <StatsCard
         title="Grupos"
@@ -704,54 +760,77 @@ const Index = () => {
         }}
         description="Quantidade total de grupos monitorados"
         variant="kpi"
+        className="bg-gradient-to-b from-card to-card/90"
+        titleClassName="text-muted-foreground/80"
+        valueClassName="font-mono"
+        numericValue
       />
     </>
   );
 
   return (
     <AdminLayout 
-      title="Central do Bóris" 
+      title="Central de Comando" 
       subtitle="Panorama geral do Bóris"
     >
       <div className="space-y-10 animate-fade-in">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central do Bóris" }]}
-          title={null}
+          breadcrumbItems={[{ label: "Central de Comando" }]}
+          title={(
+            <>
+              <span className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Panorama geral</span>
+              <span className="ml-2 inline-flex h-6 items-center rounded-full border border-primary/20 bg-primary/[0.08] px-2.5 align-middle text-[11px] font-semibold text-primary">
+                Sistema
+              </span>
+            </>
+          )}
+          description="Visão executiva do Bóris com sinais de uso recente, volume e alcance da base."
+          className="mb-4"
           filters={(
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <Badge variant="outline" className="h-5 px-2 text-[11px] font-medium text-muted-foreground">
+              <Badge variant="outline" className="h-5 border-primary/20 bg-primary/[0.04] px-2 text-[11px] font-medium text-primary/85">
                 Visão geral do sistema
               </Badge>
-              <span className="text-sm text-muted-foreground">Atualizado às {formatTimeBR(last24hNow)} (BRT)</span>
+              <Badge variant="outline" className="h-5 border-border/60 bg-background/70 px-2 text-[11px] font-medium text-muted-foreground">
+                Base consolidada
+              </Badge>
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                Atualizado às <span className="font-mono text-[0.95em] font-medium text-foreground">{formatTimeBR(last24hNow)}</span> (BRT)
+              </span>
             </div>
           )}
         />
 
-        <section className="scroll-mt-32 rounded-2xl border border-border/70 bg-gradient-to-b from-card to-card/90 p-4 shadow-sm" id="executive-summary" aria-busy={newGroups24hLoading || pulse24hLoading ? "true" : undefined}>
-          <SectionHeader
+        <section className="scroll-mt-32 rounded-2xl border border-primary/10 bg-gradient-to-b from-primary/[0.025] via-card to-card p-4 shadow-sm" id="executive-summary" aria-busy={newGroups24hLoading || pulse24hLoading ? "true" : undefined}>
+          <ExecutiveSectionHeader
+            eyebrow="Operação"
+            eyebrowTone="primary"
             title="Resumo das últimas 24h"
-            subtitle="Leitura operacional rápida para decidir onde agir agora"
-            subtitleClassName="font-normal text-muted-foreground/70"
-            density="compact"
-            titleIcon={Activity}
+            description="Leitura operacional rápida para decidir onde agir agora"
+            icon={Activity}
+            badge={(
+              <Badge variant="outline" className="h-5 border-primary/20 bg-primary/[0.04] px-2 text-[11px] font-medium text-primary/85">
+                Atualização contínua
+              </Badge>
+            )}
           />
 
-          <div className="mt-2 grid gap-3 lg:grid-cols-2">
-            <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4 lg:flex lg:h-[320px] lg:flex-col">
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="rounded-xl border border-primary/20 bg-gradient-to-b from-primary/[0.06] to-primary/[0.02] p-4 lg:flex lg:h-[320px] lg:flex-col">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-card-foreground">Resumo</p>
-                <span className="text-xs font-medium text-primary/80">Janela: 24h</span>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary/85">Resumo operacional</p>
+                <span className="text-[11px] font-medium text-primary/80">Período: 24h</span>
               </div>
               <div className="mt-3 lg:min-h-0 lg:flex-1">
-                <p className="text-[14px] leading-6 text-card-foreground lg:max-h-full lg:overflow-y-auto pr-1">
-                  {daySummary}
-                </p>
+                  <p className="text-[15px] leading-7 text-card-foreground lg:max-h-full lg:overflow-y-auto pr-1">
+                    {daySummary}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div className="rounded-xl border border-border/60 bg-muted/15 p-4 lg:flex lg:h-[320px] lg:flex-col">
+            <div className="rounded-xl border border-border/60 bg-gradient-to-b from-muted/15 to-background/10 p-4 lg:flex lg:h-[320px] lg:flex-col">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-card-foreground">Grupos mais movimentados</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grupos mais movimentados</p>
                 <Badge variant="outline" className="h-5 border-border/60 bg-background/60 px-2 text-[11px] text-muted-foreground">
                   {pulseMeta.sharePct}% top 4
                 </Badge>
@@ -815,19 +894,26 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="scroll-mt-32 rounded-2xl bg-card p-4 shadow-sm" id="kpis">
-          <SectionHeader
+        <section className="scroll-mt-32 rounded-2xl border border-border/60 bg-gradient-to-b from-card to-card/95 p-4 shadow-sm" id="kpis">
+          <ExecutiveSectionHeader
+            eyebrow="Base e Tendência"
             title="Indicadores principais (30d)"
-            subtitle="Números mais importantes no período escolhido"
-            subtitleClassName="font-normal text-muted-foreground/75"
-            density="compact"
-            titleIcon={Layers}
-            titleAddon={(
-              <Badge variant="outline" className="ml-2 h-5 px-2 text-[11px] font-medium text-muted-foreground">
-                Período selecionado
+            description="Números mais importantes no período escolhido para leitura de volume, alcance e crescimento."
+            icon={Layers}
+            badge={(
+              <Badge variant="outline" className="h-5 px-2 text-[11px] font-medium text-muted-foreground">
+                {ADMIN_MICROCOPY.labels.selectedPeriod}
               </Badge>
             )}
           />
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="h-5 border-primary/20 bg-primary/[0.04] px-2 text-[11px] font-medium text-primary/85">
+              Tendência e alcance
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              Destaque para métricas recentes e indicadores de base para leitura rápida.
+            </span>
+          </div>
           <div className="mt-2 grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             {mainKpis}
           </div>

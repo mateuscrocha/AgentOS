@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
   Bell,
@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/hooks/use-user-roles";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
@@ -45,9 +45,16 @@ const bottomNavItems: NavItem[] = [
 ];
 
 const ONBOARDING_GROUPS_HINT_KEY = "boris_onboarding_groups_hint_done";
+const ALERT_TITLE_PREFIX_REGEX = /^\(\d+\)\s+/;
+
+function stripAlertCountPrefix(title: string) {
+  return title.replace(ALERT_TITLE_PREFIX_REGEX, "");
+}
 
 export function AdminSidebar() {
+  const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { isSystemAdmin, isOrgAdmin, isGroupManager, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
 
   const canUseAlerts = isSystemAdmin || isOrgAdmin || isGroupManager;
@@ -64,6 +71,54 @@ export function AdminSidebar() {
     enabled: canUseAlerts,
     refetchInterval: 20_000,
   });
+
+  useEffect(() => {
+    if (!canUseAlerts) return;
+    if (typeof (supabase as any).channel !== "function") return;
+
+    let invalidateTimer: number | null = null;
+    const scheduleUnreadRefresh = () => {
+      if (invalidateTimer !== null) return;
+      invalidateTimer = globalThis.setTimeout(() => {
+        invalidateTimer = null;
+        void queryClient.invalidateQueries({ queryKey: ["alerts", "unread-count"] });
+      }, 300);
+    };
+
+    const channel = supabase
+      .channel("realtime:alerts:sidebar")
+      .on("postgres_changes", { event: "*", schema: "public", table: "alert_events" }, scheduleUnreadRefresh)
+      .subscribe();
+
+    return () => {
+      if (invalidateTimer !== null) {
+        globalThis.clearTimeout(invalidateTimer);
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [canUseAlerts, queryClient]);
+
+  useEffect(() => {
+    const currentTitle = globalThis.document?.title;
+    if (!currentTitle) return;
+
+    const baseTitle = stripAlertCountPrefix(currentTitle);
+    const unreadCount = canUseAlerts ? (unreadAlertsQuery.data ?? 0) : 0;
+    const nextTitle = unreadCount > 0 ? `(${unreadCount}) ${baseTitle}` : baseTitle;
+
+    if (currentTitle !== nextTitle) {
+      globalThis.document.title = nextTitle;
+    }
+  }, [canUseAlerts, unreadAlertsQuery.data]);
+
+  useEffect(
+    () => () => {
+      const currentTitle = globalThis.document?.title;
+      if (!currentTitle) return;
+      globalThis.document.title = stripAlertCountPrefix(currentTitle);
+    },
+    [],
+  );
 
   const [showGroupsHint, setShowGroupsHint] = useState(() => {
     try {
@@ -248,10 +303,22 @@ export function AdminSidebar() {
     <Sidebar collapsible="icon" variant="sidebar" className="border-r border-sidebar-border">
       <SidebarHeader className="p-2">
         <div className="flex items-center gap-2 rounded-md px-2 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden shrink-0">
-            <img src="/admin-logo.png" alt="Bóris Admin" className="h-8 w-8 object-cover" />
-          </div>
-          <span className="text-sm font-semibold text-foreground group-data-[collapsible=icon]:hidden">Bóris Admin</span>
+          <a
+            href="/"
+            onClick={(event) => {
+              if (event.defaultPrevented) return;
+              if (event.button !== 0) return;
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              navigate("/");
+            }}
+            className="flex min-w-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden shrink-0">
+              <img src="/admin-logo.png" alt="Central de Comando do Bóris" className="h-8 w-8 object-cover" />
+            </div>
+            <span className="truncate text-sm font-semibold text-foreground group-data-[collapsible=icon]:hidden">Central de Comando do Bóris</span>
+          </a>
           <div className="ml-auto">
             <SidebarTrigger variant="ghost" size="icon" className="h-8 w-8" />
           </div>

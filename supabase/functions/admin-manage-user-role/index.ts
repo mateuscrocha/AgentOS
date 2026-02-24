@@ -139,6 +139,21 @@ export function createAdminManageUserRoleHandler(args?: {
           return json({ success: false, message: deleteErr.message, code: "DELETE_ROLE_FAILED" }, 400);
         }
 
+        await supabaseAdmin.from("events").insert({
+          event_type: "USER_ROLE_REMOVED",
+          entity_type: "user",
+          entity_id: roleRow.user_id,
+          user_id: requesterId,
+          metadata: {
+            target_user_id: roleRow.user_id,
+            role_id: roleRow.id,
+            role: roleRow.role,
+            organization_id: roleRow.organization_id,
+            group_id: roleRow.group_id,
+            requested_by: requesterId,
+          },
+        });
+
         return json({ success: true, action: "remove", role_id: roleId, user_id: roleRow.user_id });
       }
 
@@ -199,6 +214,20 @@ export function createAdminManageUserRoleHandler(args?: {
         }
         return json({ success: false, message: insertErr.message, code: "ADD_ROLE_FAILED" }, 400);
       }
+
+      await supabaseAdmin.from("events").insert({
+        event_type: "USER_ROLE_ADDED",
+        entity_type: "user",
+        entity_id: userId,
+        user_id: requesterId,
+        metadata: {
+          target_user_id: userId,
+          role,
+          organization_id: organizationId,
+          group_id: groupId,
+          requested_by: requesterId,
+        },
+      });
 
       return json({
         success: true,

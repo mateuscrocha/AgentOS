@@ -75,7 +75,7 @@ describe("GroupPageTop — aba Configurações", () => {
       root.render(
         <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <GroupPageTop
-            breadcrumbItems={[{ label: "Central do Bóris", href: "/" }]}
+            breadcrumbItems={[{ label: "Central de Comando", href: "/" }]}
             group={{
               groupId: "00000000-0000-4000-8000-000000000000",
               organizationId: "00000000-0000-4000-8000-000000000001",
@@ -108,7 +108,7 @@ describe("GroupPageTop — aba Configurações", () => {
       root.render(
         <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <GroupPageTop
-            breadcrumbItems={[{ label: "Central do Bóris", href: "/" }]}
+            breadcrumbItems={[{ label: "Central de Comando", href: "/" }]}
             group={{
               groupId: "00000000-0000-4000-8000-000000000000",
               organizationId: "00000000-0000-4000-8000-000000000001",

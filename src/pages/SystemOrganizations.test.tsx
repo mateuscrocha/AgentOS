@@ -101,6 +101,17 @@ vi.mock("@/components/ui/error-state", () => ({ ErrorState: ({ title }: any) => 
 vi.mock("@/components/ui/empty-state", () => ({ EmptyState: ({ title }: any) => <div>{title}</div> }));
 vi.mock("@/components/ui/skeleton", () => ({ Skeleton: () => <div /> }));
 vi.mock("@/components/ui/badge", () => ({ Badge: ({ children }: any) => <span>{children}</span> }));
+vi.mock("@/components/ui/select", () => ({
+  Select: ({ children, value, onValueChange }: any) => (
+    <select value={value} onChange={(e) => onValueChange?.(e.target.value)}>
+      {children}
+    </select>
+  ),
+  SelectTrigger: () => null,
+  SelectValue: () => null,
+  SelectContent: ({ children }: any) => <>{children}</>,
+  SelectItem: ({ children, value }: any) => <option value={value}>{children}</option>,
+}));
 
 vi.mock("@/components/ui/drawer", () => ({
   Drawer: ({ children }: any) => <div>{children}</div>,
@@ -206,7 +217,6 @@ describe("SystemOrganizations page", () => {
     const { container, root } = await renderPage();
 
     expect(container.textContent).not.toContain("Suspensas:0");
-    expect(container.textContent).toContain("Status: suspensos");
     const statusSelect = Array.from(container.querySelectorAll("select")).find((s) =>
       Array.from(s.options).some((o) => o.value === "suspended"),
     );

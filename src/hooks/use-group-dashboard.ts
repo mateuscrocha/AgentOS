@@ -98,24 +98,68 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
   useEffect(() => {
     if (!groupId || !isGroupIdValid || !isAuthenticated) return;
+    if (typeof (supabase as any).channel !== "function") return;
+
+    let refreshTimer: number | null = null;
+    const scheduleRealtimeRefresh = () => {
+      if (refreshTimer !== null) return;
+
+      refreshTimer = globalThis.setTimeout(() => {
+        refreshTimer = null;
+
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["group-overview", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-stats", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-member-events", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-members-snapshot", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-entries-day", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-exits-day", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-chart", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-active-per-day", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-activity-hour", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-participants", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-top-participants", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-engagement", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-popular", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-admins", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-previous-admins", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-at-risk", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-new-members", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-previous-new-members", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-exited-members", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-previous-exited-members", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-recent", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-members", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-members-prev", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-dashboard-trending-keywords", groupId] }),
+          queryClient.invalidateQueries({ queryKey: ["group-ikigai-suggestions", groupId] }),
+        ]);
+      }, 400);
+    };
 
     const channel = supabase
-      .channel(`realtime:group:${groupId}:member_events`)
+      .channel(`realtime:group:${groupId}:dashboard`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "member_events", filter: `group_id=eq.${groupId}` },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["group-dashboard-member-events", groupId] });
-          queryClient.invalidateQueries({ queryKey: ["group-overview", groupId] });
-          queryClient.invalidateQueries({ queryKey: ["group-dashboard-stats", groupId] });
-          queryClient.invalidateQueries({ queryKey: ["group-dashboard-members-snapshot", groupId] });
-          queryClient.invalidateQueries({ queryKey: ["group-dashboard-entries-day", groupId] });
-          queryClient.invalidateQueries({ queryKey: ["group-dashboard-exits-day", groupId] });
-        },
+        scheduleRealtimeRefresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "messages", filter: `group_id=eq.${groupId}` },
+        scheduleRealtimeRefresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "message_reactions", filter: `group_id=eq.${groupId}` },
+        scheduleRealtimeRefresh,
       )
       .subscribe();
 
     return () => {
+      if (refreshTimer !== null) {
+        globalThis.clearTimeout(refreshTimer);
+      }
       supabase.removeChannel(channel);
     };
   }, [groupId, isGroupIdValid, isAuthenticated, queryClient]);

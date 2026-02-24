@@ -155,7 +155,7 @@ const Auth = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <img src="/admin-logo.png" alt="Bóris Admin" className="h-24 w-auto mb-2" />
+          <img src="/admin-logo.png" alt="Central de Comando do Bóris" className="h-24 w-auto mb-2" />
           <h1 className="text-2xl font-bold text-foreground">Central de Controle</h1>
           <p className="text-sm text-muted-foreground mt-1">{isRecovery ? "Defina sua nova senha" : "Entre na sua conta"}</p>
         </div>

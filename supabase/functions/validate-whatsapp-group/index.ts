@@ -568,6 +568,6 @@ export const createValidateWhatsAppGroupHandler = (args?: {
   };
 };
 
-if (import.meta.main) {
+if ((import.meta as any).main) {
   serve(createValidateWhatsAppGroupHandler());
 }

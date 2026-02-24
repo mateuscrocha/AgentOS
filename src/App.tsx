@@ -58,6 +58,59 @@ const MisconfiguredApp = ({ message }: { message: string }) => (
   </main>
 );
 
+function AppRoutes() {
+  const location = useLocation();
+
+  return (
+    <Suspense fallback={<div className="p-4 sm:p-6"><PageSkeleton /></div>}>
+      <Routes key={location.pathname}>
+      {/* Auth and protected routes */}
+      <Route path="/" element={<Index />} />
+      {/* Legacy redirects */}
+      <Route path="/dashboard" element={<Navigate to="/" replace />} />
+      <Route path="/system/overview" element={<Navigate to="/" replace />} />
+      {/* System Admin home */}
+      <Route path="/system" element={<Index />} />
+      <Route path="/overview" element={<Navigate to="/" replace />} />
+      <Route path="/system/organizations" element={<SystemOrganizations />} />
+      <Route path="/organization" element={<Navigate to="/system/organizations" replace />} />
+      <Route path="/system/groups" element={<SystemGroups />} />
+      <Route path="/system/support" element={<SystemSupport />} />
+      <Route path="/system/users" element={<Users />} />
+      <Route path="/system/events" element={<SystemEvents />} />
+      <Route path="/system/activity" element={<SystemActivity />} />
+      <Route path="/system/settings" element={<Settings />} />
+      <Route path="/system/alerts" element={<Alerts />} />
+      <Route path="/alerts" element={<Alerts />} />
+      <Route path="/org/:orgId/*" element={<LegacyOrgAliasRedirect />} />
+      <Route path="/organization/:orgId" element={<Org />} />
+      <Route path="/organization/:orgId/groups" element={<Org />} />
+      <Route path="/organization/:orgId/dashboard" element={<Org />} />
+      <Route path="/organization/:orgId/keywords" element={<Org />} />
+      <Route path="/organization/:orgId/profile" element={<Org />} />
+      {/* Group Admin routes (legacy + standardized aliases) */}
+      <Route path="/group/:groupId/*" element={<LegacyGroupAliasRedirect />} />
+      <Route path="/groups/:groupId" element={<Group />} />
+      <Route path="/groups/:groupId/members" element={<GroupMembers />} />
+      <Route path="/groups/:groupId/support" element={<GroupSupport />} />
+      <Route path="/groups/:groupId/messages" element={<GroupMessages />} />
+      <Route path="/groups/:groupId/summaries" element={<GroupSummaries />} />
+      <Route path="/groups/:groupId/polls" element={<GroupPolls />} />
+      <Route path="/groups/:groupId/polls/:pollId" element={<GroupPoll />} />
+      <Route path="/groups/:groupId/events" element={<GroupEvents />} />
+      <Route path="/groups/:groupId/dashboard" element={<Group />} />
+      <Route path="/groups/:groupId/edit" element={<GroupEdit />} />
+      <Route path="/account" element={<Account />} />
+      <Route path="/settings" element={<Settings />} />
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/no-access" element={<NoAccess />} />
+      <Route path="/dev/test-users" element={<DevTestUsers />} />
+      <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
+  );
+}
+
 function LegacyOrgAliasRedirect() {
   const { orgId, "*": rest } = useParams();
   const location = useLocation();
@@ -82,53 +135,9 @@ const App = () => (
     <TooltipProvider>
       <Sonner />
       <AuthProvider>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <BrowserRouter future={{ v7_relativeSplatPath: true }}>
           <AuthGuard>
-            <Suspense fallback={<div className="p-4 sm:p-6"><PageSkeleton /></div>}>
-              <Routes>
-              {/* Auth and protected routes */}
-              <Route path="/" element={<Index />} />
-              {/* Legacy redirects */}
-              <Route path="/dashboard" element={<Navigate to="/" replace />} />
-              <Route path="/system/overview" element={<Navigate to="/" replace />} />
-              {/* System Admin home */}
-              <Route path="/system" element={<Index />} />
-              <Route path="/overview" element={<Navigate to="/" replace />} />
-              <Route path="/system/organizations" element={<SystemOrganizations />} />
-              <Route path="/system/groups" element={<SystemGroups />} />
-              <Route path="/system/support" element={<SystemSupport />} />
-              <Route path="/system/users" element={<Users />} />
-              <Route path="/system/events" element={<SystemEvents />} />
-              <Route path="/system/activity" element={<SystemActivity />} />
-              <Route path="/system/settings" element={<Settings />} />
-              <Route path="/system/alerts" element={<Alerts />} />
-              <Route path="/alerts" element={<Alerts />} />
-              <Route path="/org/:orgId/*" element={<LegacyOrgAliasRedirect />} />
-              <Route path="/organization/:orgId" element={<Org />} />
-              <Route path="/organization/:orgId/groups" element={<Org />} />
-              <Route path="/organization/:orgId/dashboard" element={<Org />} />
-              <Route path="/organization/:orgId/keywords" element={<Org />} />
-              <Route path="/organization/:orgId/profile" element={<Org />} />
-              {/* Group Admin routes (legacy + standardized aliases) */}
-              <Route path="/group/:groupId/*" element={<LegacyGroupAliasRedirect />} />
-              <Route path="/groups/:groupId" element={<Group />} />
-              <Route path="/groups/:groupId/members" element={<GroupMembers />} />
-              <Route path="/groups/:groupId/support" element={<GroupSupport />} />
-              <Route path="/groups/:groupId/messages" element={<GroupMessages />} />
-              <Route path="/groups/:groupId/summaries" element={<GroupSummaries />} />
-              <Route path="/groups/:groupId/polls" element={<GroupPolls />} />
-              <Route path="/groups/:groupId/polls/:pollId" element={<GroupPoll />} />
-              <Route path="/groups/:groupId/events" element={<GroupEvents />} />
-              <Route path="/groups/:groupId/dashboard" element={<Group />} />
-              <Route path="/groups/:groupId/edit" element={<GroupEdit />} />
-              <Route path="/account" element={<Account />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/no-access" element={<NoAccess />} />
-              <Route path="/dev/test-users" element={<DevTestUsers />} />
-              <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
+            <AppRoutes />
           </AuthGuard>
         </BrowserRouter>
       </AuthProvider>

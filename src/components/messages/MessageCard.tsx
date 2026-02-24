@@ -14,6 +14,7 @@ import type { MessageFeed, ReactionSummary } from "@/hooks/use-group-messages";
 type MessageCardProps = {
   message: MessageFeed;
   groupId: string;
+  mentionMap?: Record<string, string>;
   onOpenDetails: (message: MessageFeed) => void;
   reactions?: ReactionSummary[];
 };
@@ -39,6 +40,12 @@ const formatBubbleTime = (iso: string) =>
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));
+
+const replaceMentionsInText = (text: string, mentionMap: Record<string, string>) =>
+  text.replace(/@([0-9]{5,})/g, (_match, mentionId: string) => {
+    const label = mentionMap[mentionId];
+    return label ? `@${label}` : `@${mentionId}`;
+  });
 
 const getMessageTypeIcon = (type: string) => {
   switch (type) {
@@ -123,30 +130,100 @@ function PollInlineSummary({ groupId, providerMessageId }: { groupId: string; pr
   );
 }
 
+function MediaTilePreview({
+  src,
+  alt,
+  icon: Icon,
+  title,
+  subtitle,
+  kind = "media",
+}: {
+  src?: string | null;
+  alt: string;
+  icon: typeof Image;
+  title: string;
+  subtitle?: string | null;
+  kind?: "media" | "sticker";
+}) {
+  const [failed, setFailed] = useState(false);
+  const hasMedia = !!src && !failed;
+
+  return (
+    <div className="space-y-2">
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-xl border border-border/50",
+          kind === "sticker" ? "bg-gradient-to-br from-muted/50 to-background p-3" : "bg-background/60",
+        )}
+      >
+        {hasMedia ? (
+          <img
+            src={src || ""}
+            alt={alt}
+            className={cn(
+              "w-full object-contain bg-transparent",
+              kind === "sticker" ? "max-h-44 min-h-24" : "aspect-[4/3] max-h-48 object-cover",
+            )}
+            referrerPolicy="no-referrer"
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          <div
+            className={cn(
+              "flex items-center justify-center text-muted-foreground",
+              kind === "sticker" ? "h-28" : "aspect-[4/3]",
+            )}
+          >
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <Icon className="h-5 w-5" />
+              </div>
+              <span className="text-xs">Prévia indisponível</span>
+            </div>
+          </div>
+        )}
+
+        {kind !== "sticker" ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent p-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/35 px-2 py-0.5 text-[11px] text-white/95 backdrop-blur-sm">
+              <Icon className="h-3 w-3" />
+              <span>{title}</span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="min-w-0 rounded-lg border border-border/40 bg-background/50 px-2.5 py-2">
+        <div className="text-sm font-medium text-foreground">{title}</div>
+        <div className="text-xs text-muted-foreground truncate">{subtitle || (kind === "sticker" ? "Figurinha enviada" : "Mídia enviada")}</div>
+      </div>
+    </div>
+  );
+}
+
 function MessageContentPreview({ message }: { message: MessageFeed }) {
   switch (message.message_type) {
     case "image":
       return (
-        <div className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-background/60 p-2">
-          {message.media_url ? (
-            <img
-              src={message.media_url}
-              alt="preview"
-              className="w-14 h-14 rounded-lg object-cover bg-muted"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          ) : (
-            <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center">
-              <Image className="h-5 w-5 text-muted-foreground" />
-            </div>
-          )}
-          <div className="min-w-0">
-            <div className="text-sm font-medium text-foreground">Foto</div>
-            <div className="text-xs text-muted-foreground truncate">{message.content_preview || "Imagem enviada"}</div>
-          </div>
-        </div>
+        <MediaTilePreview
+          src={message.media_url}
+          alt="Imagem enviada"
+          icon={Image}
+          title="Foto"
+          subtitle={message.content_preview || "Imagem enviada"}
+          kind="media"
+        />
+      );
+    case "sticker":
+      return (
+        <MediaTilePreview
+          src={message.media_url || message.thumbnail_url}
+          alt="Figurinha enviada"
+          icon={Smile}
+          title="Figurinha"
+          subtitle={message.content_preview || "Figurinha enviada"}
+          kind="sticker"
+        />
       );
     case "audio":
       return (
@@ -239,11 +316,12 @@ function MessageContentPreview({ message }: { message: MessageFeed }) {
   }
 }
 
-export function MessageCard({ message, groupId, onOpenDetails, reactions }: MessageCardProps) {
+export function MessageCard({ message, groupId, mentionMap = {}, onOpenDetails, reactions }: MessageCardProps) {
   const TypeIcon = useMemo(() => getMessageTypeIcon(message.message_type), [message.message_type]);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const text = (message.content_preview || "").toString();
+  const displayText = useMemo(() => replaceMentionsInText(text, mentionMap), [text, mentionMap]);
   const canExpand = message.message_type === "text" && (text.length >= 160 || /\n/.test(text));
   const domains = message.message_type === "text" ? extractLinkDomains(text) : [];
   const isSystem = message.message_type === "system";
@@ -355,9 +433,9 @@ export function MessageCard({ message, groupId, onOpenDetails, reactions }: Mess
         {message.message_type === "text" ? (
           <div>
             {isExpanded ? (
-              <div className="text-sm text-foreground/90 leading-relaxed break-words">{formatWhatsAppRichText(text)}</div>
+              <div className="text-sm text-foreground/90 leading-relaxed break-words">{formatWhatsAppRichText(displayText)}</div>
             ) : (
-              <p className="text-sm text-foreground/90 leading-relaxed line-clamp-2 break-words">{formatWhatsAppStyles(text || "")}</p>
+              <p className="text-sm text-foreground/90 leading-relaxed line-clamp-2 break-words">{formatWhatsAppStyles(displayText || "")}</p>
             )}
 
             {domains.length ? (

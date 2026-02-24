@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 let isSystemAdminValue = false;
@@ -120,6 +120,104 @@ describe("AdminSidebar — menu do grupo", () => {
     });
 
     expect(container.textContent).toContain("Configurações do grupo");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("navega de Alertas para Organizações ao clicar no link", async () => {
+    isSystemAdminValue = true;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { AdminSidebar } = await import("./AdminSidebar");
+
+    const LocationProbe = () => {
+      const location = useLocation();
+      return <div data-testid="location-probe">{location.pathname}</div>;
+    };
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter
+            initialEntries={["/system/alerts"]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
+            <AdminSidebar />
+            <LocationProbe />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+    });
+
+    expect(container.textContent).toContain("Alertas");
+    expect(container.textContent).toContain("Organizações");
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent).toBe("/system/alerts");
+
+    const orgLink = Array.from(container.querySelectorAll("a")).find((a) => a.textContent?.includes("Organizações"));
+    expect(orgLink).toBeTruthy();
+
+    await act(async () => {
+      orgLink?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+    });
+
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent).toBe("/system/organizations");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("navega de Organizações para Alertas ao clicar no link", async () => {
+    isSystemAdminValue = true;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { AdminSidebar } = await import("./AdminSidebar");
+
+    const LocationProbe = () => {
+      const location = useLocation();
+      return <div data-testid="location-probe">{location.pathname}</div>;
+    };
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter
+            initialEntries={["/system/organizations"]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
+            <AdminSidebar />
+            <LocationProbe />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+    });
+
+    expect(container.textContent).toContain("Alertas");
+    expect(container.textContent).toContain("Organizações");
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent).toBe("/system/organizations");
+
+    const alertsLink = Array.from(container.querySelectorAll("a")).find((a) => a.textContent?.includes("Alertas"));
+    expect(alertsLink).toBeTruthy();
+
+    await act(async () => {
+      alertsLink?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+    });
+
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent).toBe("/system/alerts");
 
     await act(async () => {
       root.unmount();

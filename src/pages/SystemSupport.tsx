@@ -9,6 +9,9 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
+import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
+import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { UserInline } from "@/components/ui/UserInline";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -701,10 +704,10 @@ export default function SystemSupport() {
   ];
 
   return (
-    <AdminLayout title="Atendimento" subtitle="Central do Bóris › Atendimento">
+    <AdminLayout title="Atendimento" subtitle="Central de Comando › Atendimento">
       <div className="space-y-6 animate-fade-in">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Atendimento" }]}
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Atendimento" }]}
           title="Atendimento"
           description="Visão operacional por atendente e grupos vinculados para os KPIs de atendimento."
           filters={(
@@ -753,6 +756,7 @@ export default function SystemSupport() {
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.attendants}
                 valueClassName="text-2xl sm:text-3xl"
+                numericValue
               />
               <StatsCard
                 title="Grupos vinculados"
@@ -761,6 +765,7 @@ export default function SystemSupport() {
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.groups}
                 valueClassName="text-2xl sm:text-3xl"
+                numericValue
               />
               <StatsCard
                 title={`Grupos inativos (${INACTIVITY_DAYS}d)`}
@@ -769,6 +774,7 @@ export default function SystemSupport() {
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.inactive}
                 valueClassName="text-2xl sm:text-3xl"
+                numericValue
               />
               <StatsCard
                 title="Média grupos/atend."
@@ -777,6 +783,7 @@ export default function SystemSupport() {
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.avgGroups}
                 valueClassName="text-2xl sm:text-3xl"
+                numericValue
               />
               <StatsCard
                 title={`TMR útil (${periodLabel})`}
@@ -786,6 +793,7 @@ export default function SystemSupport() {
                 help={SYSTEM_SUPPORT_KPI_HELP.tmr}
                 valueClassName="text-2xl sm:text-3xl"
                 description={`${answeredInteractions30d.toLocaleString("pt-BR")} interações • horário comercial`}
+                numericValue
               />
               <StatsCard
                 title={`SLA ${RESPONSE_SLA_BUSINESS_MINUTES}min (útil)`}
@@ -795,6 +803,7 @@ export default function SystemSupport() {
                 help={SYSTEM_SUPPORT_KPI_HELP.sla}
                 valueClassName="text-2xl sm:text-3xl"
                 description={`${answeredWithinSla30d.toLocaleString("pt-BR")} respostas no SLA`}
+                numericValue
               />
               <StatsCard
                 title="Pendências sem resposta"
@@ -804,6 +813,7 @@ export default function SystemSupport() {
                 help={SYSTEM_SUPPORT_KPI_HELP.pending}
                 valueClassName="text-2xl sm:text-3xl"
                 description={`${openPendingSlaBreached.toLocaleString("pt-BR")} fora do SLA`}
+                numericValue
               />
               <StatsCard
                 title={`Msgs atendentes (${periodLabel})`}
@@ -813,24 +823,26 @@ export default function SystemSupport() {
                 help={SYSTEM_SUPPORT_KPI_HELP.messages}
                 valueClassName="text-2xl sm:text-3xl"
                 description="Amostral em grupos vinculados"
+                numericValue
               />
             </div>
           )}
         />
 
         {(supportQuery.data?.sequenceSampleCapped || supportQuery.data?.supportMessagesSampleCapped || supportQuery.data?.demandClusterSampleCapped) ? (
-          <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-warning">
+          <div className="rounded-xl border border-warning/30 bg-warning/5 px-3 py-2.5 text-xs leading-relaxed text-warning">
             Métricas de atendimento do período usam amostragem para manter performance em bases maiores. TMR é aproximado e considera horário comercial (seg-sex, 08h-18h SP).
           </div>
         ) : null}
 
-        <section className="rounded-2xl border border-border/60 bg-card/70 p-4">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">Clusterização de demandas (MVP)</h2>
-            <p className="text-xs text-muted-foreground">
-              Palavras-chave em mensagens de texto de clientes no período e filtros selecionados, comparadas ao período anterior equivalente.
-            </p>
-          </div>
+        <section className="rounded-2xl border border-border/60 bg-gradient-to-b from-card to-card/90 p-4">
+          <ExecutiveSectionHeader
+            eyebrow="Qualitativo"
+            title="Clusterização de demandas (MVP)"
+            description="Palavras-chave em mensagens de texto de clientes no período e filtros selecionados, comparadas ao período anterior equivalente."
+            icon={Layers}
+            className="mb-2"
+          />
           <div className="mt-3 flex flex-wrap gap-2">
             {demandClusters.filter((c) => c.count > 0).slice(0, 8).map((cluster) => (
               <div key={cluster.key} className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm">
@@ -862,19 +874,28 @@ export default function SystemSupport() {
             message="Defina atendentes nos grupos para habilitar a visão consolidada por atendente."
           />
         ) : (
-          <BorisTable
-            columns={columns as any}
-            data={pagedAttendants}
-            keyExtractor={(row) => row.identityKey}
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalCount={filteredAttendants.length}
-            onPageChange={setPage}
-            loading={supportQuery.isFetching}
-            error={false}
-            emptyIcon={Headset}
-            emptyMessage="Nenhum atendente encontrado para esse filtro."
-          />
+          <>
+            <ListSectionHeader
+              className="mb-3"
+              title="Lista de atendentes"
+              count={filteredAttendants.length.toLocaleString("pt-BR")}
+              statusLabel={ADMIN_MICROCOPY.listStatus.selectedScopeRecords}
+              isLoading={supportQuery.isFetching}
+            />
+            <BorisTable
+              columns={columns as any}
+              data={pagedAttendants}
+              keyExtractor={(row) => row.identityKey}
+              page={page}
+              pageSize={PAGE_SIZE}
+              totalCount={filteredAttendants.length}
+              onPageChange={setPage}
+              loading={supportQuery.isFetching}
+              error={false}
+              emptyIcon={Headset}
+              emptyMessage="Nenhum atendente encontrado para esse filtro."
+            />
+          </>
         )}
       </div>
     </AdminLayout>

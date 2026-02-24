@@ -989,7 +989,7 @@ export default function Users() {
     >
       <div className="space-y-6">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Usuários" }]}
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Usuários" }]}
           title="Usuários"
           description="Gerenciamento de usuários e papéis do sistema"
           actions={(

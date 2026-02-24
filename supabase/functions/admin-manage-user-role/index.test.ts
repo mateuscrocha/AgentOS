@@ -88,6 +88,10 @@ class Builder {
       return { data: [], error: null };
     }
 
+    if (this.table === "events" && this.action === "insert") {
+      return { data: [{ id: "evt-1" }], error: null };
+    }
+
     return { data: null, error: null };
   }
 }
@@ -165,6 +169,8 @@ DenoRef.test("admin-manage-user-role bloqueia remoção do último SYSTEM_ADMIN"
 
   const deleteCalls = calls.filter((c) => c.table === "user_roles" && c.action === "delete");
   assertEquals(deleteCalls.length, 0);
+  const eventCalls = calls.filter((c) => c.table === "events" && c.action === "insert");
+  assertEquals(eventCalls.length, 0);
 });
 
 DenoRef.test("admin-manage-user-role retorna conflito quando papel já existe", async () => {
@@ -226,4 +232,46 @@ DenoRef.test("admin-manage-user-role adiciona GROUP_MANAGER preenchendo organiza
   const insertCall = calls.find((c) => c.table === "user_roles" && c.action === "insert");
   assertEquals(insertCall?.payload?.organization_id, orgId);
   assertEquals(insertCall?.payload?.group_id, groupId);
+
+  const eventCall = calls.find((c) => c.table === "events" && c.action === "insert");
+  assertEquals(eventCall?.payload?.event_type, "USER_ROLE_ADDED");
+  assertEquals(eventCall?.payload?.entity_id, userId);
+  assertEquals(eventCall?.payload?.metadata?.role, "GROUP_MANAGER");
+  assertEquals(eventCall?.payload?.metadata?.organization_id, orgId);
+  assertEquals(eventCall?.payload?.metadata?.group_id, groupId);
+});
+
+DenoRef.test("admin-manage-user-role registra auditoria ao remover papel", async () => {
+  const calls: Call[] = [];
+  const roleId = "88888888-8888-4888-8888-888888888888";
+  const userId = "99999999-9999-4999-8999-999999999999";
+
+  const handler = createAdminManageUserRoleHandler({
+    createClientImpl: makeCreateClientStub({
+      requesterIsSystemAdmin: true,
+      roleById: {
+        [roleId]: {
+          id: roleId,
+          user_id: userId,
+          role: "USER",
+          organization_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          group_id: null,
+        },
+      },
+      systemAdminCount: 2,
+    }, calls) as any,
+    env: testEnv(),
+  });
+
+  const res = await handler(makeReq({ action: "remove", role_id: roleId }));
+  const body = await res.json();
+
+  assertEquals(res.status, 200);
+  assertEquals(body.success, true);
+
+  const eventCall = calls.find((c) => c.table === "events" && c.action === "insert");
+  assertEquals(eventCall?.payload?.event_type, "USER_ROLE_REMOVED");
+  assertEquals(eventCall?.payload?.entity_id, userId);
+  assertEquals(eventCall?.payload?.metadata?.role_id, roleId);
+  assertEquals(eventCall?.payload?.metadata?.role, "USER");
 });

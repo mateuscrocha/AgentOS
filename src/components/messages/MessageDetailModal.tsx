@@ -182,7 +182,7 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
       ];
       const { data: byProvider } = await (supabase as any)
         .from("members")
-        .select("whatsapp_provider_id, name, display_name")
+        .select("whatsapp_provider_id, name, display_name, phone_e164")
         .eq("group_id", groupId)
         .in("whatsapp_provider_id", providerCandidates);
       const { data: byPhone } = await (supabase as any)
@@ -195,13 +195,13 @@ export function MessageDetailModal({ open, onOpenChange, groupId, messageId }: M
       (byProvider || []).forEach(m => {
         const keyFull = (m as any).whatsapp_provider_id as string;
         const key = toDigits(keyFull || "");
-        const val = ((m as any).display_name as string) || ((m as any).name as string);
+        const val = ((m as any).display_name as string) || ((m as any).name as string) || ((m as any).phone_e164 as string);
         if (key) map[key] = val;
       });
       (byPhone || []).forEach(m => {
         const phone = ((m as any).phone_e164 as string) || "";
         const key = phone.replace(/^\+/, "");
-        const val = ((m as any).display_name as string) || ((m as any).name as string);
+        const val = ((m as any).display_name as string) || ((m as any).name as string) || phone;
         if (key) map[key] = val;
       });
       return map;

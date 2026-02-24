@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge, RoleBadge, StatusBadge, type MemberStatusKey } from "@/components/ui/badge";
+import { FilterChips } from "@/components/ui/filter-chips";
 import { FilterTriggerButton } from "@/components/ui/filter-trigger-button";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink } from "@/components/ui/pagination";
@@ -250,6 +251,7 @@ const GroupMembers = () => {
   const hasActiveFilters = !!search.trim() || roleFilter !== "all";
   const activeFiltersCount = (search.trim() ? 1 : 0) + (roleFilter !== "all" ? 1 : 0);
   const isSearching = search !== debouncedSearch;
+  const roleFilterLabel = ROLE_FILTER_OPTIONS.find((opt) => opt.key === roleFilter)?.label;
 
   return (
     <AdminLayout 
@@ -260,7 +262,7 @@ const GroupMembers = () => {
         <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-info/5 space-y-6">
           <GroupPageTop
             breadcrumbItems={[
-              { label: "Central do Bóris", href: "/" },
+              { label: "Central de Comando", href: "/" },
               { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
               { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
               { label: "Membros" },
@@ -319,6 +321,35 @@ const GroupMembers = () => {
                     />
                   </div>
                 </div>
+
+                {hasActiveFilters ? (
+                  <FilterChips
+                    items={[
+                      ...(search.trim()
+                        ? [{
+                            key: "search",
+                            label: `Busca: ${search.trim()}`,
+                            onRemove: () => {
+                              setSearch("");
+                              setPage(1);
+                            },
+                            ariaLabel: "Remover filtro de busca",
+                          }]
+                        : []),
+                      ...(roleFilter !== "all"
+                        ? [{
+                            key: "role",
+                            label: `Função: ${roleFilterLabel || roleFilter}`,
+                            onRemove: () => {
+                              setRoleFilter("all");
+                              setPage(1);
+                            },
+                            ariaLabel: "Remover filtro de função",
+                          }]
+                        : []),
+                    ]}
+                  />
+                ) : null}
 
                 <div className="hidden sm:flex flex-wrap items-center gap-2">
                   <div className="flex flex-wrap items-center gap-2">

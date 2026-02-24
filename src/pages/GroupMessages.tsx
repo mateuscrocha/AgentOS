@@ -94,6 +94,7 @@ const GroupMessages = () => {
     totalMembersCount,
     lastMessageAt,
     messagesData,
+    pageMentionsMap,
     reactionsMap,
     messagesLoading,
     messagesFetching,
@@ -174,7 +175,7 @@ const GroupMessages = () => {
       <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-success/5 space-y-6">
         <GroupPageTop
           breadcrumbItems={[
-            { label: "Central do Bóris", href: "/" },
+            { label: "Central de Comando", href: "/" },
             { label: groupInfo?.orgName || "Organização", href: `/organization/${groupInfo?.orgId}` },
             { label: groupInfo?.groupName || "Grupo", href: `/groups/${groupId}` },
             { label: "Mensagens" },
@@ -279,6 +280,7 @@ const GroupMessages = () => {
                     key={m.message_id}
                     message={m}
                     groupId={groupId as string}
+                    mentionMap={pageMentionsMap}
                     onOpenDetails={handleViewDetail}
                     reactions={reactionsMap[m.message_id] || []}
                   />

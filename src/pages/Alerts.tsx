@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -25,6 +25,7 @@ import { notify } from "@/components/ui/sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AlertTriangle, Bell, Filter, Plus, Search, Settings } from "lucide-react";
 import { formatDateTimeBR, formatDateSimpleBR } from "@/lib/date";
+import { getCanonicalAlertsPath, shouldRedirectAlertsPath } from "@/lib/alerts-routing";
 
 type GroupOption = {
   id: string;
@@ -89,6 +90,7 @@ function deriveScopeType(d: AlertDefinition): DefinitionScopeType {
 
 export default function Alerts() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { loading: authLoading, user, isAuthenticated } = useAuth();
   const {
@@ -101,6 +103,7 @@ export default function Alerts() {
   } = useUserRoles();
 
   const canUseAlerts = isSystemAdmin || isOrgAdmin || isGroupManager;
+  const canonicalAlertsPath = getCanonicalAlertsPath(isSystemAdmin);
 
   const [tab, setTab] = useState("events");
 
@@ -134,6 +137,7 @@ export default function Alerts() {
   const [formNotifyInApp, setFormNotifyInApp] = useState(true);
   const [termInput, setTermInput] = useState("");
   const [termDrafts, setTermDrafts] = useState<string[]>([]);
+  const realtimeInvalidateTimerRef = useRef<number | null>(null);
 
   const periodLabel = `${formatDateSimpleBR(currentRange.from)} — ${formatDateSimpleBR(currentRange.to)}`;
 
@@ -318,6 +322,43 @@ export default function Alerts() {
     refetchInterval: 20_000,
   });
 
+  useEffect(() => {
+    if (!isAuthenticated || !canUseAlerts) return;
+    if (typeof (supabase as any).channel !== "function") return;
+
+    const scheduleAlertsRefresh = () => {
+      if (realtimeInvalidateTimerRef.current !== null) return;
+
+      realtimeInvalidateTimerRef.current = globalThis.setTimeout(() => {
+        realtimeInvalidateTimerRef.current = null;
+
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["alerts", "events"] }),
+          queryClient.invalidateQueries({ queryKey: ["alerts", "unread-count"] }),
+          queryClient.invalidateQueries({ queryKey: ["alerts", "definitions"] }),
+          queryClient.invalidateQueries({ queryKey: ["alerts", "definitions-options"] }),
+          queryClient.invalidateQueries({ queryKey: ["alerts", "terms"] }),
+          queryClient.invalidateQueries({ queryKey: ["alerts", "terms-all"] }),
+        ]);
+      }, 300);
+    };
+
+    const channel = supabase
+      .channel(`realtime:alerts:${user?.id ?? "anonymous"}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "alert_events" }, scheduleAlertsRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "alert_definitions" }, scheduleAlertsRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "alert_terms" }, scheduleAlertsRefresh)
+      .subscribe();
+
+    return () => {
+      if (realtimeInvalidateTimerRef.current !== null) {
+        globalThis.clearTimeout(realtimeInvalidateTimerRef.current);
+        realtimeInvalidateTimerRef.current = null;
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [canUseAlerts, isAuthenticated, queryClient, user?.id]);
+
   const markReadMutation = useMutation({
     mutationFn: async (alertId: string) => {
       const { error } = await supabase.from("alert_events").update({ status: "read" }).eq("id", alertId);
@@ -500,6 +541,24 @@ export default function Alerts() {
       releaseStalePointerLock();
     };
   }, [createOpen, removeDefinition, removeTerm]);
+
+  useEffect(() => {
+    if (authLoading || rolesLoading) return;
+    if (!isAuthenticated || !canUseAlerts) return;
+    if (!shouldRedirectAlertsPath({ pathname: location.pathname, isSystemAdmin })) return;
+    navigate(`${canonicalAlertsPath}${location.search}${location.hash}`, { replace: true });
+  }, [
+    authLoading,
+    canUseAlerts,
+    canonicalAlertsPath,
+    isAuthenticated,
+    isSystemAdmin,
+    location.hash,
+    location.pathname,
+    location.search,
+    navigate,
+    rolesLoading,
+  ]);
 
   const openCreate = () => {
     setEditing(null);
@@ -901,7 +960,7 @@ export default function Alerts() {
     <AdminLayout title="Alertas" subtitle="Centro de alertas por termos monitorados">
       <div className="space-y-6">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Alertas" }]}
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Alertas" }]}
           title="Alertas"
           description="Termos monitorados e alertas por mensagens"
           actions={(

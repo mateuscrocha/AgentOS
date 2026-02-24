@@ -30,6 +30,8 @@ export interface ReactionSummary {
   }[];
 }
 
+const MENTION_REGEX = /@([0-9]{5,})/g;
+
 type GroupInfo = {
   groupName: string;
   orgName?: string;
@@ -229,6 +231,63 @@ export function useGroupMessages({
     return ids.join(",");
   }, [messagesData?.items]);
 
+  const mentionIdsKey = useMemo(() => {
+    const ids = new Set<string>();
+    for (const item of messagesData?.items || []) {
+      const src = (item.content_preview || "").toString();
+      for (const match of src.matchAll(MENTION_REGEX)) {
+        if (match[1]) ids.add(match[1]);
+      }
+    }
+    return Array.from(ids).sort().join(",");
+  }, [messagesData?.items]);
+
+  const { data: pageMentionsMap } = useQuery({
+    queryKey: ["group-messages-page-mentions", groupId, mentionIdsKey],
+    queryFn: async () => {
+      if (!mentionIdsKey) return {} as Record<string, string>;
+
+      const mentionIds = mentionIdsKey.split(",").filter(Boolean);
+      const plusPhones = mentionIds.map((id) => (id.startsWith("+") ? id : `+${id}`));
+      const providerCandidates = [
+        ...mentionIds,
+        ...mentionIds.map((id) => `${id}@c.us`),
+        ...mentionIds.map((id) => `${id}@s.whatsapp.net`),
+      ];
+
+      const [{ data: byProvider }, { data: byPhone }] = await Promise.all([
+        (supabase as any)
+          .from("members")
+          .select("whatsapp_provider_id,name,display_name,phone_e164")
+          .eq("group_id", groupId)
+          .in("whatsapp_provider_id", providerCandidates),
+        (supabase as any)
+          .from("members")
+          .select("phone_e164,name,display_name")
+          .eq("group_id", groupId)
+          .in("phone_e164", plusPhones),
+      ]);
+
+      const map: Record<string, string> = {};
+      const toDigits = (value: string) => value.replace(/\D/g, "");
+      const labelFrom = (row: any) => String(row?.display_name || row?.name || row?.phone_e164 || "").trim();
+
+      for (const row of byProvider || []) {
+        const key = toDigits(String((row as any).whatsapp_provider_id || ""));
+        const label = labelFrom(row);
+        if (key && label) map[key] = label;
+      }
+      for (const row of byPhone || []) {
+        const key = String((row as any).phone_e164 || "").replace(/^\+/, "");
+        const label = labelFrom(row);
+        if (key && label) map[key] = label;
+      }
+      return map;
+    },
+    enabled: !!groupId && isAuthenticated && !!mentionIdsKey,
+    staleTime: 60_000,
+  });
+
   const { data: reactionsData } = useQuery({
     queryKey: ["message-reactions", groupId, messageIdsKey],
     queryFn: async () => {
@@ -263,6 +322,7 @@ export function useGroupMessages({
     totalMembersCount,
     lastMessageAt,
     messagesData,
+    pageMentionsMap: pageMentionsMap || {},
     reactionsMap,
     messagesLoading,
     messagesFetching,
@@ -270,4 +330,3 @@ export function useGroupMessages({
     refetchMessages,
   };
 }
-

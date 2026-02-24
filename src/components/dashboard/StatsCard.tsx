@@ -18,6 +18,7 @@ interface StatsCardProps {
   className?: string;
   titleClassName?: string;
   valueClassName?: string;
+  numericValue?: boolean;
 }
 
 export function StatsCard({ 
@@ -34,6 +35,7 @@ export function StatsCard({
   className,
   titleClassName,
   valueClassName,
+  numericValue = false,
 }: StatsCardProps) {
   const Component = onClick ? 'button' : 'div';
   const componentProps = onClick ? ({ type: "button" } as const) : undefined;
@@ -45,18 +47,18 @@ export function StatsCard({
         {...componentProps}
         onClick={onClick}
         className={cn(
-          "rounded-md border border-border/80 bg-card/95 p-4 sm:p-5 shadow-none text-left w-full min-h-[132px]",
-          onClick && "ripple-surface cursor-pointer transition-colors transition-transform hover:bg-secondary/35 hover:scale-[1.02] active:scale-[0.99]",
+          "rounded-xl border border-border/70 bg-card p-4 sm:p-5 shadow-none text-left w-full min-h-[132px]",
+          onClick && "ripple-surface cursor-pointer transition-all hover:border-primary/20 hover:bg-secondary/20 hover:scale-[1.01] active:scale-[0.99]",
           className
         )}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/15 bg-primary/10">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/[0.08]">
               <Icon className="h-4 w-4 text-primary" />
             </div>
             <div className="flex items-start gap-1 min-w-0">
-              <p className={cn("text-xs font-medium leading-snug text-muted-foreground line-clamp-2", titleClassName)}>{title}</p>
+              <p className={cn("text-[11px] font-semibold uppercase tracking-[0.08em] leading-snug text-muted-foreground/90 line-clamp-2", titleClassName)}>{title}</p>
               {resolvedHelp ? (
                 <MetricHelp metricTitle={title} {...resolvedHelp} className="h-4 w-4 shrink-0" />
               ) : null}
@@ -67,7 +69,8 @@ export function StatsCard({
           ) : (
             <p
               className={cn(
-                "text-2xl sm:text-4xl font-semibold text-card-foreground tracking-tight tabular-nums whitespace-nowrap max-w-[65%] sm:max-w-none truncate sm:overflow-visible sm:text-clip shrink-0 text-right",
+                "text-2xl sm:text-[2.1rem] font-semibold text-card-foreground tracking-tight tabular-nums whitespace-nowrap max-w-[65%] sm:max-w-none truncate sm:overflow-visible sm:text-clip shrink-0 text-right",
+                numericValue && "font-mono text-[1.35rem] sm:text-[1.95rem]",
                 valueClassName,
               )}
             >
@@ -84,17 +87,17 @@ export function StatsCard({
             {change && (
               <p
                 className={cn(
-                  "mt-2 text-xs font-medium",
-                  changeType === "positive" && "text-success",
-                  changeType === "negative" && "text-destructive",
-                  changeType === "neutral" && "text-muted-foreground"
+                  "mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                  changeType === "positive" && "bg-success/10 text-success",
+                  changeType === "negative" && "bg-destructive/10 text-destructive",
+                  changeType === "neutral" && "bg-muted/40 text-muted-foreground"
                 )}
               >
                 {change}
               </p>
             )}
             {description && (
-              <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/90">{description}</p>
             )}
           </>
         )}

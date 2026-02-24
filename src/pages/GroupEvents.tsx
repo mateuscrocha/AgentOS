@@ -204,7 +204,7 @@ export default function GroupEvents() {
       <div className="space-y-6 animate-fade-in">
         <GroupPageTop
           breadcrumbItems={[
-            { label: "Central do Bóris", href: "/" },
+            { label: "Central de Comando", href: "/" },
             ...(org ? [{ label: org.name, href: `/organization/${org.id}` }] : []),
             ...(group ? [{ label: group.name, href: `/groups/${group.id}` }] : []),
             { label: "Eventos" },

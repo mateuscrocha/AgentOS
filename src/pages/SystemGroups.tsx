@@ -6,6 +6,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
+import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, SlidersHorizontal, Users, CheckCircle, XCircle, BarChart3 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -17,9 +19,20 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
 import { Badge } from "@/components/ui/badge";
 import { FilterChips } from "@/components/ui/filter-chips";
+import { FilterBarRow } from "@/components/ui/filter-bar-row";
 import { FilterTriggerButton } from "@/components/ui/filter-trigger-button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusTag } from "@/components/ui/status-tag";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -149,7 +162,7 @@ export default function SystemGroups() {
     enabled: isAuthenticated && isSystemAdmin,
   });
 
-  const { data: groupsData, isLoading, error, refetch } = useQuery({
+  const { data: groupsData, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["system-groups", page, debouncedSearch, statusFilter, orgFilter, orderBy, orderDir],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
@@ -298,6 +311,15 @@ export default function SystemGroups() {
     },
   });
 
+  useEffect(() => {
+    const total = groupsData?.count;
+    if (typeof total !== "number") return;
+    const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (page > maxPage) {
+      setPage(maxPage);
+    }
+  }, [groupsData?.count, page]);
+
   if (authLoading || rolesLoading) {
     return (
       <AdminLayout title="Gerenciar grupos" subtitle="Carregando...">
@@ -311,15 +333,11 @@ export default function SystemGroups() {
   }
 
   const hasActiveFilters = !!search || !!orgFilter || statusFilter !== "all" || orderBy !== "created_at" || orderDir !== "desc";
-
-  useEffect(() => {
-    const total = groupsData?.count;
-    if (typeof total !== "number") return;
-    const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    if (page > maxPage) {
-      setPage(maxPage);
-    }
-  }, [groupsData?.count, page]);
+  const activeFiltersCount =
+    Number(!!search.trim()) +
+    Number(!!orgFilter) +
+    Number(statusFilter !== "all") +
+    Number(orderBy !== "created_at" || orderDir !== "desc");
 
   const handleClearFilters = () => {
     setSearch("");
@@ -481,6 +499,84 @@ export default function SystemGroups() {
     }
   };
 
+  const sortLabel = (() => {
+    if (sortValue === "created_at:desc") return "";
+    if (sortValue === "created_at:asc") return "Ordenação: mais antigas";
+    if (sortValue === "name:asc") return "Ordenação: nome (A-Z)";
+    if (sortValue === "name:desc") return "Ordenação: nome (Z-A)";
+    return "Ordenação personalizada";
+  })();
+
+  const filtersForm = (
+    <>
+      <div className="relative w-full md:w-72">
+        <Input
+          type="text"
+          placeholder="Buscar por nome"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className="h-9 w-full pr-9 bg-background/60"
+          aria-label="Buscar grupos por nome"
+        />
+        {isSearchDebouncing && (
+          <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+        )}
+      </div>
+
+      <Select
+        value={orgFilter || "__all__"}
+        onValueChange={(v) => {
+          setOrgFilter(v === "__all__" ? "" : v);
+          setPage(1);
+        }}
+      >
+        <SelectTrigger className="h-9 w-full sm:w-auto min-w-[12rem] bg-background/60" aria-label="Filtrar por organização">
+          <SelectValue placeholder="Organização" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__all__">Organização: todas</SelectItem>
+          {(organizations ?? []).map((org) => (
+            <SelectItem key={org.id} value={org.id}>
+              {org.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={statusFilter}
+        onValueChange={(v) => {
+          setStatusFilter(v as any);
+          setPage(1);
+        }}
+      >
+        <SelectTrigger className="h-9 w-full sm:w-auto min-w-[11rem] bg-background/60" aria-label="Filtrar por status">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Status: todos</SelectItem>
+          <SelectItem value="active">Status: ativos</SelectItem>
+          <SelectItem value="inactive">Status: inativos</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select value={sortValue} onValueChange={setSortValue}>
+        <SelectTrigger className="h-9 w-full sm:w-auto min-w-[14rem] bg-background/60" aria-label="Ordenação">
+          <SelectValue placeholder="Ordenação" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="created_at:desc">Ordenar: mais recentes</SelectItem>
+          <SelectItem value="created_at:asc">Ordenar: mais antigas</SelectItem>
+          <SelectItem value="name:asc">Ordenar: nome (A-Z)</SelectItem>
+          <SelectItem value="name:desc">Ordenar: nome (Z-A)</SelectItem>
+        </SelectContent>
+      </Select>
+    </>
+  );
+
   const activeFilterChips = (() => {
     const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
     if (search.trim()) {
@@ -497,7 +593,7 @@ export default function SystemGroups() {
       const name = (organizations ?? []).find((o) => o.id === orgFilter)?.name;
       chips.push({
         key: "org",
-        label: `Org: ${name || "Selecionada"}`,
+        label: `Organização: ${name || "Selecionada"}`,
         onClear: () => {
           setOrgFilter("");
           setPage(1);
@@ -507,25 +603,17 @@ export default function SystemGroups() {
     if (statusFilter !== "all") {
       chips.push({
         key: "status",
-        label: statusFilter === "active" ? "Status: Ativos" : "Status: Inativos",
+        label: statusFilter === "active" ? "Status: ativos" : "Status: inativos",
         onClear: () => {
           setStatusFilter("all");
           setPage(1);
         },
       });
     }
-    if (sortValue !== "created_at:desc") {
-      const label =
-        sortValue === "created_at:asc"
-          ? "Ordem: Criado (antigo)"
-          : sortValue === "name:asc"
-          ? "Ordem: Nome (A–Z)"
-          : sortValue === "name:desc"
-          ? "Ordem: Nome (Z–A)"
-          : "Ordem";
+    if (sortLabel) {
       chips.push({
         key: "sort",
-        label,
+        label: sortLabel,
         onClear: () => {
           setOrderBy("created_at");
           setOrderDir("desc");
@@ -537,10 +625,10 @@ export default function SystemGroups() {
   })();
 
   return (
-    <AdminLayout title="Grupos" subtitle="Central do Bóris › Grupos">
+    <AdminLayout title="Grupos" subtitle="Central de Comando › Grupos">
       <div className="space-y-6 animate-fade-in">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central do Bóris", href: "/" }, { label: "Grupos" }]}
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
           title="Grupos"
           description="Todos os grupos conectados ao Bóris"
           generalKpis={(
@@ -551,6 +639,7 @@ export default function SystemGroups() {
                 icon={Users}
                 variant="kpi"
                 isLoading={overviewLoading}
+                numericValue
                 help={{
                   whatIs: "Quantidade total de grupos cadastrados no sistema (considerando os filtros da tela, quando aplicável).",
                   howToInterpret: "Mostra o tamanho da base de grupos monitorados.",
@@ -563,6 +652,7 @@ export default function SystemGroups() {
                 icon={CheckCircle}
                 variant="kpi"
                 isLoading={overviewLoading}
+                numericValue
                 help={{
                   whatIs: "Quantidade de grupos com status ativo.",
                   howToInterpret: "Representa grupos habilitados/operando normalmente na base.",
@@ -575,6 +665,7 @@ export default function SystemGroups() {
                 icon={XCircle}
                 variant="kpi"
                 isLoading={overviewLoading}
+                numericValue
                 help={{
                   whatIs: "Quantidade de grupos com status inativo.",
                   howToInterpret: "Mostra grupos desativados ou fora de operação no cadastro do sistema.",
@@ -587,6 +678,7 @@ export default function SystemGroups() {
                 icon={BarChart3}
                 variant="kpi"
                 isLoading={overviewLoading}
+                numericValue
                 help={{
                   whatIs: "Número médio de membros por grupo na base atual.",
                   howToInterpret: "Ajuda a entender o porte médio dos grupos, sem depender apenas de casos extremos.",
@@ -595,178 +687,81 @@ export default function SystemGroups() {
               />
             </>
           )}
-          filters={(
-            <div className="flex w-full flex-wrap items-center gap-3">
-              <div className="hidden md:flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Buscar por nome"
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(1);
-                    }}
-                    className="h-9 w-72 px-3 pr-9 rounded-lg border border-border bg-card text-sm"
-                    aria-label="Buscar grupos por nome"
-                  />
-                  {isSearchDebouncing && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-
-                <select
-                  value={orgFilter}
-                  onChange={(e) => {
-                    setOrgFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="h-9 px-3 rounded-lg border border-border bg-card text-sm"
-                  aria-label="Filtrar por organização"
-                >
-                  <option value="">Organização</option>
-                  {(organizations ?? []).map((org) => (
-                    <option key={org.id} value={org.id}>
-                      {org.name}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value as any);
-                    setPage(1);
-                  }}
-                  className="h-9 px-3 rounded-lg border border-border bg-card text-sm"
-                  aria-label="Filtrar por status"
-                >
-                  <option value="all">Status</option>
-                  <option value="active">Ativos</option>
-                  <option value="inactive">Inativos</option>
-                </select>
-
-                <select
-                  value={sortValue}
-                  onChange={(e) => setSortValue(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-border bg-card text-sm"
-                  aria-label="Ordenação"
-                >
-                  <option value="created_at:desc">Criado (novo)</option>
-                  <option value="created_at:asc">Criado (antigo)</option>
-                  <option value="name:asc">Nome (A–Z)</option>
-                  <option value="name:desc">Nome (Z–A)</option>
-                </select>
-              </div>
-
-              <div className="md:hidden w-full">
-                <FilterTriggerButton
-                  onClick={() => setFiltersOpen(true)}
-                  icon={SlidersHorizontal}
-                  activeCount={hasActiveFilters ? 1 : undefined}
-                  countLabel="Ativo"
-                />
-              </div>
-            </div>
-          )}
-          showClearFilters={hasActiveFilters}
-          onClearFilters={handleClearFilters}
         />
 
-        {activeFilterChips.length > 0 && (
-          <FilterChips
-            items={activeFilterChips.map((chip) => ({
-              key: chip.key,
-              label: chip.label,
-              onRemove: chip.onClear,
-            }))}
-          />
-        )}
-
-        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <SheetContent side="bottom" className="bg-card border-border">
-            <SheetHeader className="text-left">
-              <SheetTitle>Filtrar grupos</SheetTitle>
-            </SheetHeader>
-
-            <div className="mt-4 space-y-3">
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-muted-foreground">Buscar por nome</div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Ex: Comercial, Operações, Suporte…"
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(1);
-                    }}
-                    className="h-10 w-full px-3 pr-9 rounded-lg border border-border bg-background text-sm"
-                    aria-label="Buscar grupos por nome"
-                  />
-                  {isSearchDebouncing && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-muted-foreground">Organização</div>
-                <select
-                  value={orgFilter}
-                  onChange={(e) => { setOrgFilter(e.target.value); setPage(1); }}
-                  className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
-                  aria-label="Filtrar por organização"
-                >
-                  <option value="">Todas</option>
-                  {(organizations ?? []).map((org) => (
-                    <option key={org.id} value={org.id}>{org.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">Status</div>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1); }}
-                    className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
-                    aria-label="Filtrar por status"
-                  >
-                    <option value="all">Todos</option>
-                    <option value="active">Ativos</option>
-                    <option value="inactive">Inativos</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">Ordenação</div>
-                  <select
-                    value={sortValue}
-                    onChange={(e) => setSortValue(e.target.value)}
-                    className="h-10 w-full px-3 rounded-lg border border-border bg-background text-sm"
-                    aria-label="Ordenação"
-                  >
-                    <option value="created_at:desc">Criado (novo)</option>
-                    <option value="created_at:asc">Criado (antigo)</option>
-                    <option value="name:asc">Nome (A–Z)</option>
-                    <option value="name:desc">Nome (Z–A)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 pt-2">
-                <Button type="button" variant="ghost" onClick={handleClearFilters} disabled={!hasActiveFilters}>
-                  Limpar
+        <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+          <FilterBarRow
+            desktopFilters={filtersForm}
+            mobileTrigger={(
+              <FilterTriggerButton
+                onClick={() => setFiltersOpen(true)}
+                icon={SlidersHorizontal}
+                activeCount={hasActiveFilters ? activeFiltersCount : undefined}
+                countLabel={`${activeFiltersCount} filtro${activeFiltersCount > 1 ? "s" : ""}`}
+              />
+            )}
+            rightActions={hasActiveFilters ? (
+              <>
+                <Badge variant="secondary" className="h-6 px-2 text-[11px]">
+                  {activeFiltersCount} filtro{activeFiltersCount > 1 ? "s" : ""} ativo{activeFiltersCount > 1 ? "s" : ""}
+                </Badge>
+                <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+                  Limpar filtros
                 </Button>
-                <Button type="button" onClick={() => setFiltersOpen(false)}>
+              </>
+            ) : null}
+          />
+
+          {activeFilterChips.length > 0 && (
+            <FilterChips
+              className="mt-3"
+              items={activeFilterChips.map((chip) => ({
+                key: chip.key,
+                label: chip.label,
+                onRemove: chip.onClear,
+              }))}
+            />
+          )}
+        </div>
+
+        <ListSectionHeader
+          title="Lista de grupos"
+          count={typeof groupsData?.count === "number" ? groupsData.count.toLocaleString("pt-BR") : "—"}
+          statusLabel={hasActiveFilters ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.allRecords}
+          isLoading={isFetching}
+          loadingIndicator={<Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />}
+        />
+
+        <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
+          <DrawerContent className="bg-card border-border">
+            <DrawerHeader className="text-left">
+              <DrawerTitle>Filtrar grupos</DrawerTitle>
+              <DrawerDescription>Encontre mais rápido usando busca, organização, status e ordenação.</DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-2">
+              <div className="grid gap-3">{filtersForm}</div>
+            </div>
+            <DrawerFooter>
+              {hasActiveFilters && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    handleClearFilters();
+                    setFiltersOpen(false);
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+              <DrawerClose asChild>
+                <Button type="button">
                   Ver resultados{typeof groupsData?.count === "number" ? ` (${groupsData.count.toLocaleString("pt-BR")})` : ""}
                 </Button>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
 
         <div className="md:hidden">
           {isLoading ? (

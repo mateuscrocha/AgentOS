@@ -203,7 +203,7 @@ const Group = () => {
       <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-primary/5 space-y-8">
         <GroupPageTop
           breadcrumbItems={[
-            { label: "Central do Bóris", href: "/" },
+            { label: "Central de Comando", href: "/" },
             { label: orgName || "Organização", href: `/organization/${group?.organization_id}` },
             { label: group?.name || "Grupo" },
           ]}

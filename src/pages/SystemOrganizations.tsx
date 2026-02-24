@@ -17,6 +17,9 @@ import AccessDenied from "./AccessDenied";
 import { formatDateSimpleBR } from "@/lib/date";
 import { Button } from "@/components/ui/button";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
+import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
+import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +35,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
 import { Badge } from "@/components/ui/badge";
 import { FilterChips } from "@/components/ui/filter-chips";
+import { FilterBarRow } from "@/components/ui/filter-bar-row";
 import { FilterTriggerButton } from "@/components/ui/filter-trigger-button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSystemOrganizations, type OrganizationListItem } from "@/hooks/use-system-organizations";
 
 const PAGE_SIZE = 10;
@@ -288,15 +294,10 @@ export default function SystemOrganizations() {
     setPage(1);
   };
 
-  const filterControlBase =
-    "h-9 px-3 rounded-lg border border-border bg-background/60 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background";
-  const filterSelectBase =
-    "h-9 px-3 pr-8 rounded-lg border border-border bg-background/60 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background";
-
   const filtersForm = (
     <>
       <div className="relative w-full md:w-72">
-        <input
+        <Input
           type="text"
           placeholder="Buscar organização"
           aria-label="Buscar organização por nome"
@@ -305,7 +306,7 @@ export default function SystemOrganizations() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className={`${filterControlBase} w-full pr-10`}
+          className="h-9 w-full pr-10 bg-background/60"
         />
         {search !== debouncedSearch && (
           <Loader2
@@ -314,36 +315,42 @@ export default function SystemOrganizations() {
           />
         )}
       </div>
-      <select
+      <Select
         value={statusFilter}
-        onChange={(e) => {
-          setStatusFilter(e.target.value as any);
+        onValueChange={(v) => {
+          setStatusFilter(v as any);
           setPage(1);
         }}
-        className={`${filterSelectBase} w-full sm:w-auto min-w-[12rem]`}
-        aria-label="Status"
       >
-        <option value="all">Status: todos</option>
-        <option value="active">Status: ativos</option>
-        <option value="inactive">Status: inativos</option>
-        <option value="suspended">Status: suspensos</option>
-      </select>
-      <select
+        <SelectTrigger className="h-9 w-full sm:w-auto min-w-[12rem] bg-background/60" aria-label="Status">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Status: todos</SelectItem>
+          <SelectItem value="active">Status: ativos</SelectItem>
+          <SelectItem value="inactive">Status: inativos</SelectItem>
+          <SelectItem value="suspended">Status: suspensos</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select
         value={sortValue}
-        onChange={(e) => {
-          const [nextOrderBy, nextOrderDir] = e.target.value.split(":") as ["name" | "created_at", "asc" | "desc"];
+        onValueChange={(v) => {
+          const [nextOrderBy, nextOrderDir] = v.split(":") as ["name" | "created_at", "asc" | "desc"];
           setOrderBy(nextOrderBy);
           setOrderDir(nextOrderDir);
           setPage(1);
         }}
-        className={`${filterSelectBase} w-full sm:w-auto min-w-[14rem]`}
-        aria-label="Ordenação"
       >
-        <option value="name:asc">Ordenar: nome (A-Z)</option>
-        <option value="name:desc">Ordenar: nome (Z-A)</option>
-        <option value="created_at:desc">Ordenar: mais recentes</option>
-        <option value="created_at:asc">Ordenar: mais antigas</option>
-      </select>
+        <SelectTrigger className="h-9 w-full sm:w-auto min-w-[14rem] bg-background/60" aria-label="Ordenação">
+          <SelectValue placeholder="Ordenação" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="name:asc">Ordenar: nome (A-Z)</SelectItem>
+          <SelectItem value="name:desc">Ordenar: nome (Z-A)</SelectItem>
+          <SelectItem value="created_at:desc">Ordenar: mais recentes</SelectItem>
+          <SelectItem value="created_at:asc">Ordenar: mais antigas</SelectItem>
+        </SelectContent>
+      </Select>
     </>
   );
 
@@ -354,20 +361,30 @@ export default function SystemOrganizations() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <Breadcrumbs
-                items={[{ label: "Central do Bóris", href: "/" }, { label: "Organizações" }]}
+                items={[{ label: "Central de Comando", href: "/" }, { label: "Organizações" }]}
                 className="text-xs text-muted-foreground/80 [&_a]:text-muted-foreground/80 [&_a:hover]:text-foreground [&_span]:text-muted-foreground/80 [&_span]:font-normal"
               />
-              {hasActiveFilters ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Resultados</span>
-                  <Badge variant="secondary" className="tabular-nums">
-                    {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
+              <ExecutiveSectionHeader
+                eyebrow="Base de clientes"
+                title="Organizações"
+                description="Cadastros, status e estrutura de grupos das organizações que usam o Bóris."
+                icon={Building2}
+                className="mb-0"
+                badge={(
+                  <Badge variant="outline" className="h-6 border-primary/20 bg-primary/[0.04] px-2 text-[11px] font-medium text-primary/85">
+                    Visão de sistema
                   </Badge>
-                  {orgsFetching ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />
-                  ) : null}
-                </div>
-              ) : null}
+                )}
+              />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{hasActiveFilters ? "Resultados" : "Base total"}</span>
+                <Badge variant="secondary" className="tabular-nums">
+                  {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
+                </Badge>
+                {orgsFetching ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />
+                ) : null}
+              </div>
             </div>
 
             <Button onClick={() => setCreateOrgOpen(true)} size="lg" className="w-full sm:w-auto">
@@ -383,6 +400,7 @@ export default function SystemOrganizations() {
               icon={Building2}
               variant="kpi"
               isLoading={overviewLoading}
+              numericValue
               help={{
                 whatIs: "Quantidade total de organizações cadastradas no sistema.",
                 howToInterpret: "Mostra o tamanho da base de clientes/organizações na plataforma.",
@@ -395,6 +413,7 @@ export default function SystemOrganizations() {
               icon={Users}
               variant="kpi"
               isLoading={overviewLoading}
+              numericValue
               help={{
                 whatIs: "Total de grupos vinculados às organizações cadastradas.",
                 howToInterpret: "Mostra a escala operacional distribuída entre as organizações.",
@@ -405,31 +424,27 @@ export default function SystemOrganizations() {
         </div>
 
         <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="hidden md:flex flex-wrap items-center gap-2">{filtersForm}</div>
-
-            <div className="md:hidden w-full">
+          <FilterBarRow
+            desktopFilters={filtersForm}
+            mobileTrigger={(
               <FilterTriggerButton
                 onClick={() => setFiltersOpen(true)}
                 icon={SlidersHorizontal}
                 activeCount={hasActiveFilters ? activeFiltersCount : undefined}
                 countLabel={`${activeFiltersCount} filtro${activeFiltersCount > 1 ? "s" : ""}`}
               />
-            </div>
-
-            <div className="hidden md:flex items-center gap-2">
-              {hasActiveFilters && (
-                <>
-                  <Badge variant="secondary" className="h-6 px-2 text-[11px]">
-                    {activeFiltersCount} filtro{activeFiltersCount > 1 ? "s" : ""} ativo{activeFiltersCount > 1 ? "s" : ""}
-                  </Badge>
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
-                    Limpar filtros
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
+            )}
+            rightActions={hasActiveFilters ? (
+              <>
+                <Badge variant="secondary" className="h-6 px-2 text-[11px]">
+                  {activeFiltersCount} filtro{activeFiltersCount > 1 ? "s" : ""} ativo{activeFiltersCount > 1 ? "s" : ""}
+                </Badge>
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  Limpar filtros
+                </Button>
+              </>
+            ) : null}
+          />
 
           {hasActiveFilters ? (
             <FilterChips
@@ -474,20 +489,13 @@ export default function SystemOrganizations() {
           ) : null}
         </div>
 
-        <div className="rounded-lg border border-border bg-card px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-card-foreground">Lista de organizações</span>
-              <Badge variant="secondary" className="tabular-nums">
-                {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
-              </Badge>
-              {orgsFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" /> : null}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {hasActiveFilters ? "Resultados filtrados" : "Todos os registros"}
-            </p>
-          </div>
-        </div>
+        <ListSectionHeader
+          title="Lista de organizações"
+          count={typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
+          statusLabel={hasActiveFilters ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.allRecords}
+          isLoading={orgsFetching}
+          loadingIndicator={<Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />}
+        />
 
         <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
           <DrawerContent className="bg-card border-border">
