@@ -40,6 +40,7 @@ import { FilterTriggerButton } from "@/components/ui/filter-trigger-button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSystemOrganizations, type OrganizationListItem } from "@/hooks/use-system-organizations";
+import { notifyActionError } from "@/lib/notify-action-error";
 
 const PAGE_SIZE = 10;
 
@@ -196,7 +197,7 @@ export default function SystemOrganizations() {
               await refreshOrganizationsData();
             } catch (err: any) {
               const parsed = parseDbError(err);
-              notify.error(parsed.title, parsed.message);
+              notifyActionError(parsed.title, parsed, "Tente novamente.");
             }
           }}
           disabled={actionsDisabled}
@@ -658,7 +659,7 @@ export default function SystemOrganizations() {
                   if (!removeOrg) return;
                   const groupsCount = orgGroupCounts?.[removeOrg.id] ?? 0;
                   if (groupsCount > 0) {
-                    notify.warning("Atenção", "Exclua os grupos antes de remover a organização.");
+                    notify.warning("Operação bloqueada", "Exclua os grupos antes de remover a organização.");
                     return;
                   }
                   setRemovingOrgId(removeOrg.id);
@@ -673,7 +674,7 @@ export default function SystemOrganizations() {
                     await refreshOrganizationsData();
                   } catch (err: any) {
                     const parsed = parseDbError(err);
-                    notify.error(parsed.title, parsed.message);
+                    notifyActionError(parsed.title, parsed, "Tente novamente.");
                   } finally {
                     setRemovingOrgId(null);
                   }
@@ -714,7 +715,7 @@ export default function SystemOrganizations() {
                 onClick={async () => {
                   if (!cascadeOrg) return;
                   if (confirmCascadeName.trim() !== cascadeOrg.name.trim()) {
-                    notify.warning("Atenção", "O nome digitado não confere.");
+                    notify.warning("Confirmação inválida", "O nome digitado não confere.");
                     return;
                   }
                   setDeletingCascadeOrgId(cascadeOrg.id);

@@ -26,6 +26,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { AlertTriangle, Bell, Filter, Plus, Search, Settings } from "lucide-react";
 import { formatDateTimeBR, formatDateSimpleBR } from "@/lib/date";
 import { getCanonicalAlertsPath, shouldRedirectAlertsPath } from "@/lib/alerts-routing";
+import { notifyActionError } from "@/lib/notify-action-error";
+import { notifyValidation } from "@/lib/notify-validation";
 
 type GroupOption = {
   id: string;
@@ -370,7 +372,7 @@ export default function Alerts() {
         queryClient.invalidateQueries({ queryKey: ["alerts", "unread-count"] }),
       ]);
     },
-    onError: (e: any) => notify.error(e?.message ?? "Não foi possível atualizar o alerta."),
+    onError: (e: any) => notifyActionError("Não foi possível marcar como lido", e, "Tente novamente."),
   });
 
   const markUnreadMutation = useMutation({
@@ -384,7 +386,7 @@ export default function Alerts() {
         queryClient.invalidateQueries({ queryKey: ["alerts", "unread-count"] }),
       ]);
     },
-    onError: (e: any) => notify.error(e?.message ?? "Não foi possível reabrir o alerta."),
+    onError: (e: any) => notifyActionError("Não foi possível reabrir alerta", e, "Tente novamente."),
   });
 
   const markAllReadMutation = useMutation({
@@ -397,9 +399,9 @@ export default function Alerts() {
         queryClient.invalidateQueries({ queryKey: ["alerts", "events"] }),
         queryClient.invalidateQueries({ queryKey: ["alerts", "unread-count"] }),
       ]);
-      notify.success("Alertas marcados como lidos.");
+      notify.success("Alertas marcados como lidos", "A lista foi atualizada.");
     },
-    onError: (e: any) => notify.error(e?.message ?? "Não foi possível marcar como lidos."),
+    onError: (e: any) => notifyActionError("Não foi possível marcar alertas como lidos", e, "Tente novamente."),
   });
 
   const upsertDefinitionMutation = useMutation({
@@ -420,9 +422,9 @@ export default function Alerts() {
         queryClient.invalidateQueries({ queryKey: ["alerts", "definitions-options"] }),
         queryClient.invalidateQueries({ queryKey: ["alerts", "terms"] }),
       ]);
-      notify.success("Definição salva.");
+      notify.success("Definição salva", "Configuração atualizada com sucesso.");
     },
-    onError: (e: any) => notify.error(e?.message ?? "Não foi possível salvar."),
+    onError: (e: any) => notifyActionError("Não foi possível salvar definição", e, "Tente novamente."),
   });
 
   const addTermMutation = useMutation({
@@ -442,9 +444,9 @@ export default function Alerts() {
         queryClient.invalidateQueries({ queryKey: ["alerts", "events"] }),
       ]);
       setTermInput("");
-      notify.success("Termo adicionado.");
+      notify.success("Termo adicionado", "A definição foi atualizada.");
     },
-    onError: (e: any) => notify.error(e?.message ?? "Não foi possível adicionar o termo."),
+    onError: (e: any) => notifyActionError("Não foi possível adicionar termo", e, "Tente novamente."),
   });
 
   const removeTermMutation = useMutation({
@@ -458,9 +460,9 @@ export default function Alerts() {
         queryClient.invalidateQueries({ queryKey: ["alerts", "terms-all"] }),
         queryClient.invalidateQueries({ queryKey: ["alerts", "events"] }),
       ]);
-      notify.success("Termo removido.");
+      notify.success("Termo removido", "A definição foi atualizada.");
     },
-    onError: (e: any) => notify.error(e?.message ?? "Não foi possível remover o termo."),
+    onError: (e: any) => notifyActionError("Não foi possível remover termo", e, "Tente novamente."),
   });
 
   const removeDefinitionMutation = useMutation({
@@ -477,9 +479,9 @@ export default function Alerts() {
         queryClient.invalidateQueries({ queryKey: ["alerts", "events"] }),
         queryClient.invalidateQueries({ queryKey: ["alerts", "unread-count"] }),
       ]);
-      notify.success("Definição removida.");
+      notify.success("Definição removida", "Tudo certo.");
     },
-    onError: (e: any) => notify.error(e?.message ?? "Não foi possível remover."),
+    onError: (e: any) => notifyActionError("Não foi possível remover definição", e, "Tente novamente."),
   });
 
   const resetForm = useCallback(() => {
@@ -605,7 +607,7 @@ export default function Alerts() {
   const saveDefinition = async () => {
     const name = formName.trim();
     if (!name) {
-      notify.error("Informe um nome.");
+      notifyValidation.fieldRequired("Informe um nome.");
       return;
     }
 
@@ -630,11 +632,11 @@ export default function Alerts() {
     }
 
     if (formScopeType === "org" && !organization_id) {
-      notify.error("Selecione uma organização.");
+      notifyValidation.fieldRequired("Selecione uma organização.");
       return;
     }
     if (formScopeType === "group" && !group_id) {
-      notify.error("Selecione um grupo.");
+      notifyValidation.fieldRequired("Selecione um grupo.");
       return;
     }
 
@@ -830,8 +832,8 @@ export default function Alerts() {
                     queryClient.invalidateQueries({ queryKey: ["alerts", "unread-count"] }),
                   ]);
                 })
-                .then(() => notify.success("Alerta arquivado."))
-                .catch((e: any) => notify.error(e?.message ?? "Não foi possível arquivar."));
+                .then(() => notify.success("Alerta arquivado", "Ele foi removido da lista ativa."))
+                .catch((e: any) => notifyActionError("Não foi possível arquivar alerta", e, "Tente novamente."));
             }}
             className="text-destructive focus:text-destructive"
           >
@@ -908,7 +910,7 @@ export default function Alerts() {
               setStatusFilter("unread");
               setDefinitionFilter(d.id);
               setEventsPage(1);
-              notify.success("Mostrando alertas da definição.");
+              notify.success("Filtro aplicado", "Mostrando alertas da definição selecionada.");
             }}
           >
             Ver alertas

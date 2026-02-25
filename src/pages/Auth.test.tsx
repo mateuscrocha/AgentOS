@@ -198,4 +198,87 @@ describe("Auth page", () => {
     });
     container.remove();
   });
+
+  it("mostra erro por campo e foca email quando email é inválido", async () => {
+    const { container, root } = await renderAuth();
+    const emailInput = container.querySelector('input[type="email"]') as HTMLInputElement;
+    const passwordInput = container.querySelector('input[autocomplete="current-password"]') as HTMLInputElement;
+    const form = container.querySelector("form") as HTMLFormElement;
+
+    await act(async () => {
+      setInputValue(emailInput, "invalido");
+      setInputValue(passwordInput, "123456");
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await flushPromises();
+    });
+
+    expect(container.textContent).toContain("Email inválido");
+    expect(emailInput.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(emailInput);
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("permite alternar mostrar/ocultar senha no login", async () => {
+    const { container, root } = await renderAuth();
+    const passwordInput = container.querySelector('input[autocomplete="current-password"]') as HTMLInputElement;
+    const toggleButton = Array.from(container.querySelectorAll("button")).find((b) =>
+      b.getAttribute("aria-label") === "Mostrar senha"
+    ) as HTMLButtonElement;
+
+    expect(passwordInput.type).toBe("password");
+
+    await act(async () => {
+      toggleButton.click();
+      await flushPromises();
+    });
+
+    expect(passwordInput.type).toBe("text");
+    expect(toggleButton.getAttribute("aria-label")).toBe("Ocultar senha");
+
+    await act(async () => {
+      toggleButton.click();
+      await flushPromises();
+    });
+
+    expect(passwordInput.type).toBe("password");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("foca confirmação de senha no recovery quando senhas não coincidem", async () => {
+    const { container, root } = await renderAuth();
+
+    await act(async () => {
+      authStateChangeCallback?.("PASSWORD_RECOVERY");
+      await flushPromises();
+    });
+
+    const inputs = container.querySelectorAll('input[autocomplete="new-password"]');
+    const newPasswordInput = inputs[0] as HTMLInputElement;
+    const confirmPasswordInput = inputs[1] as HTMLInputElement;
+    const form = container.querySelector("form") as HTMLFormElement;
+
+    await act(async () => {
+      setInputValue(newPasswordInput, "SenhaMuitoBoa123!");
+      setInputValue(confirmPasswordInput, "SenhaDiferente123!");
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await flushPromises();
+    });
+
+    expect(container.textContent).toContain("As senhas não coincidem");
+    expect(confirmPasswordInput.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(confirmPasswordInput);
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
 });

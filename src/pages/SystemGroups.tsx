@@ -46,6 +46,7 @@ import {
 import { notify } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
 import { formatDateSimpleBR, formatDateTickBR } from "@/lib/date";
+import { notifyActionError } from "@/lib/notify-action-error";
 
 interface GroupRow {
   id: string;
@@ -288,7 +289,7 @@ export default function SystemGroups() {
       await refreshGroupsPageData({ includeOverview: true });
     },
     onError: (err: any) => {
-      notify.error("Não foi possível atualizar status", "Algo deu errado. Tente novamente.");
+      notifyActionError("Não foi possível atualizar status", err, "Tente novamente.");
     },
   });
 
@@ -307,7 +308,7 @@ export default function SystemGroups() {
       await refreshGroupsPageData();
     },
     onError: (err: any) => {
-      notify.error("Não foi possível atualizar convite", "Algo deu errado. Tente novamente.");
+      notifyActionError("Não foi possível atualizar convite", err, "Tente novamente.");
     },
   });
 
@@ -888,7 +889,7 @@ export default function SystemGroups() {
                     setRemoveGroup(null);
                     await refreshGroupsPageData({ includeOverview: true });
                   } catch (err: any) {
-                    notify.error("Não foi possível arquivar", "Algo deu errado. Tente novamente.");
+                    notifyActionError("Não foi possível arquivar", err, "Tente novamente.");
                   } finally {
                     setRemovingGroup(false);
                   }
@@ -978,7 +979,7 @@ export default function SystemGroups() {
                   } catch (err: any) {
                     const parsed = await parseInvokeError(err);
                     if (parsed.code === "NETWORK_ERROR") {
-                      notify.error("Falha de conexão", parsed.message);
+                      notifyActionError("Falha de conexão", parsed, "Tente novamente.");
                       return;
                     }
                     if (parsed.code === "DEPENDENCIES_EXIST") {
@@ -993,7 +994,7 @@ export default function SystemGroups() {
                       notify.error("Sessão expirada", "Faça login novamente.");
                       return;
                     }
-                    notify.error("Não foi possível excluir", parsed.message);
+                    notifyActionError("Não foi possível excluir", parsed, "Tente novamente.");
                   } finally {
                     setDeletingCascade(false);
                   }

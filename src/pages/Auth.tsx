@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { notify } from "@/components/ui/sonner";
 import { getAppUrl } from "@/lib/utils";
 import { z } from "zod";
@@ -18,10 +18,25 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    password?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  }>({});
   const [isRecovery, setIsRecovery] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+  const newPasswordInputRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordInputRef = useRef<HTMLInputElement>(null);
+  const globalErrorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated && !isRecovery) {
@@ -30,19 +45,25 @@ const Auth = () => {
   }, [authLoading, isAuthenticated, navigate, isRecovery]);
 
   const validateInputs = () => {
+    setFieldErrors({});
     if (isRecovery) {
       try {
         const passwordError = validateAppPassword(newPassword);
         if (passwordError) {
-          setError(passwordError);
+          setFieldErrors({ newPassword: passwordError });
+          newPasswordInputRef.current?.focus();
           return false;
         }
       } catch (e) {
-        if (e instanceof Error) setError(e.message);
+        if (e instanceof Error) {
+          setFieldErrors({ newPassword: e.message });
+          newPasswordInputRef.current?.focus();
+        }
         return false;
       }
       if (newPassword !== confirmPassword) {
-        setError("As senhas não coincidem");
+        setFieldErrors({ confirmPassword: "As senhas não coincidem" });
+        confirmPasswordInputRef.current?.focus();
         return false;
       }
       return true;
@@ -53,7 +74,14 @@ const Auth = () => {
         return true;
       } catch (e) {
         if (e instanceof z.ZodError) {
-          setError(e.errors[0].message);
+          const msg = e.errors[0].message;
+          if (/email/i.test(msg)) {
+            setFieldErrors({ email: msg });
+            emailInputRef.current?.focus();
+          } else {
+            setFieldErrors({ password: msg });
+            passwordInputRef.current?.focus();
+          }
         } else if (e instanceof Error) {
           setError(e.message);
         }
@@ -65,6 +93,8 @@ const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setInfoMessage("");
+    setFieldErrors({});
 
     if (!validateInputs()) return;
 
@@ -110,6 +140,8 @@ const Auth = () => {
 
   const handleForgotPassword = async () => {
     setError("");
+    setInfoMessage("");
+    setFieldErrors({});
     setResetLoading(true);
     try {
       emailSchema.parse(email);
@@ -137,14 +169,23 @@ const Auth = () => {
       return;
     }
     notify.info("Link enviado", "Verifique seu email para recuperar a senha.");
+    setInfoMessage("Link de recuperação enviado. Verifique seu email.");
     setResetLoading(false);
   };
+
+  useEffect(() => {
+    if (error) {
+      globalErrorRef.current?.focus();
+    }
+  }, [error]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setIsRecovery(true);
         setError("");
+        setInfoMessage("");
+        setFieldErrors({});
       }
     });
     return () => subscription.unsubscribe();
@@ -165,56 +206,112 @@ const Auth = () => {
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
             {/* Error message */}
             {error && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <div
+                ref={globalErrorRef}
+                role="alert"
+                aria-live="assertive"
+                tabIndex={-1}
+                className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20"
+              >
                 <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
                 <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
+            {infoMessage && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="p-3 rounded-lg bg-primary/10 border border-primary/20"
+              >
+                <p className="text-sm text-foreground">{infoMessage}</p>
               </div>
             )}
 
             {/* Email */}
             {!isRecovery && (
               <div>
-                <label className="text-sm font-medium text-card-foreground mb-1.5 block">
+                <label htmlFor="email" className="text-sm font-medium text-card-foreground mb-1.5 block">
                   Email
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
+                    id="email"
+                    ref={emailInputRef}
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError("");
+                      if (fieldErrors.email) {
+                        setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                      }
+                    }}
                     placeholder="seu@email.com"
                     required
+                    disabled={loading || resetLoading}
+                    autoComplete="username"
+                    aria-invalid={Boolean(fieldErrors.email)}
+                    aria-describedby={fieldErrors.email ? "email-error" : undefined}
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
+                {fieldErrors.email && (
+                  <p id="email-error" className="mt-1 text-sm text-destructive">
+                    {fieldErrors.email}
+                  </p>
+                )}
               </div>
             )}
 
             {/* Password / Recovery */}
             {!isRecovery ? (
               <div>
-                <label className="text-sm font-medium text-card-foreground mb-1.5 block">
+                <label htmlFor="password" className="text-sm font-medium text-card-foreground mb-1.5 block">
                   Senha
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
-                    type="password"
+                    id="password"
+                    ref={passwordInputRef}
+                    type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (error) setError("");
+                      if (fieldErrors.password) {
+                        setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                      }
+                    }}
                     placeholder="••••••••"
                     required
+                    disabled={loading || resetLoading}
                     autoComplete="current-password"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    aria-describedby={fieldErrors.password ? "password-error" : undefined}
+                    className="w-full pl-10 pr-11 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
+                {fieldErrors.password && (
+                  <p id="password-error" className="mt-1 text-sm text-destructive">
+                    {fieldErrors.password}
+                  </p>
+                )}
                 <div className="mt-2 flex justify-end">
                   <button
                     type="button"
                     onClick={handleForgotPassword}
-                    disabled={resetLoading}
-                    className="text-xs text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={resetLoading || loading}
+                    className="text-sm text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {resetLoading ? "Enviando..." : "Esqueci minha senha"}
                   </button>
@@ -223,43 +320,91 @@ const Auth = () => {
             ) : (
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-card-foreground mb-1.5 block">
+                  <label htmlFor="new-password" className="text-sm font-medium text-card-foreground mb-1.5 block">
                     Nova senha
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
-                      type="password"
+                      id="new-password"
+                      ref={newPasswordInputRef}
+                      type={showNewPassword ? "text" : "password"}
                       value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
+                      onChange={(e) => {
+                        setNewPassword(e.target.value);
+                        if (error) setError("");
+                        if (fieldErrors.newPassword) {
+                          setFieldErrors((prev) => ({ ...prev, newPassword: undefined }));
+                        }
+                      }}
                       placeholder="••••••"
                       required
+                      disabled={loading}
                       minLength={10}
                       maxLength={72}
                       autoComplete="new-password"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      aria-invalid={Boolean(fieldErrors.newPassword)}
+                      aria-describedby={fieldErrors.newPassword ? "new-password-error" : undefined}
+                      className="w-full pl-10 pr-11 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((v) => !v)}
+                      aria-label={showNewPassword ? "Ocultar nova senha" : "Mostrar nova senha"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{APP_PASSWORD_HINT}</p>
+                  {fieldErrors.newPassword && (
+                    <p id="new-password-error" className="mt-1 text-sm text-destructive">
+                      {fieldErrors.newPassword}
+                    </p>
+                  )}
+                  <p className="mt-1 text-sm text-muted-foreground">{APP_PASSWORD_HINT}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-card-foreground mb-1.5 block">
+                  <label htmlFor="confirm-password" className="text-sm font-medium text-card-foreground mb-1.5 block">
                     Confirmar nova senha
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
-                      type="password"
+                      id="confirm-password"
+                      ref={confirmPasswordInputRef}
+                      type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (error) setError("");
+                        if (fieldErrors.confirmPassword) {
+                          setFieldErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                        }
+                      }}
                       placeholder="••••••"
                       required
+                      disabled={loading}
                       minLength={10}
                       maxLength={72}
                       autoComplete="new-password"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      aria-invalid={Boolean(fieldErrors.confirmPassword)}
+                      aria-describedby={fieldErrors.confirmPassword ? "confirm-password-error" : undefined}
+                      className="w-full pl-10 pr-11 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      aria-label={showConfirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
+                  {fieldErrors.confirmPassword && (
+                    <p id="confirm-password-error" className="mt-1 text-sm text-destructive">
+                      {fieldErrors.confirmPassword}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -267,7 +412,7 @@ const Auth = () => {
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || resetLoading}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
-import { Activity, AlertTriangle, Layers, Users as UsersIcon, MessageSquare, ChevronRight, ArrowUp, Info, Minus } from "lucide-react";
+import { Activity, Layers, Users as UsersIcon, MessageSquare, ChevronRight, ArrowUp } from "lucide-react";
 import {
   PeriodType,
   getDateRange,
@@ -25,8 +25,9 @@ import {
  
 import { addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { formatDateSimpleBR, SAO_PAULO_TZ } from "@/lib/date";
+import { SAO_PAULO_TZ } from "@/lib/date";
 import { getPostLoginRedirectPath } from "@/lib/auth-routing";
+import { buildParticipationChange, buildSystemDaySummary } from "./index-dashboard-utils";
 
 type RecentGroupRow = {
   id: string;
@@ -71,6 +72,9 @@ type SystemTotalsSummary = {
   groups: number;
   messages: number;
 };
+
+const NEW_GROUPS_24H_LIST_LIMIT = 10;
+const TOP_GROUPS_24H_LIMIT = 10;
 
 const Index = () => {
   const navigate = useNavigate();
@@ -206,6 +210,16 @@ const Index = () => {
     return count ?? 0;
   };
 
+  const fetchMembersCountAsOf = async (asOfISO: string) => {
+    const { count, error } = await supabase
+      .from("members")
+      .select("id", { count: "exact", head: true })
+      .lte("created_at", asOfISO)
+      .or(`deleted_at.is.null,deleted_at.gt.${asOfISO}`);
+    if (error) throw error;
+    return count ?? 0;
+  };
+
   const fetchSystemTotals = async (): Promise<SystemTotalsSummary> => {
     const [orgsRes, groupsRes, messagesRes] = await Promise.all([
       supabase.from("organizations").select("id", { count: "exact", head: true }),
@@ -293,7 +307,7 @@ const Index = () => {
       .gte("created_at", last24hStartISO)
       .lte("created_at", last24hEndISO)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(NEW_GROUPS_24H_LIST_LIMIT);
     if (error) throw error;
 
     const groups = (data ?? []) as RecentGroupRow[];
@@ -346,7 +360,17 @@ const Index = () => {
     });
   };
 
-  
+  const fetchNewGroups24hCount = async () => {
+    const { count, error } = await supabase
+      .from("groups")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .or("is_archived.eq.false,is_archived.is.null")
+      .gte("created_at", last24hStartISO)
+      .lte("created_at", last24hEndISO);
+    if (error) throw error;
+    return count ?? 0;
+  };
 
   const {
     data: kpiMembers,
@@ -371,12 +395,34 @@ const Index = () => {
   });
 
   const {
+    data: kpiMembersPrevBase,
+    isLoading: kpiMembersPrevBaseLoading,
+    error: kpiMembersPrevBaseError,
+  } = useQuery({
+    queryKey: ["kpi-members-total-as-of", prevEndISO],
+    queryFn: () => fetchMembersCountAsOf(prevEndISO),
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
+  const {
     data: newGroups24h,
     isLoading: newGroups24hLoading,
     error: newGroups24hError,
   } = useQuery({
-    queryKey: ["system-new-groups-24h", last24hStartISO, last24hEndISO, 10],
+    queryKey: ["system-new-groups-24h", last24hStartISO, last24hEndISO, NEW_GROUPS_24H_LIST_LIMIT],
     queryFn: fetchNewGroups24h,
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
+  const {
+    data: newGroups24hCount,
+    isLoading: newGroups24hCountLoading,
+    error: newGroups24hCountError,
+  } = useQuery({
+    queryKey: ["system-new-groups-24h-count", last24hStartISO, last24hEndISO],
+    queryFn: fetchNewGroups24hCount,
     enabled: isAuthenticated && isSystemAdmin,
     retry: 1,
   });
@@ -419,15 +465,32 @@ const Index = () => {
   const kpiGroupsPeriodError = currentPeriodKpisError;
   const kpiOrgsPeriodError = currentPeriodKpisError;
   const kpiActiveMembersError = currentPeriodKpisError;
+  const lastKpiErrorToastKeyRef = useRef<string>("");
 
   useEffect(() => {
-    if (kpiMembersError || currentPeriodKpisError || prevPeriodKpisError) {
+    const key = JSON.stringify({
+      kpiMembersError: Boolean(kpiMembersError),
+      kpiMembersPrevBaseError: Boolean(kpiMembersPrevBaseError),
+      currentPeriodKpisError: Boolean(currentPeriodKpisError),
+      prevPeriodKpisError: Boolean(prevPeriodKpisError),
+      systemTotalsError: Boolean(systemTotalsError),
+    });
+
+    if (!(kpiMembersError || kpiMembersPrevBaseError || currentPeriodKpisError || prevPeriodKpisError || systemTotalsError)) {
+      lastKpiErrorToastKeyRef.current = "";
+      return;
+    }
+
+    if (lastKpiErrorToastKeyRef.current !== key) {
+      lastKpiErrorToastKeyRef.current = key;
       notify.error("Alguns indicadores não puderam ser carregados", "Você ainda pode usar os blocos com dados disponíveis.");
     }
   }, [
     kpiMembersError,
+    kpiMembersPrevBaseError,
     currentPeriodKpisError,
     prevPeriodKpisError,
+    systemTotalsError,
   ]);
 
 
@@ -437,12 +500,12 @@ const Index = () => {
     error: pulse24hError,
     refetch: refetchPulse24h,
   } = useQuery({
-    queryKey: ["signal-concentration-24h", last24hStartISO, last24hEndISO, 10],
+    queryKey: ["signal-concentration-24h", last24hStartISO, last24hEndISO, TOP_GROUPS_24H_LIMIT],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_system_signal_concentration", {
         p_start: last24hStartISO,
         p_end: last24hEndISO,
-        p_limit: 10,
+        p_limit: TOP_GROUPS_24H_LIMIT,
       });
       if (error) throw error;
       return data as unknown as SignalConcentrationPayload;
@@ -464,6 +527,7 @@ const Index = () => {
           queryClient.invalidateQueries({ queryKey: ["kpi-members-total"] }),
           queryClient.invalidateQueries({ queryKey: ["system-totals-summary"] }),
           queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h"] }),
+          queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h-count"] }),
           queryClient.invalidateQueries({ queryKey: ["kpi-summary-period"] }),
           queryClient.invalidateQueries({ queryKey: ["kpi-summary-prev-period"] }),
           queryClient.invalidateQueries({ queryKey: ["signal-concentration-24h"] }),
@@ -555,26 +619,13 @@ const Index = () => {
   })();
 
   const participationChange = (() => {
-    const total = kpiMembers || 0;
-    const currActive = kpiActiveMembersPeriod || 0;
-    const prevActive = kpiActiveMembersPrevPeriod ?? null;
-    if (!total || prevActive === null) return { label: "—", type: "neutral" as const };
-    const currPct = total ? (currActive / total) * 100 : 0;
-    const prevPct = total ? (prevActive / total) * 100 : 0;
-    const delta = currPct - prevPct;
-    const rounded = Math.round(delta * 10) / 10;
-    if (rounded === 0) return { label: "Estável", type: "neutral" as const };
-    if (Math.abs(rounded) <= 2) return { label: "Estável", type: "neutral" as const };
-    const formatted = `${String(Math.abs(rounded)).replace(".", ",")}`;
-    const type = rounded > 0 ? "positive" as const : "negative" as const;
-    return { label: rounded > 0 ? `Subiu ${formatted} p.p. em relação ao período anterior` : `Caiu ${formatted} p.p. em relação ao período anterior`, type };
+    return buildParticipationChange({
+      currentTotalMembers: kpiMembers || 0,
+      previousTotalMembers: kpiMembersPrevBase ?? null,
+      currentActiveMembers: kpiActiveMembersPeriod || 0,
+      previousActiveMembers: kpiActiveMembersPrevPeriod ?? null,
+    });
   })();
-
-  const formatHoursAgoLabel = (hours: number) => {
-    if (!Number.isFinite(hours) || hours <= 0) return "agora";
-    if (hours === 1) return "há 1h";
-    return `há ${hours}h`;
-  };
 
   const pulseMeta = (() => {
     const totalMessages = Number(pulse24h?.totalMessages || 0);
@@ -585,51 +636,6 @@ const Index = () => {
     const sharePct = Math.round(top4Share * 100);
     const concentration = sharePct >= 65 ? "alta" : sharePct >= 45 ? "média" : "baixa";
     return { totalMessages, activeGroups, sharePct, concentration };
-  })();
-
-  const alerts24h = (() => {
-    const alerts: Array<{
-      id: string;
-      tone: "warning" | "info" | "muted";
-      title: string;
-      description: string;
-      href: string;
-    }> = [];
-
-    if (!newGroups24hLoading && !newGroups24hError) {
-      const idle = (newGroups24h || []).filter((g) => g.status === "idle").slice(0, 3);
-      idle.forEach((g) => {
-        alerts.push({
-          id: `idle-${g.id}`,
-          tone: "info",
-          title: "Grupo novo sem atividade",
-          description: `${g.name} entrou ${formatHoursAgoLabel(g.createdHoursAgo)} e ainda não teve mensagens.`,
-          href: `/groups/${g.id}`,
-        });
-      });
-    }
-
-    if (!pulse24hLoading && !pulse24hError) {
-      if (pulseMeta.totalMessages === 0) {
-        alerts.push({
-          id: "no-activity",
-          tone: "muted",
-          title: "Baixa atividade",
-          description: "Nenhuma mensagem registrada nas últimas 24h.",
-          href: "/system/groups",
-        });
-      } else if (pulseMeta.sharePct >= 65) {
-        alerts.push({
-          id: "high-concentration",
-          tone: "warning",
-          title: "Concentração alta",
-          description: `Top 4 grupos concentram ${pulseMeta.sharePct}% das mensagens nas últimas 24h.`,
-          href: "/system/groups",
-        });
-      }
-    }
-
-    return alerts.slice(0, 4);
   })();
 
   if (authLoading || rolesLoading) {
@@ -645,14 +651,15 @@ const Index = () => {
   }
 
   const daySummary = (() => {
-    if (newGroups24hLoading || pulse24hLoading) {
-      return "Carregando leitura das últimas 24h…";
-    }
-    const newGroupsCount = newGroups24h?.length || 0;
-    const totalMessages = pulseMeta.totalMessages;
-    const activeGroups = pulseMeta.activeGroups;
-    const concentration = pulseMeta.concentration;
-    return `Nas últimas 24h, foram criados ${newGroupsCount} grupos. Houve ${formatNumberBR(totalMessages)} mensagens em ${formatNumberBR(activeGroups)} grupos, com atividade ${concentration === "alta" ? "concentrada em poucos grupos" : concentration === "média" ? "moderadamente concentrada" : "bem distribuída"}.`;
+    return buildSystemDaySummary({
+      isLoading: newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading,
+      hasError: Boolean(newGroups24hError || newGroups24hCountError || pulse24hError),
+      newGroupsCount: newGroups24hCount ?? newGroups24h?.length ?? 0,
+      totalMessages: pulseMeta.totalMessages,
+      activeGroups: pulseMeta.activeGroups,
+      concentration: pulseMeta.concentration,
+      formatNumber: formatNumberBR,
+    });
   })();
 
   const mainKpis = (
@@ -801,7 +808,7 @@ const Index = () => {
           )}
         />
 
-        <section className="scroll-mt-32 rounded-2xl border border-primary/10 bg-gradient-to-b from-primary/[0.025] via-card to-card p-4 shadow-sm" id="executive-summary" aria-busy={newGroups24hLoading || pulse24hLoading ? "true" : undefined}>
+        <section className="scroll-mt-32 rounded-2xl border border-primary/10 bg-gradient-to-b from-primary/[0.025] via-card to-card p-4 shadow-sm" id="executive-summary" aria-busy={newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading ? "true" : undefined}>
           <ExecutiveSectionHeader
             eyebrow="Operação"
             eyebrowTone="primary"
@@ -832,7 +839,7 @@ const Index = () => {
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grupos mais movimentados</p>
                 <Badge variant="outline" className="h-5 border-border/60 bg-background/60 px-2 text-[11px] text-muted-foreground">
-                  {pulseMeta.sharePct}% top 4
+                  {pulse24hLoading ? "—" : pulse24hError ? "indisponível" : `${pulseMeta.sharePct}%`} top 4
                 </Badge>
               </div>
 
@@ -861,7 +868,7 @@ const Index = () => {
                   </p>
                   <ScrollArea className="mt-2 min-h-0 lg:flex-1">
                     <div className="space-y-2 pr-3">
-                      {pulse24h.topGroups.slice(0, 12).map((g, idx) => {
+                      {pulse24h.topGroups.slice(0, TOP_GROUPS_24H_LIMIT).map((g, idx) => {
                         const count = Number(g.count || 0);
                         const share = pulseMeta.totalMessages ? Math.round((count / pulseMeta.totalMessages) * 100) : 0;
                         return (
@@ -883,9 +890,9 @@ const Index = () => {
                       })}
                     </div>
                   </ScrollArea>
-                  {pulse24h.topGroups.length > 12 ? (
+                  {pulse24h.topGroups.length > TOP_GROUPS_24H_LIMIT ? (
                     <p className="mt-2 text-[11px] text-muted-foreground">
-                      Mostrando 12 de {formatNumberBR(pulse24h.topGroups.length)} grupos.
+                      Mostrando {TOP_GROUPS_24H_LIMIT} de {formatNumberBR(pulse24h.topGroups.length)} grupos.
                     </p>
                   ) : null}
                 </div>
@@ -917,7 +924,7 @@ const Index = () => {
           <div className="mt-2 grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             {mainKpis}
           </div>
-          {kpiMembersError || currentPeriodKpisError || prevPeriodKpisError || systemTotalsError ? (
+          {kpiMembersError || kpiMembersPrevBaseError || currentPeriodKpisError || prevPeriodKpisError || systemTotalsError ? (
             <p className="mt-3 text-sm text-muted-foreground">
               Alguns indicadores podem estar incompletos no momento. Tente atualizar a página em instantes.
             </p>

@@ -3241,6 +3241,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_system_dashboard_kpis: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
       get_system_signal_concentration: {
         Args: { p_end: string; p_limit?: number; p_start: string }
         Returns: Json

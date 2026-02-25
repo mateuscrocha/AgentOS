@@ -63,6 +63,8 @@ import AccessDenied from "./AccessDenied";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { cn } from "@/lib/utils";
 import { APP_PASSWORD_HINT, APP_PASSWORD_MAX_LENGTH, validateAppPassword } from "@/lib/password-policy";
+import { notifyActionError } from "@/lib/notify-action-error";
+import { notifyValidation } from "@/lib/notify-validation";
 
 interface Profile {
   id: string;
@@ -145,7 +147,7 @@ export default function Users() {
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
   const queryClient = useQueryClient();
-  
+
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<UserRole | null>(null);
@@ -340,7 +342,7 @@ export default function Users() {
         notify.error('Papel já existe', 'Este papel já foi atribuído ao usuário.');
         return;
       }
-      notify.error('Não foi possível concluir', err?.message || 'Algo deu errado. Tente novamente.');
+      notifyActionError('Não foi possível atribuir papel', err, 'Tente novamente.');
     },
   });
 
@@ -395,7 +397,7 @@ export default function Users() {
       if (assigned) {
         notify.success('Usuário criado como Gestor de Organização', 'Privilégios aplicados com sucesso.');
       } else {
-        notify.success('Usuário criado com sucesso e com acesso configurado', 'Tudo certo.');
+        notify.success('Usuário criado com acesso configurado', 'Tudo certo.');
       }
       setIsAddUserOpen(false);
       setNewUserName("");
@@ -437,7 +439,7 @@ export default function Users() {
         notify.error('Falha na permissão', 'O escopo não pôde ser criado. Tente novamente.');
         return;
       }
-      notify.error('Falha na criação ou permissão', err?.message || 'Algo deu errado. Tente novamente.');
+      notifyActionError('Falha na criação ou permissão', err, 'Tente novamente.');
     },
   });
 
@@ -461,8 +463,8 @@ export default function Users() {
       setUserToEdit(null);
       markRecentlyChanged(variables.userId);
     },
-    onError: () => {
-      notify.error("Não foi possível salvar", "Algo deu errado. Tente novamente.");
+    onError: (err: any) => {
+      notifyActionError("Não foi possível salvar usuário", err, "Tente novamente.");
     },
   });
 
@@ -511,7 +513,7 @@ export default function Users() {
         notify.error("Acesso negado", "Você não possui permissão para redefinir senha.");
         return;
       }
-      notify.error("Não foi possível redefinir", err?.message || "Algo deu errado. Tente novamente.");
+      notifyActionError("Não foi possível redefinir senha", err, "Tente novamente.");
     },
   });
 
@@ -546,7 +548,7 @@ export default function Users() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
       queryClient.invalidateQueries({ queryKey: ["all-user-roles"] });
-      notify.success("Usuário excluído", "Tudo certo.");
+      notify.success("Usuário excluído", "A conta foi removida com sucesso.");
       setUserToDelete(null);
     },
     onError: (err: any) => {
@@ -564,7 +566,7 @@ export default function Users() {
         notify.error("Não foi possível excluir", msg);
         return;
       }
-      notify.error("Não foi possível concluir", msg);
+      notify.error("Não foi possível excluir usuário", msg);
     },
   });
 
@@ -597,7 +599,7 @@ export default function Users() {
     },
     onSuccess: (_data, role) => {
       queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
-      notify.success('Papel removido', 'Tudo certo.');
+      notify.success('Papel removido', 'O acesso foi atualizado.');
       setRoleToDelete(null);
       markRecentlyChanged(role.user_id);
     },
@@ -612,7 +614,7 @@ export default function Users() {
         notify.error('Papel não encontrado', err?.message || 'O papel pode já ter sido removido.');
         return;
       }
-      notify.error('Não foi possível concluir', err?.message || 'Algo deu errado. Tente novamente.');
+      notifyActionError('Não foi possível remover papel', err, 'Tente novamente.');
     },
   });
 
@@ -630,7 +632,7 @@ export default function Users() {
     
     if (newRole === 'ORG_ADMIN' || newRole === 'USER') {
       if (!selectedOrgId) {
-        notify.warning('Atenção', 'Selecione uma organização.');
+        notifyValidation.fieldRequired('Selecione uma organização.');
         return;
       }
       organizationId = selectedOrgId;
@@ -638,7 +640,7 @@ export default function Users() {
     
     if (newRole === 'GROUP_MANAGER') {
       if (!selectedGroupId) {
-        notify.warning('Atenção', 'Selecione um grupo.');
+        notifyValidation.fieldRequired('Selecione um grupo.');
         return;
       }
       groupId = selectedGroupId;
@@ -1272,32 +1274,32 @@ export default function Users() {
                 const confirm = newUserPasswordConfirm;
                 const phone = normalizePhoneE164(newUserPhone);
                 if (!name || !email || !password || !confirm) {
-                  notify.warning('Atenção', 'Preencha todos os campos obrigatórios.');
+                  notifyValidation.fieldsRequired('Preencha todos os campos obrigatórios.');
                   return;
                 }
                 const emailOk = /.+@.+\..+/.test(email);
                 if (!emailOk) {
-                  notify.warning('Atenção', 'Informe um email válido.');
+                  notifyValidation.invalidEmail();
                   return;
                 }
                 const passwordError = validateAppPassword(password);
                 if (passwordError) {
-                  notify.warning('Atenção', passwordError);
+                  notifyValidation.invalidPassword(passwordError);
                   return;
                 }
                 if (password !== confirm) {
-                  notify.warning('Atenção', 'Senha e confirmação devem ser iguais.');
+                  notifyValidation.invalidConfirmation('Senha e confirmação devem ser iguais.');
                   return;
                 }
                 if (!scopeType) {
-                  notify.warning('Atenção', 'Selecione o escopo de acesso.');
+                  notifyValidation.fieldRequired('Selecione o escopo de acesso.');
                   return;
                 }
                 let scopeId = '';
                 if (scopeType === 'organization') scopeId = selectedScopeOrgId;
                 if (scopeType === 'group') scopeId = selectedScopeGroupId;
                 if (!scopeId) {
-                  notify.warning('Atenção', 'Selecione a organização ou grupo.');
+                  notifyValidation.fieldRequired('Selecione a organização ou grupo.');
                   return;
                 }
                 createUserMutation.mutate({
@@ -1413,16 +1415,16 @@ export default function Users() {
                     const password = resetPasswordValue;
                     const confirm = resetPasswordConfirm;
                     if (!password || !confirm) {
-                      notify.warning("Atenção", "Preencha senha e confirmação.");
+                      notifyValidation.fieldsRequired("Preencha senha e confirmação.");
                       return;
                     }
                     const passwordError = validateAppPassword(password);
                     if (passwordError) {
-                      notify.warning("Atenção", passwordError);
+                      notifyValidation.invalidPassword(passwordError);
                       return;
                     }
                     if (password !== confirm) {
-                      notify.warning("Atenção", "Senha e confirmação devem ser iguais.");
+                      notifyValidation.invalidConfirmation("Senha e confirmação devem ser iguais.");
                       return;
                     }
                     resetUserPasswordMutation.mutate({ userId: userToEdit.id, password });
@@ -1447,7 +1449,7 @@ export default function Users() {
                 if (!userToEdit) return;
                 const name = editUserName.trim();
                 if (!name) {
-                  notify.warning('Atenção', 'O nome é obrigatório.');
+                  notifyValidation.fieldRequired('O nome é obrigatório.');
                   return;
                 }
                 const phone = normalizePhoneE164(editUserPhone);

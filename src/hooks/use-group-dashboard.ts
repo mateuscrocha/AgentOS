@@ -302,9 +302,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  if (statsError) {
+  useEffect(() => {
+    if (!statsError) return;
     notify.error('Falha ao carregar dados', 'Não foi possível carregar estatísticas do período.');
-  }
+  }, [statsError]);
 
   const hasIkigai = (ikigaiKeywords || []).length > 0;
 
@@ -578,9 +579,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  if (chartError) {
+  useEffect(() => {
+    if (!chartError) return;
     notify.error('Falha ao carregar dados', 'Não foi possível carregar o gráfico de mensagens por dia.');
-  }
+  }, [chartError]);
 
   // Fetch member entries per day
   const { data: memberEntriesPerDay } = useQuery({
@@ -711,9 +713,10 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     enabled: !!groupId && !!group && isAuthenticated,
   });
 
-  if (activityError) {
+  useEffect(() => {
+    if (!activityError) return;
     notify.error('Falha ao carregar dados', 'Não foi possível carregar a atividade por hora.');
-  }
+  }, [activityError]);
 
   // Fetch participants in period with member avatars to build day/hour stacks
   const { data: periodParticipants } = useQuery({

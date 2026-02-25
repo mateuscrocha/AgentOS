@@ -19,6 +19,7 @@ import {
   Minus,
   Plus,
   HelpCircle,
+  Loader2,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +36,7 @@ import { EditGroupModal } from "@/components/modals/EditGroupModal";
 import { Button } from "@/components/ui/button";
 import { notify } from "@/components/ui/sonner";
 import { Input } from "@/components/ui/input";
+import { notifyActionError } from "@/lib/notify-action-error";
 import {
   Select,
   SelectContent,
@@ -1493,7 +1495,7 @@ const Org = () => {
           return;
       }
 
-      notify.success("Grupo adicionado com sucesso.", "");
+      notify.success("Grupo adicionado com sucesso.");
       setAttachGroupOpen(false);
       setAttachInviteLink("");
       await queryClient.invalidateQueries({ queryKey: ["org-profile-groups", orgId] });
@@ -2462,7 +2464,7 @@ const Org = () => {
                 } catch (err: any) {
                   const parsed = await parseSupabaseFunctionInvokeError(err);
                   if (parsed.code === "NETWORK_ERROR") {
-                    notify.error("Falha de conexão", parsed.message);
+                    notifyActionError("Falha de conexão", parsed, "Tente novamente.");
                     return;
                   }
                   if (parsed.code === "DEPENDENCIES_EXIST") {
@@ -2477,7 +2479,7 @@ const Org = () => {
                     notify.error("Sessão expirada", "Faça login novamente.");
                     return;
                   }
-                  notify.error("Não foi possível excluir", parsed.message);
+                  notifyActionError("Não foi possível excluir", parsed, "Tente novamente.");
                 } finally {
                   setDeletingCascade(false);
                 }

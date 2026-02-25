@@ -8,6 +8,7 @@ import { Loader2, ClipboardList, CheckCircle, AlertTriangle } from "lucide-react
 import { parseWhatsAppExport, sha256Hex, buildImportKey, ParsedMessage } from "@/utils/whatsapp-import";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDateTimeBR } from "@/lib/date";
+import { notifyValidation } from "@/lib/notify-validation";
 
 interface ImportMessagesModalProps {
   groupId: string;
@@ -54,7 +55,7 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
 
   const handleValidate = async () => {
     if (!raw.trim()) {
-      notify.warning("Bloco vazio", "Cole o conteúdo exportado e tente novamente.");
+      notifyValidation.custom("Bloco vazio", "Cole o conteúdo exportado e tente novamente.");
       return;
     }
     setValidating(true);
@@ -75,7 +76,7 @@ export function ImportMessagesModal({ groupId, open, onOpenChange }: ImportMessa
 
   const handleImport = async () => {
     if (!validated?.messages?.length) {
-      notify.warning("Validação necessária", "Valide o texto antes de importar.");
+      notifyValidation.custom("Validação necessária", "Valide o texto antes de importar.");
       return;
     }
     setImporting(true);

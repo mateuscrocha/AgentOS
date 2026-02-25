@@ -34,6 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
 import { AlertTriangle, CheckCircle2, Trash2, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { notifyValidation } from "@/lib/notify-validation";
 
 type FeatureKey =
   | "WELCOME_MESSAGE"
@@ -395,7 +396,7 @@ export default function GroupEdit() {
   const handleRevalidateGroup = async () => {
     const val = inviteLinkInput.trim() || group.invite_link || "";
     if (!val) {
-      notify.warning("Convite necessário", "Configure o link do grupo e tente de novo.");
+      notifyValidation.custom("Convite necessário", "Configure o link do grupo e tente de novo.");
       return;
     }
     setRevalidating(true);

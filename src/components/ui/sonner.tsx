@@ -20,16 +20,17 @@ const DEFAULT_DURATION_MS: Record<NotifyType, number> = {
 
 function show(type: NotifyType, title: string, description?: string, opts?: NotifyOpts) {
   const duration = opts?.duration ?? DEFAULT_DURATION_MS[type];
+  const normalizedDescription = description?.trim() ? description : undefined;
 
   switch (type) {
     case "success":
-      return toast.success(title, { description, duration });
+      return toast.success(title, { description: normalizedDescription, duration });
     case "info":
-      return toast.info(title, { description, duration });
+      return toast.info(title, { description: normalizedDescription, duration });
     case "warning":
-      return toast.warning(title, { description, duration });
+      return toast.warning(title, { description: normalizedDescription, duration });
     case "error":
-      return toast.error(title, { description, duration });
+      return toast.error(title, { description: normalizedDescription, duration });
   }
 }
 
