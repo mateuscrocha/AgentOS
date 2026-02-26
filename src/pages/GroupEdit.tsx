@@ -40,8 +40,6 @@ type FeatureKey =
   | "WELCOME_MESSAGE"
   | "SUMMARY_HEADER"
   | "SUMMARY"
-  | "SUMMARY_FOOTER"
-  | "REPORT"
   | "AUDIO_TRANSCRIPTION";
 
 interface GroupRow {
@@ -74,33 +72,23 @@ const normalizeWhatsAppInviteLink = (value: string): string => {
 
 const FEATURE_LABELS: Record<FeatureKey, { name: string; description: string; hasContent: boolean }> = {
   WELCOME_MESSAGE: {
-    name: "Boas-vindas para novos participantes",
+    name: "Mensagem de boas-vindas aos membros",
     description: "Envia uma mensagem quando alguém entra no grupo.",
-    hasContent: true,
+    hasContent: false,
   },
   SUMMARY_HEADER: {
-    name: "Início do resumo diário",
-    description: "Texto que aparece antes do resumo.",
-    hasContent: true,
+    name: "Texto antes do resumo",
+    description: "Mensagem enviada antes da mensagem de resumo do Bóris.",
+    hasContent: false,
   },
   SUMMARY: {
     name: "Resumo diário",
-    description: "Mensagem principal com o resumo do dia.",
-    hasContent: true,
-  },
-  SUMMARY_FOOTER: {
-    name: "Final do resumo diário",
-    description: "Texto que aparece no final do resumo.",
-    hasContent: true,
-  },
-  REPORT: {
-    name: "Relatório detalhado",
-    description: "Texto mais completo para análises e relatórios.",
-    hasContent: true,
+    description: "Liga ou desliga o envio do resumo do Bóris.",
+    hasContent: false,
   },
   AUDIO_TRANSCRIPTION: {
-    name: "Áudio em texto",
-    description: "Converte áudios em texto para facilitar a consulta.",
+    name: "Áudio do Bóris",
+    description: "Liga ou desliga o envio de áudio do Bóris.",
     hasContent: false,
   },
 };
@@ -276,18 +264,7 @@ export default function GroupEdit() {
     WELCOME_MESSAGE: false,
     SUMMARY_HEADER: false,
     SUMMARY: false,
-    SUMMARY_FOOTER: false,
-    REPORT: false,
     AUDIO_TRANSCRIPTION: false,
-  });
-
-  const [templatesDraft, setTemplatesDraft] = useState<Record<FeatureKey, string>>({
-    WELCOME_MESSAGE: "",
-    SUMMARY_HEADER: "",
-    SUMMARY: "",
-    SUMMARY_FOOTER: "",
-    REPORT: "",
-    AUDIO_TRANSCRIPTION: "",
   });
 
   useEffect(() => {
@@ -316,12 +293,6 @@ export default function GroupEdit() {
       }, {} as Record<FeatureKey, boolean>);
       setFeaturesEnabled(nextEnabled);
 
-      const nextTemplates = (Object.keys(FEATURE_LABELS) as FeatureKey[]).reduce((acc, key) => {
-        const cfg = feats[key] || {};
-        acc[key] = (cfg.content as string) || "";
-        return acc;
-      }, {} as Record<FeatureKey, string>);
-      setTemplatesDraft(nextTemplates);
       setInviteLinkInput(group.invite_link || "");
       return;
     }
@@ -342,8 +313,12 @@ export default function GroupEdit() {
         nextFeatures[k] = {
           ...current,
           enabled: !!featuresEnabled[k],
-          ...(FEATURE_LABELS[k].hasContent ? { content: templatesDraft[k] || null } : {}),
         };
+      });
+      // Legacy options removed from the UI should remain desligadas.
+      ["SUMMARY_FOOTER", "REPORT"].forEach((k) => {
+        const current = (baseFeatures[k] || {}) as Record<string, any>;
+        nextFeatures[k] = { ...current, enabled: false };
       });
 
       const nextMeta = {
@@ -594,10 +569,6 @@ export default function GroupEdit() {
     const draft = inviteLinkInput.trim();
     return current !== draft;
   }, [group?.invite_link, inviteLinkInput]);
-
-  const templateKeys = useMemo(() => {
-    return (Object.keys(FEATURE_LABELS) as FeatureKey[]).filter((k) => FEATURE_LABELS[k].hasContent);
-  }, []);
 
   const timezoneError = useMemo(() => {
     if (!timezone.trim()) return null;
@@ -970,66 +941,6 @@ export default function GroupEdit() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-secondary/15 p-4">
-                <div className="text-sm font-semibold text-card-foreground">Textos personalizados (opcional)</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">Se preferir, você pode trocar os textos que o Bóris envia.</div>
-
-                {showTechnicalOptions ? (
-                  <div className="mt-4 space-y-4">
-                    {templateKeys.map((key) => {
-                    const title = FEATURE_LABELS[key].name;
-                    const desc = FEATURE_LABELS[key].description;
-                    const value = templatesDraft[key] || "";
-                    const count = value.length;
-                    const enabled = !!featuresEnabled[key];
-                    return (
-                      <div key={key} className="rounded-2xl border border-border/80 bg-card/90 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-card-foreground">{title}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
-                          </div>
-                          <div className="text-xs text-muted-foreground whitespace-nowrap">{count} caracteres</div>
-                        </div>
-
-                        <div className="mt-3 space-y-2">
-                          <Textarea
-                            value={value}
-                            onChange={(e) => setTemplatesDraft((prev) => ({ ...prev, [key]: e.target.value }))}
-                            placeholder={enabled ? "Texto..." : "Ative o recurso acima para usar este template"}
-                            disabled={!enabled}
-                          />
-                        </div>
-
-                        <div className={cn("mt-4 rounded-xl border border-border/70 p-3", enabled ? "bg-muted/15" : "bg-muted/10 opacity-70")}>
-                          <div className="text-xs font-medium text-muted-foreground">Preview</div>
-                          <div className="mt-2 flex justify-start">
-                            <div
-                              className={cn(
-                                "max-w-[520px] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap break-words",
-                                enabled
-                                  ? "bg-success/10 text-card-foreground"
-                                  : "bg-muted/30 text-muted-foreground",
-                              )}
-                            >
-                              {!enabled
-                                ? "Recurso desativado. Ative acima para usar este template."
-                                : value.trim().length
-                                ? value
-                                : "(vazio)"}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                    })}
-                  </div>
-                ) : (
-                  <div className="mt-4 rounded-xl border border-border/70 bg-secondary/10 px-4 py-3 text-sm text-muted-foreground">
-                    O Bóris vai usar os textos padrão. Para editar esses textos, abra "Configurações para equipe técnica".
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
