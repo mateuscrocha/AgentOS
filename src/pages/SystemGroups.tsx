@@ -64,10 +64,25 @@ interface GroupRow {
 interface OrganizationOption { id: string; name: string; }
 
 const PAGE_SIZE = 10;
-const WHATSAPP_INVITE_HOST_RE = /(?:https?:\/\/)?chat\.whatsapp\.com\/[A-Za-z0-9]+/i;
+const WHATSAPP_INVITE_HOST_RE = /^(?:https?:\/\/)?chat\.whatsapp\.com\/[A-Za-z0-9]+$/i;
+
+function normalizeWhatsAppInviteLink(value: string): string {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return "";
+
+  try {
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const url = new URL(withScheme);
+    url.search = "";
+    url.hash = "";
+    return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
+  } catch {
+    return trimmed.split(/[?#]/, 1)[0]?.trim() ?? "";
+  }
+}
 
 function isValidWhatsAppInviteLink(value: string): boolean {
-  return WHATSAPP_INVITE_HOST_RE.test((value ?? "").trim());
+  return WHATSAPP_INVITE_HOST_RE.test(normalizeWhatsAppInviteLink(value));
 }
 
 async function parseInvokeError(err: any): Promise<{ message: string; code?: string }> {
@@ -931,11 +946,13 @@ export default function SystemGroups() {
                 onClick={() => {
                   if (!editInviteGroup) return;
                   const v = inviteLinkInput.trim();
-                  if (v.length > 0 && !isValidWhatsAppInviteLink(v)) {
+                  const normalized = normalizeWhatsAppInviteLink(v);
+                  if (v.length > 0 && !isValidWhatsAppInviteLink(normalized)) {
                     setInviteLinkError("Cole um link de convite válido do WhatsApp.");
                     return;
                   }
-                  const value = v.length ? v : null;
+                  const value = normalized.length ? normalized : null;
+                  if (value) setInviteLinkInput(value);
                   updateInviteMutation.mutate({ id: editInviteGroup.id, invite_link: value });
                 }}
                 disabled={updateInviteMutation.isPending}

@@ -5,7 +5,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || "");
+}
 
 function normalizePhoneE164(input: string | null): string | null {
   const raw = (input || "").trim();
@@ -27,13 +32,31 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const json = (body: any, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   try {
+    if (req.method !== "POST") {
+      return json({ success: false, message: "Method Not Allowed", code: "METHOD_NOT_ALLOWED" }, 405);
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return json({ success: false, message: "Unauthorized", code: "UNAUTHORIZED" }, 401);
+    }
+
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const body = await req.json();
-    const groupId: string = body?.group_id;
+    const groupId = String(body?.group_id || "").trim();
     const items: Array<{
       createdAtISO: string;
       senderRaw: string;
@@ -44,12 +67,42 @@ serve(async (req) => {
       importKey: string;
     }> = Array.isArray(body?.items) ? body.items : [];
 
-    if (!groupId || items.length === 0) {
-      return new Response(
-        JSON.stringify({ success: false, message: "Parâmetros inválidos" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!isUuid(groupId) || items.length === 0) {
+      return json({ success: false, message: "Parâmetros inválidos", code: "VALIDATION_ERROR" }, 400);
     }
+    if (items.length > 5000) {
+      return json({ success: false, message: "Limite de itens excedido", code: "TOO_MANY_ITEMS" }, 413);
+    }
+
+    const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser();
+    if (getUserErr || !userData?.user?.id) {
+      return json({ success: false, message: "Unauthorized", code: "UNAUTHORIZED" }, 401);
+    }
+
+    const requesterId = userData.user.id;
+    const { data: isAdmin, error: isAdminErr } = await (supabaseUser as any).rpc("is_system_admin", {
+      _user_id: requesterId,
+    });
+    if (isAdminErr) {
+      return json({ success: false, message: isAdminErr.message, code: "SERVER_ERROR" }, 500);
+    }
+
+    let canAccessGroup = !!isAdmin;
+    if (!canAccessGroup) {
+      const { data: hasGroupAccess, error: accessErr } = await (supabaseUser as any).rpc("has_group_access", {
+        _user_id: requesterId,
+        _group_id: groupId,
+      });
+      if (accessErr) {
+        return json({ success: false, message: accessErr.message, code: "SERVER_ERROR" }, 500);
+      }
+      canAccessGroup = !!hasGroupAccess;
+    }
+    if (!canAccessGroup) {
+      return json({ success: false, message: "Forbidden", code: "FORBIDDEN" }, 403);
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     let inserted = 0;
     let duplicates = 0;
@@ -162,14 +215,8 @@ serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true, inserted, duplicates, errors }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({ success: true, inserted, duplicates, errors });
   } catch (e) {
-    return new Response(
-      JSON.stringify({ success: false, message: (e as Error)?.message || "Erro interno" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({ success: false, message: (e as Error)?.message || "Erro interno", code: "SERVER_ERROR" }, 500);
   }
 });

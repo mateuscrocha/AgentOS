@@ -251,6 +251,40 @@ describe("SystemGroups page", () => {
     container.remove();
   });
 
+  it("remove querystring do link de convite ao salvar", async () => {
+    const { container, root } = await renderPage();
+
+    const editInviteButton = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Editar convite");
+    await act(async () => {
+      editInviteButton?.click();
+      await flush();
+    });
+
+    const input = container.querySelector('input[placeholder*="chat.whatsapp.com"]') as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(input, "https://chat.whatsapp.com/ITDRgqTtYBOAWL0wYB5cLv?mode=gi_t");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      await flush();
+    });
+
+    const saveButton = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Salvar");
+    await act(async () => {
+      saveButton?.click();
+      await flush();
+    });
+
+    expect(inviteMutateMock).toHaveBeenCalledWith({
+      id: "grp-1",
+      invite_link: "https://chat.whatsapp.com/ITDRgqTtYBOAWL0wYB5cLv",
+    });
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
   it("desabilita ações em loading e mostra rótulos de progresso", async () => {
     statusMutationState = {
       mutate: statusMutateMock,

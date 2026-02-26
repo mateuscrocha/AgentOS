@@ -26,6 +26,16 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+const getInboundProvisionApiKey = (env: Env): string => {
+  return (
+    env.get('PROVISION_ONBOARDING_API_KEY') ||
+    env.get('N8N_PROVISION_ONBOARDING_API_KEY') ||
+    env.get('N8N_WEBHOOK_API_KEY') ||
+    env.get('VITE_N8N_WEBHOOK_API_KEY') ||
+    ''
+  ).trim();
+};
+
 interface ProvisionPayload {
   lead: {
     name: string;
@@ -264,6 +274,19 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
       });
 
     try {
+      const expectedApiKey = getInboundProvisionApiKey(env);
+      const providedApiKey = (req.headers.get('x-api-key') || '').trim();
+      if (!expectedApiKey) {
+        console.error('PROVISION_ONBOARDING_API_KEY not configured', JSON.stringify({ correlation_id: correlationId }));
+        return json(
+          { success: false, code: 'INBOUND_API_KEY_NOT_CONFIGURED', message: 'Inbound API key not configured' },
+          500
+        );
+      }
+      if (!providedApiKey || providedApiKey !== expectedApiKey) {
+        return json({ success: false, code: 'UNAUTHORIZED', message: 'Unauthorized' }, 401);
+      }
+
       const payload: ProvisionPayload = await req.json();
 
     console.log('Provisioning onboarding', JSON.stringify({

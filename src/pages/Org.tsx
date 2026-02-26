@@ -86,6 +86,21 @@ import { parseSupabaseFunctionInvokeError } from "@/lib/supabase-function-invoke
 const PANORAMA_PAGE_SIZE = 20;
 const RECENT_MESSAGES_HOURS = 24;
 
+const normalizeWhatsAppInviteLink = (value: string): string => {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return "";
+
+  try {
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const url = new URL(withScheme);
+    url.search = "";
+    url.hash = "";
+    return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
+  } catch {
+    return trimmed.split(/[?#]/, 1)[0]?.trim() ?? "";
+  }
+};
+
 interface OrganizationDetail {
   id: string;
   name: string;
@@ -1417,8 +1432,9 @@ const Org = () => {
     }
 
     const rawLink = attachInviteLink.trim();
-    if (!rawLink) return;
-    if (!rawLink.includes("chat.whatsapp.com/")) {
+    const normalizedLink = normalizeWhatsAppInviteLink(rawLink);
+    if (!normalizedLink) return;
+    if (!normalizedLink.includes("chat.whatsapp.com/")) {
       setAttachError("Cole um link de convite válido do WhatsApp.");
       return;
     }
@@ -1437,7 +1453,7 @@ const Org = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          invite_link: rawLink,
+          invite_link: normalizedLink,
           organization_id: orgId,
         }),
       });
@@ -1473,7 +1489,7 @@ const Org = () => {
       if (groupItem) {
         const ensuredGroup = await ensureGroupFromN8nPayload({
           orgId,
-          inviteLink: rawLink,
+          inviteLink: normalizedLink,
           item: groupItem,
         });
         attachedGroupId = ensuredGroup.groupId;
@@ -1482,7 +1498,7 @@ const Org = () => {
           .from("groups")
           .select("id")
           .eq("organization_id", orgId)
-          .eq("invite_link", rawLink)
+          .eq("invite_link", normalizedLink)
           .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle();

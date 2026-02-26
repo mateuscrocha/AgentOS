@@ -57,6 +57,21 @@ interface GroupRow {
   sync_status?: string | null;
 }
 
+const normalizeWhatsAppInviteLink = (value: string): string => {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return "";
+
+  try {
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const url = new URL(withScheme);
+    url.search = "";
+    url.hash = "";
+    return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
+  } catch {
+    return trimmed.split(/[?#]/, 1)[0]?.trim() ?? "";
+  }
+};
+
 const FEATURE_LABELS: Record<FeatureKey, { name: string; description: string; hasContent: boolean }> = {
   WELCOME_MESSAGE: {
     name: "Boas-vindas para novos participantes",
@@ -348,7 +363,7 @@ export default function GroupEdit() {
           description: description.trim() || null,
           status,
           is_archived: archived,
-          invite_link: inviteLinkInput.trim() || null,
+          invite_link: normalizeWhatsAppInviteLink(inviteLinkInput) || null,
           metadata: nextMeta,
         })
         .eq("id", groupId!);
@@ -367,7 +382,7 @@ export default function GroupEdit() {
 
   const updateInviteMutation = useMutation({
     mutationFn: async () => {
-      const v = inviteLinkInput.trim();
+      const v = normalizeWhatsAppInviteLink(inviteLinkInput);
       const value = v.length ? v : null;
       const { error } = await supabase
         .from("groups")
@@ -394,7 +409,7 @@ export default function GroupEdit() {
   };
 
   const handleRevalidateGroup = async () => {
-    const val = inviteLinkInput.trim() || group.invite_link || "";
+    const val = normalizeWhatsAppInviteLink(inviteLinkInput) || normalizeWhatsAppInviteLink(group.invite_link || "");
     if (!val) {
       notifyValidation.custom("Convite necessário", "Configure o link do grupo e tente de novo.");
       return;

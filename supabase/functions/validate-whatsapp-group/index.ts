@@ -112,6 +112,21 @@ const toE164 = (raw: unknown): string | null => {
   return '+' + digits;
 };
 
+const normalizeInviteLink = (raw: unknown): string => {
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) return '';
+
+  try {
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const url = new URL(withScheme);
+    url.search = '';
+    url.hash = '';
+    return `${url.origin}${url.pathname}`.replace(/\/+$/, '');
+  } catch {
+    return (trimmed.split(/[?#]/, 1)[0] ?? '').trim();
+  }
+};
+
 const validateWebhookParticipant = (raw: unknown, index: number): WebhookParticipant => {
   const pathBase = `participants[${index}]`;
   if (!isRecord(raw)) fail(pathBase, 'esperado objeto');
@@ -284,8 +299,9 @@ export const createValidateWhatsAppGroupHandler = (args?: {
 
   try {
     const { invite_link } = await req.json();
+    const inviteLink = normalizeInviteLink(invite_link);
 
-    if (!invite_link) {
+    if (!inviteLink) {
       return json(
         {
           success: false,
@@ -325,11 +341,11 @@ export const createValidateWhatsAppGroupHandler = (args?: {
     }
 
     const inviteLinkHash = (() => {
-      const raw = String(invite_link);
+      const raw = String(inviteLink);
       return raw.length <= 12 ? raw : `${raw.slice(0, 6)}…${raw.slice(-4)}`;
     })();
 
-    const cacheKey = String(invite_link).trim();
+    const cacheKey = inviteLink;
     const now = Date.now();
     const cached = cacheGet(cacheKey, now);
     if (cached) {
@@ -353,7 +369,7 @@ export const createValidateWhatsAppGroupHandler = (args?: {
             'Content-Type': 'application/json',
             'x-correlation-id': correlationId,
           },
-          body: JSON.stringify({ invite_link }),
+          body: JSON.stringify({ invite_link: inviteLink }),
         },
         upstreamTimeoutMs
       );

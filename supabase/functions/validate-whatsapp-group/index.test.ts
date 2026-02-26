@@ -201,6 +201,26 @@ DenoRef.test("handler usa cache para repetição do mesmo invite_link", async ()
   assertEquals(calls, 1);
 });
 
+DenoRef.test("handler remove querystring do invite_link antes de chamar upstream", async () => {
+  let upstreamInviteLink = "";
+
+  const handler = createValidateWhatsAppGroupHandler({
+    env: { get: (k: string) => (k === "VITE_N8N_CHECK_GROUP_ENTRY_URL" ? testWebhookUrl : undefined) },
+    fetchImpl: async (_url: any, init?: any) => {
+      const parsed = JSON.parse(String(init?.body ?? "{}"));
+      upstreamInviteLink = String(parsed?.invite_link ?? "");
+      return new Response(JSON.stringify([makeValidGroupPayload()]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  });
+
+  const res = await handler(makeReq({ invite_link: "https://chat.whatsapp.com/abc123?mode=gi_t" }));
+  assertEquals(res.status, 200);
+  assertEquals(upstreamInviteLink, "https://chat.whatsapp.com/abc123");
+});
+
 DenoRef.test("handler respeita timeout do upstream", async () => {
   const handler = createValidateWhatsAppGroupHandler({
     env: {

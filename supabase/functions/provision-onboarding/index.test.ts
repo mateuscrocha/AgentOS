@@ -16,6 +16,7 @@ function getTestBaseUrl() {
 
 const testBaseUrl = getTestBaseUrl();
 const testWebhookUrl = (process.env.TEST_WEBHOOK_URL || "http://127.0.0.1:9999/webhook").trim();
+const testInboundApiKey = "test-provision-key";
 
 function assertEquals(actual: any, expected: any) {
   if (actual !== expected) {
@@ -175,10 +176,13 @@ function createMockSupabase(args?: { membersFirstInsertDuplicate?: boolean }) {
   };
 }
 
-function makeReq(body: any) {
+function makeReq(body: any, opts?: { apiKey?: string }) {
   return new Request(new URL("/functions/v1/provision-onboarding", testBaseUrl).toString(), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": opts?.apiKey ?? testInboundApiKey,
+    },
     body: JSON.stringify(body),
   });
 }
@@ -210,6 +214,7 @@ DenoRef.test("provision-onboarding retorna erro quando participants está vazio"
       get: (k: string) => {
         if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
         if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
@@ -233,6 +238,7 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e marca SUPERA
       get: (k: string) => {
         if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
         if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
@@ -292,6 +298,7 @@ DenoRef.test("provision-onboarding ignora duplicidade ao inserir Members", async
       get: (k: string) => {
         if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
         if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
@@ -329,4 +336,32 @@ DenoRef.test("provision-onboarding ignora duplicidade ao inserir Members", async
   assertEquals(body.success, true);
   assertEquals(membersInserted.length, 1);
   assertEquals(membersInserted[0]?.whatsapp_provider_id, "lid-2");
+});
+
+DenoRef.test("provision-onboarding rejeita chamada sem x-api-key válida", async () => {
+  const { supabase } = createMockSupabase();
+
+  const handler = createProvisionOnboardingHandler({
+    env: {
+      get: (k: string) => {
+        if (k === "SUPABASE_URL") return testBaseUrl;
+        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
+        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
+        return undefined;
+      },
+    },
+    createClient: (() => supabase) as any,
+  });
+
+  const payload = makePayload();
+  payload.participants = [
+    { phone: "11999990000", name: "A", is_admin: true, is_super_admin: false, whatsapp_provider_id: "lid-1" },
+  ];
+
+  const res = await handler(makeReq(payload, { apiKey: "wrong-key" }));
+  assertEquals(res.status, 401);
+  const body = await res.json();
+  assertEquals(body.success, false);
+  assertEquals(body.code, "UNAUTHORIZED");
 });
