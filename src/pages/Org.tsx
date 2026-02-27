@@ -1,5 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { BorisTable } from "@/components/ui/boris-table";
+import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -15,9 +15,6 @@ import {
   Mail,
   Trash2,
   Tag,
-  TrendingDown,
-  TrendingUp,
-  Minus,
   Plus,
   HelpCircle,
   Loader2,
@@ -80,6 +77,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { logEvent } from "@/lib/audit";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { parseSupabaseFunctionInvokeError } from "@/lib/supabase-function-invoke-error";
@@ -1313,6 +1311,50 @@ const Org = () => {
     gcTime: ORG_PAGE_GC_TIME_MS,
   });
 
+  const renderPanoramaActions = (g: any) => {
+    const canEdit = canEditGroup(g.row.id, orgId);
+    const canRemove = userCanEditOrg;
+    const canCascade = isSystemAdmin;
+    const canDeleteAction = canCascade || canRemove;
+
+    return (
+      <RowActions>
+        <DropdownMenuItem onSelect={() => navigate(`/groups/${g.row.id}`)}>
+          Abrir grupo
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            void openGroupForEdit(g.row.id);
+          }}
+          disabled={!canEdit}
+        >
+          Editar grupo
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            const payload: GroupListItem = {
+              id: g.row.id,
+              name: g.row.name,
+              created_at: g.row.created_at ?? "",
+              organization_id: orgId ?? "",
+              whatsapp_provider_id: null,
+              is_active: g.row.isActive ?? null,
+            };
+            if (canCascade) {
+              setCascadeGroup(payload);
+              return;
+            }
+            setRemoveGroup(payload);
+          }}
+          disabled={!canDeleteAction}
+          className="text-destructive focus:text-destructive"
+        >
+          {canCascade ? "Excluir grupo" : "Remover grupo"}
+        </DropdownMenuItem>
+      </RowActions>
+    );
+  };
+
   const panoramaColumns = [
     {
       key: "name",
@@ -1321,9 +1363,9 @@ const Org = () => {
         <div className="min-w-0">
           <div className="font-semibold text-card-foreground truncate">{g.row.name}</div>
           {g.row.lastSummaryText ? (
-            <div className="text-xs text-muted-foreground truncate">{toPreview(g.row.lastSummaryText, 120)}</div>
+            <div className="text-xs text-muted-foreground truncate">{toPreview(g.row.lastSummaryText, 72)}</div>
           ) : g.row.lastMessagePreview ? (
-            <div className="text-xs text-muted-foreground truncate">{toPreview(g.row.lastMessagePreview, 120)}</div>
+            <div className="text-xs text-muted-foreground truncate">{toPreview(g.row.lastMessagePreview, 72)}</div>
           ) : g.row.lastMessageAt ? (
             <div className="text-xs text-muted-foreground truncate">Última mensagem em {formatDateSimpleBR(g.row.lastMessageAt)}</div>
           ) : (
@@ -1344,41 +1386,9 @@ const Org = () => {
       },
     },
     {
-      key: "trend",
-      header: "Tendência",
-      hideOn: "sm",
-      render: (g: any) => {
-        if (g.trend === "subindo") {
-          return (
-            <div className="inline-flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-success" />
-              <span className="text-sm text-card-foreground">Subindo</span>
-            </div>
-          );
-        }
-        if (g.trend === "caindo") {
-          return (
-            <div className="inline-flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-warning" />
-              <span className="text-sm text-card-foreground">Caindo</span>
-            </div>
-          );
-        }
-        if (g.trend === "estavel") {
-          return (
-            <div className="inline-flex items-center gap-2">
-              <Minus className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-card-foreground">Estável</span>
-            </div>
-          );
-        }
-        return <span className="text-sm text-muted-foreground">Sem dados</span>;
-      },
-    },
-    {
       key: "recentMessages",
-      header: `Msgs (${RECENT_MESSAGES_HOURS}h)`,
-      hideOn: "sm",
+      header: `${RECENT_MESSAGES_HOURS}h`,
+      align: "right" as const,
       render: (g: any) => {
         if (panoramaRecentMessagesLoading) {
           return <span className="text-sm text-muted-foreground">…</span>;
@@ -1392,70 +1402,7 @@ const Org = () => {
       key: "actions",
       header: "",
       className: "w-10",
-      render: (g: any) => {
-        const canEdit = canEditGroup(g.row.id, orgId);
-        const canRemove = userCanEditOrg;
-        const canCascade = isSystemAdmin;
-        const canDeleteAction = canCascade || canRemove;
-        return (
-          <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(`/groups/${g.row.id}`)}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              title="Abrir grupo"
-              aria-label="Abrir grupo"
-            >
-              <FolderOpen className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                void openGroupForEdit(g.row.id);
-              }}
-              disabled={!canEdit}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground disabled:opacity-40"
-              title={canEdit ? "Editar grupo" : "Sem permissão para editar este grupo"}
-              aria-label="Editar grupo"
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                const payload: GroupListItem = {
-                  id: g.row.id,
-                  name: g.row.name,
-                  created_at: g.row.created_at ?? "",
-                  organization_id: orgId ?? "",
-                  whatsapp_provider_id: null,
-                  is_active: g.row.isActive ?? null,
-                };
-                if (canCascade) {
-                  setCascadeGroup(payload);
-                  return;
-                }
-                setRemoveGroup(payload);
-              }}
-              disabled={!canDeleteAction}
-              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 disabled:opacity-40"
-              title={
-                canDeleteAction
-                  ? canCascade
-                    ? "Excluir grupo"
-                    : "Remover grupo da organização"
-                  : "Sem permissão para remover/excluir este grupo"
-              }
-              aria-label={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        );
-      },
+      render: (g: any) => renderPanoramaActions(g),
     },
   ];
 
