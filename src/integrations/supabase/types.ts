@@ -2662,6 +2662,43 @@ export type Database = {
           },
         ]
       }
+      v_poll_ingestion_audit: {
+        Row: {
+          created_at: string | null
+          group_id: string | null
+          is_missing_raw_payload_for_all_rows: boolean | null
+          is_missing_vote_message_ids_for_all_rows: boolean | null
+          is_multiselect_with_possible_legacy_truncation: boolean | null
+          max_options: number | null
+          max_vote_events_per_person: number | null
+          max_votes_per_member: number | null
+          poll_id: string | null
+          question: string | null
+          total_vote_rows: number | null
+          vote_rows_as_array: number | null
+          vote_rows_as_string: number | null
+          vote_rows_without_message_id: number | null
+          vote_rows_without_raw_payload: number | null
+          voters_at_two_or_more_events: number | null
+          voters_with_votes: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "polls_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "polls_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_poll_votes_br_time: {
         Row: {
           created_at: string | null

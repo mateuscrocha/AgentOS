@@ -50,6 +50,8 @@ type GroupSummariesPayload = {
   topics: GroupDailyTopicRow[];
   keywords: GroupDailyKeywordRow[];
 };
+const GROUP_SUMMARIES_STALE_TIME_MS = 30_000;
+const GROUP_SUMMARIES_GC_TIME_MS = 5 * 60_000;
 
 export type GroupDailySummaryView = GroupDailySummaryRow & {
   dateKey: string;
@@ -133,6 +135,8 @@ export function useGroupSummaries({
       } as GroupSummariesPayload;
     },
     enabled: normalizedGroupId.length > 0 && enabled,
+    staleTime: GROUP_SUMMARIES_STALE_TIME_MS,
+    gcTime: GROUP_SUMMARIES_GC_TIME_MS,
   });
 
   const conversationsView = useMemo<GroupDailySummaryView[]>(() => {
@@ -303,4 +307,3 @@ export function useGroupSummaries({
     displayKeyword,
   };
 }
-

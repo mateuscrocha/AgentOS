@@ -56,6 +56,7 @@ export function AdminSidebar() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { isSystemAdmin, isOrgAdmin, isGroupManager, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
+  const isGroupScopedUser = !isSystemAdmin && (isGroupManager || !isOrgAdmin);
 
   const canUseAlerts = isSystemAdmin || isOrgAdmin || isGroupManager;
   const unreadAlertsQuery = useQuery<number>({
@@ -183,6 +184,10 @@ export function AdminSidebar() {
     if (orgIdForNavigation) return `/organization/${orgIdForNavigation}/groups`;
     return "/";
   }, [isSystemAdmin, orgIdForNavigation]);
+  const minhaOrganizacaoHref = useMemo(() => {
+    if (!orgIdForNavigation) return null;
+    return `/organization/${orgIdForNavigation}/dashboard`;
+  }, [orgIdForNavigation]);
 
   const organizacoesHref = useMemo(() => {
     if (!isSystemAdmin) return null;
@@ -198,7 +203,13 @@ export function AdminSidebar() {
     () => {
       const items: NavItem[] = [{ icon: LayoutDashboard, label: "Painel", href: painelHref }];
       if (organizacoesHref) items.push({ icon: Building2, label: "Organizações", href: organizacoesHref });
-      items.push({ icon: Users, label: "Grupos", href: gruposHref });
+      if (isGroupScopedUser) {
+        if (minhaOrganizacaoHref) {
+          items.push({ icon: Building2, label: "Minha organização", href: minhaOrganizacaoHref });
+        }
+      } else {
+        items.push({ icon: Users, label: "Grupos", href: gruposHref });
+      }
       if (alertasHref) {
         items.push({
           icon: Bell,
@@ -209,7 +220,7 @@ export function AdminSidebar() {
       }
       return items;
     },
-    [alertasHref, gruposHref, organizacoesHref, painelHref, unreadAlertsQuery.data],
+    [alertasHref, gruposHref, isGroupManager, isGroupScopedUser, minhaOrganizacaoHref, organizacoesHref, painelHref, unreadAlertsQuery.data],
   );
 
   const groupItems: NavItem[] = useMemo(() => {

@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import AccessDenied from "./AccessDenied";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Activity, Check, Copy } from "lucide-react";
+import { Activity, Check, Copy, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getInitialsFromName } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -30,6 +31,7 @@ type PollRow = Database["public"]["Tables"]["polls"]["Row"];
 type PollSummaryRow = Database["public"]["Views"]["v_poll_summary"]["Row"];
 type PollResultsRow = Database["public"]["Views"]["v_poll_results"]["Row"];
 type PollVotesByPersonRow = Database["public"]["Views"]["v_poll_votes_by_person"]["Row"];
+type PollIngestionAuditRow = Database["public"]["Views"]["v_poll_ingestion_audit"]["Row"];
 
 type PollVoteByPersonItem = {
   personId: string | null;
@@ -178,6 +180,27 @@ export default function GroupPoll() {
     enabled: !!pollId && isAuthenticated,
   });
 
+  const { data: pollAudit, error: pollAuditError } = useQuery({
+    queryKey: ["poll-ingestion-audit", pollId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("v_poll_ingestion_audit")
+        .select("is_multiselect_with_possible_legacy_truncation, is_missing_vote_message_ids_for_all_rows, is_missing_raw_payload_for_all_rows, total_vote_rows, voters_at_two_or_more_events")
+        .eq("poll_id", pollId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Pick<
+        PollIngestionAuditRow,
+        | "is_multiselect_with_possible_legacy_truncation"
+        | "is_missing_vote_message_ids_for_all_rows"
+        | "is_missing_raw_payload_for_all_rows"
+        | "total_vote_rows"
+        | "voters_at_two_or_more_events"
+      > | null;
+    },
+    enabled: !!pollId && isAuthenticated,
+  });
+
   const voterIds = useMemo(() => {
     const ids = (pollVotesByPerson ?? [])
       .map((v) => v.personId)
@@ -204,7 +227,7 @@ export default function GroupPoll() {
     enabled: !!groupId && voterIds.length > 0 && isAuthenticated,
     staleTime: 5 * 60 * 1000,
   });
-  const detailError = pollOptionsError || pollSummaryError || pollVotesByPersonError || voterAvatarError;
+  const detailError = pollOptionsError || pollSummaryError || pollVotesByPersonError || voterAvatarError || pollAuditError;
 
   if (authLoading) {
     return (
@@ -267,6 +290,11 @@ export default function GroupPoll() {
   const participationPercent = (totalMembersCount ?? 0) > 0
     ? Math.round((votersCount / Math.max(1, totalMembersCount ?? 0)) * 100)
     : 0;
+  const hasLegacyPollWarning = Boolean(
+    pollAudit?.is_multiselect_with_possible_legacy_truncation ||
+    pollAudit?.is_missing_vote_message_ids_for_all_rows ||
+    pollAudit?.is_missing_raw_payload_for_all_rows
+  );
 
   const kpiHelp = {
     selections: {
@@ -430,6 +458,21 @@ export default function GroupPoll() {
               )
             ) : (
                 <div className="space-y-5">
+                  {hasLegacyPollWarning ? (
+                    <Alert className="border-amber-300/60 bg-amber-50 text-amber-950 [&>svg]:text-amber-700">
+                      <TriangleAlert className="h-4 w-4" />
+                      <AlertTitle>Possível divergência na ingestão dos votos</AlertTitle>
+                      <AlertDescription>
+                        {pollAudit?.is_multiselect_with_possible_legacy_truncation
+                          ? `A enquete foi identificada como multiseleção e há ${Number(pollAudit?.voters_at_two_or_more_events ?? 0)} participante(s) com 2 ou mais eventos. Em registros legados, votos adicionais podem ter sido truncados. `
+                          : ""}
+                        {pollAudit?.is_missing_vote_message_ids_for_all_rows || pollAudit?.is_missing_raw_payload_for_all_rows
+                          ? "Os votos históricos desta enquete não têm rastreabilidade completa para reconstrução automática."
+                          : ""}
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <KpiCard title="Votos (seleções)" value={totalVotes} help={kpiHelp.selections} />
                     <KpiCard title="Votos registrados" value={voteEventsCount} help={kpiHelp.voteEvents} />

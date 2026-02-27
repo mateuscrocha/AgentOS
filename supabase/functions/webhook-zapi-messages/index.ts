@@ -117,6 +117,13 @@ function parseTimestampToIso(ts: unknown): string | null {
   return null;
 }
 
+function normalizePollMaxVotesPerMember(maxOptions: unknown, fallback = 2): number {
+  if (typeof maxOptions === 'string' && !maxOptions.trim()) return fallback;
+  const parsed = Number(maxOptions);
+  if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  return fallback;
+}
+
 function mapMessageType(raw: unknown): string {
   const t = String(raw || '').toLowerCase();
   if (!t) return 'text';
@@ -237,7 +244,9 @@ serve(async (req: Request) => {
     if (payload.poll) {
       const pollPayload = payload as ZapiPollPayload;
       const question = pollPayload.poll.question || '[Enquete]';
-      const maxOptions = pollPayload.poll.pollMaxOptions || null;
+      const maxOptionsRaw = pollPayload.poll.pollMaxOptions;
+      const maxOptions = Number.isFinite(Number(maxOptionsRaw)) ? Number(maxOptionsRaw) : null;
+      const maxVotesPerMember = normalizePollMaxVotesPerMember(maxOptionsRaw);
       const options = Array.isArray(pollPayload.poll.options) ? pollPayload.poll.options : [];
 
       // Dedup poll
@@ -259,6 +268,7 @@ serve(async (req: Request) => {
             whatsapp_provider_id: pollPayload.messageId,
             question,
             max_options: maxOptions,
+            max_votes_per_member: maxVotesPerMember,
           })
           .select('id')
           .single();

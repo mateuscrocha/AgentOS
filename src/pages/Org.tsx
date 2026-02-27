@@ -4,6 +4,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
@@ -23,7 +24,7 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import { useOrgCounts } from "@/hooks/use-org-counts";
@@ -85,6 +86,8 @@ import { parseSupabaseFunctionInvokeError } from "@/lib/supabase-function-invoke
 
 const PANORAMA_PAGE_SIZE = 20;
 const RECENT_MESSAGES_HOURS = 24;
+const ORG_PAGE_STALE_TIME_MS = 30_000;
+const ORG_PAGE_GC_TIME_MS = 5 * 60_000;
 
 const normalizeWhatsAppInviteLink = (value: string): string => {
   const trimmed = (value ?? "").trim();
@@ -535,6 +538,21 @@ const Org = () => {
     setCustomRange(period === 'custom' ? range : undefined);
   };
 
+  const openGroupForEdit = async (groupId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("groups")
+        .select("id, name, organization_id, provider, whatsapp_provider_id")
+        .eq("id", groupId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Grupo não encontrado");
+      setEditGroup(data as GroupDetails);
+    } catch {
+      notify.error("Não foi possível abrir", "Algo deu errado. Tente novamente.");
+    }
+  };
+
   const {
     org,
     orgLoading,
@@ -580,6 +598,9 @@ const Org = () => {
   const isBaseOrg = /^\/(?:org|organization)\/[^/]+\/?$/.test(path);
   const isProfileRoute = /^\/(?:org|organization)\/[^/]+\/profile$/.test(path);
   const isDefaultOrgHome = isBaseOrg && !isGroupsRoute && !isDashboardRoute && !isKeywordsRoute;
+  const shouldLoadProfileGroups = isGroupsRoute || isProfileRoute;
+  const shouldLoadDashboardSignals = isDashboardRoute || isDefaultOrgHome;
+  const shouldLoadKeywords = isKeywordsRoute;
 
   const breadcrumbItems = (() => {
     const items = [
@@ -593,7 +614,12 @@ const Org = () => {
     return items;
   })();
 
-  const { data: profileGroupsOverview, isLoading: profileGroupsLoading, error: profileGroupsError } = useQuery({
+  const {
+    data: profileGroupsOverview,
+    isLoading: profileGroupsLoading,
+    error: profileGroupsError,
+    refetch: refetchProfileGroups,
+  } = useQuery({
     queryKey: ["org-profile-groups", orgId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -610,7 +636,9 @@ const Org = () => {
         status: g.is_active ? "Ativo" : "Inativo",
       }));
     },
-    enabled: !!orgId && isAuthenticated && hasAccess && (isGroupsRoute || isProfileRoute),
+    enabled: !!orgId && isAuthenticated && hasAccess && shouldLoadProfileGroups,
+    staleTime: ORG_PAGE_STALE_TIME_MS,
+    gcTime: ORG_PAGE_GC_TIME_MS,
   });
 
   const { data: profileLeaders } = useQuery({
@@ -632,7 +660,9 @@ const Org = () => {
       });
       return map;
     },
-    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds) && (isGroupsRoute || isProfileRoute),
+    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds) && shouldLoadProfileGroups,
+    staleTime: ORG_PAGE_STALE_TIME_MS,
+    gcTime: ORG_PAGE_GC_TIME_MS,
   });
 
   const currentRange = getDateRange(selectedPeriod, customRange);
@@ -786,6 +816,21 @@ const Org = () => {
       return 0;
     });
 
+    const hasActiveFilters =
+      profileSearch.trim().length > 0 ||
+      profileStatusFilter !== "all" ||
+      profileLeaderFilter.trim().length > 0 ||
+      profileOrderBy !== "name" ||
+      profileOrderDir !== "asc";
+
+    const clearFilters = () => {
+      setProfileSearch("");
+      setProfileStatusFilter("all");
+      setProfileLeaderFilter("");
+      setProfileOrderBy("name");
+      setProfileOrderDir("asc");
+    };
+
     const handleExportCsv = () => {
       const csv = buildOrgGroupsCsv(
         sorted.map((g: any) => ({
@@ -808,19 +853,69 @@ const Org = () => {
       URL.revokeObjectURL(url);
     };
 
+    const columns = [
+      {
+        key: "name",
+        header: "Grupo",
+        render: (g: any) => (
+          <div className="min-w-0">
+            <div className="font-semibold text-card-foreground truncate">{g.name}</div>
+            <div className="text-xs text-muted-foreground truncate">{g.description || "Sem descrição"}</div>
+          </div>
+        ),
+      },
+      {
+        key: "leader",
+        header: "Líder",
+        hideOn: "sm" as const,
+        render: (g: any) => <span className="text-sm text-card-foreground">{g.leader || "-"}</span>,
+      },
+      {
+        key: "members",
+        header: "Integrantes",
+        align: "right" as const,
+        render: (g: any) => (
+          <span className="tabular-nums text-sm font-medium text-card-foreground">
+            {typeof g.members === "number" ? g.members.toLocaleString("pt-BR") : "-"}
+          </span>
+        ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        align: "center" as const,
+        render: (g: any) => (
+          <StatusTag variant={g.status === "Ativo" ? "success" : "neutral"}>
+            {g.status}
+          </StatusTag>
+        ),
+      },
+    ];
+
     return (
-      <section className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 space-y-1">
-            <h4 className="text-sm font-semibold text-foreground">Grupos da organização</h4>
-            <p className="text-xs text-muted-foreground">Lista interativa com filtros e exportação</p>
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
+        <div className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <h4 className="text-sm font-semibold text-foreground">Grupos da organização</h4>
+              <p className="text-xs text-muted-foreground">Padrão de listagem administrativa com filtros e exportação</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportCsv}>
+                Exportar CSV
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleExportCsv}>Exportar CSV</Button>
-          </div>
+
+          <ListSectionHeader
+            title="Grupos"
+            count={sorted.length}
+            statusLabel={`${list.length} no total`}
+            isLoading={groupsLoading}
+          />
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="space-y-3">
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4">
             <Input
               type="text"
@@ -869,38 +964,26 @@ const Org = () => {
             </div>
           </div>
 
-          {groupsLoading ? (
-            <div className="mt-4"><LoadingState message="Carregando grupos..." /></div>
-          ) : groupsError ? (
-            <div className="mt-4"><ErrorState message="Falha ao carregar grupos" /></div>
-          ) : sorted.length === 0 ? (
-            <div className="mt-2"><EmptyState title="Nenhum grupo" message="Nada por aqui." /></div>
-          ) : (
-            <div className="mt-4">
-              <div className="space-y-3">
-                {sorted.map((g: any) => (
-                  <div
-                    key={g.id}
-                    className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/30 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/groups/${g.id}`)}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-card-foreground truncate">{g.name}</div>
-                        <div className="mt-1 text-xs text-muted-foreground truncate">{g.description || ""}</div>
-                        <div className="mt-2 text-xs text-muted-foreground">Líder: {g.leader || "-"}</div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-sm font-semibold tabular-nums text-card-foreground">{typeof g.members === "number" ? g.members.toLocaleString("pt-BR") : "-"}</div>
-                        <div className="text-[11px] text-muted-foreground">Integrantes</div>
-                        <div className="mt-1 text-[11px]">{g.status}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {hasActiveFilters ? (
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                Limpar filtros
+              </Button>
             </div>
-          )}
+          ) : null}
+
+          <BorisTable
+            columns={columns}
+            data={sorted as any}
+            keyExtractor={(g: any) => g.id}
+            onRowClick={(g: any) => navigate(`/groups/${g.id}`)}
+            loading={groupsLoading}
+            error={groupsError ? "erro" : false}
+            onRetry={() => {
+              void refetchProfileGroups();
+            }}
+            emptyMessage="Nenhum grupo encontrado com os filtros atuais."
+          />
         </div>
       </section>
     );
@@ -1045,7 +1128,9 @@ const Org = () => {
       orgGroupsSignalRpcAvailable = false;
       return runFallback();
     },
-    enabled: !!orgId && isAuthenticated && hasAccess,
+    enabled: !!orgId && isAuthenticated && hasAccess && shouldLoadDashboardSignals,
+    staleTime: ORG_PAGE_STALE_TIME_MS,
+    gcTime: ORG_PAGE_GC_TIME_MS,
   });
 
   // Fetch groups for this organization
@@ -1115,33 +1200,46 @@ const Org = () => {
 
       return { words, bigrams } as any;
     },
-    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds),
+    enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds) && shouldLoadKeywords,
+    staleTime: ORG_PAGE_STALE_TIME_MS,
+    gcTime: ORG_PAGE_GC_TIME_MS,
   });
 
-  const signals = Array.isArray(orgGroupsSignals) ? orgGroupsSignals : [];
-  const signalsWithMetrics = signals.map((row) => {
-    const activity = computeActivityLevel(row);
-    const trend = computeTrend(row);
-    const attention = computeAttention(row);
-    return { row, activity, trend, attention };
-  });
+  const signals = useMemo(
+    () => (Array.isArray(orgGroupsSignals) ? orgGroupsSignals : []),
+    [orgGroupsSignals],
+  );
+  const signalsWithMetrics = useMemo(
+    () =>
+      signals.map((row) => {
+        const activity = computeActivityLevel(row);
+        const trend = computeTrend(row);
+        const attention = computeAttention(row);
+        return { row, activity, trend, attention };
+      }),
+    [signals],
+  );
 
   const totalGroupsCount = typeof orgGroupIds?.length === "number" ? orgGroupIds.length : signals.length;
   const activeGroupsValue =
     typeof activeGroupsCount === "number" ? activeGroupsCount : signals.filter((g) => g.isActive === true).length;
   const silentGroupsCount = signalsWithMetrics.filter((g) => g.activity === "silencio").length;
 
-  const attentionGroups = signalsWithMetrics
-    .filter((g) => !!g.attention)
-    .sort((a, b) => {
-      const ap = a.attention?.priority ?? 999;
-      const bp = b.attention?.priority ?? 999;
-      if (ap !== bp) return ap - bp;
+  const attentionGroups = useMemo(
+    () =>
+      signalsWithMetrics
+        .filter((g) => !!g.attention)
+        .sort((a, b) => {
+          const ap = a.attention?.priority ?? 999;
+          const bp = b.attention?.priority ?? 999;
+          if (ap !== bp) return ap - bp;
 
-      const aAt = a.row.lastMessageAt ? new Date(a.row.lastMessageAt).getTime() : 0;
-      const bAt = b.row.lastMessageAt ? new Date(b.row.lastMessageAt).getTime() : 0;
-      return aAt - bAt;
-    });
+          const aAt = a.row.lastMessageAt ? new Date(a.row.lastMessageAt).getTime() : 0;
+          const bAt = b.row.lastMessageAt ? new Date(b.row.lastMessageAt).getTime() : 0;
+          return aAt - bAt;
+        }),
+    [signalsWithMetrics],
+  );
 
   const alertGroupsCount = attentionGroups.length;
 
@@ -1159,19 +1257,23 @@ const Org = () => {
     subindo: 2,
   };
 
-  const panoramaSorted = [...signalsWithMetrics].sort((a, b) => {
-    const ar = activityRank[a.activity];
-    const br = activityRank[b.activity];
-    if (ar !== br) return br - ar;
+  const panoramaSorted = useMemo(
+    () =>
+      [...signalsWithMetrics].sort((a, b) => {
+        const ar = activityRank[a.activity];
+        const br = activityRank[b.activity];
+        if (ar !== br) return br - ar;
 
-    const aCount = typeof a.row.messagesCurrent === "number" ? a.row.messagesCurrent : -1;
-    const bCount = typeof b.row.messagesCurrent === "number" ? b.row.messagesCurrent : -1;
-    if (aCount !== bCount) return bCount - aCount;
+        const aCount = typeof a.row.messagesCurrent === "number" ? a.row.messagesCurrent : -1;
+        const bCount = typeof b.row.messagesCurrent === "number" ? b.row.messagesCurrent : -1;
+        if (aCount !== bCount) return bCount - aCount;
 
-    const aAt = a.row.lastMessageAt ? new Date(a.row.lastMessageAt).getTime() : 0;
-    const bAt = b.row.lastMessageAt ? new Date(b.row.lastMessageAt).getTime() : 0;
-    return bAt - aAt;
-  });
+        const aAt = a.row.lastMessageAt ? new Date(a.row.lastMessageAt).getTime() : 0;
+        const bAt = b.row.lastMessageAt ? new Date(b.row.lastMessageAt).getTime() : 0;
+        return bAt - aAt;
+      }),
+    [signalsWithMetrics],
+  );
 
   const panoramaTotal = panoramaSorted.length;
   const panoramaFrom = (panoramaPage - 1) * PANORAMA_PAGE_SIZE;
@@ -1206,7 +1308,9 @@ const Org = () => {
       }
       return map;
     },
-    enabled: !!orgId && isAuthenticated && hasAccess && panoramaGroupIds.length > 0,
+    enabled: !!orgId && isAuthenticated && hasAccess && shouldLoadDashboardSignals && panoramaGroupIds.length > 0,
+    staleTime: ORG_PAGE_STALE_TIME_MS,
+    gcTime: ORG_PAGE_GC_TIME_MS,
   });
 
   const panoramaColumns = [
@@ -1292,6 +1396,7 @@ const Org = () => {
         const canEdit = canEditGroup(g.row.id, orgId);
         const canRemove = userCanEditOrg;
         const canCascade = isSystemAdmin;
+        const canDeleteAction = canCascade || canRemove;
         return (
           <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
             <Button
@@ -1304,57 +1409,50 @@ const Org = () => {
             >
               <FolderOpen className="h-4 w-4" />
             </Button>
-            {canEdit && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const { data, error } = await supabase
-                      .from("groups")
-                      .select("id, name, organization_id, provider, whatsapp_provider_id")
-                      .eq("id", g.row.id)
-                      .maybeSingle();
-                    if (error) throw error;
-                    if (!data) throw new Error("Grupo não encontrado");
-                    setEditGroup(data as GroupDetails);
-                  } catch {
-                    notify.error("Não foi possível abrir", "Algo deu errado. Tente novamente.");
-                  }
-                }}
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                title="Editar grupo"
-                aria-label="Editar grupo"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            )}
-            {(canCascade || canRemove) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const payload: GroupListItem = {
-                    id: g.row.id,
-                    name: g.row.name,
-                    created_at: g.row.created_at ?? "",
-                    organization_id: orgId ?? "",
-                    whatsapp_provider_id: null,
-                    is_active: g.row.isActive ?? null,
-                  };
-                  if (canCascade) {
-                    setCascadeGroup(payload);
-                    return;
-                  }
-                  setRemoveGroup(payload);
-                }}
-                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                title={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
-                aria-label={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void openGroupForEdit(g.row.id);
+              }}
+              disabled={!canEdit}
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground disabled:opacity-40"
+              title={canEdit ? "Editar grupo" : "Sem permissão para editar este grupo"}
+              aria-label="Editar grupo"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const payload: GroupListItem = {
+                  id: g.row.id,
+                  name: g.row.name,
+                  created_at: g.row.created_at ?? "",
+                  organization_id: orgId ?? "",
+                  whatsapp_provider_id: null,
+                  is_active: g.row.isActive ?? null,
+                };
+                if (canCascade) {
+                  setCascadeGroup(payload);
+                  return;
+                }
+                setRemoveGroup(payload);
+              }}
+              disabled={!canDeleteAction}
+              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 disabled:opacity-40"
+              title={
+                canDeleteAction
+                  ? canCascade
+                    ? "Excluir grupo"
+                    : "Remover grupo da organização"
+                  : "Sem permissão para remover/excluir este grupo"
+              }
+              aria-label={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         );
       },
@@ -1569,11 +1667,15 @@ const Org = () => {
                 <Mail className="h-4 w-4 text-muted-foreground" />
                 Contato da organização
               </h3>
-              {userCanEditOrg && (
-                <Button variant="outline" size="sm" onClick={() => setEditContactOpen(true)}>
-                  {hasPrimaryContactData ? "Editar contato" : "Cadastrar contato"}
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditContactOpen(true)}
+                disabled={!userCanEditOrg}
+                title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem alterar dados da organização."}
+              >
+                {hasPrimaryContactData ? "Editar contato" : "Cadastrar contato"}
+              </Button>
             </div>
 
             {contactLoading ? (
@@ -1704,27 +1806,27 @@ const Org = () => {
           }
           actions={(
             <div className="flex items-center gap-2">
-              {userCanEditOrg && (
-                <Button
-                  size="sm"
-                  onClick={() => setAttachGroupOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  {addGroupLabel}
-                </Button>
-              )}
-              {userCanEditOrg && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditOrgOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  Editar
-                </Button>
-              )}
+              <Button
+                size="sm"
+                onClick={() => setAttachGroupOpen(true)}
+                className="flex items-center gap-2"
+                disabled={!userCanEditOrg}
+                title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem adicionar grupos."}
+              >
+                <Plus className="h-4 w-4" />
+                {addGroupLabel}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditOrgOpen(true)}
+                className="flex items-center gap-2"
+                disabled={!userCanEditOrg}
+                title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem alterar a organização."}
+              >
+                <Edit className="h-4 w-4" />
+                Editar
+              </Button>
             </div>
           )}
           filters={(
@@ -1837,9 +1939,15 @@ const Org = () => {
               <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-foreground">Contato</h4>
-                  {userCanEditOrg && (
-                    <Button variant="outline" size="sm" onClick={() => setEditContactOpen(true)}>Editar contato</Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditContactOpen(true)}
+                    disabled={!userCanEditOrg}
+                    title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem alterar contato."}
+                  >
+                    Editar contato
+                  </Button>
                 </div>
                 {(() => {
                   const md = (org?.metadata || {}) as OrgProfileMetadata;
@@ -1911,17 +2019,23 @@ const Org = () => {
                       </div>
                     </div>
                     <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0">
-                      {userCanEditOrg && (
-                        <Button onClick={() => setAttachGroupOpen(true)} className="gap-2">
-                          <Plus className="h-4 w-4" />
-                          Criar primeiro grupo
-                        </Button>
-                      )}
-                      {userCanEditOrg && (
-                        <Button variant="outline" onClick={() => setEditContactOpen(true)}>
-                          {hasPrimaryContactData ? "Editar contato" : "Cadastrar contato"}
-                        </Button>
-                      )}
+                      <Button
+                        onClick={() => setAttachGroupOpen(true)}
+                        className="gap-2"
+                        disabled={!userCanEditOrg}
+                        title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem criar grupos."}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Criar primeiro grupo
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setEditContactOpen(true)}
+                        disabled={!userCanEditOrg}
+                        title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem alterar contato."}
+                      >
+                        {hasPrimaryContactData ? "Editar contato" : "Cadastrar contato"}
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -2070,7 +2184,7 @@ const Org = () => {
                       message={hasGroups
                         ? "Quando os grupos enviarem mensagens, este resumo aparecerá aqui."
                         : "Crie o primeiro grupo para começar a acompanhar atividade."}
-                      action={userCanEditOrg ? { label: addGroupLabel, onClick: () => setAttachGroupOpen(true) } : undefined}
+                      action={{ label: addGroupLabel, onClick: () => setAttachGroupOpen(true) }}
                     />
                   </div>
                 ) : (
@@ -2084,6 +2198,7 @@ const Org = () => {
                         const canEdit = canEditGroup(g.row.id, orgId);
                         const canRemove = userCanEditOrg;
                         const canCascade = isSystemAdmin;
+                        const canDeleteAction = canCascade || canRemove;
                         const contextText = g.row.lastSummaryText
                           ? toPreview(g.row.lastSummaryText, 120)
                           : g.row.lastMessagePreview
@@ -2126,57 +2241,50 @@ const Org = () => {
                               >
                                 <FolderOpen className="h-4 w-4" />
                               </Button>
-                              {canEdit && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={async () => {
-                                    try {
-                                      const { data, error } = await supabase
-                                        .from("groups")
-                                        .select("id, name, organization_id, provider, whatsapp_provider_id")
-                                        .eq("id", g.row.id)
-                                        .maybeSingle();
-                                      if (error) throw error;
-                                      if (!data) throw new Error("Grupo não encontrado");
-                                      setEditGroup(data as GroupDetails);
-                                    } catch {
-                                      notify.error("Não foi possível abrir", "Algo deu errado. Tente novamente.");
-                                    }
-                                  }}
-                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                  title="Editar grupo"
-                                  aria-label="Editar grupo"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {(canCascade || canRemove) && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    const payload: GroupListItem = {
-                                      id: g.row.id,
-                                      name: g.row.name,
-                                      created_at: g.row.created_at ?? "",
-                                      organization_id: orgId ?? "",
-                                      whatsapp_provider_id: null,
-                                      is_active: g.row.isActive ?? null,
-                                    };
-                                    if (canCascade) {
-                                      setCascadeGroup(payload);
-                                      return;
-                                    }
-                                    setRemoveGroup(payload);
-                                  }}
-                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  title={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
-                                  aria-label={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  void openGroupForEdit(g.row.id);
+                                }}
+                                disabled={!canEdit}
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground disabled:opacity-40"
+                                title={canEdit ? "Editar grupo" : "Sem permissão para editar este grupo"}
+                                aria-label="Editar grupo"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const payload: GroupListItem = {
+                                    id: g.row.id,
+                                    name: g.row.name,
+                                    created_at: g.row.created_at ?? "",
+                                    organization_id: orgId ?? "",
+                                    whatsapp_provider_id: null,
+                                    is_active: g.row.isActive ?? null,
+                                  };
+                                  if (canCascade) {
+                                    setCascadeGroup(payload);
+                                    return;
+                                  }
+                                  setRemoveGroup(payload);
+                                }}
+                                disabled={!canDeleteAction}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 disabled:opacity-40"
+                                title={
+                                  canDeleteAction
+                                    ? canCascade
+                                      ? "Excluir grupo"
+                                      : "Remover grupo da organização"
+                                    : "Sem permissão para remover/excluir este grupo"
+                                }
+                                aria-label={canCascade ? "Excluir grupo" : "Remover grupo da organização"}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                         );

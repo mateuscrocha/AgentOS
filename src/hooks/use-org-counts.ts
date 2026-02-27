@@ -7,6 +7,9 @@ type UseOrgCountsArgs = {
   hasAccess: boolean;
 };
 
+const ORG_COUNTS_STALE_TIME_MS = 30_000;
+const ORG_COUNTS_GC_TIME_MS = 5 * 60_000;
+
 export function useOrgCounts({ orgId, isAuthenticated, hasAccess }: UseOrgCountsArgs) {
   const { data: orgGroupIds } = useQuery({
     queryKey: ["org-group-ids", orgId],
@@ -20,6 +23,8 @@ export function useOrgCounts({ orgId, isAuthenticated, hasAccess }: UseOrgCounts
       return (data ?? []).map((g: { id: string }) => g.id);
     },
     enabled: !!orgId && isAuthenticated && hasAccess,
+    staleTime: ORG_COUNTS_STALE_TIME_MS,
+    gcTime: ORG_COUNTS_GC_TIME_MS,
   });
 
   const { data: totalMembersCount, isLoading: membersCountLoading } = useQuery({
@@ -34,6 +39,8 @@ export function useOrgCounts({ orgId, isAuthenticated, hasAccess }: UseOrgCounts
       return count ?? 0;
     },
     enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds),
+    staleTime: ORG_COUNTS_STALE_TIME_MS,
+    gcTime: ORG_COUNTS_GC_TIME_MS,
   });
 
   const { data: messagesLast7dCount, isLoading: messagesCountLoading } = useQuery({
@@ -52,6 +59,8 @@ export function useOrgCounts({ orgId, isAuthenticated, hasAccess }: UseOrgCounts
       return count ?? 0;
     },
     enabled: !!orgId && isAuthenticated && hasAccess && Array.isArray(orgGroupIds),
+    staleTime: ORG_COUNTS_STALE_TIME_MS,
+    gcTime: ORG_COUNTS_GC_TIME_MS,
   });
 
   const { data: activeGroupsCount, isLoading: activeGroupsLoading } = useQuery({
@@ -67,6 +76,8 @@ export function useOrgCounts({ orgId, isAuthenticated, hasAccess }: UseOrgCounts
       return count ?? 0;
     },
     enabled: !!orgId && isAuthenticated && hasAccess,
+    staleTime: ORG_COUNTS_STALE_TIME_MS,
+    gcTime: ORG_COUNTS_GC_TIME_MS,
   });
 
   return {

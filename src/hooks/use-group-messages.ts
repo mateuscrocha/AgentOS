@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -31,6 +31,8 @@ export interface ReactionSummary {
 }
 
 const MENTION_REGEX = /@([0-9]{5,})/g;
+const GROUP_MESSAGES_STALE_TIME_MS = 30_000;
+const GROUP_MESSAGES_GC_TIME_MS = 5 * 60_000;
 
 type GroupInfo = {
   groupName: string;
@@ -88,6 +90,8 @@ export function useGroupMessages({
       } as GroupInfo;
     },
     enabled: !!groupId && isAuthenticated,
+    staleTime: GROUP_MESSAGES_STALE_TIME_MS,
+    gcTime: GROUP_MESSAGES_GC_TIME_MS,
   });
 
   const { data: totalMembersCount } = useQuery({
@@ -102,6 +106,8 @@ export function useGroupMessages({
       return count ?? 0;
     },
     enabled: !!groupId && isAuthenticated,
+    staleTime: GROUP_MESSAGES_STALE_TIME_MS,
+    gcTime: GROUP_MESSAGES_GC_TIME_MS,
   });
 
   const { data: lastMessageAt } = useQuery({
@@ -119,6 +125,8 @@ export function useGroupMessages({
       return first?.created_at ?? null;
     },
     enabled: !!groupId && isAuthenticated,
+    staleTime: GROUP_MESSAGES_STALE_TIME_MS,
+    gcTime: GROUP_MESSAGES_GC_TIME_MS,
   });
 
   const {
@@ -224,6 +232,9 @@ export function useGroupMessages({
       return { items, count: count ?? 0 };
     },
     enabled: !!groupId && isAuthenticated,
+    placeholderData: keepPreviousData,
+    staleTime: GROUP_MESSAGES_STALE_TIME_MS,
+    gcTime: GROUP_MESSAGES_GC_TIME_MS,
   });
 
   const messageIdsKey = useMemo(() => {
@@ -285,7 +296,8 @@ export function useGroupMessages({
       return map;
     },
     enabled: !!groupId && isAuthenticated && !!mentionIdsKey,
-    staleTime: 60_000,
+    staleTime: GROUP_MESSAGES_STALE_TIME_MS,
+    gcTime: GROUP_MESSAGES_GC_TIME_MS,
   });
 
   const { data: reactionsData } = useQuery({
@@ -313,6 +325,8 @@ export function useGroupMessages({
       return grouped;
     },
     enabled: !!groupId && isAuthenticated && !!messagesData?.items?.length,
+    staleTime: GROUP_MESSAGES_STALE_TIME_MS,
+    gcTime: GROUP_MESSAGES_GC_TIME_MS,
   });
 
   const reactionsMap = useMemo(() => reactionsData || {}, [reactionsData]);

@@ -19,6 +19,9 @@ type UseOrgCoreDataArgs = {
   hasAccess: boolean;
 };
 
+const ORG_CORE_STALE_TIME_MS = 60_000;
+const ORG_CORE_GC_TIME_MS = 5 * 60_000;
+
 export function useOrgCoreData({ orgId, isAuthenticated, hasAccess }: UseOrgCoreDataArgs) {
   const {
     data: org,
@@ -33,6 +36,8 @@ export function useOrgCoreData({ orgId, isAuthenticated, hasAccess }: UseOrgCore
       return data;
     },
     enabled: !!orgId && isAuthenticated && hasAccess,
+    staleTime: ORG_CORE_STALE_TIME_MS,
+    gcTime: ORG_CORE_GC_TIME_MS,
   });
 
   const { data: ownerProfile } = useQuery({
@@ -45,7 +50,9 @@ export function useOrgCoreData({ orgId, isAuthenticated, hasAccess }: UseOrgCore
         .maybeSingle();
       return data;
     },
-    enabled: !!(org as any)?.owner_user_id && hasAccess,
+    enabled: !!(org as any)?.owner_user_id && isAuthenticated && hasAccess,
+    staleTime: ORG_CORE_STALE_TIME_MS,
+    gcTime: ORG_CORE_GC_TIME_MS,
   });
 
   const {
@@ -66,6 +73,8 @@ export function useOrgCoreData({ orgId, isAuthenticated, hasAccess }: UseOrgCore
       return data as OrgPrimaryContact;
     },
     enabled: !!orgId && isAuthenticated && hasAccess,
+    staleTime: ORG_CORE_STALE_TIME_MS,
+    gcTime: ORG_CORE_GC_TIME_MS,
   });
 
   const contactName = primaryContact?.name || (org as any)?.contact_name || undefined;

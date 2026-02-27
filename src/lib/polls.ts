@@ -21,6 +21,20 @@ export function normalizeVotedOptions(votedOptions: unknown): string[] {
   return [];
 }
 
+export function normalizePollMaxVotesPerMember(maxOptions: unknown, fallback = 2): number {
+  if (typeof maxOptions === "string" && !maxOptions.trim()) {
+    return fallback;
+  }
+
+  const parsed = Number(maxOptions);
+
+  if (Number.isFinite(parsed) && parsed >= 0) {
+    return parsed;
+  }
+
+  return fallback;
+}
+
 export function computePollPercent(votesCount: number, totalVotes: number, decimals = 0): number {
   if (!Number.isFinite(votesCount) || !Number.isFinite(totalVotes) || totalVotes <= 0) return 0;
 
@@ -29,4 +43,3 @@ export function computePollPercent(votesCount: number, totalVotes: number, decim
   const rounded = Math.round(raw * pow) / pow;
   return Math.min(100, Math.max(0, rounded));
 }
-

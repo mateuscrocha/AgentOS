@@ -10,7 +10,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import AccessDenied from "./AccessDenied";
-import { ChevronLeft, ChevronRight, ListChecks } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListChecks, TriangleAlert } from "lucide-react";
  
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
@@ -28,6 +28,7 @@ import type { Database } from "@/integrations/supabase/types";
 type PollRow = Database["public"]["Tables"]["polls"]["Row"];
 type PollSummaryRow = Database["public"]["Views"]["v_poll_summary"]["Row"];
 type PollResultRow = Database["public"]["Views"]["v_poll_results"]["Row"];
+type PollIngestionAuditRow = Database["public"]["Views"]["v_poll_ingestion_audit"]["Row"];
 
 type PollItem = Pick<
   PollRow,
@@ -45,6 +46,10 @@ type PollOptionResult = {
   optionText: string;
   optionIndex: number;
   votesCount: number;
+};
+
+type PollAuditItem = {
+  hasLegacyWarning: boolean;
 };
 
 const PAGE_SIZE = 10;
@@ -203,6 +208,42 @@ export default function GroupPolls() {
     enabled: !!pollsData?.items?.length && isAuthenticated,
   });
 
+  const { data: auditMap, error: auditError } = useQuery({
+    queryKey: ["group-polls-audit", pollsData?.items?.map(p => p.id)],
+    queryFn: async () => {
+      const ids = (pollsData?.items || []).map((p) => p.id);
+      if (!ids.length) return {} as Record<string, PollAuditItem>;
+
+      const { data, error } = await supabase
+        .from("v_poll_ingestion_audit")
+        .select("poll_id, is_multiselect_with_possible_legacy_truncation, is_missing_vote_message_ids_for_all_rows, is_missing_raw_payload_for_all_rows")
+        .in("poll_id", ids);
+
+      if (error) throw error;
+
+      const map: Record<string, PollAuditItem> = {};
+      for (const row of (data ?? []) as Pick<
+        PollIngestionAuditRow,
+        | "poll_id"
+        | "is_multiselect_with_possible_legacy_truncation"
+        | "is_missing_vote_message_ids_for_all_rows"
+        | "is_missing_raw_payload_for_all_rows"
+      >[]) {
+        if (!row.poll_id) continue;
+        map[String(row.poll_id)] = {
+          hasLegacyWarning: Boolean(
+            row.is_multiselect_with_possible_legacy_truncation ||
+            row.is_missing_vote_message_ids_for_all_rows ||
+            row.is_missing_raw_payload_for_all_rows
+          ),
+        };
+      }
+
+      return map;
+    },
+    enabled: !!pollsData?.items?.length && isAuthenticated,
+  });
+
   if (authLoading) {
     return (
       <AdminLayout title="Enquetes" subtitle="Verificando acesso...">
@@ -279,7 +320,7 @@ export default function GroupPolls() {
           {(pollsData?.count ?? 0)} enquetes no período selecionado{debouncedSearch ? ` (busca: ${debouncedSearch})` : ""}.
         </div>
 
-        {error || resultsError ? (
+        {error || resultsError || auditError ? (
           <ErrorState
             title="Não foi possível carregar as enquetes."
             message="Tente novamente."
@@ -377,6 +418,7 @@ export default function GroupPolls() {
                 const hasTie = winnerCount > 1;
                 const showQuestionToggle = (p.question || "").length >= 130 || /\n/.test(p.question || "");
                 const isQuestionExpanded = !!expandedQuestions[p.id];
+                const hasLegacyWarning = !!auditMap?.[p.id]?.hasLegacyWarning;
 
                 return (
                   <section
@@ -417,6 +459,12 @@ export default function GroupPolls() {
                           <div className="mt-2 text-xs text-muted-foreground">
                             <span className="tabular-nums">Criada em {createdAtLabel}</span> • <span className="tabular-nums">{voteEventsCount}</span> votos registrados
                           </div>
+                          {hasLegacyWarning ? (
+                            <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900">
+                              <TriangleAlert className="h-3.5 w-3.5" />
+                              Possível divergência histórica
+                            </div>
+                          ) : null}
                         </motion.div>
 
                         <Button

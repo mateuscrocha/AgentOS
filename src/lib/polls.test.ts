@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { computePollPercent, normalizeVotedOptions } from "./polls";
+import { computePollPercent, normalizePollMaxVotesPerMember, normalizeVotedOptions } from "./polls";
 
 describe("normalizeVotedOptions", () => {
   it("normaliza array de strings", () => {
@@ -44,5 +44,21 @@ describe("computePollPercent", () => {
 
   it("trata decimais negativas como 0", () => {
     expect(computePollPercent(1, 3, -2)).toBe(33);
+  });
+});
+
+describe("normalizePollMaxVotesPerMember", () => {
+  it("usa o max_options quando ele é zero", () => {
+    expect(normalizePollMaxVotesPerMember(0)).toBe(0);
+  });
+
+  it("usa o max_options quando ele é positivo", () => {
+    expect(normalizePollMaxVotesPerMember(3)).toBe(3);
+  });
+
+  it("cai no fallback para valores inválidos", () => {
+    expect(normalizePollMaxVotesPerMember(undefined)).toBe(2);
+    expect(normalizePollMaxVotesPerMember("")).toBe(2);
+    expect(normalizePollMaxVotesPerMember(-1, 0)).toBe(0);
   });
 });
