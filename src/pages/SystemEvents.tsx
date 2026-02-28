@@ -162,7 +162,7 @@ export default function SystemEvents() {
 
   return (
     <AdminLayout title="Eventos do Sistema" subtitle="Auditoria e observabilidade">
-      <div className="space-y-6">
+      <div className="space-y-8">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Eventos" }]}
           title="Eventos do Sistema"

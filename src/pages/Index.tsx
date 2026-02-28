@@ -27,7 +27,7 @@ import { addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { SAO_PAULO_TZ } from "@/lib/date";
 import { getPostLoginRedirectPath } from "@/lib/auth-routing";
-import { buildParticipationChange, buildSystemDaySummary } from "./index-dashboard-utils";
+import { buildGroupMomentum, buildParticipationChange, buildSystemDaySummary } from "./index-dashboard-utils";
 
 type RecentGroupRow = {
   id: string;
@@ -74,7 +74,8 @@ type SystemTotalsSummary = {
 };
 
 const NEW_GROUPS_24H_LIST_LIMIT = 10;
-const TOP_GROUPS_24H_LIMIT = 10;
+const TOP_GROUPS_24H_LIMIT = 5;
+const TOP_GROUPS_COMPARISON_LIMIT = 25;
 
 const Index = () => {
   const navigate = useNavigate();
@@ -191,12 +192,16 @@ const Index = () => {
   const prevEndISO = prevTo.toISOString();
 
   const last24hTick = Math.floor(Date.now() / 300_000);
-  const { last24hStartISO, last24hEndISO, last24hNow } = useMemo(() => {
+  const { last24hStartISO, last24hEndISO, previous24hStartISO, previous24hEndISO, last24hNow } = useMemo(() => {
     const end = new Date(last24hTick * 300_000);
     const start = new Date(end.getTime() - 86_400_000);
+    const previousEnd = new Date(start.getTime() - 1);
+    const previousStart = new Date(previousEnd.getTime() - 86_400_000);
     return {
       last24hStartISO: start.toISOString(),
       last24hEndISO: end.toISOString(),
+      previous24hStartISO: previousStart.toISOString(),
+      previous24hEndISO: previousEnd.toISOString(),
       last24hNow: end,
     };
   }, [last24hTick]);
@@ -514,6 +519,25 @@ const Index = () => {
     retry: 1,
   });
 
+  const {
+    data: previousPulse24h,
+    isLoading: previousPulse24hLoading,
+    error: previousPulse24hError,
+  } = useQuery({
+    queryKey: ["signal-concentration-previous-24h", previous24hStartISO, previous24hEndISO, TOP_GROUPS_COMPARISON_LIMIT],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_system_signal_concentration", {
+        p_start: previous24hStartISO,
+        p_end: previous24hEndISO,
+        p_limit: TOP_GROUPS_COMPARISON_LIMIT,
+      });
+      if (error) throw error;
+      return data as unknown as SignalConcentrationPayload;
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+  });
+
   useEffect(() => {
     if (!isAuthenticated || !isSystemAdmin) return;
     if (typeof (supabase as any).channel !== "function") return;
@@ -531,6 +555,7 @@ const Index = () => {
           queryClient.invalidateQueries({ queryKey: ["kpi-summary-period"] }),
           queryClient.invalidateQueries({ queryKey: ["kpi-summary-prev-period"] }),
           queryClient.invalidateQueries({ queryKey: ["signal-concentration-24h"] }),
+          queryClient.invalidateQueries({ queryKey: ["signal-concentration-previous-24h"] }),
         ]);
       }, 400);
     };
@@ -637,6 +662,14 @@ const Index = () => {
     const concentration = sharePct >= 65 ? "alta" : sharePct >= 45 ? "média" : "baixa";
     return { totalMessages, activeGroups, sharePct, concentration };
   })();
+  const previousPulseMeta = (() => {
+    const totalMessages = Number(previousPulse24h?.totalMessages || 0);
+    const top = previousPulse24h?.topGroups || [];
+    const top4Messages = top.slice(0, 4).reduce((acc, g) => acc + Number(g.count || 0), 0);
+    const top4Share = totalMessages ? top4Messages / totalMessages : 0;
+    const sharePct = Math.round(top4Share * 100);
+    return { totalMessages, sharePct };
+  })();
 
   if (authLoading || rolesLoading) {
     return (
@@ -658,9 +691,116 @@ const Index = () => {
       totalMessages: pulseMeta.totalMessages,
       activeGroups: pulseMeta.activeGroups,
       concentration: pulseMeta.concentration,
+      sharePct: pulseMeta.sharePct,
+      topGroupCount: Math.min(4, pulse24h?.topGroups?.length ?? 0),
       formatNumber: formatNumberBR,
     });
   })();
+
+  const newGroupsSummaryLoading = newGroups24hLoading || newGroups24hCountLoading;
+  const newGroupsSummaryError = Boolean(newGroups24hError || newGroups24hCountError);
+  const pulseSummaryLoading = pulse24hLoading;
+  const pulseSummaryError = Boolean(pulse24hError);
+  const pulseComparisonLoading = previousPulse24hLoading;
+  const pulseComparisonError = Boolean(previousPulse24hError);
+  const executiveSummaryLoading = newGroupsSummaryLoading || pulseSummaryLoading;
+  const executiveSummaryError = newGroupsSummaryError || pulseSummaryError;
+  const newGroupsCreated24h = newGroups24hCount ?? newGroups24h?.length ?? 0;
+  const topGroups24h = pulse24h?.topGroups ?? [];
+  const topFocusedGroup = topGroups24h[0] ?? null;
+  const previousTopGroupsById = new Map(
+    (previousPulse24h?.topGroups ?? []).map((group) => [group.id, Number(group.count || 0)]),
+  );
+  const concentrationTone = pulseMeta.concentration === "alta"
+    ? {
+        label: "Concentração alta",
+        badgeClassName: "border-primary/30 bg-primary/10 text-primary",
+        barClassName: "bg-primary",
+        panelClassName: "border-primary/25 bg-primary/[0.04]",
+      }
+    : pulseMeta.concentration === "média"
+      ? {
+          label: "Concentração moderada",
+          badgeClassName: "border-amber-500/30 bg-amber-500/10 text-amber-700",
+          barClassName: "bg-amber-500",
+          panelClassName: "border-amber-500/20 bg-amber-500/[0.04]",
+        }
+      : {
+          label: "Distribuição equilibrada",
+          badgeClassName: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
+          barClassName: "bg-emerald-500",
+          panelClassName: "border-emerald-500/20 bg-emerald-500/[0.04]",
+        };
+  const averageMessagesPerActiveGroup = pulseMeta.activeGroups
+    ? Math.round(pulseMeta.totalMessages / pulseMeta.activeGroups)
+    : 0;
+  const topFocusedGroupMomentum = topFocusedGroup
+    ? buildGroupMomentum(
+        Number(topFocusedGroup.count || 0),
+        previousTopGroupsById.has(topFocusedGroup.id) ? previousTopGroupsById.get(topFocusedGroup.id) ?? 0 : 0,
+      )
+    : null;
+  const topFocusedGroupMomentumClassName = topFocusedGroupMomentum?.type === "positive"
+    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+    : topFocusedGroupMomentum?.type === "negative"
+      ? "border-rose-500/30 bg-rose-500/10 text-rose-700"
+      : "border-border/70 bg-background/80 text-muted-foreground";
+  const concentrationDeltaLabel = (() => {
+    if (pulseComparisonLoading) return "Comparando com as 24h anteriores...";
+    if (pulseComparisonError || previousPulseMeta.totalMessages === 0) return "Sem base suficiente para comparar concentração.";
+    const delta = pulseMeta.sharePct - previousPulseMeta.sharePct;
+    if (Math.abs(delta) <= 3) return "Concentração estável em relação às 24h anteriores.";
+    if (delta > 0) return `Concentração subiu ${delta} p.p. vs. 24h anteriores.`;
+    return `Concentração caiu ${Math.abs(delta)} p.p. vs. 24h anteriores.`;
+  })();
+  const retryExecutiveSummary = () => {
+    if (newGroupsSummaryError) {
+      void queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h"] });
+      void queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h-count"] });
+    }
+    if (pulseSummaryError) {
+      void refetchPulse24h();
+    }
+  };
+  const executiveHighlights = [
+    {
+      label: "Grupos criados",
+      value: newGroupsSummaryLoading ? "—" : newGroupsSummaryError ? "Erro" : formatNumberBR(newGroupsCreated24h),
+      helper: "novos no período",
+    },
+    {
+      label: "Mensagens",
+      value: pulseSummaryLoading ? "—" : pulseSummaryError ? "Erro" : formatNumberBR(pulseMeta.totalMessages),
+      helper: "volume em 24h",
+    },
+    {
+      label: "Grupos ativos",
+      value: pulseSummaryLoading ? "—" : pulseSummaryError ? "Erro" : formatNumberBR(pulseMeta.activeGroups),
+      helper: "com atividade",
+    },
+    {
+      label: "Concentração",
+      value: pulseSummaryLoading ? "—" : pulseSummaryError ? "Erro" : `${pulseMeta.sharePct}%`,
+      helper: "atividade concentrada",
+    },
+  ];
+  const kpiSignalStrip = [
+    {
+      label: "Mensagens 30d",
+      value: kpiMessagesLoading ? "Calculando" : messagesChangeLabel,
+      tone: messagesChangeType,
+    },
+    {
+      label: "Membros ativos",
+      value: kpiActiveMembersLoading ? "Calculando" : activeMembersChange.label,
+      tone: activeMembersChange.type,
+    },
+    {
+      label: "Participação",
+      value: kpiActiveMembersLoading || kpiMembersLoading ? "Calculando" : participationChange.label,
+      tone: participationChange.type,
+    },
+  ];
 
   const mainKpis = (
     <>
@@ -676,7 +816,7 @@ const Index = () => {
         }}
         description="Mensagens acumuladas na base"
         variant="kpi"
-        className="bg-gradient-to-b from-card to-card/90"
+        className="bg-card"
         titleClassName="text-muted-foreground/80"
         valueClassName="font-mono"
         numericValue
@@ -695,7 +835,7 @@ const Index = () => {
         }}
         description="Total de mensagens enviadas nos últimos 30 dias"
         variant="kpi"
-        className="bg-gradient-to-b from-primary/[0.03] to-card"
+        className="bg-card"
         titleClassName="text-primary/80"
         valueClassName="font-mono text-primary"
         numericValue
@@ -714,7 +854,7 @@ const Index = () => {
         }}
         description="Pessoas que enviaram pelo menos 1 mensagem nos últimos 30 dias"
         variant="kpi"
-        className="bg-gradient-to-b from-card to-card/90"
+        className="bg-card"
         titleClassName="text-muted-foreground/80"
         valueClassName="font-mono"
         numericValue
@@ -733,7 +873,7 @@ const Index = () => {
         }}
         description="Percentual de membros que participaram com mensagem nos últimos 30 dias"
         variant="kpi"
-        className="bg-gradient-to-b from-primary/[0.03] to-card"
+        className="bg-card"
         titleClassName="text-primary/80"
         valueClassName="font-mono text-primary"
         numericValue
@@ -750,7 +890,7 @@ const Index = () => {
         }}
         description="Quantidade total de organizações"
         variant="kpi"
-        className="bg-gradient-to-b from-card to-card/90"
+        className="bg-card"
         titleClassName="text-muted-foreground/80"
         valueClassName="font-mono"
         numericValue
@@ -767,7 +907,7 @@ const Index = () => {
         }}
         description="Quantidade total de grupos monitorados"
         variant="kpi"
-        className="bg-gradient-to-b from-card to-card/90"
+        className="bg-card"
         titleClassName="text-muted-foreground/80"
         valueClassName="font-mono"
         numericValue
@@ -780,7 +920,7 @@ const Index = () => {
       title="Central de Comando" 
       subtitle="Panorama geral do Bóris"
     >
-      <div className="space-y-10 animate-fade-in">
+      <div className="space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando" }]}
           title={(
@@ -808,12 +948,12 @@ const Index = () => {
           )}
         />
 
-        <section className="scroll-mt-32 rounded-2xl border border-primary/10 bg-gradient-to-b from-primary/[0.025] via-card to-card p-4 shadow-sm" id="executive-summary" aria-busy={newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading ? "true" : undefined}>
+        <section className="scroll-mt-32 rounded-2xl border border-primary/10 bg-card p-5 shadow-sm" id="executive-summary" aria-busy={newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading ? "true" : undefined}>
           <ExecutiveSectionHeader
             eyebrow="Operação"
             eyebrowTone="primary"
             title="Resumo das últimas 24h"
-            description="Leitura operacional rápida para decidir onde agir agora"
+            description="Sinais operacionais para decidir onde agir agora"
             icon={Activity}
             badge={(
               <Badge variant="outline" className="h-5 border-primary/20 bg-primary/[0.04] px-2 text-[11px] font-medium text-primary/85">
@@ -821,29 +961,167 @@ const Index = () => {
               </Badge>
             )}
           />
-
-          <div className="grid gap-3 lg:grid-cols-2">
-            <div className="rounded-xl border border-primary/20 bg-gradient-to-b from-primary/[0.06] to-primary/[0.02] p-4 lg:flex lg:h-[320px] lg:flex-col">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary/85">Resumo operacional</p>
-                <span className="text-[11px] font-medium text-primary/80">Período: 24h</span>
-              </div>
-              <div className="mt-3 lg:min-h-0 lg:flex-1">
-                  <p className="text-[15px] leading-7 text-card-foreground lg:max-h-full lg:overflow-y-auto pr-1">
-                    {daySummary}
+          <div className="mt-6 space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {executiveHighlights.map((item) => (
+                <div key={item.label} className="rounded-xl border border-border/60 bg-background px-4 py-3 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    {item.label}
+                  </p>
+                  <p className="mt-1 text-[2rem] font-semibold tracking-tight leading-none text-foreground">
+                    {item.value}
+                  </p>
+                  <p className="mt-1 text-xs leading-none text-muted-foreground">
+                    {item.helper}
                   </p>
                 </div>
-              </div>
+              ))}
+            </div>
 
-            <div className="rounded-xl border border-border/60 bg-gradient-to-b from-muted/15 to-background/10 p-4 lg:flex lg:h-[320px] lg:flex-col">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grupos mais movimentados</p>
-                <Badge variant="outline" className="h-5 border-border/60 bg-background/60 px-2 text-[11px] text-muted-foreground">
-                  {pulse24hLoading ? "—" : pulse24hError ? "indisponível" : `${pulseMeta.sharePct}%`} top 4
+            {!executiveSummaryLoading && !executiveSummaryError && topFocusedGroup ? (
+              <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-4 shadow-sm">
+                <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary/85">
+                      Prioridade agora
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <p className="truncate text-base font-semibold tracking-tight text-foreground">
+                        {topFocusedGroup.name}
+                      </p>
+                      {topFocusedGroupMomentum ? (
+                        <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${topFocusedGroupMomentumClassName}`}>
+                          {pulseComparisonLoading ? "Comparando" : pulseComparisonError ? "Sem comparação" : topFocusedGroupMomentum.shortLabel}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {formatNumberBR(Number(topFocusedGroup.count || 0))} mensagens nas últimas 24h.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                    <Button asChild size="sm">
+                      <Link
+                        to={`/groups/${topFocusedGroup.id}`}
+                        onClick={() => trackDashboardInteraction("pulse_priority_cta_click", { groupId: topFocusedGroup.id })}
+                      >
+                        Abrir grupo prioritário
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm">
+                      <Link
+                        to="/groups"
+                        onClick={() => trackDashboardInteraction("pulse_priority_list_click")}
+                      >
+                        Comparar ranking completo
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
+            <div className={`rounded-xl border p-4 shadow-sm ${concentrationTone.panelClassName}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary/85">Concentração da atividade</p>
+                  <h3 className="mt-1 text-lg font-semibold tracking-tight text-foreground">Onde o volume se concentrou</h3>
+                </div>
+                <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${concentrationTone.badgeClassName}`}>
+                  {executiveSummaryLoading ? "Calculando" : executiveSummaryError ? "Indisponível" : concentrationTone.label}
                 </Badge>
               </div>
 
-              {pulse24hLoading ? (
+              {executiveSummaryLoading ? (
+                <div className="mt-5 space-y-3" aria-live="polite" aria-busy="true">
+                  <Skeleton className="h-12 w-32" />
+                  <Skeleton className="h-4 w-11/12" />
+                  <Skeleton className="h-4 w-9/12" />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                  </div>
+                </div>
+              ) : executiveSummaryError ? (
+                <div className="mt-4">
+                  <ErrorState title="Falha ao carregar" message="Não foi possível consolidar a leitura operacional das últimas 24h." retry={retryExecutiveSummary} />
+                </div>
+              ) : (
+                <div className="mt-4 space-y-4">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="text-4xl font-semibold tracking-[-0.04em] text-foreground">
+                      {pulseMeta.sharePct}%
+                    </div>
+                    <p className="max-w-sm pb-1 text-sm leading-5 text-muted-foreground">
+                      das mensagens ficaram nos 4 grupos com maior movimento.
+                    </p>
+                  </div>
+
+                  <div className="h-2 overflow-hidden rounded-full bg-background/80">
+                    <div className={`h-full rounded-full ${concentrationTone.barClassName}`} style={{ width: `${Math.min(Math.max(pulseMeta.sharePct, 4), 100)}%` }} />
+                  </div>
+
+                  <p className="max-w-xl text-sm leading-5 text-card-foreground">
+                    {daySummary}
+                  </p>
+                  <p className="max-w-xl text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                    {concentrationDeltaLabel}
+                  </p>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-border/60 bg-background p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Média por grupo ativo</p>
+                      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground">
+                        {formatNumberBR(averageMessagesPerActiveGroup)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">mensagens por grupo ativo</p>
+                    </div>
+                    <div className="rounded-xl border border-border/60 bg-background p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Frente de reação</p>
+                      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground">
+                        {formatNumberBR(topGroups24h.length)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">grupos para investigação</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {topFocusedGroup ? (
+                      <Button asChild size="sm">
+                        <Link
+                          to={`/groups/${topFocusedGroup.id}`}
+                          onClick={() => trackDashboardInteraction("pulse_primary_cta_click", { groupId: topFocusedGroup.id })}
+                        >
+                          Investigar pico principal
+                        </Link>
+                      </Button>
+                    ) : null}
+                    <Button asChild variant="outline" size="sm">
+                      <Link
+                        to="/groups"
+                        onClick={() => trackDashboardInteraction("pulse_list_cta_click")}
+                      >
+                        Ver todos os grupos
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-card p-4 lg:flex lg:max-h-[760px] lg:flex-col">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grupos mais movimentados</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Ranking para abrir, comparar e agir.</p>
+                </div>
+                <Badge variant="outline" className="h-5 border-border/60 bg-background/60 px-2 text-[11px] text-muted-foreground">
+                  {pulseSummaryLoading ? "—" : pulseSummaryError ? "indisponível" : `${pulseMeta.sharePct}%`} top 4
+                </Badge>
+              </div>
+
+              {pulseSummaryLoading ? (
                 <div className="mt-3 space-y-2" aria-live="polite" aria-busy="true">
                   {Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
@@ -852,7 +1130,7 @@ const Index = () => {
                     </div>
                   ))}
                 </div>
-              ) : pulse24hError ? (
+              ) : pulseSummaryError ? (
                 <div className="mt-3">
                   <ErrorState title="Falha ao carregar" message="Não foi possível carregar o pulso das comunidades (24h)." retry={refetchPulse24h} />
                 </div>
@@ -866,24 +1144,60 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground">
                     {formatNumberBR(pulseMeta.totalMessages)} mensagens em {formatNumberBR(pulseMeta.activeGroups)} grupos ativos.
                   </p>
-                  <ScrollArea className="mt-2 min-h-0 lg:flex-1">
-                    <div className="space-y-2 pr-3">
+                  <ScrollArea className="mt-3 min-h-0 lg:flex-1">
+                    <div className="space-y-3 pr-3">
                       {pulse24h.topGroups.slice(0, TOP_GROUPS_24H_LIMIT).map((g, idx) => {
                         const count = Number(g.count || 0);
                         const share = pulseMeta.totalMessages ? Math.round((count / pulseMeta.totalMessages) * 100) : 0;
+                        const momentum = buildGroupMomentum(
+                          count,
+                          previousTopGroupsById.has(g.id) ? previousTopGroupsById.get(g.id) ?? 0 : 0,
+                        );
+                        const momentumClassName = momentum.type === "positive"
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                          : momentum.type === "negative"
+                            ? "border-rose-500/30 bg-rose-500/10 text-rose-700"
+                            : "border-border/70 bg-background/80 text-muted-foreground";
                         return (
                           <Link
                             key={g.id}
                             to={`/groups/${g.id}`}
                             onClick={() => trackDashboardInteraction("pulse_top_group_click", { groupId: g.id, rank: idx + 1 })}
-                            className="ripple-surface group block rounded-lg border border-border/70 bg-card/50 px-3 py-2.5 transition-colors hover:bg-secondary/20"
+                            className="ripple-surface group block rounded-xl border border-border/70 bg-background px-3 py-2.5 transition-colors hover:bg-secondary/20"
                           >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-card-foreground truncate">{idx + 1}. {g.name}</p>
-                                <p className="text-xs text-muted-foreground">{formatNumberBR(count)} mensagens • {share}%</p>
+                            <div className="flex items-start gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-muted px-2 text-[11px] font-semibold text-muted-foreground">
+                                    {idx + 1}
+                                  </span>
+                                  <p className="truncate text-sm font-semibold text-card-foreground">{g.name}</p>
+                                </div>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                  <span>{formatNumberBR(count)} mensagens</span>
+                                </div>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                  <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${momentumClassName}`}>
+                                    {pulseComparisonLoading ? "Comparando" : pulseComparisonError ? "Sem comparação" : momentum.shortLabel}
+                                  </Badge>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {pulseComparisonLoading
+                                      ? "Comparando 24h"
+                                      : pulseComparisonError
+                                        ? "Sem tendência"
+                                        : momentum.shortLabel === "Estável"
+                                          ? "Estável vs. 24h"
+                                          : momentum.label}
+                                  </p>
+                                </div>
+                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/70">
+                                  <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${Math.min(Math.max(share, 6), 100)}%` }} />
+                                </div>
+                                <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+                                  <span>Investigar grupo</span>
+                                  <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                                </div>
                               </div>
-                              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" aria-hidden="true" />
                             </div>
                           </Link>
                         );
@@ -898,14 +1212,15 @@ const Index = () => {
                 </div>
               )}
             </div>
+            </div>
           </div>
         </section>
 
-        <section className="scroll-mt-32 rounded-2xl border border-border/60 bg-gradient-to-b from-card to-card/95 p-4 shadow-sm" id="kpis">
+        <section className="scroll-mt-32 rounded-2xl border border-border/60 bg-card p-5 shadow-sm" id="kpis">
           <ExecutiveSectionHeader
             eyebrow="Base e Tendência"
             title="Indicadores principais (30d)"
-            description="Números mais importantes no período escolhido para leitura de volume, alcance e crescimento."
+            description="Volume, alcance e crescimento em leitura executiva."
             icon={Layers}
             badge={(
               <Badge variant="outline" className="h-5 px-2 text-[11px] font-medium text-muted-foreground">
@@ -913,15 +1228,29 @@ const Index = () => {
               </Badge>
             )}
           />
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="h-5 border-primary/20 bg-primary/[0.04] px-2 text-[11px] font-medium text-primary/85">
-              Tendência e alcance
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              Destaque para métricas recentes e indicadores de base para leitura rápida.
-            </span>
+          <div className="grid gap-3 rounded-xl border border-border/60 bg-background p-3 md:grid-cols-3">
+            {kpiSignalStrip.map((item) => {
+              const toneClassName = item.tone === "positive"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                : item.tone === "negative"
+                  ? "border-rose-500/30 bg-rose-500/10 text-rose-700"
+                  : "border-border/70 bg-background text-muted-foreground";
+
+              return (
+                <div key={item.label} className="rounded-lg border border-border/60 bg-card p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      {item.label}
+                    </p>
+                    <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${toneClassName}`}>
+                      {item.value}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="mt-2 grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             {mainKpis}
           </div>
           {kpiMembersError || kpiMembersPrevBaseError || currentPeriodKpisError || prevPeriodKpisError || systemTotalsError ? (

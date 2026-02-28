@@ -104,14 +104,6 @@ vi.mock("@/components/ui/boris-table", () => ({
 }));
 
 vi.mock("@/components/ui/loading-state", () => ({ LoadingState: ({ message }: any) => <div>{message}</div> }));
-vi.mock("@/components/dashboard/StatsCard", () => ({ StatsCard: ({ title }: any) => <div>{title}</div> }));
-vi.mock("@/components/group-dashboard/PeriodFilter", () => ({ PeriodFilter: () => <div>PeriodFilter</div> }));
-vi.mock("@/components/ui/tabs", () => ({
-  Tabs: ({ children }: any) => <div>{children}</div>,
-  TabsList: ({ children }: any) => <div>{children}</div>,
-  TabsTrigger: ({ children }: any) => <button>{children}</button>,
-  TabsContent: ({ children }: any) => <div>{children}</div>,
-}));
 vi.mock("@/components/ui/select", () => ({
   Select: ({ children }: any) => <div>{children}</div>,
   SelectContent: ({ children }: any) => <div>{children}</div>,
@@ -174,6 +166,8 @@ async function renderAlerts(initialPath: string) {
         <Routes>
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/system/alerts" element={<Alerts />} />
+          <Route path="/alert-definitions" element={<Alerts />} />
+          <Route path="/system/alert-definitions" element={<Alerts />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -204,6 +198,25 @@ describe("Alerts page canonical routing", () => {
     const { root, container } = await renderAlerts("/system/alerts");
 
     expect(navigateMock).toHaveBeenCalledWith("/alerts", { replace: true });
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("redireciona system admin de /alert-definitions para /system/alert-definitions", async () => {
+    const { root, container } = await renderAlerts("/alert-definitions");
+
+    expect(navigateMock).toHaveBeenCalledWith("/system/alert-definitions", { replace: true });
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("redireciona usuário não-system de /system/alert-definitions para /alert-definitions", async () => {
+    roleState = { isSystemAdmin: false, isOrgAdmin: true, isGroupManager: false };
+    const { root, container } = await renderAlerts("/system/alert-definitions");
+
+    expect(navigateMock).toHaveBeenCalledWith("/alert-definitions", { replace: true });
 
     await act(async () => root.unmount());
     container.remove();

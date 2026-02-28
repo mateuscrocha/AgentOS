@@ -642,7 +642,7 @@ export default function SystemGroups() {
 
   return (
     <AdminLayout title="Grupos" subtitle="Central de Comando › Grupos">
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
           title="Grupos"

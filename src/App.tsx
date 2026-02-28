@@ -19,14 +19,13 @@ const SystemEvents = lazy(() => import("./pages/SystemEvents"));
 const SystemOrganizations = lazy(() => import("./pages/SystemOrganizations"));
 const SystemGroups = lazy(() => import("./pages/SystemGroups"));
 const SystemActivity = lazy(() => import("./pages/SystemActivity"));
-const SystemSupport = lazy(() => import("./pages/SystemSupport"));
 const Org = lazy(() => import("./pages/Org"));
 const Group = lazy(() => import("./pages/Group"));
 const GroupMembers = lazy(() => import("./pages/GroupMembers"));
-const GroupSupport = lazy(() => import("./pages/GroupSupport"));
 const GroupMessages = lazy(() => import("./pages/GroupMessages"));
 const GroupSummaries = lazy(() => import("./pages/GroupSummaries"));
 const GroupEvents = lazy(() => import("./pages/GroupEvents"));
+const GroupSupport = lazy(() => import("./pages/GroupSupport"));
 const GroupPoll = lazy(() => import("./pages/GroupPoll"));
 const GroupPolls = lazy(() => import("./pages/GroupPolls"));
 const GroupEdit = lazy(() => import("./pages/GroupEdit"));
@@ -75,13 +74,15 @@ function AppRoutes() {
       <Route path="/system/organizations" element={<SystemOrganizations />} />
       <Route path="/organization" element={<Navigate to="/system/organizations" replace />} />
       <Route path="/system/groups" element={<SystemGroups />} />
-      <Route path="/system/support" element={<SystemSupport />} />
+      <Route path="/system/support" element={<Navigate to="/system/activity" replace />} />
       <Route path="/system/users" element={<Users />} />
       <Route path="/system/events" element={<SystemEvents />} />
       <Route path="/system/activity" element={<SystemActivity />} />
       <Route path="/system/settings" element={<Settings />} />
       <Route path="/system/alerts" element={<Alerts />} />
+      <Route path="/system/alert-definitions" element={<Alerts />} />
       <Route path="/alerts" element={<Alerts />} />
+      <Route path="/alert-definitions" element={<Alerts />} />
       <Route path="/org/:orgId/*" element={<LegacyOrgAliasRedirect />} />
       <Route path="/organization/:orgId" element={<Org />} />
       <Route path="/organization/:orgId/groups" element={<Org />} />

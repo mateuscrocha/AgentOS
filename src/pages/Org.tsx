@@ -45,6 +45,7 @@ import {
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { StatusTag } from "@/components/ui/status-tag";
 import { Card, CardContent } from "@/components/ui/card";
+import { UserInline } from "@/components/ui/UserInline";
 import {
   getDateRange,
   type PeriodType,
@@ -558,6 +559,7 @@ const Org = () => {
     refetchOrg,
     ownerProfile,
     primaryContact,
+    primaryContactUser,
     contactLoading,
     contactError,
     refetchPrimaryContact,
@@ -1641,6 +1643,20 @@ const Org = () => {
                 <div>
                   <span className="text-muted-foreground">Nome</span>
                   <p className="font-medium text-card-foreground">{contactName || "-"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Usuário vinculado</span>
+                  {primaryContact?.user_id ? (
+                    <div className="pt-1">
+                      <UserInline
+                        name={primaryContactUser?.name || contactName || "Usuário vinculado"}
+                        avatarUrl={primaryContactUser?.avatar_url || null}
+                        size="xs"
+                      />
+                    </div>
+                  ) : (
+                    <p className="font-medium text-card-foreground">-</p>
+                  )}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Cargo</span>

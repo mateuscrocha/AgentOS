@@ -705,7 +705,7 @@ export default function SystemSupport() {
 
   return (
     <AdminLayout title="Atendimento" subtitle="Central de Comando › Atendimento">
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Atendimento" }]}
           title="Atendimento"
@@ -748,7 +748,7 @@ export default function SystemSupport() {
             setCustomRange(undefined);
           }}
           filteredKpis={(
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <StatsCard
                 title="Atendentes ativos"
                 value={attendants.length}
@@ -830,12 +830,12 @@ export default function SystemSupport() {
         />
 
         {(supportQuery.data?.sequenceSampleCapped || supportQuery.data?.supportMessagesSampleCapped || supportQuery.data?.demandClusterSampleCapped) ? (
-          <div className="rounded-xl border border-warning/30 bg-warning/5 px-3 py-2.5 text-xs leading-relaxed text-warning">
+          <div className="rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-xs leading-relaxed text-warning">
             Métricas de atendimento do período usam amostragem para manter performance em bases maiores. TMR é aproximado e considera horário comercial (seg-sex, 08h-18h SP).
           </div>
         ) : null}
 
-        <section className="rounded-2xl border border-border/60 bg-gradient-to-b from-card to-card/90 p-4">
+        <section className="rounded-2xl border border-border/60 bg-card p-5">
           <ExecutiveSectionHeader
             eyebrow="Qualitativo"
             title="Clusterização de demandas (MVP)"

@@ -9,10 +9,6 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { BorisTable, RowActions, type BorisColumn } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
-import { getDateRange, type DateRange, type PeriodType } from "@/components/group-dashboard/period-utils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,7 +21,13 @@ import { notify } from "@/components/ui/sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AlertTriangle, Bell, Filter, Plus, Search, Settings } from "lucide-react";
 import { formatDateTimeBR, formatDateSimpleBR } from "@/lib/date";
-import { getCanonicalAlertsPath, shouldRedirectAlertsPath } from "@/lib/alerts-routing";
+import {
+  getCanonicalAlertDefinitionsPath,
+  getCanonicalAlertsPath,
+  isAlertDefinitionsPathname,
+  shouldRedirectAlertDefinitionsPath,
+  shouldRedirectAlertsPath,
+} from "@/lib/alerts-routing";
 import { notifyActionError } from "@/lib/notify-action-error";
 import { notifyValidation } from "@/lib/notify-validation";
 
@@ -105,18 +107,12 @@ export default function Alerts() {
   } = useUserRoles();
 
   const canUseAlerts = isSystemAdmin || isOrgAdmin || isGroupManager;
+  const isDefinitionsPage = isAlertDefinitionsPathname(location.pathname);
   const canonicalAlertsPath = getCanonicalAlertsPath(isSystemAdmin);
-
-  const [tab, setTab] = useState("events");
+  const canonicalAlertDefinitionsPath = getCanonicalAlertDefinitionsPath(isSystemAdmin);
 
   const [eventsPage, setEventsPage] = useState(1);
   const [definitionsPage, setDefinitionsPage] = useState(1);
-
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("7d");
-  const [customRange, setCustomRange] = useState<DateRange | undefined>();
-  const currentRange = getDateRange(selectedPeriod, customRange);
-  const currentStartISO = currentRange.from.toISOString();
-  const currentEndISO = currentRange.to.toISOString();
 
   const [statusFilter, setStatusFilter] = useState<"all" | AlertEvent["status"]>("unread");
   const [groupFilter, setGroupFilter] = useState<string>("all");
@@ -140,8 +136,6 @@ export default function Alerts() {
   const [termInput, setTermInput] = useState("");
   const [termDrafts, setTermDrafts] = useState<string[]>([]);
   const realtimeInvalidateTimerRef = useRef<number | null>(null);
-
-  const periodLabel = `${formatDateSimpleBR(currentRange.from)} — ${formatDateSimpleBR(currentRange.to)}`;
 
   const orgIds = useMemo(() => getAccessibleOrgIds(), [getAccessibleOrgIds]);
   const groupIds = useMemo(() => getAccessibleGroupIds(), [getAccessibleGroupIds]);
@@ -265,9 +259,6 @@ export default function Alerts() {
       "alerts",
       "events",
       eventsPage,
-      selectedPeriod,
-      customRange?.from?.toISOString(),
-      customRange?.to?.toISOString(),
       statusFilter,
       groupFilter,
       definitionFilter,
@@ -281,8 +272,6 @@ export default function Alerts() {
           "id,status,occurrences,snippet,last_triggered_at,group_id,last_message_id,alert_definition_id,alert_term_id,groups(name),alert_definitions(name),alert_terms(term_raw)",
           { count: "exact" },
         )
-        .gte("last_triggered_at", currentStartISO)
-        .lte("last_triggered_at", currentEndISO)
         .order("last_triggered_at", { ascending: false })
         .range((eventsPage - 1) * EVENTS_PAGE_SIZE, eventsPage * EVENTS_PAGE_SIZE - 1);
 
@@ -547,13 +536,21 @@ export default function Alerts() {
   useEffect(() => {
     if (authLoading || rolesLoading) return;
     if (!isAuthenticated || !canUseAlerts) return;
-    if (!shouldRedirectAlertsPath({ pathname: location.pathname, isSystemAdmin })) return;
-    navigate(`${canonicalAlertsPath}${location.search}${location.hash}`, { replace: true });
+    const shouldRedirect = isDefinitionsPage
+      ? shouldRedirectAlertDefinitionsPath({ pathname: location.pathname, isSystemAdmin })
+      : shouldRedirectAlertsPath({ pathname: location.pathname, isSystemAdmin });
+    if (!shouldRedirect) return;
+    navigate(
+      `${isDefinitionsPage ? canonicalAlertDefinitionsPath : canonicalAlertsPath}${location.search}${location.hash}`,
+      { replace: true },
+    );
   }, [
     authLoading,
     canUseAlerts,
+    canonicalAlertDefinitionsPath,
     canonicalAlertsPath,
     isAuthenticated,
+    isDefinitionsPage,
     isSystemAdmin,
     location.hash,
     location.pathname,
@@ -710,8 +707,6 @@ export default function Alerts() {
   const isWindowMode = formMatchMode === "WINDOW";
 
   const showClearFilters =
-    selectedPeriod !== "7d" ||
-    !!customRange ||
     statusFilter !== "unread" ||
     groupFilter !== "all" ||
     definitionFilter !== "all" ||
@@ -734,7 +729,7 @@ export default function Alerts() {
     {
       key: "status",
       header: "Status",
-      className: "w-[90px]",
+      className: "w-[110px] align-top",
       render: (ev) => (
         <span
           className={
@@ -750,45 +745,42 @@ export default function Alerts() {
       ),
     },
     {
-      key: "last_triggered_at",
-      header: "Último disparo",
-      render: (ev) => <span className="tabular-nums">{formatDateTimeBR(ev.last_triggered_at)}</span>,
+      key: "alert",
+      header: "Alerta",
+      render: (ev) => (
+        <div className="min-w-0 py-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-foreground">{ev.alert_terms?.term_raw ?? "Sem termo"}</span>
+            <span className="text-xs text-muted-foreground">
+              em {ev.groups?.name ?? "grupo não identificado"}
+            </span>
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {ev.alert_definitions?.name ?? "Definição sem nome"}
+          </div>
+          <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+            {ev.snippet ?? "Sem trecho disponível para esta ocorrência."}
+          </div>
+        </div>
+      ),
     },
     {
-      key: "groups",
-      header: "Grupo",
-      hideOn: "md" as any,
-      render: (ev) => <span className="text-muted-foreground">{ev.groups?.name ?? "—"}</span>,
-    },
-    {
-      key: "alert_definitions",
-      header: "Definição",
-      hideOn: "lg" as any,
-      render: (ev) => <span className="text-muted-foreground">{ev.alert_definitions?.name ?? "—"}</span>,
-    },
-    {
-      key: "alert_terms",
-      header: "Termo",
-      render: (ev) => <span className="font-medium">{ev.alert_terms?.term_raw ?? "—"}</span>,
-    },
-    {
-      key: "occurrences",
-      header: "Ocorrências",
-      className: "text-right",
-      align: "right",
-      hideOn: "md" as any,
-      render: (ev) => <span className="tabular-nums text-muted-foreground">{ev.occurrences}</span>,
-    },
-    {
-      key: "snippet",
-      header: "Trecho",
-      hideOn: "sm" as any,
-      render: (ev) => <span className="text-muted-foreground">{ev.snippet ?? "—"}</span>,
+      key: "last_activity",
+      header: "Última atividade",
+      className: "w-[180px] align-top",
+      render: (ev) => (
+        <div className="py-1 text-sm">
+          <div className="tabular-nums font-medium text-foreground">{formatDateTimeBR(ev.last_triggered_at)}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {ev.occurrences} ocorrência{ev.occurrences === 1 ? "" : "s"}
+          </div>
+        </div>
+      ),
     },
     {
       key: "actions",
       header: "",
-      className: "text-right w-0",
+      className: "w-0 align-top text-right",
       render: (ev) => (
         <RowActions>
           <DropdownMenuItem
@@ -847,70 +839,68 @@ export default function Alerts() {
   const definitionColumns: BorisColumn<AlertDefinition>[] = [
     {
       key: "name",
-      header: "Nome",
-      render: (d) => <span className="font-medium">{d.name}</span>,
+      header: "Regra",
+      render: (definition) => <span className="font-medium">{definition.name}</span>,
     },
     {
       key: "scope",
-      header: "Escopo",
-      hideOn: "sm" as any,
-      render: (d) => {
-        const scope = deriveScopeType(d);
-        if (scope === "system") return <span className="text-muted-foreground">Sistema</span>;
+      header: "Onde vale",
+      render: (definition) => {
+        const scope = deriveScopeType(definition);
+        if (scope === "system") return <span className="text-muted-foreground">Sistema inteiro</span>;
         if (scope === "org") {
-          const orgName = orgsQuery.data?.find((o) => o.id === d.organization_id)?.name;
-          return <span className="text-muted-foreground">Organização{orgName ? `: ${orgName}` : ""}</span>;
+          const orgName = orgsQuery.data?.find((org) => org.id === definition.organization_id)?.name;
+          return <span className="text-muted-foreground">{orgName ? `Organização: ${orgName}` : "Organização"}</span>;
         }
-        const g = groupsQuery.data?.find((g) => g.id === d.group_id);
-        return <span className="text-muted-foreground">Grupo{g?.name ? `: ${g.name}` : ""}</span>;
+        const groupName = groupsQuery.data?.find((group) => group.id === definition.group_id)?.name;
+        return <span className="text-muted-foreground">{groupName ? `Grupo: ${groupName}` : "Grupo"}</span>;
       },
     },
     {
       key: "terms",
       header: "Termos",
-      className: "text-right",
+      className: "w-[90px] text-right",
       align: "right",
-      render: (d) => {
-        const count = termsByDefinition.get(d.id)?.length ?? 0;
-        return <span className="tabular-nums text-muted-foreground">{count}</span>;
-      },
+      render: (definition) => (
+        <span className="tabular-nums text-muted-foreground">{termsByDefinition.get(definition.id)?.length ?? 0}</span>
+      ),
     },
     {
       key: "status",
       header: "Status",
       className: "w-[110px]",
-      render: (d) => (
+      render: (definition) => (
         <span
           className={
-            d.status === "active"
+            definition.status === "active"
               ? "inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary"
               : "inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
           }
         >
-          {d.status === "active" ? "Ativo" : "Inativo"}
+          {definition.status === "active" ? "Ativa" : "Inativa"}
         </span>
       ),
     },
     {
       key: "updated_at",
-      header: "Atualizado",
-      hideOn: "md" as any,
-      render: (d) => <span className="tabular-nums text-muted-foreground">{formatDateTimeBR(d.updated_at)}</span>,
+      header: "Atualizada",
+      className: "w-[180px]",
+      render: (definition) => <span className="tabular-nums text-muted-foreground">{formatDateTimeBR(definition.updated_at)}</span>,
     },
     {
       key: "actions",
       header: "",
-      className: "text-right w-0",
-      render: (d) => (
+      className: "w-0 text-right",
+      render: (definition) => (
         <RowActions>
-          <DropdownMenuItem onSelect={() => openEdit(d)}>Editar</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => openEdit(definition)}>Editar</DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => {
               setTab("events");
               setStatusFilter("unread");
-              setDefinitionFilter(d.id);
+              setDefinitionFilter(definition.id);
               setEventsPage(1);
-              notify.success("Filtro aplicado", "Mostrando alertas da definição selecionada.");
+              notify.success("Filtro aplicado", "Mostrando os alertas dessa regra.");
             }}
           >
             Ver alertas
@@ -918,7 +908,7 @@ export default function Alerts() {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
-            onSelect={() => setRemoveDefinition(d)}
+            onSelect={() => setRemoveDefinition(definition)}
           >
             Excluir
           </DropdownMenuItem>
@@ -928,6 +918,9 @@ export default function Alerts() {
   ];
 
   const currentUnread = unreadCountQuery.data ?? 0;
+  const totalDefinitions = definitionsQuery.data?.total ?? 0;
+  const totalTerms = allTermsQuery.data?.length ?? 0;
+  const activeDefinitionsCount = definitionsQuery.data?.items.filter((definition) => definition.status === "active").length ?? 0;
   const activeFilterChips = [
     statusFilter !== "unread"
       ? { key: "status", label: `Status: ${statusFilter === "all" ? "Todos" : statusFilter === "read" ? "Lidos" : statusFilter === "archived" ? "Arquivados" : "Não lidos"}`, clear: () => setStatusFilter("unread") }
@@ -959,48 +952,55 @@ export default function Alerts() {
   ].filter(Boolean) as Array<{ key: string; label: string; clear: () => void }>;
 
   return (
-    <AdminLayout title="Alertas" subtitle="Centro de alertas por termos monitorados">
+    <AdminLayout title="Alertas" subtitle="Acompanhe alertas e ajuste regras de monitoramento">
       <div className="space-y-6">
         <AdminPageHeader
-          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Alertas" }]}
-          title="Alertas"
-          description="Termos monitorados e alertas por mensagens"
+          breadcrumbItems={[
+            { label: "Central de Comando", href: "/" },
+            { label: isDefinitionsPage ? "Definições de alerta" : "Alertas" },
+          ]}
+          title={isDefinitionsPage ? "Definições de alerta" : "Alertas"}
+          description={isDefinitionsPage ? "Ajuste as regras que geram alertas" : "Veja o que precisa de atenção"}
           actions={(
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => markAllReadMutation.mutate()} disabled={currentUnread === 0}>
-                <Bell className="h-4 w-4 mr-1" />
-                Marcar tudo como lido
-              </Button>
-              <Button onClick={openCreate}>
-                <Plus className="h-4 w-4 mr-1" />
-                Nova definição
-              </Button>
+              {isDefinitionsPage ? (
+                <>
+                  <Button variant="outline" onClick={() => navigate(canonicalAlertsPath)}>
+                    <Bell className="h-4 w-4 mr-1" />
+                    Ver alertas
+                  </Button>
+                  <Button onClick={openCreate}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nova definição
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => navigate(canonicalAlertDefinitionsPath)}>
+                    <Settings className="h-4 w-4 mr-1" />
+                    Ver definições
+                  </Button>
+                  <Button variant="outline" onClick={() => markAllReadMutation.mutate()} disabled={currentUnread === 0}>
+                    <Bell className="h-4 w-4 mr-1" />
+                    Marcar tudo como lido
+                  </Button>
+                </>
+              )}
             </div>
           )}
-          filters={(
-            <div className="min-w-0 space-y-3">
-              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Filter className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium text-foreground">Período analisado</div>
-                    <div className="text-xs text-muted-foreground">{periodLabel}</div>
-                  </div>
+          filters={!isDefinitionsPage ? (
+            <div className="min-w-0 space-y-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Filter className="h-4 w-4 text-primary" />
+                  Filtros
                 </div>
-                <PeriodFilter
-                  value={selectedPeriod}
-                  customRange={customRange}
-                  onChange={(p, r) => {
-                    setSelectedPeriod(p);
-                    setCustomRange(p === "custom" ? r : undefined);
-                    setEventsPage(1);
-                  }}
-                />
+                <p className="text-xs text-muted-foreground">
+                  Use só o necessário para encontrar um alerta.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
                 <div className="space-y-1">
                   <div className="text-xs font-medium text-muted-foreground">Status</div>
                   <Select
@@ -1023,96 +1023,25 @@ export default function Alerts() {
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">Grupo</div>
-                  <Select
-                    value={groupFilter}
-                    onValueChange={(v) => {
-                      setGroupFilter(v);
-                      setEventsPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Grupo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os grupos</SelectItem>
-                      {(groupsQuery.data ?? []).map((g) => (
-                        <SelectItem key={g.id} value={g.id}>
-                          {g.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">Definição</div>
-                  <Select
-                    value={definitionFilter}
-                    onValueChange={(v) => {
-                      setDefinitionFilter(v);
-                      setEventsPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Definição" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as definições</SelectItem>
-                      {(definitionsOptionsQuery.data ?? []).map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
-                          {d.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">Termo</div>
-                  <Select
-                    value={termFilter}
-                    onValueChange={(v) => {
-                      setTermFilter(v);
-                      setEventsPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Termo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os termos</SelectItem>
-                      {availableTerms.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1 md:col-span-2 xl:col-span-1">
-                  <div className="text-xs font-medium text-muted-foreground">Busca por trecho</div>
+                  <div className="text-xs font-medium text-muted-foreground">Buscar na mensagem</div>
                   <div className="relative w-full">
-                    <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={search}
                       onChange={(e) => {
                         setSearch(e.target.value);
                         setEventsPage(1);
                       }}
-                      placeholder="Ex: pix, queda, suporte"
-                      className="pl-9 w-full"
+                      placeholder="Ex.: pix, erro, suporte"
+                      className="w-full pl-9"
                     />
                   </div>
                 </div>
               </div>
             </div>
-          )}
-          showClearFilters={showClearFilters}
+          ) : undefined}
+          showClearFilters={!isDefinitionsPage && showClearFilters}
           onClearFilters={() => {
-            setSelectedPeriod("7d");
-            setCustomRange(undefined);
             setStatusFilter("unread");
             setGroupFilter("all");
             setDefinitionFilter("all");
@@ -1120,160 +1049,118 @@ export default function Alerts() {
             setSearch("");
             setEventsPage(1);
           }}
-          generalKpis={(
-            <>
-              <StatsCard
-                title="Não lidos"
-                value={currentUnread}
-                icon={Bell}
-                variant="kpi"
-                help={{
-                  whatIs: "Quantidade atual de alertas ainda não marcados como lidos.",
-                  howToInterpret: "Mostra o tamanho da fila de atenção pendente no centro de alertas.",
-                  whatToObserve: "Se cresce continuamente, pode indicar acúmulo operacional ou excesso de ruído.",
-                }}
-              />
-              <StatsCard
-                title="Definições"
-                value={definitionsQuery.data?.total ?? "—"}
-                icon={Settings}
-                variant="kpi"
-                help={{
-                  whatIs: "Total de definições de alerta/monitoramento cadastradas.",
-                  howToInterpret: "Representa o tamanho da configuração ativa de regras/termos monitorados.",
-                  whatToObserve: "Revise se o volume está proporcional à capacidade de triagem para evitar ruído.",
-                }}
-              />
-            </>
-          )}
         />
 
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full max-w-[520px] grid-cols-2">
-            <TabsTrigger value="events" className="gap-2">
-              <Bell className="h-4 w-4" />
-              <span>Centro de alertas</span>
-              <Badge variant="secondary" className="h-5 px-2 text-[11px]">
-                {eventsQuery.data?.total ?? 0}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="definitions" className="gap-2">
-              <Settings className="h-4 w-4" />
-              <span>Definições</span>
-              <Badge variant="secondary" className="h-5 px-2 text-[11px]">
-                {definitionsQuery.data?.total ?? 0}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="events" className="mt-4">
-            <div className="mb-4 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-              <Card className="border-border/80">
-                <CardContent className="p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-foreground">Visão atual</div>
-                      <p className="text-xs text-muted-foreground">
-                        {eventsQuery.data?.total ?? 0} alerta(s) no período selecionado. Novos alertas entram como não lidos.
-                      </p>
-                    </div>
-                    <Badge className="bg-primary/10 text-primary border-primary/20">
-                      {statusFilter === "all"
-                        ? "Todos os status"
-                        : statusFilter === "unread"
-                          ? "Filtrando: não lidos"
-                          : statusFilter === "read"
-                            ? "Filtrando: lidos"
-                            : "Filtrando: arquivados"}
-                    </Badge>
-                  </div>
-
-                  {activeFilterChips.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {activeFilterChips.map((chip) => (
-                        <button
-                          key={chip.key}
-                          type="button"
-                          className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/40 px-3 py-1 text-xs text-foreground transition-colors hover:bg-secondary/60"
-                          onClick={() => {
-                            chip.clear();
-                            setEventsPage(1);
-                          }}
-                          title="Remover filtro"
-                        >
-                          <span>{chip.label}</span>
-                          <span className="text-muted-foreground">remover</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                      Sem filtros adicionais ativos. A lista mostra todos os alertas do período com o status selecionado.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/80">
-                <CardContent className="p-4">
-                  <div className="text-sm font-semibold text-foreground">Legenda rápida</div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Use o status para priorizar revisão e limpeza do centro de alertas.
+        {!isDefinitionsPage ? (
+        <section className="space-y-4">
+          <Card className="border-border/80">
+            <CardContent className="p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-1">
+                  <div className="text-sm font-semibold text-foreground">Centro de alertas</div>
+                  <p className="text-xs text-muted-foreground">
+                    {eventsQuery.data?.total ?? 0} alerta(s) encontrados.
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="border-primary/20 bg-primary/10 text-primary">
+                    {statusFilter === "all"
+                      ? "Todos os status"
+                      : statusFilter === "unread"
+                        ? "Somente não lidos"
+                        : statusFilter === "read"
+                          ? "Somente lidos"
+                          : "Somente arquivados"}
+                  </Badge>
+                  {currentUnread > 0 ? (
                     <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-                      Não lido
+                      {currentUnread} não lido(s)
                     </span>
-                    <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
-                      Lido
-                    </span>
-                    <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                      Arquivado
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            <BorisTable
-              columns={eventColumns as any}
-              data={eventsQuery.data?.items ?? []}
-              keyExtractor={(e) => e.id}
-              rowClassName={(e) => (e.status === "unread" ? "bg-primary/5" : undefined)}
-              page={eventsPage}
-              pageSize={EVENTS_PAGE_SIZE}
-              totalCount={eventsQuery.data?.total}
-              onPageChange={setEventsPage}
-              loading={eventsQuery.isLoading}
-              error={!!eventsQuery.error}
-              emptyIcon={AlertTriangle}
-              emptyMessage="Nenhum alerta neste período."
-              onRowClick={(e) => {
-                if (e.status === "unread") markReadMutation.mutate(e.id);
-                navigate(
-                  e.last_message_id
-                    ? `/groups/${e.group_id}/messages?messageId=${encodeURIComponent(e.last_message_id)}`
-                    : `/groups/${e.group_id}/messages`,
-                );
-              }}
-            />
-          </TabsContent>
+                  ) : null}
+                </div>
+              </div>
 
-          <TabsContent value="definitions" className="mt-4">
-            <BorisTable
-              columns={definitionColumns as any}
-              data={definitionsQuery.data?.items ?? []}
-              keyExtractor={(d) => d.id}
-              page={definitionsPage}
-              pageSize={DEFINITIONS_PAGE_SIZE}
-              totalCount={definitionsQuery.data?.total}
-              onPageChange={setDefinitionsPage}
-              loading={definitionsQuery.isLoading}
-              error={!!definitionsQuery.error}
-              emptyIcon={Settings}
-              emptyMessage="Você ainda não tem definições de alerta."
-            />
-          </TabsContent>
-        </Tabs>
+              {activeFilterChips.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {activeFilterChips.map((chip) => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/40 px-3 py-1 text-xs text-foreground transition-colors hover:bg-secondary/60"
+                      onClick={() => {
+                        chip.clear();
+                        setEventsPage(1);
+                      }}
+                      title="Remover filtro"
+                    >
+                      <span>{chip.label}</span>
+                      <span className="text-muted-foreground">remover</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-3 text-xs text-muted-foreground">
+                  Nenhum filtro extra ativo. A lista abaixo mostra os alertas conforme o status escolhido.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <BorisTable
+            columns={eventColumns as any}
+            data={eventsQuery.data?.items ?? []}
+            keyExtractor={(e) => e.id}
+            density="comfortable"
+            rowClassName={(e) => (e.status === "unread" ? "bg-primary/5" : undefined)}
+            page={eventsPage}
+            pageSize={EVENTS_PAGE_SIZE}
+            totalCount={eventsQuery.data?.total}
+            onPageChange={setEventsPage}
+            loading={eventsQuery.isLoading}
+            error={!!eventsQuery.error}
+            emptyIcon={AlertTriangle}
+            emptyMessage="Nenhum alerta encontrado."
+            onRowClick={(e) => {
+              if (e.status === "unread") markReadMutation.mutate(e.id);
+              navigate(
+                e.last_message_id
+                  ? `/groups/${e.group_id}/messages?messageId=${encodeURIComponent(e.last_message_id)}`
+                  : `/groups/${e.group_id}/messages`,
+              );
+            }}
+          />
+        </section>
+        ) : null}
+
+        {isDefinitionsPage ? (
+        <section className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-foreground">Definições</div>
+              <p className="text-xs text-muted-foreground">
+                Escolha o que realmente deve gerar alerta.
+              </p>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {activeDefinitionsCount} ativa(s) • {totalTerms} termos
+            </div>
+          </div>
+
+          <BorisTable
+            columns={definitionColumns as any}
+            data={definitionsQuery.data?.items ?? []}
+            keyExtractor={(definition) => definition.id}
+            page={definitionsPage}
+            pageSize={DEFINITIONS_PAGE_SIZE}
+            totalCount={definitionsQuery.data?.total}
+            onPageChange={setDefinitionsPage}
+            loading={definitionsQuery.isLoading}
+            error={!!definitionsQuery.error}
+            emptyIcon={Settings}
+            emptyMessage="Você ainda não tem regras cadastradas."
+          />
+        </section>
+        ) : null}
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

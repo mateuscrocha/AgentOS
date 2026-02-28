@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export type OrgPrimaryContact = {
+  contact_role: string | null;
   id: string;
   organization_id: string;
   name: string;
@@ -11,6 +12,7 @@ export type OrgPrimaryContact = {
   is_primary: boolean;
   created_at: string;
   updated_at: string;
+  user_id: string | null;
 };
 
 type UseOrgCoreDataArgs = {
@@ -77,6 +79,22 @@ export function useOrgCoreData({ orgId, isAuthenticated, hasAccess }: UseOrgCore
     gcTime: ORG_CORE_GC_TIME_MS,
   });
 
+  const { data: primaryContactUser } = useQuery({
+    queryKey: ["org-primary-contact-user", primaryContact?.user_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, name, avatar_url, phone_e164")
+        .eq("id", primaryContact!.user_id!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!primaryContact?.user_id && isAuthenticated && hasAccess,
+    staleTime: ORG_CORE_STALE_TIME_MS,
+    gcTime: ORG_CORE_GC_TIME_MS,
+  });
+
   const contactName = primaryContact?.name || (org as any)?.contact_name || undefined;
   const contactEmail = primaryContact?.email || (org as any)?.contact_email || undefined;
   const contactPhone = primaryContact?.phone || (org as any)?.contact_phone || undefined;
@@ -89,6 +107,7 @@ export function useOrgCoreData({ orgId, isAuthenticated, hasAccess }: UseOrgCore
     refetchOrg,
     ownerProfile,
     primaryContact,
+    primaryContactUser,
     contactLoading,
     contactError,
     refetchPrimaryContact,

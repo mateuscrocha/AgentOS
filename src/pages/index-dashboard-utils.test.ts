@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildParticipationChange, buildSystemDaySummary } from "./index-dashboard-utils";
+import { buildGroupMomentum, buildParticipationChange, buildSystemDaySummary } from "./index-dashboard-utils";
 
 describe("buildParticipationChange", () => {
   it("retorna neutro quando faltam bases para comparar", () => {
@@ -89,5 +89,59 @@ describe("buildSystemDaySummary", () => {
       concentration: "alta",
       formatNumber,
     })).toBe("Nas últimas 24h, foram criados 3 grupos. Houve #120 mensagens em #12 grupos, com atividade concentrada em poucos grupos.");
+  });
+
+  it("prioriza uma leitura objetiva quando recebe share do topo", () => {
+    expect(buildSystemDaySummary({
+      isLoading: false,
+      hasError: false,
+      newGroupsCount: 2,
+      totalMessages: 2562,
+      activeGroups: 18,
+      concentration: "alta",
+      sharePct: 73,
+      topGroupCount: 4,
+      formatNumber,
+    })).toBe("4 grupos concentraram 73% das mensagens nas últimas 24h. Foram criados 2 grupos e #18 grupos ficaram ativos.");
+  });
+});
+
+describe("buildGroupMomentum", () => {
+  it("retorna neutro sem base anterior", () => {
+    expect(buildGroupMomentum(120, null)).toEqual({
+      label: "Sem base anterior para comparar",
+      shortLabel: "Sem base",
+      type: "neutral",
+    });
+  });
+
+  it("retorna novo pico quando antes era zero", () => {
+    expect(buildGroupMomentum(120, 0)).toEqual({
+      label: "Novo pico nas últimas 24h",
+      shortLabel: "Novo",
+      type: "positive",
+    });
+  });
+
+  it("retorna estável para variação pequena", () => {
+    expect(buildGroupMomentum(104, 100)).toEqual({
+      label: "Estável vs. 24h anteriores",
+      shortLabel: "Estável",
+      type: "neutral",
+    });
+  });
+
+  it("retorna subida e queda com percentual", () => {
+    expect(buildGroupMomentum(150, 100)).toEqual({
+      label: "Subiu 50% vs. 24h anteriores",
+      shortLabel: "+50%",
+      type: "positive",
+    });
+
+    expect(buildGroupMomentum(60, 100)).toEqual({
+      label: "Caiu 40% vs. 24h anteriores",
+      shortLabel: "-40%",
+      type: "negative",
+    });
   });
 });

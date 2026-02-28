@@ -89,6 +89,7 @@ describe("AdminSidebar — menu do grupo", () => {
     });
 
     expect(container.textContent).toContain("Painel do grupo");
+    expect(container.textContent).toContain("Atendimento");
     expect(container.textContent).toContain("Mensagens");
     expect(container.textContent).not.toContain("Configurações do grupo");
     expect(container.textContent).not.toContain("Atividade");

@@ -301,7 +301,7 @@ export default function SystemActivity() {
 
   return (
     <AdminLayout title="Atividade" subtitle="Central de Comando › Atividade">
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Atividade" }]}
           title="Atividade"
@@ -542,8 +542,8 @@ export default function SystemActivity() {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <section className="rounded-xl border border-border/70 bg-gradient-to-b from-card to-card/95 p-5">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <section className="rounded-xl border border-border/70 bg-card p-5">
             <ExecutiveSectionHeader
               eyebrow="Série temporal"
               title="Admins ativos por dia"
@@ -590,7 +590,7 @@ export default function SystemActivity() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-border/70 bg-gradient-to-b from-card to-card/95 p-5">
+          <section className="rounded-xl border border-border/70 bg-card p-5">
             <ExecutiveSectionHeader
               eyebrow="Navegação"
               title="Top páginas"

@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import { Users, MessageSquare, ListChecks, Settings, LayoutDashboard, FileText, Headset } from "lucide-react";
+import { Users, MessageSquare, ListChecks, Settings, LayoutDashboard, FileText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserRoles } from "@/hooks/use-user-roles";
 
-type ActiveTab = "painel" | "membros" | "atendimento" | "mensagens" | "resumos" | "enquetes" | "configuracoes";
+type ActiveTab = "painel" | "membros" | "mensagens" | "resumos" | "enquetes" | "configuracoes";
 
 interface GroupTabsProps {
   groupId: string;
@@ -17,7 +17,6 @@ export function GroupTabs({ groupId, activeTab, variant = "standalone" }: GroupT
   const tabs: { key: ActiveTab; label: string; href: string; icon?: any }[] = [
     { key: "painel", label: "Painel", href: `/groups/${groupId}`, icon: LayoutDashboard },
     { key: "membros", label: "Membros", href: `/groups/${groupId}/members`, icon: Users },
-    { key: "atendimento", label: "Atendimento", href: `/groups/${groupId}/support`, icon: Headset },
     { key: "mensagens", label: "Mensagens", href: `/groups/${groupId}/messages`, icon: MessageSquare },
     { key: "resumos", label: "Diário", href: `/groups/${groupId}/summaries`, icon: FileText },
     { key: "enquetes", label: "Enquetes", href: `/groups/${groupId}/polls`, icon: ListChecks },

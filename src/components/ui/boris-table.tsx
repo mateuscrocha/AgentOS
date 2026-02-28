@@ -44,6 +44,7 @@ interface BorisTableProps<T> {
   emptyIcon?: React.ElementType;
   skeletonWidths?: (number | string)[];
   rowClassName?: (item: T) => string | undefined;
+  density?: "default" | "comfortable";
 }
 
 export function BorisTable<T>({
@@ -63,12 +64,19 @@ export function BorisTable<T>({
   emptyIcon,
   skeletonWidths,
   rowClassName,
+  density = "default",
 }: BorisTableProps<T>) {
   const totalPages = totalCount ? Math.ceil(totalCount / pageSize) : 1;
   const showPagination = totalCount && totalCount > pageSize;
 
-  const headerCls = "px-4 py-3 text-left text-[13px] font-semibold text-foreground/75";
-  const cellBaseCls = "px-4 py-2 text-[14px] font-normal text-card-foreground";
+  const headerCls = cn(
+    "px-4 text-left text-[13px] font-semibold text-foreground/75",
+    density === "comfortable" ? "py-3.5" : "py-3",
+  );
+  const cellBaseCls = cn(
+    "px-4 text-[14px] font-normal text-card-foreground",
+    density === "comfortable" ? "py-3" : "py-2",
+  );
 
   if (loading) {
     return (
@@ -141,7 +149,8 @@ export function BorisTable<T>({
                 }}
                 tabIndex={onRowClick ? 0 : undefined}
                 className={cn(
-                  "transition-colors h-11",
+                  "transition-colors",
+                  density === "comfortable" ? "min-h-[72px]" : "h-11",
                   onRowClick && "cursor-pointer hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                   rowClassName?.(item),
                 )}

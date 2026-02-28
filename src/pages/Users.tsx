@@ -120,11 +120,18 @@ const ROLE_ICONS: Record<AppRole, React.ElementType> = {
   'USER': UserCheck,
 };
 
-const ROLE_COLORS: Record<AppRole, string> = {
-  'SYSTEM_ADMIN': 'bg-destructive text-destructive-foreground',
-  'ORG_ADMIN': 'bg-warning text-warning-foreground',
-  'GROUP_MANAGER': 'bg-primary text-primary-foreground',
-  'USER': 'bg-secondary text-secondary-foreground',
+const ROLE_BADGE_COLORS: Record<AppRole, string> = {
+  'SYSTEM_ADMIN': 'border-transparent bg-destructive/10 text-destructive hover:bg-destructive/15',
+  'ORG_ADMIN': 'border-transparent bg-warning/10 text-warning hover:bg-warning/15',
+  'GROUP_MANAGER': 'border-transparent bg-primary/10 text-primary hover:bg-primary/15',
+  'USER': 'border-transparent bg-secondary/60 text-secondary-foreground hover:bg-secondary/80',
+};
+
+const ROLE_ICON_COLORS: Record<AppRole, string> = {
+  'SYSTEM_ADMIN': 'bg-destructive/10 text-destructive',
+  'ORG_ADMIN': 'bg-warning/10 text-warning',
+  'GROUP_MANAGER': 'bg-primary/10 text-primary',
+  'USER': 'bg-secondary/70 text-secondary-foreground',
 };
 
 const ROLE_PRIORITY: Record<AppRole, number> = {
@@ -825,7 +832,7 @@ export default function Users() {
           return (
             <Tooltip key={role.id}>
               <TooltipTrigger asChild>
-                <Badge className={cn(ROLE_COLORS[role.role], "flex items-center gap-1")}> 
+                <Badge className={cn(ROLE_BADGE_COLORS[role.role], "flex items-center gap-1 font-medium")}> 
                   <Icon className="h-3 w-3" />
                   <span className="text-xs">{label}</span>
                 </Badge>
@@ -845,7 +852,11 @@ export default function Users() {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge className={cn(isActive ? "bg-success text-success-foreground hover:bg-success/90" : "bg-secondary text-secondary-foreground")}>
+          <Badge className={cn(
+            isActive
+              ? "border-transparent bg-success/10 text-success hover:bg-success/15"
+              : "border-transparent bg-secondary/60 text-secondary-foreground hover:bg-secondary/80"
+          )}>
             {isActive ? 'Ativo' : profile.status || 'Desconhecido'}
           </Badge>
         </TooltipTrigger>
@@ -901,7 +912,7 @@ export default function Users() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border bg-secondary/20">
+              <tr className="border-b border-border bg-secondary/10">
                 <th className={cn(headerCls, "w-[320px]")}> 
                   <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-2 hover:text-card-foreground transition-colors">
                     <span>Nome</span>
@@ -933,18 +944,21 @@ export default function Users() {
                 return (
                   <tr
                     key={profile.id}
-                    className={cn("transition-colors h-11", isRecent && "bg-primary/5", "hover:bg-secondary/40")}
+                    className={cn("transition-colors h-11", isRecent && "bg-primary/[0.04]", "hover:bg-secondary/20")}
                   >
                     <td className={cellCls}>
                       <div className="flex items-start gap-3">
-                        <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center", row.primaryRole ? ROLE_COLORS[row.primaryRole] : "bg-secondary text-secondary-foreground")}>
+                        <div className={cn(
+                          "h-9 w-9 rounded-lg flex items-center justify-center",
+                          row.primaryRole ? ROLE_ICON_COLORS[row.primaryRole] : "bg-secondary/60 text-secondary-foreground"
+                        )}>
                           <PrimaryIcon className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-card-foreground truncate">{profile.name || 'Sem nome'}</span>
                             {isRecent && (
-                              <Badge className="bg-primary/15 text-primary hover:bg-primary/15">Atualizado</Badge>
+                              <Badge className="border-transparent bg-primary/10 text-primary hover:bg-primary/10">Atualizado</Badge>
                             )}
                           </div>
                         </div>

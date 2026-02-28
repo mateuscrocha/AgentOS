@@ -177,7 +177,7 @@ export default function SystemPeople() {
 
   return (
     <AdminLayout title="Pessoas" subtitle="Central de Comando › Pessoas">
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Pessoas" }]}
           title="Pessoas"

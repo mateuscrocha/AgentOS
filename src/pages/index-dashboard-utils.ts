@@ -12,6 +12,12 @@ export type ParticipationChangeResult = {
   type: DashboardChangeTone;
 };
 
+export type GroupMomentumResult = {
+  label: string;
+  shortLabel: string;
+  type: DashboardChangeTone;
+};
+
 export type DaySummaryInput = {
   isLoading: boolean;
   hasError: boolean;
@@ -19,8 +25,34 @@ export type DaySummaryInput = {
   totalMessages: number;
   activeGroups: number;
   concentration: "alta" | "média" | "baixa";
+  sharePct?: number;
+  topGroupCount?: number;
   formatNumber: (value: number) => string;
 };
+
+export function buildGroupMomentum(currentCount: number, previousCount: number | null): GroupMomentumResult {
+  if (previousCount === null) {
+    return { label: "Sem base anterior para comparar", shortLabel: "Sem base", type: "neutral" };
+  }
+
+  if (previousCount === 0) {
+    if (currentCount === 0) {
+      return { label: "Sem atividade nas duas janelas", shortLabel: "Sem atividade", type: "neutral" };
+    }
+    return { label: "Novo pico nas últimas 24h", shortLabel: "Novo", type: "positive" };
+  }
+
+  const deltaPct = Math.round(((currentCount - previousCount) / previousCount) * 100);
+  if (Math.abs(deltaPct) <= 5) {
+    return { label: "Estável vs. 24h anteriores", shortLabel: "Estável", type: "neutral" };
+  }
+
+  if (deltaPct > 0) {
+    return { label: `Subiu ${deltaPct}% vs. 24h anteriores`, shortLabel: `+${deltaPct}%`, type: "positive" };
+  }
+
+  return { label: `Caiu ${Math.abs(deltaPct)}% vs. 24h anteriores`, shortLabel: `${deltaPct}%`, type: "negative" };
+}
 
 export function buildParticipationChange({
   currentTotalMembers,
@@ -56,11 +88,17 @@ export function buildSystemDaySummary({
   totalMessages,
   activeGroups,
   concentration,
+  sharePct,
+  topGroupCount,
   formatNumber,
 }: DaySummaryInput): string {
   if (isLoading) return "Carregando leitura das últimas 24h…";
   if (hasError) {
     return "Não foi possível consolidar a leitura operacional das últimas 24h no momento. Atualize a página em instantes.";
+  }
+
+  if (typeof sharePct === "number" && topGroupCount && totalMessages > 0) {
+    return `${topGroupCount} grupos concentraram ${sharePct}% das mensagens nas últimas 24h. Foram criados ${newGroupsCount} grupos e ${formatNumber(activeGroups)} grupos ficaram ativos.`;
   }
 
   const concentrationLabel = concentration === "alta"

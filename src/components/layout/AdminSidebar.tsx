@@ -242,7 +242,6 @@ export function AdminSidebar() {
     if (!isSystemAdmin) return [];
     return [
       { icon: Users, label: "Usuários", href: "/system/users" },
-      { icon: Headset, label: "Atendimento", href: "/system/support" },
       { icon: Activity, label: "Atividade", href: "/system/activity" },
       { icon: FileText, label: "Eventos", href: "/system/events" },
       { icon: Settings, label: "Configurações do sistema", href: "/system/settings" },

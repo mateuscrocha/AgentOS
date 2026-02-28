@@ -1023,6 +1023,7 @@ export type Database = {
       }
       organization_contacts: {
         Row: {
+          contact_role: string | null
           created_at: string
           email: string | null
           id: string
@@ -1032,8 +1033,10 @@ export type Database = {
           phone: string | null
           role_title: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
+          contact_role?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -1043,8 +1046,10 @@ export type Database = {
           phone?: string | null
           role_title?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
+          contact_role?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -1054,6 +1059,7 @@ export type Database = {
           phone?: string | null
           role_title?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -1068,6 +1074,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_contacts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2463,6 +2476,7 @@ export type Database = {
       }
       v_organization_contacts_br_time: {
         Row: {
+          contact_role: string | null
           created_at: string | null
           created_at_local: string | null
           email: string | null
@@ -2474,8 +2488,10 @@ export type Database = {
           role_title: string | null
           updated_at: string | null
           updated_at_local: string | null
+          user_id: string | null
         }
         Insert: {
+          contact_role?: string | null
           created_at?: string | null
           created_at_local?: never
           email?: string | null
@@ -2487,8 +2503,10 @@ export type Database = {
           role_title?: string | null
           updated_at?: string | null
           updated_at_local?: never
+          user_id?: string | null
         }
         Update: {
+          contact_role?: string | null
           created_at?: string | null
           created_at_local?: never
           email?: string | null
@@ -2500,6 +2518,7 @@ export type Database = {
           role_title?: string | null
           updated_at?: string | null
           updated_at_local?: never
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -2514,6 +2533,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_contacts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

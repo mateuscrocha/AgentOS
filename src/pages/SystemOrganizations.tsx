@@ -357,8 +357,8 @@ export default function SystemOrganizations() {
 
   return (
     <AdminLayout title="Organizações" subtitle="Gerencie quem usa o Bóris e seus grupos">
-      <div className="space-y-6 animate-fade-in">
-        <div className="space-y-3">
+      <div className="space-y-8 animate-fade-in">
+        <div className="space-y-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <Breadcrumbs
@@ -394,7 +394,7 @@ export default function SystemOrganizations() {
             </Button>
           </div>
 
-          <div className="grid max-w-2xl gap-3 grid-cols-1 sm:grid-cols-2">
+          <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
             <StatsCard
               title="Total"
               value={overview?.orgsTotal?.toLocaleString("pt-BR") ?? "—"}
