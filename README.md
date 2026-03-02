@@ -74,6 +74,16 @@ Exemplo (produção):
 VITE_SUPABASE_URL="https://<project-ref>.supabase.co"
 ```
 
+### VITE_N8N_SEND_GROUP_MESSAGE_URL
+
+`VITE_N8N_SEND_GROUP_MESSAGE_URL` define a URL do webhook usada para envio de mensagem em grupo.
+
+Exemplo:
+
+```sh
+VITE_N8N_SEND_GROUP_MESSAGE_URL="https://test.n8n.euboris.com.br/webhook/send-group-message"
+```
+
 ### TEST_BASE_URL
 
 `TEST_BASE_URL` define a URL base usada pelos testes das Edge Functions (Deno) para construir URLs de request e para preencher `SUPABASE_URL` quando necessário.

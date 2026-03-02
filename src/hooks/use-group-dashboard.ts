@@ -170,7 +170,7 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
     queryFn: async () => {
       const { data, error } = await supabase
         .from('groups')
-        .select('id, name, description, provider, organization_id, is_active, is_archived, sync_status, last_sync_at, metadata, invite_link')
+        .select('id, name, description, provider, organization_id, is_active, is_archived, sync_status, last_sync_at, metadata, invite_link, provider_phone')
         .eq('id', groupId!)
         .maybeSingle();
       

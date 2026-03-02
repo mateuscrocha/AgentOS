@@ -35,6 +35,8 @@ import { Button } from "@/components/ui/button";
 import { notify } from "@/components/ui/sonner";
 import { Input } from "@/components/ui/input";
 import { notifyActionError } from "@/lib/notify-action-error";
+import { SendGroupMessageDialog } from "@/components/modals/SendGroupMessageDialog";
+import { sendGroupMessageWebhook } from "@/lib/group-message-webhook";
 import {
   Select,
   SelectContent,
@@ -126,12 +128,12 @@ interface OrganizationDetail {
 interface GroupListItem {
   id: string;
   name: string;
-  created_at: string;
-  organization_id: string;
-  whatsapp_provider_id: string | null;
-  is_active: boolean | null;
+  created_at?: string;
+  organization_id?: string;
+  is_active?: boolean | null;
   members_count?: number;
   last_access_at?: string | null;
+  description?: string | null;
 }
 
 interface OrgProfileMetadata {
@@ -423,6 +425,8 @@ const Org = () => {
   const [attachInviteLink, setAttachInviteLink] = useState("");
   const [attachError, setAttachError] = useState<string | null>(null);
   const [attaching, setAttaching] = useState(false);
+  const [sendMessageGroup, setSendMessageGroup] = useState<GroupListItem | null>(null);
+  const [isSendingGroupMessage, setIsSendingGroupMessage] = useState(false);
 
   const [profileSearch, setProfileSearch] = useState("");
   const [profileStatusFilter, setProfileStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -552,6 +556,23 @@ const Org = () => {
     }
   };
 
+  const handleSendGroupMessage = async (group: GroupListItem, message: string) => {
+    setIsSendingGroupMessage(true);
+    try {
+      await sendGroupMessageWebhook({
+        groupId: group.id,
+        groupName: group.name || "Grupo",
+        message,
+      });
+      notify.success("Mensagem enviada", "Tudo certo.");
+      setSendMessageGroup(null);
+    } catch (err: any) {
+      notifyActionError("Não foi possível enviar mensagem", err, "Tente novamente.");
+    } finally {
+      setIsSendingGroupMessage(false);
+    }
+  };
+
   const {
     org,
     orgLoading,
@@ -632,6 +653,7 @@ const Org = () => {
         id: g.group_id as string,
         name: g.group_name as string,
         description: (g as any).description || null,
+        organization_id: g.organization_id as string,
         members: typeof g.members_count === "number" ? g.members_count : null,
         status: g.is_active ? "Ativo" : "Inativo",
       }));
@@ -889,6 +911,28 @@ const Org = () => {
             {g.status}
           </StatusTag>
         ),
+      },
+      {
+        key: "actions",
+        header: "",
+        align: "right" as const,
+        render: (g: GroupListItem & { members?: number | null; status: string; leader?: string | null }) => {
+          const canSend = canEditGroup(g.id, orgId);
+          if (!canSend) return null;
+          return (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSendMessageGroup(g);
+              }}
+            >
+              Enviar mensagem
+            </Button>
+          );
+        },
       },
     ];
 
@@ -2578,6 +2622,17 @@ const Org = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SendGroupMessageDialog
+        open={!!sendMessageGroup}
+        onOpenChange={(open) => !open && setSendMessageGroup(null)}
+        groupName={sendMessageGroup?.name || "Grupo"}
+        isSubmitting={isSendingGroupMessage}
+        onSubmit={async (message) => {
+          if (!sendMessageGroup) return;
+          await handleSendGroupMessage(sendMessageGroup, message);
+        }}
+      />
 
       
     </AdminLayout>

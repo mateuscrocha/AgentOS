@@ -33,4 +33,5 @@ declare const Deno: {
 
 interface ImportMetaEnv {
   readonly VITE_APP_URL?: string;
+  readonly VITE_N8N_SEND_GROUP_MESSAGE_URL?: string;
 }

@@ -26,6 +26,12 @@ import {
   buildStoredPeriod,
 } from "@/components/group-dashboard/period-utils";
 import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
+import { Button } from "@/components/ui/button";
+import { SendGroupMessageDialog } from "@/components/modals/SendGroupMessageDialog";
+import { sendGroupMessageWebhook } from "@/lib/group-message-webhook";
+import { notify } from "@/components/ui/sonner";
+import { notifyActionError } from "@/lib/notify-action-error";
+import { SendHorizontal } from "lucide-react";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
  
@@ -59,13 +65,15 @@ const Group = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { loading: authLoading } = useAuth();
-  const { isLoading: rolesLoading } = useUserRoles();
+  const { isLoading: rolesLoading, canEditGroup } = useUserRoles();
   const isGroupIdValid = typeof groupId === "string" && UUID_RE.test(groupId);
   
   // Period filter state
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>(() => loadSavedGroupPeriod(groupId).period);
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() => loadSavedGroupPeriod(groupId).range);
   const [ikigaiOpen, setIkigaiOpen] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   
   
   const currentRange = getDateRange(selectedPeriod, customRange);
@@ -123,6 +131,26 @@ const Group = () => {
   const handlePeriodChange = (period: PeriodType, range: DateRange) => {
     setSelectedPeriod(period);
     setCustomRange(period === 'custom' ? range : undefined);
+  };
+
+  const canSendMessage = !!group && canEditGroup(group.id, group.organization_id);
+
+  const handleSendMessage = async (message: string) => {
+    if (!group) return;
+    setIsSendingMessage(true);
+    try {
+      await sendGroupMessageWebhook({
+        groupId: group.id,
+        groupName: group.name || "Grupo",
+        message,
+      });
+      notify.success("Mensagem enviada", "Tudo certo.");
+      setSendDialogOpen(false);
+    } catch (err) {
+      notifyActionError("Não foi possível enviar mensagem", err, "Tente novamente.");
+    } finally {
+      setIsSendingMessage(false);
+    }
   };
 
   // Loading state while checking auth/roles
@@ -223,6 +251,24 @@ const Group = () => {
               onChange={handlePeriodChange}
             />
           )}
+          rightActions={canSendMessage ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setSendDialogOpen(true)}
+            >
+              <SendHorizontal className="h-4 w-4" />
+              Enviar mensagem
+            </Button>
+          ) : undefined}
+        />
+
+        <SendGroupMessageDialog
+          open={sendDialogOpen}
+          onOpenChange={setSendDialogOpen}
+          groupName={group.name || "Grupo"}
+          isSubmitting={isSendingMessage}
+          onSubmit={handleSendMessage}
         />
 
         <div className="space-y-12">

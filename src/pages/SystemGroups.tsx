@@ -47,6 +47,8 @@ import { notify } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
 import { formatDateSimpleBR, formatDateTickBR } from "@/lib/date";
 import { notifyActionError } from "@/lib/notify-action-error";
+import { SendGroupMessageDialog } from "@/components/modals/SendGroupMessageDialog";
+import { sendGroupMessageWebhook } from "@/lib/group-message-webhook";
 
 interface GroupRow {
   id: string;
@@ -137,6 +139,7 @@ export default function SystemGroups() {
   const [cascadeGroup, setCascadeGroup] = useState<GroupRow | null>(null);
   const [deletingCascade, setDeletingCascade] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sendMessageGroup, setSendMessageGroup] = useState<GroupRow | null>(null);
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [isSearchDebouncing, setIsSearchDebouncing] = useState(false);
@@ -327,6 +330,23 @@ export default function SystemGroups() {
     },
   });
 
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ group, message }: { group: GroupRow; message: string }) => {
+      await sendGroupMessageWebhook({
+        groupId: group.id,
+        groupName: group.name || "Grupo",
+        message,
+      });
+    },
+    onSuccess: () => {
+      notify.success("Mensagem enviada", "Tudo certo.");
+      setSendMessageGroup(null);
+    },
+    onError: (err: any) => {
+      notifyActionError("Não foi possível enviar mensagem", err, "Tente novamente.");
+    },
+  });
+
   useEffect(() => {
     const total = groupsData?.count;
     if (typeof total !== "number") return;
@@ -394,6 +414,15 @@ export default function SystemGroups() {
         className="w-full text-left px-2 py-1.5 text-sm"
       >
         Abrir grupo
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setSendMessageGroup(g);
+        }}
+        className="w-full text-left px-2 py-1.5 text-sm"
+      >
+        Enviar mensagem
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: g.id, status: g.status === "active" ? "inactive" : "active" }); }}
@@ -1023,6 +1052,17 @@ export default function SystemGroups() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <SendGroupMessageDialog
+          open={!!sendMessageGroup}
+          onOpenChange={(open) => !open && setSendMessageGroup(null)}
+          groupName={sendMessageGroup?.name || "Grupo"}
+          isSubmitting={sendMessageMutation.isPending}
+          onSubmit={async (message) => {
+            if (!sendMessageGroup) return;
+            await sendMessageMutation.mutateAsync({ group: sendMessageGroup, message });
+          }}
+        />
 
       </div>
     </AdminLayout>
