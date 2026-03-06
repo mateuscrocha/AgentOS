@@ -151,6 +151,20 @@ class Builder {
       return { data: [], error: null };
     }
 
+    if (this.table === "organization_contacts" && this.action === "delete") {
+      if (this.state.failOrganizationContactsDelete) {
+        return { data: null, error: { message: "fail organization_contacts", code: "500" } };
+      }
+      return { data: [], error: null };
+    }
+
+    if (this.table === "user_roles" && this.action === "delete") {
+      if (this.state.failUserRolesDelete) {
+        return { data: null, error: { message: "fail user_roles", code: "500" } };
+      }
+      return { data: [], error: null };
+    }
+
     if (this.table === "groups" && this.action === "delete") {
       if (this.state.groupDeleteError) {
         return { data: null, error: { message: "fk", code: this.state.groupDeleteErrorCode ?? "23503" } };
@@ -335,10 +349,16 @@ DenoRef.test("delete-resource-cascade exclui organização limpando member_event
   assertEquals(body.success, true);
 
   const memberEventsDeleteIndex = calls.findIndex((c) => c.table === "member_events" && c.action === "delete");
+  const orgContactsDeleteIndex = calls.findIndex((c) => c.table === "organization_contacts" && c.action === "delete");
+  const userRolesDeleteIndex = calls.findIndex((c) => c.table === "user_roles" && c.action === "delete");
   const orgDeleteIndex = calls.findIndex((c) => c.table === "organizations" && c.action === "delete");
   assertEquals(memberEventsDeleteIndex >= 0, true);
+  assertEquals(orgContactsDeleteIndex >= 0, true);
+  assertEquals(userRolesDeleteIndex >= 0, true);
   assertEquals(orgDeleteIndex >= 0, true);
   assertEquals(memberEventsDeleteIndex < orgDeleteIndex, true);
+  assertEquals(orgContactsDeleteIndex < orgDeleteIndex, true);
+  assertEquals(userRolesDeleteIndex < orgDeleteIndex, true);
 });
 
 DenoRef.test("delete-resource-cascade retorna DEPENDENCY_CLEANUP_FAILED quando falha limpeza de organização", async () => {

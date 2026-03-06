@@ -580,7 +580,8 @@ const Org = () => {
     refetchOrg,
     ownerProfile,
     primaryContact,
-    primaryContactUser,
+    contactUser,
+    isFallbackContact,
     contactLoading,
     contactError,
     refetchPrimaryContact,
@@ -1267,8 +1268,6 @@ const Org = () => {
   const totalGroupsCount = typeof orgGroupIds?.length === "number" ? orgGroupIds.length : signals.length;
   const activeGroupsValue =
     typeof activeGroupsCount === "number" ? activeGroupsCount : signals.filter((g) => g.isActive === true).length;
-  const silentGroupsCount = signalsWithMetrics.filter((g) => g.activity === "silencio").length;
-
   const attentionGroups = useMemo(
     () =>
       signalsWithMetrics
@@ -1365,11 +1364,17 @@ const Org = () => {
 
     return (
       <RowActions>
-        <DropdownMenuItem onSelect={() => navigate(`/groups/${g.row.id}`)}>
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/groups/${g.row.id}`);
+          }}
+        >
           Abrir grupo
         </DropdownMenuItem>
         <DropdownMenuItem
-          onSelect={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             void openGroupForEdit(g.row.id);
           }}
           disabled={!canEdit}
@@ -1377,7 +1382,8 @@ const Org = () => {
           Editar grupo
         </DropdownMenuItem>
         <DropdownMenuItem
-          onSelect={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             const payload: GroupListItem = {
               id: g.row.id,
               name: g.row.name,
@@ -1632,9 +1638,23 @@ const Org = () => {
 
   const hasPrimaryContactData = !!(contactName || contactEmail || contactPhone || contactRole);
   const hasGroups = totalGroupsCount > 0;
-  const allHealthKpisZero = [totalGroupsCount, activeGroupsValue, silentGroupsCount, alertGroupsCount].every((v) => (v ?? 0) === 0);
+  const allHealthKpisZero = [totalGroupsCount, activeGroupsValue, alertGroupsCount].every((v) => (v ?? 0) === 0);
   const showOrgOnboarding = (isDashboardRoute || isDefaultOrgHome) && !hasGroups;
   const addGroupLabel = hasGroups ? "Adicionar grupo" : "Criar primeiro grupo";
+  const modalContact =
+    primaryContact ??
+    (isFallbackContact && orgId
+      ? {
+          organization_id: orgId,
+          user_id: contactUser?.id ?? null,
+          name: contactName || "Usuário da organização",
+          email: contactEmail || null,
+          phone: contactPhone || null,
+          role_title: contactRole || null,
+          contact_role: "primary",
+          is_primary: true,
+        }
+      : null);
 
   const headerSummaryParts = [
     `${formatNumberBR(activeGroupsValue ?? 0)} grupos em operação`,
@@ -1683,36 +1703,45 @@ const Org = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Nome</span>
-                  <p className="font-medium text-card-foreground">{contactName || "-"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Usuário vinculado</span>
-                  {primaryContact?.user_id ? (
-                    <div className="pt-1">
-                      <UserInline
-                        name={primaryContactUser?.name || contactName || "Usuário vinculado"}
-                        avatarUrl={primaryContactUser?.avatar_url || null}
-                        size="xs"
-                      />
-                    </div>
-                  ) : (
-                    <p className="font-medium text-card-foreground">-</p>
-                  )}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Cargo</span>
-                  <p className="font-medium text-card-foreground">{contactRole || "-"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Email</span>
-                  <p className="font-medium text-card-foreground">{contactEmail || "-"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Telefone</span>
-                  <p className="font-medium text-card-foreground">{contactPhone || "-"}</p>
+              <div className="space-y-3">
+                {isFallbackContact ? (
+                  <div className="rounded-lg border border-dashed border-border bg-background/40 p-3">
+                    <p className="text-xs text-muted-foreground">
+                      Contato preenchido automaticamente com um usuário da organização. Edite para definir o contato oficial.
+                    </p>
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Nome</span>
+                    <p className="font-medium text-card-foreground">{contactName || "-"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Usuário vinculado</span>
+                    {contactUser?.id ? (
+                      <div className="pt-1">
+                        <UserInline
+                          name={contactUser?.name || contactName || "Usuário vinculado"}
+                          avatarUrl={contactUser?.avatar_url || null}
+                          size="xs"
+                        />
+                      </div>
+                    ) : (
+                      <p className="font-medium text-card-foreground">-</p>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Cargo</span>
+                    <p className="font-medium text-card-foreground">{contactRole || "-"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Email</span>
+                    <p className="font-medium text-card-foreground">{contactEmail || "-"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Telefone</span>
+                    <p className="font-medium text-card-foreground">{contactPhone || "-"}</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -1801,12 +1830,18 @@ const Org = () => {
                   </div>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Plano</div>
-                  <div className="mt-1 text-lg font-semibold text-card-foreground capitalize">{org.plan || "-"}</div>
-                </div>
-                <div className="rounded-xl border border-border bg-card p-3">
                   <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Cobrança</div>
-                  <div className="mt-1 text-lg font-semibold text-card-foreground capitalize">{org.billing_status || "-"}</div>
+                  <div
+                    className={`mt-1 text-lg font-semibold capitalize ${
+                      org.billing_status === "active"
+                        ? "text-success"
+                        : org.billing_status === "past_due" || org.billing_status === "overdue"
+                          ? "text-destructive"
+                          : "text-card-foreground"
+                    }`}
+                  >
+                    {org.billing_status || "-"}
+                  </div>
                 </div>
               </>
             ) : null
@@ -2052,7 +2087,7 @@ const Org = () => {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-sm font-semibold text-card-foreground">Saúde da organização</div>
+                    <div className="text-sm font-semibold text-card-foreground">KPIs executivos</div>
                     <div className="text-xs text-muted-foreground">Últimos 7 dias</div>
                   </div>
                   {signalsError ? (
@@ -2062,7 +2097,7 @@ const Org = () => {
                   ) : null}
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div className={`rounded-xl ${allHealthKpisZero ? "bg-secondary/20 p-3" : "bg-secondary/30 p-4"}`}>
                     <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-card-foreground">
                       {formatNumberBR(totalGroupsCount ?? 0)}
@@ -2080,7 +2115,7 @@ const Org = () => {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className="text-xs text-muted-foreground">Vinculados e não arquivados</div>
+                    <div className="text-xs text-muted-foreground">Base operacional ativa</div>
                   </div>
 
                   <div className={`rounded-xl ${allHealthKpisZero ? "bg-secondary/20 p-3" : "bg-secondary/30 p-4"}`}>
@@ -2100,33 +2135,7 @@ const Org = () => {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className="text-xs text-muted-foreground">Mensagens no período</div>
-                  </div>
-
-                  <div className={`rounded-xl ${allHealthKpisZero ? "bg-secondary/20 p-3" : "bg-secondary/30 p-4"}`}>
-                    <div
-                      className={
-                        `text-2xl sm:text-3xl font-semibold tabular-nums ${
-                          (silentGroupsCount ?? 0) === 0 ? "text-success" : "text-warning"
-                        }`
-                      }
-                    >
-                      {formatNumberBR(silentGroupsCount ?? 0)}
-                    </div>
-                    <div className="mt-1 text-sm font-medium text-card-foreground flex items-center gap-1">
-                      <span>Sem atividade</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button aria-label="Ajuda" className="text-muted-foreground hover:text-foreground">
-                            <HelpCircle className="h-3.5 w-3.5" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          Grupos sem mensagens recentes no período analisado.
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <div className="text-xs text-muted-foreground">Sem mensagens no período</div>
+                    <div className="text-xs text-muted-foreground">Engajamento da base ativa</div>
                   </div>
 
                   <div
@@ -2435,7 +2444,7 @@ const Org = () => {
 
       <EditOrganizationContactModal
         organizationId={orgId!}
-        contact={primaryContact ?? null}
+        contact={modalContact}
         open={editContactOpen}
         onOpenChange={setEditContactOpen}
         onSuccess={() => refetchPrimaryContact()}

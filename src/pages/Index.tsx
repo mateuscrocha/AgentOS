@@ -76,6 +76,7 @@ type SystemTotalsSummary = {
 const NEW_GROUPS_24H_LIST_LIMIT = 10;
 const TOP_GROUPS_24H_LIMIT = 5;
 const TOP_GROUPS_COMPARISON_LIMIT = 25;
+const LIVE_REFRESH_INTERVAL_MS = 60_000;
 
 const Index = () => {
   const navigate = useNavigate();
@@ -381,6 +382,7 @@ const Index = () => {
     data: kpiMembers,
     isLoading: kpiMembersLoading,
     error: kpiMembersError,
+    dataUpdatedAt: kpiMembersUpdatedAt,
   } = useQuery({
     queryKey: ["kpi-members-total"],
     queryFn: fetchTotalMembersCount,
@@ -392,6 +394,7 @@ const Index = () => {
     data: systemTotals,
     isLoading: systemTotalsLoading,
     error: systemTotalsError,
+    dataUpdatedAt: systemTotalsUpdatedAt,
   } = useQuery({
     queryKey: ["system-totals-summary"],
     queryFn: fetchSystemTotals,
@@ -403,6 +406,7 @@ const Index = () => {
     data: kpiMembersPrevBase,
     isLoading: kpiMembersPrevBaseLoading,
     error: kpiMembersPrevBaseError,
+    dataUpdatedAt: kpiMembersPrevBaseUpdatedAt,
   } = useQuery({
     queryKey: ["kpi-members-total-as-of", prevEndISO],
     queryFn: () => fetchMembersCountAsOf(prevEndISO),
@@ -414,6 +418,7 @@ const Index = () => {
     data: newGroups24h,
     isLoading: newGroups24hLoading,
     error: newGroups24hError,
+    dataUpdatedAt: newGroups24hUpdatedAt,
   } = useQuery({
     queryKey: ["system-new-groups-24h", last24hStartISO, last24hEndISO, NEW_GROUPS_24H_LIST_LIMIT],
     queryFn: fetchNewGroups24h,
@@ -425,6 +430,7 @@ const Index = () => {
     data: newGroups24hCount,
     isLoading: newGroups24hCountLoading,
     error: newGroups24hCountError,
+    dataUpdatedAt: newGroups24hCountUpdatedAt,
   } = useQuery({
     queryKey: ["system-new-groups-24h-count", last24hStartISO, last24hEndISO],
     queryFn: fetchNewGroups24hCount,
@@ -436,6 +442,7 @@ const Index = () => {
     data: currentPeriodKpis,
     isLoading: currentPeriodKpisLoading,
     error: currentPeriodKpisError,
+    dataUpdatedAt: currentPeriodKpisUpdatedAt,
   } = useQuery({
     queryKey: ["kpi-summary-period", currentRange.from.toISOString(), currentRange.to.toISOString()],
     queryFn: () => fetchPeriodKpiSummary(currentRange.from.toISOString(), currentRange.to.toISOString()),
@@ -447,6 +454,7 @@ const Index = () => {
     data: prevPeriodKpis,
     isLoading: prevPeriodKpisLoading,
     error: prevPeriodKpisError,
+    dataUpdatedAt: prevPeriodKpisUpdatedAt,
   } = useQuery({
     queryKey: ["kpi-summary-prev-period", prevStartISO, prevEndISO],
     queryFn: () => fetchPeriodKpiSummary(prevStartISO, prevEndISO),
@@ -504,6 +512,7 @@ const Index = () => {
     isLoading: pulse24hLoading,
     error: pulse24hError,
     refetch: refetchPulse24h,
+    dataUpdatedAt: pulse24hUpdatedAt,
   } = useQuery({
     queryKey: ["signal-concentration-24h", last24hStartISO, last24hEndISO, TOP_GROUPS_24H_LIMIT],
     queryFn: async () => {
@@ -523,6 +532,7 @@ const Index = () => {
     data: previousPulse24h,
     isLoading: previousPulse24hLoading,
     error: previousPulse24hError,
+    dataUpdatedAt: previousPulse24hUpdatedAt,
   } = useQuery({
     queryKey: ["signal-concentration-previous-24h", previous24hStartISO, previous24hEndISO, TOP_GROUPS_COMPARISON_LIMIT],
     queryFn: async () => {
@@ -573,6 +583,39 @@ const Index = () => {
       supabase.removeChannel(channel);
     };
   }, [isAuthenticated, isSystemAdmin, queryClient]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isSystemAdmin) return;
+
+    const interval = globalThis.setInterval(() => {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["kpi-members-total"] }),
+        queryClient.invalidateQueries({ queryKey: ["system-totals-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h"] }),
+        queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h-count"] }),
+        queryClient.invalidateQueries({ queryKey: ["kpi-summary-period"] }),
+        queryClient.invalidateQueries({ queryKey: ["kpi-summary-prev-period"] }),
+        queryClient.invalidateQueries({ queryKey: ["signal-concentration-24h"] }),
+        queryClient.invalidateQueries({ queryKey: ["signal-concentration-previous-24h"] }),
+      ]);
+    }, LIVE_REFRESH_INTERVAL_MS);
+
+    return () => globalThis.clearInterval(interval);
+  }, [isAuthenticated, isSystemAdmin, queryClient]);
+
+  const latestDataUpdateAt = Math.max(
+    kpiMembersUpdatedAt,
+    systemTotalsUpdatedAt,
+    kpiMembersPrevBaseUpdatedAt,
+    newGroups24hUpdatedAt,
+    newGroups24hCountUpdatedAt,
+    currentPeriodKpisUpdatedAt,
+    prevPeriodKpisUpdatedAt,
+    pulse24hUpdatedAt,
+    previousPulse24hUpdatedAt,
+    0,
+  );
+  const liveUpdatedAtDate = latestDataUpdateAt > 0 ? new Date(latestDataUpdateAt) : last24hNow;
 
   const describePercentChange = (delta: number, suffix: string) => {
     if (Math.abs(delta) <= 2) return `Estável em relação ao ${suffix}`;
@@ -942,7 +985,7 @@ const Index = () => {
                 Base consolidada
               </Badge>
               <span className="text-xs sm:text-sm text-muted-foreground">
-                Atualizado às <span className="font-mono text-[0.95em] font-medium text-foreground">{formatTimeBR(last24hNow)}</span> (BRT)
+                Atualizado às <span className="font-mono text-[0.95em] font-medium text-foreground">{formatTimeBR(liveUpdatedAtDate)}</span> (BRT)
               </span>
             </div>
           )}

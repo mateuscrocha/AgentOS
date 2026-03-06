@@ -893,9 +893,17 @@ export default function Alerts() {
       className: "w-0 text-right",
       render: (definition) => (
         <RowActions>
-          <DropdownMenuItem onSelect={() => openEdit(definition)}>Editar</DropdownMenuItem>
           <DropdownMenuItem
-            onSelect={() => {
+            onClick={(e) => {
+              e.stopPropagation();
+              openEdit(definition);
+            }}
+          >
+            Editar
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
               setTab("events");
               setStatusFilter("unread");
               setDefinitionFilter(definition.id);
@@ -908,7 +916,10 @@ export default function Alerts() {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
-            onSelect={() => setRemoveDefinition(definition)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setRemoveDefinition(definition);
+            }}
           >
             Excluir
           </DropdownMenuItem>

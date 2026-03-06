@@ -76,6 +76,14 @@ async function deleteByGroupIds(supabaseAdmin: any, table: string, groupIds: str
   }
 }
 
+async function deleteByOrgId(supabaseAdmin: any, table: string, orgId: string) {
+  const { error } = await supabaseAdmin
+    .from(table)
+    .delete()
+    .eq("organization_id", orgId);
+  if (error) throw error;
+}
+
 export function createDeleteResourceCascadeHandler(
   deps: { createClient?: CreateClient; env?: Env } = {},
 ) {
@@ -346,6 +354,8 @@ export function createDeleteResourceCascadeHandler(
 
         await deleteByGroupIds(supabaseAdmin, "member_events", groupIds);
         await deleteByGroupIds(supabaseAdmin, "message_reactions", groupIds);
+        await deleteByOrgId(supabaseAdmin, "organization_contacts", payload.resourceId);
+        await deleteByOrgId(supabaseAdmin, "user_roles", payload.resourceId);
       } catch (e: any) {
         console.log(JSON.stringify({ stage: "org_cleanup", requesterId, organizationId: payload.resourceId, error: e?.message, status: 400 }));
         await (supabaseAdmin as any).from("events").insert({

@@ -463,8 +463,9 @@ export default function SystemGroups() {
     {
       key: "name",
       header: "Grupo",
+      className: "max-w-[18rem] lg:max-w-[22rem]",
       render: (g: GroupRow) => (
-        <div className="min-w-0">
+        <div className="min-w-0 max-w-[18rem] lg:max-w-[22rem]">
           <div className="truncate text-sm font-semibold text-foreground">{g.name || "—"}</div>
         </div>
       ),
@@ -472,11 +473,12 @@ export default function SystemGroups() {
     {
       key: "organizations",
       header: "Organização",
-      hideOn: "sm",
+      hideOn: "lg",
+      className: "max-w-[14rem] lg:max-w-[18rem]",
       render: (g: GroupRow) => (
         <button
           type="button"
-          className="text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-4"
+          className="block w-full truncate text-left text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-4"
           onClick={(e) => {
             e.stopPropagation();
             if (g.organization_id) navigate(`/organization/${g.organization_id}/dashboard`);
@@ -499,7 +501,7 @@ export default function SystemGroups() {
     {
       key: "members_count",
       header: "Membros",
-      hideOn: "sm",
+      hideOn: "lg",
       render: (g: GroupRow) => (
         <span className="tabular-nums text-sm font-semibold text-foreground">{typeof g.members_count === "number" ? g.members_count.toLocaleString("pt-BR") : "—"}</span>
       ),
@@ -507,7 +509,7 @@ export default function SystemGroups() {
     {
       key: "created_at",
       header: "Criado",
-      hideOn: "sm",
+      hideOn: "lg",
       render: (g: GroupRow) => (
         <span className="text-xs text-muted-foreground">{g.created_at ? formatDateSimpleBR(g.created_at) : "—"}</span>
       ),
@@ -515,7 +517,7 @@ export default function SystemGroups() {
     {
       key: "last_access_at",
       header: "Última atividade",
-      hideOn: "sm",
+      hideOn: "lg",
       render: (g: GroupRow) => {
         const tone = getLastActivityTone(g.last_access_at);
         const label = g.last_access_at ? formatDateSimpleBR(g.last_access_at) : "Sem atividade";

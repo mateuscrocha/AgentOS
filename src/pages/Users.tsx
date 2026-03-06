@@ -170,7 +170,6 @@ export default function Users() {
   const [scopeType, setScopeType] = useState<'organization' | 'group' | ''>('');
   const [selectedScopeOrgId, setSelectedScopeOrgId] = useState<string>('');
   const [selectedScopeGroupId, setSelectedScopeGroupId] = useState<string>('');
-  const [assignOrgAdmin, setAssignOrgAdmin] = useState(false);
   const [editUserName, setEditUserName] = useState("");
   const [editUserPhone, setEditUserPhone] = useState("");
   const [editUserStatus, setEditUserStatus] = useState<'active' | 'inactive' | 'unknown'>('active');
@@ -415,7 +414,6 @@ export default function Users() {
       setScopeType('');
       setSelectedScopeOrgId('');
       setSelectedScopeGroupId('');
-      setAssignOrgAdmin(false);
       if (typeof result?.user_id === 'string' && result.user_id) {
         markRecentlyChanged(result.user_id);
       }
@@ -732,6 +730,30 @@ export default function Users() {
       if (!best) return current;
       return ROLE_PRIORITY[current.role] > ROLE_PRIORITY[best.role] ? current : best;
     }, null as UserRole | null)?.role ?? null;
+  };
+
+  // Loading states
+  const handleResetPassword = () => {
+    if (!userToEdit) return;
+    const password = resetPasswordValue;
+    const confirm = resetPasswordConfirm;
+    if (!password || !confirm) {
+      notifyValidation.fieldsRequired("Preencha senha e confirmação.");
+      return;
+    }
+    const passwordError = validateAppPassword(password);
+    if (passwordError) {
+      notifyValidation.invalidPassword(passwordError);
+      return;
+    }
+    if (password !== confirm) {
+      notifyValidation.invalidConfirmation("Senha e confirmação devem ser iguais.");
+      return;
+    }
+    resetUserPasswordMutation.mutate({
+      userId: userToEdit.id,
+      password,
+    });
   };
 
   // Loading states
@@ -1262,20 +1284,6 @@ export default function Users() {
                     </SelectContent>
                   </Select>
               )}
-              {scopeType === 'organization' && (
-                <div className="flex items-center gap-2 pt-2">
-                  <input
-                    id="assign-org-admin"
-                    type="checkbox"
-                    checked={assignOrgAdmin}
-                    onChange={(e) => setAssignOrgAdmin(e.target.checked)}
-                    className="h-4 w-4 rounded border-border"
-                  />
-                  <label htmlFor="assign-org-admin" className="text-sm text-card-foreground">
-                    Conceder papel de Gestor de Organização para esta organização
-                  </label>
-                </div>
-              )}
             </div>
           </div>
           <DialogFooter>
@@ -1323,7 +1331,7 @@ export default function Users() {
                   whatsapp_phone: phone,
                   scope_type: scopeType as 'organization' | 'group',
                   scope_id: scopeId,
-                  assign_org_admin: scopeType === 'organization' && assignOrgAdmin,
+                  assign_org_admin: scopeType === 'organization',
                 });
               }}
               disabled={createUserMutation.isPending}
@@ -1424,25 +1432,7 @@ export default function Users() {
                   type="button"
                   variant="outline"
                   disabled={resetUserPasswordMutation.isPending}
-                  onClick={() => {
-                    if (!userToEdit) return;
-                    const password = resetPasswordValue;
-                    const confirm = resetPasswordConfirm;
-                    if (!password || !confirm) {
-                      notifyValidation.fieldsRequired("Preencha senha e confirmação.");
-                      return;
-                    }
-                    const passwordError = validateAppPassword(password);
-                    if (passwordError) {
-                      notifyValidation.invalidPassword(passwordError);
-                      return;
-                    }
-                    if (password !== confirm) {
-                      notifyValidation.invalidConfirmation("Senha e confirmação devem ser iguais.");
-                      return;
-                    }
-                    resetUserPasswordMutation.mutate({ userId: userToEdit.id, password });
-                  }}
+                  onClick={handleResetPassword}
                 >
                   {resetUserPasswordMutation.isPending ? (
                     <>

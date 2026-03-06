@@ -38,6 +38,7 @@ interface NavItem {
   label: string;
   href: string;
   badge?: number;
+  featureBadge?: string;
 }
 
 const bottomNavItems: NavItem[] = [
@@ -227,7 +228,7 @@ export function AdminSidebar() {
     if (!currentGroupId) return [];
     const items: NavItem[] = [
       { icon: LayoutDashboard, label: "Painel do grupo", href: `/groups/${currentGroupId}` },
-      { icon: Headset, label: "Atendimento", href: `/groups/${currentGroupId}/support` },
+      { icon: Headset, label: "Atendimento", href: `/groups/${currentGroupId}/support`, featureBadge: "Novo" },
       { icon: FileText, label: "Diário", href: `/groups/${currentGroupId}/summaries` },
       { icon: MessageSquare, label: "Mensagens", href: `/groups/${currentGroupId}/messages` },
       { icon: Users, label: "Membros", href: `/groups/${currentGroupId}/members` },
@@ -288,6 +289,11 @@ export function AdminSidebar() {
         >
           <NavLink to={item.href} onClick={handleNavClick}>
             <item.icon className={cn(active && "text-primary")} />
+            {item.featureBadge ? (
+              <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary group-data-[collapsible=icon]:hidden">
+                {item.featureBadge}
+              </span>
+            ) : null}
             <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
             {showThisHint || item.badge ? (
               <span className="ml-auto flex items-center gap-2 group-data-[collapsible=icon]:hidden">

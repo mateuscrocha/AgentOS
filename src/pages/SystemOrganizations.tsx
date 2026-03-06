@@ -98,8 +98,6 @@ export default function SystemOrganizations() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "suspended">("all");
   const [orderBy, setOrderBy] = useState<"name" | "created_at">("name");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
-  const [removeOrg, setRemoveOrg] = useState<OrganizationListItem | null>(null);
-  const [removingOrgId, setRemovingOrgId] = useState<string | null>(null);
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<OrganizationListItem | null>(null);
   const [cascadeOrg, setCascadeOrg] = useState<OrganizationListItem | null>(null);
@@ -172,22 +170,32 @@ export default function SystemOrganizations() {
 
   const renderOrgActions = (org: OrganizationListItem) => {
     const isStatusPending = pendingStatusOrgId === org.id;
-    const isDeletePending = removingOrgId === org.id;
     const isCascadePending = deletingCascadeOrgId === org.id;
-    const actionsDisabled = isStatusPending || isDeletePending || isCascadePending;
-    const groupsCount = orgGroupCounts?.[org.id] ?? 0;
-    const canSimpleDelete = groupsCount === 0;
+    const actionsDisabled = isStatusPending || isCascadePending;
 
     return (
       <RowActions>
-        <DropdownMenuItem onSelect={() => navigate(`/org/${org.id}`)} disabled={actionsDisabled}>
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/org/${org.id}`);
+          }}
+          disabled={actionsDisabled}
+        >
           Abrir
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setEditingOrg(org)} disabled={actionsDisabled}>
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditingOrg(org);
+          }}
+          disabled={actionsDisabled}
+        >
           Editar
         </DropdownMenuItem>
         <DropdownMenuItem
-          onSelect={async () => {
+          onClick={async (e) => {
+            e.stopPropagation();
             try {
               await updateStatusMutation.mutateAsync({
                 id: org.id,
@@ -209,21 +217,15 @@ export default function SystemOrganizations() {
           Ações destrutivas
         </DropdownMenuLabel>
         <DropdownMenuItem
-          onSelect={() => setRemoveOrg(org)}
-          className="text-destructive focus:text-destructive"
-          disabled={actionsDisabled || !canSimpleDelete}
-        >
-          {canSimpleDelete ? "Excluir" : "Excluir (remova grupos antes)"}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             setCascadeOrg(org);
             setConfirmCascadeName("");
           }}
           className="text-destructive focus:text-destructive"
           disabled={actionsDisabled}
         >
-          Excluir organização e dados
+          Excluir organização
         </DropdownMenuItem>
       </RowActions>
     );
@@ -644,53 +646,10 @@ export default function SystemOrganizations() {
           />
         </div>
 
-        <AlertDialog open={!!removeOrg} onOpenChange={(open) => !open && setRemoveOrg(null)}>
-          <AlertDialogContent className="bg-card border-border">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-card-foreground">Excluir organização</AlertDialogTitle>
-              <AlertDialogDescription className="text-muted-foreground">
-                Esta ação é definitiva. Se existirem grupos ligados a esta organização, a exclusão será bloqueada.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="mr-2">Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={async () => {
-                  if (!removeOrg) return;
-                  const groupsCount = orgGroupCounts?.[removeOrg.id] ?? 0;
-                  if (groupsCount > 0) {
-                    notify.warning("Operação bloqueada", "Exclua os grupos antes de remover a organização.");
-                    return;
-                  }
-                  setRemovingOrgId(removeOrg.id);
-                  try {
-                    const { error } = await supabase
-                      .from("organizations")
-                      .delete()
-                      .eq("id", removeOrg.id);
-                    if (error) throw error;
-                    notify.success("Organização excluída", "Tudo certo.");
-                    setRemoveOrg(null);
-                    await refreshOrganizationsData();
-                  } catch (err: any) {
-                    const parsed = parseDbError(err);
-                    notifyActionError(parsed.title, parsed, "Tente novamente.");
-                  } finally {
-                    setRemovingOrgId(null);
-                  }
-                }}
-                disabled={removingOrgId === removeOrg?.id}
-              >
-                {removingOrgId === removeOrg?.id ? "Excluindo..." : "Excluir"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
         <AlertDialog open={!!cascadeOrg} onOpenChange={(open) => !open && setCascadeOrg(null)}>
           <AlertDialogContent className="bg-card border-border">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-card-foreground">Excluir com tudo</AlertDialogTitle>
+              <AlertDialogTitle className="text-card-foreground">Excluir organização</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
                 Isso remove a organização, seus grupos e dados associados.
                 Para confirmar, digite o nome da organização.
@@ -739,7 +698,7 @@ export default function SystemOrganizations() {
                       return;
                     }
                     if (parsed.code === "FORBIDDEN" || /forbidden/i.test(parsed.message)) {
-                      notify.error("Acesso negado", "Apenas admins do sistema podem excluir com tudo.");
+                      notify.error("Acesso negado", "Apenas admins do sistema podem excluir organizações.");
                       return;
                     }
                     if (parsed.code === "UNAUTHORIZED" || /unauthorized/i.test(parsed.message)) {
@@ -756,7 +715,7 @@ export default function SystemOrganizations() {
                   confirmCascadeName.trim() !== (cascadeOrg?.name ?? "").trim()
                 }
               >
-                {deletingCascadeOrgId === cascadeOrg?.id ? "Excluindo..." : "Excluir com tudo"}
+                {deletingCascadeOrgId === cascadeOrg?.id ? "Excluindo..." : "Excluir"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

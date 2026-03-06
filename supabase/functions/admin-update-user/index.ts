@@ -69,8 +69,7 @@ export function createAdminUpdateUserHandler(args?: {
       return json({ success: false, message: "Unauthorized", code: "UNAUTHORIZED" }, 401);
     }
 
-    const requesterId = userData.user.id;
-    const { data: isAdmin, error: isAdminErr } = await supabaseUser.rpc("is_system_admin", { _user_id: requesterId });
+    const { data: isAdmin, error: isAdminErr } = await supabaseUser.rpc("is_system_admin", { _user_id: userData.user.id });
     if (isAdminErr) {
       return json({ success: false, message: isAdminErr.message, code: "SERVER_ERROR" }, 500);
     }
