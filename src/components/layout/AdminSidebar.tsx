@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
   Bell,
+  ChartColumnIncreasing,
   Building2,
   ChevronDown,
   FileText,
@@ -39,6 +40,7 @@ interface NavItem {
   href: string;
   badge?: number;
   featureBadge?: string;
+  disabled?: boolean;
 }
 
 const bottomNavItems: NavItem[] = [
@@ -233,9 +235,15 @@ export function AdminSidebar() {
       { icon: MessageSquare, label: "Mensagens", href: `/groups/${currentGroupId}/messages` },
       { icon: Users, label: "Membros", href: `/groups/${currentGroupId}/members` },
       { icon: ListChecks, label: "Enquetes", href: `/groups/${currentGroupId}/polls` },
-      { icon: Activity, label: "Eventos", href: `/groups/${currentGroupId}/events` },
     ];
-    if (isSystemAdmin) items.push({ icon: Settings, label: "Configurações do grupo", href: `/groups/${currentGroupId}/edit` });
+    if (isSystemAdmin) {
+      items.push({
+        icon: Settings,
+        label: "Configurações do grupo",
+        href: `/groups/${currentGroupId}/edit`,
+        disabled: true,
+      });
+    }
     return items;
   }, [currentGroupId, isSystemAdmin]);
 
@@ -244,6 +252,7 @@ export function AdminSidebar() {
     return [
       { icon: Users, label: "Usuários", href: "/system/users" },
       { icon: Activity, label: "Atividade", href: "/system/activity" },
+      { icon: ChartColumnIncreasing, label: "Trends", href: "/system/trends" },
       { icon: FileText, label: "Eventos", href: "/system/events" },
       { icon: Settings, label: "Configurações do sistema", href: "/system/settings" },
     ];
@@ -266,18 +275,21 @@ export function AdminSidebar() {
   }, []);
 
   const renderNavItem = (item: NavItem) => {
-    const active = isActive(item.href);
+    const active = !item.disabled && isActive(item.href);
     const isGroupsItem = item.label === "Grupos";
     const showThisHint = showGroupsHint && isGroupsItem;
     const handleNavClick = () => {
+      if (item.disabled) return;
       if (isGroupsItem) handleGroupsNavClick();
     };
     return (
       <SidebarMenuItem key={`${item.href}:${item.label}`}>
         <SidebarMenuButton
-          asChild
+          asChild={!item.disabled}
           isActive={active}
           tooltip={item.label}
+          aria-disabled={item.disabled}
+          disabled={item.disabled}
           className={cn(
             "relative",
             "before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-transparent",
@@ -285,31 +297,44 @@ export function AdminSidebar() {
             "data-[active=true]:before:bg-primary",
             showThisHint && "bg-primary/5 ring-1 ring-primary/20",
             showThisHint && groupsHintPulse && "animate-pulse",
+            item.disabled && "cursor-not-allowed opacity-50",
           )}
         >
-          <NavLink to={item.href} onClick={handleNavClick}>
-            <item.icon className={cn(active && "text-primary")} />
-            {item.featureBadge ? (
-              <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary group-data-[collapsible=icon]:hidden">
-                {item.featureBadge}
-              </span>
-            ) : null}
-            <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-            {showThisHint || item.badge ? (
-              <span className="ml-auto flex items-center gap-2 group-data-[collapsible=icon]:hidden">
-                {showThisHint ? (
-                  <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                    Comece por aqui
-                  </span>
-                ) : null}
-                {item.badge ? (
-                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
-                    {item.badge}
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
-          </NavLink>
+          {item.disabled ? (
+            <>
+              <item.icon className={cn(active && "text-primary")} />
+              {item.featureBadge ? (
+                <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary group-data-[collapsible=icon]:hidden">
+                  {item.featureBadge}
+                </span>
+              ) : null}
+              <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+            </>
+          ) : (
+            <NavLink to={item.href} onClick={handleNavClick}>
+              <item.icon className={cn(active && "text-primary")} />
+              {item.featureBadge ? (
+                <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary group-data-[collapsible=icon]:hidden">
+                  {item.featureBadge}
+                </span>
+              ) : null}
+              <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+              {showThisHint || item.badge ? (
+                <span className="ml-auto flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+                  {showThisHint ? (
+                    <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      Comece por aqui
+                    </span>
+                  ) : null}
+                  {item.badge ? (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+            </NavLink>
+          )}
         </SidebarMenuButton>
       </SidebarMenuItem>
     );

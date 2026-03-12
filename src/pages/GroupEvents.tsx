@@ -35,7 +35,7 @@ const PAGE_SIZE = 100;
 export default function GroupEvents() {
   const { groupId } = useParams<{ groupId: string }>();
   const { loading: authLoading } = useAuth();
-  const { hasGroupAccess, isLoading: rolesLoading } = useUserRoles();
+  const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
   
   const [page, setPage] = useState(1);
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
@@ -59,10 +59,10 @@ export default function GroupEvents() {
       if (error) throw error;
       return data;
     },
-    enabled: !!groupId && !authLoading,
+    enabled: !!groupId && !authLoading && isSystemAdmin,
   });
 
-  const hasAccess = groupId ? hasGroupAccess(groupId, group?.organization_id ?? undefined) : false;
+  const hasAccess = isSystemAdmin;
 
   // Fetch organization info for breadcrumbs
   const { data: org } = useQuery({
@@ -76,7 +76,7 @@ export default function GroupEvents() {
       if (error) throw error;
       return data;
     },
-    enabled: !!group?.organization_id,
+    enabled: !!group?.organization_id && isSystemAdmin,
   });
 
   // Fetch distinct event types for this group

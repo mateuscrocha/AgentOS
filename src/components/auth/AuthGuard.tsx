@@ -23,7 +23,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, loading } = useAuth();
 
   const handleSessionExpired = useCallback(() => {
-    console.info('[auth] session-expired');
     notify.error("Sessão expirada", "Faça login novamente.");
     navigate('/auth', { replace: true });
   }, [navigate]);

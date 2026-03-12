@@ -18,6 +18,8 @@ import {
   Plus,
   HelpCircle,
   Loader2,
+  Ban,
+  X,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +58,7 @@ import {
   buildStoredPeriod,
 } from "@/components/group-dashboard/period-utils";
 import { countWordsFromRows, extractBigramsFromRows } from "@/utils/keywords";
+import { useKeywordBlacklist } from "@/hooks/use-keyword-blacklist";
 import { subDays } from "date-fns";
 import {
   Collapsible,
@@ -1180,9 +1183,15 @@ const Org = () => {
 
   // Fetch groups for this organization
   
+  const {
+    items: keywordBlacklist,
+    blacklistSet,
+    add: addKeywordToBlacklist,
+    remove: removeKeywordFromBlacklist,
+  } = useKeywordBlacklist();
 
   const { data: orgKeywords, isLoading: keywordsLoading, error: keywordsError, refetch: refetchKeywords } = useQuery({
-    queryKey: ['org-keywords', orgId, orgGroupIds?.join(','), currentStartISO, currentEndISO, previousStartISO, previousEndISO],
+    queryKey: ['org-keywords', orgId, orgGroupIds?.join(','), currentStartISO, currentEndISO, previousStartISO, previousEndISO, keywordBlacklist.join(',')],
     queryFn: async () => {
       if (!orgGroupIds || orgGroupIds.length === 0) return { words: [], bigrams: [] } as any;
 
@@ -1217,8 +1226,8 @@ const Org = () => {
       const currRows = await buildRows(currentStartISO, currentEndISO);
       const prevRows = await buildRows(previousStartISO, previousEndISO);
 
-      const currCounts = countWordsFromRows(currRows);
-      const prevCounts = countWordsFromRows(prevRows);
+      const currCounts = countWordsFromRows(currRows, { blacklist: blacklistSet });
+      const prevCounts = countWordsFromRows(prevRows, { blacklist: blacklistSet });
       const prevMap: Record<string, number> = {};
       (prevCounts || []).forEach((w) => { prevMap[w.word] = Number(w.count || 0); });
       const words = (currCounts || [])
@@ -1230,8 +1239,8 @@ const Org = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 12);
 
-      const currBigrams = extractBigramsFromRows(currRows);
-      const prevBigrams = extractBigramsFromRows(prevRows);
+      const currBigrams = extractBigramsFromRows(currRows, 2, { blacklist: blacklistSet });
+      const prevBigrams = extractBigramsFromRows(prevRows, 2, { blacklist: blacklistSet });
       const prevBigramMap: Record<string, number> = {};
       (prevBigrams || []).forEach((b) => { prevBigramMap[b.phrase] = Number(b.count || 0); });
       const bigrams = (currBigrams || [])
@@ -1249,6 +1258,16 @@ const Org = () => {
     staleTime: ORG_PAGE_STALE_TIME_MS,
     gcTime: ORG_PAGE_GC_TIME_MS,
   });
+
+  const handleAddKeywordToBlacklist = (word: string) => {
+    addKeywordToBlacklist(word);
+    notify.success("Palavra adicionada à blacklist", `"${word}" não aparecerá mais nos rankings desta sessão local.`);
+  };
+
+  const handleRemoveKeywordFromBlacklist = (word: string) => {
+    removeKeywordFromBlacklist(word);
+    notify.success("Palavra removida da blacklist", `"${word}" voltou a ser considerada nos rankings.`);
+  };
 
   const signals = useMemo(
     () => (Array.isArray(orgGroupsSignals) ? orgGroupsSignals : []),
@@ -2378,6 +2397,27 @@ const Org = () => {
               </h3>
               <div className="text-xs text-muted-foreground">Amostra até 2000 mensagens de texto</div>
             </div>
+            {keywordBlacklist.length > 0 && (
+              <div className="rounded-lg border border-border/70 bg-secondary/20 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <Ban className="h-3.5 w-3.5" />
+                  Blacklist ativa
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {keywordBlacklist.map((word) => (
+                    <button
+                      key={word}
+                      type="button"
+                      onClick={() => handleRemoveKeywordFromBlacklist(word)}
+                      className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-card px-2 py-1 text-[12px] font-medium text-card-foreground transition-colors hover:bg-secondary"
+                    >
+                      <span>{word}</span>
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {keywordsLoading ? (
               <LoadingState message="Processando mensagens..." />
             ) : keywordsError ? (
@@ -2401,6 +2441,15 @@ const Org = () => {
                             {w.delta > 0 ? `+${w.delta}%` : w.delta < 0 ? `${w.delta}%` : '0%'}
                           </span>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => handleAddKeywordToBlacklist(w.word)}
+                          className="inline-flex items-center rounded-sm p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                          aria-label={`Adicionar ${w.word} à blacklist`}
+                          title="Adicionar à blacklist"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                        </button>
                       </span>
                     ))}
                   </div>

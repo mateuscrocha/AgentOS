@@ -98,10 +98,11 @@
 - Leitura via Supabase (programática) usa:
   - `from('events').select('*').eq('entity_type', 'group').eq('entity_id', groupId).order('created_at', { ascending: false })`
   - Opcional: filtrar por `event_type` e paginar com `.range(from, to)`.
-- A UI não exibe mais o item "Atividade" no menu do grupo, mas a rota `/groups/:groupId/events` continua existindo para acesso direto.
+- A UI não exibe o item no menu do grupo.
+- A rota `/groups/:groupId/events` continua existindo, mas agora deve ser acessível apenas por `SYSTEM_ADMIN`.
 - Permissões:
   - A política padrão de leitura em `events` é restrita a `SYSTEM_ADMIN`.
-  - Para acesso por `ORG_ADMIN`/`GROUP_MANAGER`, criar endpoint/Edge Function dedicado com checagem `has_group_access`.
+  - `ORG_ADMIN`, `GROUP_MANAGER` e `READ_ONLY` não devem ver CTA nem acessar a tela de eventos do grupo.
 
 ## Criação de usuário por Admin (novo)
 - Fluxo de criação em `src/pages/Users.tsx`:

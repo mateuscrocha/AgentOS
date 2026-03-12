@@ -29,6 +29,7 @@ interface GroupGrowthSectionProps {
   isLoading?: boolean;
   periodLabel?: string;
   groupId?: string;
+  canViewFullHistory?: boolean;
 }
 
 export function GroupGrowthSection({
@@ -40,6 +41,7 @@ export function GroupGrowthSection({
   isLoading,
   periodLabel = "período",
   groupId,
+  canViewFullHistory = false,
 }: GroupGrowthSectionProps) {
   const entryIds = new Set<string>();
   const exitIds = new Set<string>();
@@ -64,7 +66,7 @@ export function GroupGrowthSection({
 
   const visibleEvents = sortedEvents.slice(0, 5);
   const hasMoreEvents = sortedEvents.length > 5;
-  const eventsHref = groupId ? `/groups/${groupId}/events` : undefined;
+  const eventsHref = canViewFullHistory && groupId ? `/groups/${groupId}/events` : undefined;
 
   const displayedCurrentMembers = Math.max(0, currentMembers);
 

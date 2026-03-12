@@ -2,6 +2,12 @@ import { useMemo } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  buildMentionMapFromRows,
+  buildMentionPlusPhones,
+  buildMentionProviderCandidates,
+  extractMentionIds,
+} from "@/lib/message-mentions";
 
 export interface MessageFeed {
   message_id: string;
@@ -30,7 +36,6 @@ export interface ReactionSummary {
   }[];
 }
 
-const MENTION_REGEX = /@([0-9]{5,})/g;
 const GROUP_MESSAGES_STALE_TIME_MS = 30_000;
 const GROUP_MESSAGES_GC_TIME_MS = 5 * 60_000;
 
@@ -242,16 +247,36 @@ export function useGroupMessages({
     return ids.join(",");
   }, [messagesData?.items]);
 
+  const { data: pageMentionSources } = useQuery({
+    queryKey: ["group-messages-page-mention-sources", groupId, messageIdsKey],
+    queryFn: async () => {
+      if (!messageIdsKey) return {} as Record<string, string>;
+
+      const messageIds = messageIdsKey.split(",").filter(Boolean);
+      const { data, error } = await supabase
+        .from("messages")
+        .select("id,text,content,media_caption")
+        .eq("group_id", groupId)
+        .in("id", messageIds);
+
+      if (error) throw error;
+
+      return (data ?? []).reduce((acc, row: any) => {
+        acc[String(row.id)] = [row.text, row.content, row.media_caption].filter(Boolean).join("\n");
+        return acc;
+      }, {} as Record<string, string>);
+    },
+    enabled: !!groupId && isAuthenticated && !!messageIdsKey,
+    staleTime: GROUP_MESSAGES_STALE_TIME_MS,
+    gcTime: GROUP_MESSAGES_GC_TIME_MS,
+  });
+
   const mentionIdsKey = useMemo(() => {
-    const ids = new Set<string>();
-    for (const item of messagesData?.items || []) {
-      const src = (item.content_preview || "").toString();
-      for (const match of src.matchAll(MENTION_REGEX)) {
-        if (match[1]) ids.add(match[1]);
-      }
-    }
-    return Array.from(ids).sort().join(",");
-  }, [messagesData?.items]);
+    const ids = extractMentionIds(
+      (messagesData?.items || []).map((item) => pageMentionSources?.[item.message_id] || item.content_preview),
+    );
+    return ids.join(",");
+  }, [messagesData?.items, pageMentionSources]);
 
   const { data: pageMentionsMap } = useQuery({
     queryKey: ["group-messages-page-mentions", groupId, mentionIdsKey],
@@ -259,41 +284,28 @@ export function useGroupMessages({
       if (!mentionIdsKey) return {} as Record<string, string>;
 
       const mentionIds = mentionIdsKey.split(",").filter(Boolean);
-      const plusPhones = mentionIds.map((id) => (id.startsWith("+") ? id : `+${id}`));
-      const providerCandidates = [
-        ...mentionIds,
-        ...mentionIds.map((id) => `${id}@c.us`),
-        ...mentionIds.map((id) => `${id}@s.whatsapp.net`),
-      ];
+      const plusPhones = buildMentionPlusPhones(mentionIds);
+      const providerCandidates = buildMentionProviderCandidates(mentionIds);
 
-      const [{ data: byProvider }, { data: byPhone }] = await Promise.all([
+      const [{ data: byProvider }, { data: byPhone }, { data: byLid }] = await Promise.all([
         (supabase as any)
           .from("members")
-          .select("whatsapp_provider_id,name,display_name,phone_e164")
+          .select("whatsapp_provider_id,name,display_name,phone_e164,lid")
           .eq("group_id", groupId)
           .in("whatsapp_provider_id", providerCandidates),
         (supabase as any)
           .from("members")
-          .select("phone_e164,name,display_name")
+          .select("phone_e164,name,display_name,lid")
           .eq("group_id", groupId)
           .in("phone_e164", plusPhones),
+        (supabase as any)
+          .from("members")
+          .select("lid,name,display_name,phone_e164")
+          .eq("group_id", groupId)
+          .in("lid", mentionIds),
       ]);
 
-      const map: Record<string, string> = {};
-      const toDigits = (value: string) => value.replace(/\D/g, "");
-      const labelFrom = (row: any) => String(row?.display_name || row?.name || row?.phone_e164 || "").trim();
-
-      for (const row of byProvider || []) {
-        const key = toDigits(String((row as any).whatsapp_provider_id || ""));
-        const label = labelFrom(row);
-        if (key && label) map[key] = label;
-      }
-      for (const row of byPhone || []) {
-        const key = String((row as any).phone_e164 || "").replace(/^\+/, "");
-        const label = labelFrom(row);
-        if (key && label) map[key] = label;
-      }
-      return map;
+      return buildMentionMapFromRows(byProvider, byPhone, byLid);
     },
     enabled: !!groupId && isAuthenticated && !!mentionIdsKey,
     staleTime: GROUP_MESSAGES_STALE_TIME_MS,

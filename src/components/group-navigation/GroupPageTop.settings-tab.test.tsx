@@ -54,7 +54,7 @@ vi.mock("@/components/ui/tabs", () => {
   return {
     Tabs: ({ children }: { children: any }) => <div>{children}</div>,
     TabsList: ({ children }: { children: any }) => <div>{children}</div>,
-    TabsTrigger: ({ children }: { children: any }) => <button type="button">{children}</button>,
+    TabsTrigger: ({ children, ...props }: { children: any } & Record<string, any>) => <button type="button" {...props}>{children}</button>,
   };
 });
 
@@ -181,7 +181,7 @@ describe("GroupTabs — remoção da aba Atividade", () => {
     container.remove();
   });
 
-  it("exibe Configurações para SYSTEM_ADMIN", async () => {
+  it("exibe Configurações desabilitado para SYSTEM_ADMIN", async () => {
     isSystemAdminValue = true;
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -196,6 +196,10 @@ describe("GroupTabs — remoção da aba Atividade", () => {
     });
 
     expect(container.textContent).toContain("Configurações");
+    const settingsButton = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Configurações"),
+    );
+    expect(settingsButton?.hasAttribute("disabled")).toBe(true);
 
     await act(async () => {
       root.unmount();

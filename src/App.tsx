@@ -10,6 +10,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { AuthGuard } from "./components/auth/AuthGuard";
 import { AuthProvider } from "@/hooks/use-auth";
+import { useActivityTracking } from "@/hooks/use-activity-tracking";
 import { queryClient } from "@/lib/query-client";
 import { installConsoleErrorNoiseFilter } from "@/lib/console-error-filter";
 import { SUPABASE_CONFIG_ERROR } from "@/integrations/supabase/client";
@@ -19,6 +20,7 @@ const SystemEvents = lazy(() => import("./pages/SystemEvents"));
 const SystemOrganizations = lazy(() => import("./pages/SystemOrganizations"));
 const SystemGroups = lazy(() => import("./pages/SystemGroups"));
 const SystemActivity = lazy(() => import("./pages/SystemActivity"));
+const SystemTrends = lazy(() => import("./pages/SystemTrends"));
 const Org = lazy(() => import("./pages/Org"));
 const Group = lazy(() => import("./pages/Group"));
 const GroupMembers = lazy(() => import("./pages/GroupMembers"));
@@ -39,6 +41,11 @@ const Users = lazy(() => import("./pages/Users"));
 const Alerts = lazy(() => import("./pages/Alerts"));
 
 installConsoleErrorNoiseFilter();
+
+function ActivityTrackingBoundary() {
+  useActivityTracking();
+  return null;
+}
 
 const MisconfiguredApp = ({ message }: { message: string }) => (
   <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -62,6 +69,7 @@ function AppRoutes() {
 
   return (
     <Suspense fallback={<div className="p-4 sm:p-6"><PageSkeleton /></div>}>
+      <ActivityTrackingBoundary />
       <Routes key={location.pathname}>
       {/* Auth and protected routes */}
       <Route path="/" element={<Index />} />
@@ -78,6 +86,7 @@ function AppRoutes() {
       <Route path="/system/users" element={<Users />} />
       <Route path="/system/events" element={<SystemEvents />} />
       <Route path="/system/activity" element={<SystemActivity />} />
+      <Route path="/system/trends" element={<SystemTrends />} />
       <Route path="/system/settings" element={<Settings />} />
       <Route path="/system/alerts" element={<Alerts />} />
       <Route path="/system/alert-definitions" element={<Alerts />} />

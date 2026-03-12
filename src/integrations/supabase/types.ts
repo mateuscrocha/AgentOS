@@ -1459,27 +1459,36 @@ export type Database = {
           created_at: string
           event_type: string
           id: string
-          org_id: string
+          metadata: Json
+          org_id: string | null
           page: string | null
+          route: string | null
           role: string
+          session_id: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
           event_type: string
           id?: string
-          org_id: string
+          metadata?: Json
+          org_id?: string | null
           page?: string | null
+          route?: string | null
           role: string
+          session_id?: string | null
           user_id: string
         }
         Update: {
           created_at?: string
           event_type?: string
           id?: string
-          org_id?: string
+          metadata?: Json
+          org_id?: string | null
           page?: string | null
+          route?: string | null
           role?: string
+          session_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1497,6 +1506,54 @@ export type Database = {
             referencedRelation: "v_organizations_br_time"
             referencedColumns: ["id"]
           }
+        ]
+      }
+      user_access_facts: {
+        Row: {
+          created_at: string
+          first_login_at: string | null
+          last_login_at: string | null
+          last_org_id: string | null
+          last_role: string | null
+          last_seen_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_login_at?: string | null
+          last_login_at?: string | null
+          last_org_id?: string | null
+          last_role?: string | null
+          last_seen_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          first_login_at?: string | null
+          last_login_at?: string | null
+          last_org_id?: string | null
+          last_role?: string | null
+          last_seen_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_access_facts_last_org_id_fkey"
+            columns: ["last_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_access_facts_last_org_id_fkey"
+            columns: ["last_org_id"]
+            isOneToOne: false
+            referencedRelation: "v_organizations_br_time"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -3283,6 +3340,16 @@ export type Database = {
         Args: { _end: string; _limit?: number; _start: string }
         Returns: { admins: number; page: string; page_views: number }[]
       }
+      record_user_activity: {
+        Args: {
+          _event_type: string
+          _metadata?: Json
+          _page?: string
+          _route?: string
+          _session_id?: string
+        }
+        Returns: undefined
+      }
       can_create_group: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
@@ -3328,6 +3395,57 @@ export type Database = {
         Returns: boolean
       }
       is_system_admin: { Args: { _user_id: string }; Returns: boolean }
+      system_user_activity_list: {
+        Args: {
+          _end: string
+          _limit?: number
+          _offset?: number
+          _order_by?: string
+          _order_dir?: string
+          _recent_days?: number
+          _role?: string
+          _search?: string
+          _start: string
+          _status?: string
+        }
+        Returns: {
+          activity_status: string
+          first_login_at: string | null
+          last_login_at: string | null
+          last_seen_at: string | null
+          organization_id: string | null
+          organization_name: string | null
+          page_views: number
+          primary_role: string
+          top_pages: string[]
+          total_count: number
+          user_id: string
+          user_name: string
+        }[]
+      }
+      system_user_activity_overview: {
+        Args: { _end: string; _recent_days?: number; _start: string }
+        Returns: {
+          users_active_recent: number
+          users_inactive_recent: number
+          users_logged_in: number
+          users_never_logged_in: number
+          users_total: number
+        }[]
+      }
+      system_user_activity_timeline: {
+        Args: { _end: string; _limit?: number; _start: string; _user_id: string }
+        Returns: {
+          created_at: string
+          event_type: string
+          org_id: string | null
+          org_name: string | null
+          page: string | null
+          role: string
+          route: string | null
+          session_id: string | null
+        }[]
+      }
       org_collaborator_group_kpis: {
         Args: { _end: string; _org_id: string; _start: string }
         Returns: {

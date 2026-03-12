@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { MemberInlineTrigger } from "@/components/members/MemberInlineTrigger";
 import { formatDateTimeBR } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import {
+  buildMentionMapFromRows,
+  buildMentionPlusPhones,
+  buildMentionProviderCandidates,
+} from "@/lib/message-mentions";
 import { applyWhatsAppStylesToParts, formatWhatsAppStyles } from "@/lib/whatsapp-format";
 import { translateMessageType } from "@/lib/messages";
 import { Link as LinkIcon, Image, Mic, Video, FileText, MessageSquare, ArrowDownLeft, ArrowUpRight, Smile } from "lucide-react";
@@ -238,37 +243,26 @@ export function MessageDetailsDrawer({ open, onOpenChange, groupId, messageId, v
     queryKey: ["message-details-mentions", groupId, mentionIds.join(",")],
     queryFn: async () => {
       if (!mentionIds.length) return {} as Record<string, string>;
-      const plusPhones = mentionIds.map(id => (id.startsWith("+") ? id : `+${id}`));
-      const providerCandidates = [
-        ...mentionIds,
-        ...mentionIds.map(id => `${id}@c.us`),
-        ...mentionIds.map(id => `${id}@s.whatsapp.net`),
-      ];
-      const { data: byProvider } = await supabase
-        .from("members")
-        .select("whatsapp_provider_id,name,display_name,phone_e164")
-        .eq("group_id", groupId)
-        .in("whatsapp_provider_id", providerCandidates);
-      const { data: byPhone } = await supabase
-        .from("members")
-        .select("phone_e164,name,display_name")
-        .eq("group_id", groupId)
-        .in("phone_e164", plusPhones);
-      const map: Record<string, string> = {};
-      const toDigits = (s: string) => s.replace(/\D/g, "");
-      (byProvider || []).forEach(m => {
-        const keyFull = (m as any).whatsapp_provider_id as string;
-        const key = toDigits(keyFull || "");
-        const val = ((m as any).display_name as string) || ((m as any).name as string) || ((m as any).phone_e164 as string);
-        if (key) map[key] = val;
-      });
-      (byPhone || []).forEach(m => {
-        const phone = ((m as any).phone_e164 as string) || "";
-        const key = phone.replace(/^\+/, "");
-        const val = ((m as any).display_name as string) || ((m as any).name as string) || phone;
-        if (key) map[key] = val;
-      });
-      return map;
+      const plusPhones = buildMentionPlusPhones(mentionIds);
+      const providerCandidates = buildMentionProviderCandidates(mentionIds);
+      const [{ data: byProvider }, { data: byPhone }, { data: byLid }] = await Promise.all([
+        supabase
+          .from("members")
+          .select("whatsapp_provider_id,name,display_name,phone_e164,lid")
+          .eq("group_id", groupId)
+          .in("whatsapp_provider_id", providerCandidates),
+        supabase
+          .from("members")
+          .select("phone_e164,name,display_name,lid")
+          .eq("group_id", groupId)
+          .in("phone_e164", plusPhones),
+        supabase
+          .from("members")
+          .select("lid,name,display_name,phone_e164")
+          .eq("group_id", groupId)
+          .in("lid", mentionIds),
+      ]);
+      return buildMentionMapFromRows(byProvider as any, byPhone as any, byLid as any);
     },
     enabled: open && !!groupId && mentionIds.length > 0,
   });

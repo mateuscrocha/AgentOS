@@ -44,7 +44,7 @@ O núcleo do Admin V4 foi congelado após o Passo 10. Isso significa que:
 - `/group/:groupId` - Grupo
 - `/group/:groupId/members` - Membros
 - `/group/:groupId/messages` - Mensagens
-- `/group/:groupId/events` - Eventos do Grupo
+- `/groups/:groupId/events` - Eventos do Grupo (`SYSTEM_ADMIN`)
 - `/account` - Minha Conta
 - `/auth` - Login/Signup
 - `/no-access` - Sem acesso configurado

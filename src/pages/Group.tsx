@@ -65,7 +65,7 @@ const Group = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { loading: authLoading } = useAuth();
-  const { isLoading: rolesLoading, canEditGroup } = useUserRoles();
+  const { isLoading: rolesLoading, canEditGroup, isSystemAdmin } = useUserRoles();
   const isGroupIdValid = typeof groupId === "string" && UUID_RE.test(groupId);
   
   // Period filter state
@@ -355,6 +355,7 @@ const Group = () => {
             <div className="space-y-8">
               <GroupGrowthSection
                 groupId={group.id}
+                canViewFullHistory={isSystemAdmin}
                 entriesPerDay={memberEntriesPerDay}
                 exitsPerDay={memberExitsPerDay}
                 memberEvents={memberEvents}

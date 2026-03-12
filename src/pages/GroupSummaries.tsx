@@ -54,6 +54,7 @@ async function copyToClipboard(text: string): Promise<void> {
 type UseGroupSummariesReturn = ReturnType<typeof useGroupSummaries>;
 
 function DiaryContent({
+  groupId,
   copiedPlainId,
   copiedRawId,
   dateRange,
@@ -78,6 +79,7 @@ function DiaryContent({
   summariesAll,
   visibleTopics,
 }: {
+  groupId: string;
   copiedPlainId: string | null;
   copiedRawId: string | null;
   dateRange: UseGroupSummariesReturn["dateRange"];
@@ -112,6 +114,30 @@ function DiaryContent({
     const max = 24;
     return showAllKeywords ? keywordList : keywordList.slice(0, max);
   }, [keywordList, showAllKeywords]);
+
+  const selectedSummaryDateKey = selectedSummary?.dateKey || "";
+
+  const { data: selectedDayMessagesCount } = useQuery({
+    queryKey: ["group-summary-day-messages-count", groupId, selectedSummaryDateKey],
+    queryFn: async () => {
+      if (!groupId || !selectedSummaryDateKey) return 0;
+
+      const startIso = `${selectedSummaryDateKey}T00:00:00.000Z`;
+      const endIso = `${selectedSummaryDateKey}T23:59:59.999Z`;
+
+      const { count, error } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("group_id", groupId)
+        .is("deleted_at", null)
+        .gte("created_at", startIso)
+        .lte("created_at", endIso);
+
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!groupId && !!selectedSummaryDateKey,
+  });
 
   const selectedDateLabel = selectedSummary ? formatDateDescriptiveBR(selectedSummary.dateLabel) : "—";
   const selectedDayBlurb = selectedSummary
@@ -351,14 +377,29 @@ function DiaryContent({
             />
 
             <div className="space-y-3">
-              {visibleTopics.visible.map((item) => (
-                <TopicCard
-                  key={item.topic.id}
-                  topic={item.topic}
-                  kind={item.kind}
-                  emphasis={item.topic.rank === 1 ? "top" : "default"}
-                />
-              ))}
+              {visibleTopics.visible.length > 0 ? (
+                visibleTopics.visible.map((item) => (
+                  <TopicCard
+                    key={item.topic.id}
+                    topic={item.topic}
+                    kind={item.kind}
+                    emphasis={item.topic.rank === 1 ? "top" : "default"}
+                  />
+                ))
+              ) : (
+                <Card className="rounded-2xl border border-dashed border-border/80 bg-muted/20 p-5">
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-foreground">Nenhum tópico identificado neste dia</div>
+                    <div className="text-sm leading-relaxed text-muted-foreground">
+                      Houve poucas mensagens, por isso não foi possível identificar tópicos neste dia. Foram{" "}
+                      <span className="font-semibold text-foreground">
+                        {formatCount(selectedDayMessagesCount ?? 0, "mensagem", "mensagens")}
+                      </span>{" "}
+                      no dia.
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               {visibleTopics.hiddenCount > 0 ? (
                 <div className="flex items-center gap-3">
@@ -671,6 +712,7 @@ const GroupSummaries = () => {
           />
         ) : (
           <DiaryContent
+            groupId={normalizedGroupId}
             copiedPlainId={copiedPlainId}
             copiedRawId={copiedRawId}
             dateRange={dateRange}

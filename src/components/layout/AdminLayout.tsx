@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminHeader } from "./AdminHeader";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useActivityTracking } from "@/hooks/use-activity-tracking";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -12,8 +11,6 @@ interface AdminLayoutProps {
 }
 
 export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutProps) {
-  useActivityTracking();
-
   return (
     <SidebarProvider defaultOpen>
       <AdminSidebar />

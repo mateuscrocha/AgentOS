@@ -41,7 +41,14 @@ vi.mock("@/components/ui/sidebar", () => {
     SidebarFooter: Wrap,
     SidebarMenu: Wrap,
     SidebarMenuItem: Wrap,
-    SidebarMenuButton: ({ children }: { children: any }) => <div>{children}</div>,
+    SidebarMenuButton: ({
+      children,
+      asChild,
+      isActive: _isActive,
+      tooltip: _tooltip,
+      ...props
+    }: { children: any; asChild?: boolean; isActive?: boolean; tooltip?: any } & Record<string, any>) =>
+      asChild ? children : <button type="button" {...props}>{children}</button>,
     SidebarSeparator: () => <div />,
     SidebarRail: () => <div />,
     SidebarTrigger: () => <div />,
@@ -92,7 +99,7 @@ describe("AdminSidebar — menu do grupo", () => {
     expect(container.textContent).toContain("Atendimento");
     expect(container.textContent).toContain("Mensagens");
     expect(container.textContent).not.toContain("Configurações do grupo");
-    expect(container.textContent).not.toContain("Atividade");
+    expect(container.textContent).not.toContain("Eventos");
 
     await act(async () => {
       root.unmount();
@@ -100,7 +107,7 @@ describe("AdminSidebar — menu do grupo", () => {
     container.remove();
   });
 
-  it("exibe Configurações do grupo para SYSTEM_ADMIN", async () => {
+  it("exibe Configurações do grupo desabilitado para SYSTEM_ADMIN", async () => {
     isSystemAdminValue = true;
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -125,6 +132,14 @@ describe("AdminSidebar — menu do grupo", () => {
     });
 
     expect(container.textContent).toContain("Configurações do grupo");
+    const disabledSettingsItem = container.querySelector('[aria-disabled="true"]');
+    expect(disabledSettingsItem).toBeTruthy();
+    expect(disabledSettingsItem?.textContent).toContain("Configurações do grupo");
+
+    const settingsLink = Array.from(container.querySelectorAll("a")).find((a) =>
+      a.textContent?.includes("Configurações do grupo"),
+    );
+    expect(settingsLink).toBeUndefined();
 
     await act(async () => {
       root.unmount();

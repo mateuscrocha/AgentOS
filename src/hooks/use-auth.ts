@@ -100,35 +100,31 @@ function useProvideAuth(): AuthContextValue {
 
   const signOut = useCallback(async () => {
     markExplicitSignOut();
-    console.info('[auth] logout:start');
 
     try {
       await queryClient.cancelQueries();
-    } catch (err) {
-      console.warn('[auth] logout:cancel-queries-failed', err);
+    } catch {
+      void 0;
     }
 
     const { error } = await supabase.auth.signOut({ scope: 'global' });
-    if (error) {
-      console.warn('[auth] logout:supabase-signOut-error', error);
-    }
+    void error;
 
     try {
       queryClient.clear();
-    } catch (err) {
-      console.warn('[auth] logout:query-client-clear-failed', err);
+    } catch {
+      void 0;
     }
 
     try {
       clearClientSideSessionData();
-    } catch (err) {
-      console.warn('[auth] logout:storage-cleanup-failed', err);
+    } catch {
+      void 0;
     }
 
     setSession(null);
     setUser(null);
     setLoading(false);
-    console.info('[auth] logout:done');
 
     return { error: error ?? null };
   }, []);

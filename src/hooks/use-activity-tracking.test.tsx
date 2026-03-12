@@ -11,10 +11,11 @@ describe("useActivityTracking", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it("registra login quando ORG_ADMIN faz SIGNED_IN", async () => {
-    const insertMock = vi.fn().mockResolvedValue({ data: null, error: null });
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
     let authCallback: ((event: string, session: any) => void) | null = null;
     const path = "/auth";
     const authState = {
@@ -43,6 +44,8 @@ describe("useActivityTracking", () => {
         useUserRoles: () => ({
           roles: [{ role: "ORG_ADMIN", organization_id: "org-1" }],
           isLoading: false,
+          isSystemAdmin: false,
+          isOrgAdmin: true,
         }),
       };
     });
@@ -56,7 +59,7 @@ describe("useActivityTracking", () => {
               return { data: { subscription: { unsubscribe: vi.fn() } } };
             },
           },
-          from: () => ({ insert: (...args: any[]) => insertMock(...args) }),
+          rpc: (...args: any[]) => rpcMock(...args),
         },
       };
     });
@@ -85,11 +88,11 @@ describe("useActivityTracking", () => {
       await flushPromises();
     });
 
-    expect(insertMock).toHaveBeenCalledWith({
-      user_id: "u-1",
-      org_id: "org-1",
-      role: "org_admin",
-      event_type: "login",
+    expect(rpcMock).toHaveBeenCalledWith("record_user_activity", {
+      _event_type: "login",
+      _route: "/auth",
+      _session_id: "u-1:t-1",
+      _metadata: { pathname: "/auth" },
     });
 
     await act(async () => {
@@ -99,7 +102,7 @@ describe("useActivityTracking", () => {
   });
 
   it("registra page_view quando rota muda para página rastreada", async () => {
-    const insertMock = vi.fn().mockResolvedValue({ data: null, error: null });
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
     let path = "/";
 
     vi.doMock("react-router-dom", async () => {
@@ -122,6 +125,8 @@ describe("useActivityTracking", () => {
         useUserRoles: () => ({
           roles: [{ role: "ORG_ADMIN", organization_id: "org-1" }],
           isLoading: false,
+          isSystemAdmin: false,
+          isOrgAdmin: true,
         }),
       };
     });
@@ -132,7 +137,7 @@ describe("useActivityTracking", () => {
           auth: {
             onAuthStateChange: () => ({ data: { subscription: { unsubscribe: vi.fn() } } }),
           },
-          from: () => ({ insert: (...args: any[]) => insertMock(...args) }),
+          rpc: (...args: any[]) => rpcMock(...args),
         },
       };
     });
@@ -156,7 +161,7 @@ describe("useActivityTracking", () => {
       await flushPromises();
     });
 
-    insertMock.mockClear();
+    rpcMock.mockClear();
 
     path = "/settings";
     await act(async () => {
@@ -167,12 +172,12 @@ describe("useActivityTracking", () => {
       await flushPromises();
     });
 
-    expect(insertMock).toHaveBeenCalledWith({
-      user_id: "u-1",
-      org_id: "org-1",
-      role: "org_admin",
-      event_type: "page_view",
-      page: "configuracoes",
+    expect(rpcMock).toHaveBeenCalledWith("record_user_activity", {
+      _event_type: "page_view",
+      _page: "configuracoes",
+      _route: "/settings",
+      _session_id: "u-1:t-1",
+      _metadata: { pathname: "/settings" },
     });
 
     await act(async () => {
@@ -181,8 +186,8 @@ describe("useActivityTracking", () => {
     container.remove();
   });
 
-  it("não registra eventos quando usuário não é ORG_ADMIN", async () => {
-    const insertMock = vi.fn().mockResolvedValue({ data: null, error: null });
+  it("registra eventos também para SYSTEM_ADMIN", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
     let authCallback: ((event: string, session: any) => void) | null = null;
     const authState = {
       userId: "u-1",
@@ -210,6 +215,8 @@ describe("useActivityTracking", () => {
         useUserRoles: () => ({
           roles: [{ role: "SYSTEM_ADMIN", organization_id: null }],
           isLoading: false,
+          isSystemAdmin: true,
+          isOrgAdmin: false,
         }),
       };
     });
@@ -223,7 +230,7 @@ describe("useActivityTracking", () => {
               return { data: { subscription: { unsubscribe: vi.fn() } } };
             },
           },
-          from: () => ({ insert: (...args: any[]) => insertMock(...args) }),
+          rpc: (...args: any[]) => rpcMock(...args),
         },
       };
     });
@@ -249,7 +256,153 @@ describe("useActivityTracking", () => {
       await flushPromises();
     });
 
-    expect(insertMock).not.toHaveBeenCalled();
+    expect(rpcMock).toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("registra system admin em rota do system", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    vi.doMock("react-router-dom", async () => {
+      const actual = await vi.importActual<any>("react-router-dom");
+      return { ...actual, useLocation: () => ({ pathname: "/system/users" }) };
+    });
+
+    vi.doMock("@/hooks/use-auth", () => {
+      return {
+        useAuth: () => ({
+          user: { id: "sys-1" },
+          session: { access_token: "system-token-1234567890" },
+          isAuthenticated: true,
+        }),
+      };
+    });
+
+    vi.doMock("@/hooks/use-user-roles", () => {
+      return {
+        useUserRoles: () => ({
+          roles: [{ role: "SYSTEM_ADMIN", organization_id: null }],
+          isLoading: false,
+          isSystemAdmin: true,
+          isOrgAdmin: false,
+        }),
+      };
+    });
+
+    vi.doMock("@/integrations/supabase/client", () => {
+      return {
+        supabase: {
+          auth: {
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: vi.fn() } } }),
+          },
+          rpc: (...args: any[]) => rpcMock(...args),
+        },
+      };
+    });
+
+    const { useActivityTracking } = await import("@/hooks/use-activity-tracking");
+
+    function TestApp() {
+      useActivityTracking();
+      return null;
+    }
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<TestApp />);
+      await flushPromises();
+    });
+
+    expect(rpcMock).toHaveBeenCalledWith("record_user_activity", {
+      _event_type: "page_view",
+      _page: "usuarios",
+      _route: "/system/users",
+      _session_id: "sys-1:n-1234567890",
+      _metadata: { pathname: "/system/users" },
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("registra login no primeiro mount autenticado mesmo sem evento SIGNED_IN ativo", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    vi.doMock("react-router-dom", async () => {
+      const actual = await vi.importActual<any>("react-router-dom");
+      return { ...actual, useLocation: () => ({ pathname: "/system/activity" }) };
+    });
+
+    vi.doMock("@/hooks/use-auth", () => {
+      return {
+        useAuth: () => ({
+          user: { id: "sys-bootstrap" },
+          session: { access_token: "bootstrap-token-123456" },
+          isAuthenticated: true,
+        }),
+      };
+    });
+
+    vi.doMock("@/hooks/use-user-roles", () => {
+      return {
+        useUserRoles: () => ({
+          roles: [{ role: "SYSTEM_ADMIN", organization_id: null }],
+          isLoading: false,
+          isSystemAdmin: true,
+          isOrgAdmin: false,
+        }),
+      };
+    });
+
+    vi.doMock("@/integrations/supabase/client", () => {
+      return {
+        supabase: {
+          auth: {
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: vi.fn() } } }),
+          },
+          rpc: (...args: any[]) => rpcMock(...args),
+        },
+      };
+    });
+
+    const { useActivityTracking } = await import("@/hooks/use-activity-tracking");
+
+    function TestApp() {
+      useActivityTracking();
+      return null;
+    }
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<TestApp />);
+      await flushPromises();
+    });
+
+    expect(rpcMock).toHaveBeenNthCalledWith(1, "record_user_activity", {
+      _event_type: "login",
+      _route: "/system/activity",
+      _session_id: "sys-bootstrap:token-123456",
+      _metadata: { pathname: "/system/activity" },
+    });
+
+    await act(async () => {
+      root.render(<TestApp />);
+      await flushPromises();
+    });
+
+    expect(rpcMock).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       root.unmount();

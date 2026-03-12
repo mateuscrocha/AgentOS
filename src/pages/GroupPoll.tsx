@@ -608,13 +608,6 @@ export default function GroupPoll() {
                                             const key = `${v.personId}::${url ?? ""}`;
                                             if (!loggedAvatarFailuresRef.current.has(key)) {
                                               loggedAvatarFailuresRef.current.add(key);
-                                              if (import.meta.env.DEV) {
-                                                console.warn("[poll-avatar] falha ao carregar", {
-                                                  memberId: v.personId,
-                                                  avatarUrl: url,
-                                                  status: undefined,
-                                                });
-                                              }
                                             }
                                           }}
                                         />
