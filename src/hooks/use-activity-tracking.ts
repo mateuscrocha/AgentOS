@@ -4,15 +4,36 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 
-type TrackedPage = "dashboard" | "grupos" | "configuracoes" | "usuarios" | "relatorios" | "resumos" | "alertas" | "insights" | "onboarding";
+type TrackedPage =
+  | "dashboard"
+  | "organizacoes"
+  | "grupos"
+  | "mensagens"
+  | "suporte"
+  | "eventos"
+  | "enquetes"
+  | "configuracoes"
+  | "usuarios"
+  | "relatorios"
+  | "resumos"
+  | "alertas"
+  | "insights"
+  | "onboarding";
 
 function mapPathToPage(pathname: string): TrackedPage | null {
   if (pathname === "/") return "dashboard";
   if (/^\/system\/?$/.test(pathname)) return "dashboard";
+  if (/^\/system\/organizations(?:\/|$)/.test(pathname)) return "organizacoes";
 
   if (/^\/(?:org|organization)\/[^/]+\/?$/.test(pathname)) return "dashboard";
   if (/^\/(?:org|organization)\/[^/]+\/dashboard\/?$/.test(pathname)) return "dashboard";
+  if (/^\/(?:org|organization)\/[^/]+\/(?:keywords|profile)\/?$/.test(pathname)) return "dashboard";
 
+  if (/^\/(?:group|groups)\/[^/]+\/summaries(?:\/|$)/.test(pathname)) return "resumos";
+  if (/^\/(?:group|groups)\/[^/]+\/messages(?:\/|$)/.test(pathname)) return "mensagens";
+  if (/^\/(?:group|groups)\/[^/]+\/support(?:\/|$)/.test(pathname)) return "suporte";
+  if (/^\/(?:group|groups)\/[^/]+\/events(?:\/|$)/.test(pathname)) return "eventos";
+  if (/^\/(?:group|groups)\/[^/]+\/polls(?:\/|$)/.test(pathname)) return "enquetes";
   if (/^\/system\/groups(?:\/|$)/.test(pathname)) return "grupos";
   if (/^\/(?:org|organization)\/[^/]+\/groups(?:\/|$)/.test(pathname)) return "grupos";
   if (/^\/(?:group|groups)\/[^/]+(?:\/|$)/.test(pathname)) return "grupos";
@@ -21,9 +42,7 @@ function mapPathToPage(pathname: string): TrackedPage | null {
   if (/^\/(?:system\/)?alerts(?:\/|$)/.test(pathname) || /^\/(?:system\/)?alert-definitions(?:\/|$)/.test(pathname)) return "alertas";
   if (/^\/system\/settings(?:\/|$)/.test(pathname)) return "configuracoes";
   if (/^\/settings(?:\/|$)/.test(pathname) || /^\/account(?:\/|$)/.test(pathname)) return "configuracoes";
-
   if (/^\/system\/activity(?:\/|$)/.test(pathname) || /^\/system\/events(?:\/|$)/.test(pathname) || /^\/system\/trends(?:\/|$)/.test(pathname)) return "insights";
-  if (/^\/(?:group|groups)\/[^/]+\/summaries(?:\/|$)/.test(pathname)) return "resumos";
 
   return null;
 }
@@ -50,14 +69,30 @@ function markTrackedLogin(loginKey: string) {
   }
 }
 
+async function trackActivity(payload: {
+  _event_type: "login" | "page_view";
+  _page?: TrackedPage;
+  _route: string;
+  _session_id: string | null;
+  _metadata: { pathname: string };
+}) {
+  const { error } = await supabase.rpc("record_user_activity", payload);
+  if (error) {
+    console.warn("activity tracking failed", {
+      eventType: payload._event_type,
+      route: payload._route,
+      error,
+    });
+  }
+}
+
 export function useActivityTracking() {
   const location = useLocation();
   const { user, session, isAuthenticated } = useAuth();
-  const { roles, isLoading: rolesLoading, isSystemAdmin, isOrgAdmin } = useUserRoles();
+  const { roles, isLoading: rolesLoading, isSystemAdmin } = useUserRoles();
 
-  const orgId = useMemo(() => {
-    const orgRole = (roles ?? []).find((r) => r.role === "ORG_ADMIN" && !!r.organization_id);
-    return orgRole?.organization_id ?? null;
+  const hasScopedAccess = useMemo(() => {
+    return (roles ?? []).some((role) => !!role.organization_id || !!role.group_id);
   }, [roles]);
 
   const lastPageKeyRef = useRef<string | null>(null);
@@ -83,8 +118,7 @@ export function useActivityTracking() {
     if (!isAuthenticated) return;
     if (!user?.id) return;
     if (rolesLoading) return;
-    if (!isOrgAdmin && !isSystemAdmin) return;
-    if (!orgId && !isSystemAdmin) return;
+    if (!isSystemAdmin && !hasScopedAccess) return;
 
     const pendingUserId = pendingLoginUserIdRef.current;
     const loginKey = `${user.id}:${session?.access_token ?? ""}`;
@@ -96,7 +130,7 @@ export function useActivityTracking() {
     markTrackedLogin(loginKey);
     pendingLoginUserIdRef.current = null;
 
-    void supabase.rpc("record_user_activity", {
+    void trackActivity({
       _event_type: "login",
       _route: location.pathname,
       _session_id: getSessionId(user.id, session?.access_token),
@@ -104,14 +138,13 @@ export function useActivityTracking() {
         pathname: location.pathname,
       },
     });
-  }, [isAuthenticated, isOrgAdmin, isSystemAdmin, location.pathname, orgId, rolesLoading, session?.access_token, user?.id]);
+  }, [hasScopedAccess, isAuthenticated, isSystemAdmin, location.pathname, rolesLoading, session?.access_token, user?.id]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     if (!user?.id) return;
     if (rolesLoading) return;
-    if (!isOrgAdmin && !isSystemAdmin) return;
-    if (!orgId && !isSystemAdmin) return;
+    if (!isSystemAdmin && !hasScopedAccess) return;
 
     const page = mapPathToPage(location.pathname);
     if (!page) return;
@@ -120,7 +153,7 @@ export function useActivityTracking() {
     if (lastPageKeyRef.current === pageKey) return;
     lastPageKeyRef.current = pageKey;
 
-    void supabase.rpc("record_user_activity", {
+    void trackActivity({
       _event_type: "page_view",
       _page: page,
       _route: location.pathname,
@@ -129,5 +162,5 @@ export function useActivityTracking() {
         pathname: location.pathname,
       },
     });
-  }, [isAuthenticated, isOrgAdmin, isSystemAdmin, location.pathname, orgId, rolesLoading, session?.access_token, user?.id]);
+  }, [hasScopedAccess, isAuthenticated, isSystemAdmin, location.pathname, rolesLoading, session?.access_token, user?.id]);
 }

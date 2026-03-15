@@ -178,7 +178,12 @@ function getStatusVariant(status: OrgUsageStatus): "success" | "warning" | "erro
 
 function getPageLabel(page: string | null) {
   if (page === "dashboard") return "Dashboard geral";
+  if (page === "organizacoes") return "Organizações";
   if (page === "grupos") return "Grupos";
+  if (page === "mensagens") return "Mensagens";
+  if (page === "suporte") return "Suporte";
+  if (page === "eventos") return "Eventos";
+  if (page === "enquetes") return "Enquetes";
   if (page === "configuracoes") return "Configurações";
   if (page === "usuarios") return "Usuários";
   if (page === "relatorios" || page === "resumos") return "Resumos";
