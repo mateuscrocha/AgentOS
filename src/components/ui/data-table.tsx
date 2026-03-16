@@ -5,6 +5,9 @@ interface Column<T> {
   header: string;
   render?: (item: T) => React.ReactNode;
   className?: string;
+  sortable?: boolean;
+  sortValue?: (item: T) => string | number | boolean | Date | null | undefined;
+  sortComparator?: (a: T, b: T) => number;
 }
 
 interface DataTableProps<T> {

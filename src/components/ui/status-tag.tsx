@@ -21,8 +21,12 @@ export function StatusTag({ variant, children, className }: StatusTagProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center h-5 px-2 rounded-full text-[11px] font-medium",
+        "inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-medium tracking-[0.01em]",
         colors,
+        variant === "success" && "border-success/15",
+        variant === "warning" && "border-warning/15",
+        variant === "error" && "border-destructive/15",
+        variant === "neutral" && "border-border/70",
         className,
       )}
     >
@@ -30,4 +34,3 @@ export function StatusTag({ variant, children, className }: StatusTagProps) {
     </span>
   );
 }
-

@@ -135,6 +135,9 @@ const SYSTEM_SUPPORT_KPI_HELP = {
   },
 } as const;
 
+const SUPPORT_KPI_CARD = "rounded-[26px] shadow-subtle";
+const SUPPORT_KPI_VALUE = "text-2xl sm:text-3xl";
+
 function normalizePhoneForIdentity(phone?: string | null) {
   const raw = (phone || "").trim();
   if (!raw) return "";
@@ -642,6 +645,8 @@ export default function SystemSupport() {
     {
       key: "attendant",
       header: "Atendente",
+      sortable: true,
+      sortValue: (row: AttendantAgg) => row.name || "",
       render: (row: AttendantAgg) => (
         <div className="space-y-0.5">
           <UserInline name={row.name} avatarUrl={row.avatarUrl} />
@@ -652,12 +657,16 @@ export default function SystemSupport() {
     {
       key: "groups",
       header: "Grupos",
+      sortable: true,
+      sortValue: (row: AttendantAgg) => row.activeGroupsCount,
       render: (row: AttendantAgg) => <span className="font-medium tabular-nums">{row.activeGroupsCount}</span>,
     },
     {
       key: "inactive7d",
       header: `Inativos ${INACTIVITY_DAYS}d`,
       hideOn: "sm",
+      sortable: true,
+      sortValue: (row: AttendantAgg) => row.inactive7dGroupsCount,
       render: (row: AttendantAgg) => (
         <Badge variant={row.inactive7dGroupsCount > 0 ? "secondary" : "outline"}>
           {row.inactive7dGroupsCount}
@@ -668,12 +677,16 @@ export default function SystemSupport() {
       key: "tmr",
       header: "TMR (aprox.)",
       hideOn: "md",
+      sortable: true,
+      sortValue: (row: AttendantAgg) => row.avgResponseMs30d ?? Number.MAX_SAFE_INTEGER,
       render: (row: AttendantAgg) => formatRelativeMinutes(row.avgResponseMs30d),
     },
     {
       key: "sla",
       header: `SLA ${RESPONSE_SLA_BUSINESS_MINUTES}m`,
       hideOn: "lg",
+      sortable: true,
+      sortValue: (row: AttendantAgg) => row.slaPct30d ?? -1,
       render: (row: AttendantAgg) => (
         <span className="tabular-nums">{`${(row.slaPct30d ?? 0).toFixed(1).replace(".", ",")}%`}</span>
       ),
@@ -682,18 +695,24 @@ export default function SystemSupport() {
       key: "answered",
       header: "Interações resp. (30d)",
       hideOn: "lg",
+      sortable: true,
+      sortValue: (row: AttendantAgg) => row.answeredInteractions30d,
       render: (row: AttendantAgg) => <span className="tabular-nums">{row.answeredInteractions30d}</span>,
     },
     {
       key: "lastActivity",
       header: "Última atividade",
       hideOn: "md",
+      sortable: true,
+      sortValue: (row: AttendantAgg) => row.lastGroupActivityAt ?? "",
       render: (row: AttendantAgg) => row.lastGroupActivityAt ? formatDateSimpleBR(row.lastGroupActivityAt) : "Sem atividade",
     },
     {
       key: "preview",
       header: "Grupos (amostra)",
       hideOn: "lg",
+      sortable: true,
+      sortValue: (row: AttendantAgg) => row.groupsPreview.join(", "),
       render: (row: AttendantAgg) => (
         <span className="text-sm text-muted-foreground">
           {row.groupsPreview.join(", ")}
@@ -748,14 +767,15 @@ export default function SystemSupport() {
             setCustomRange(undefined);
           }}
           filteredKpis={(
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               <StatsCard
                 title="Atendentes ativos"
                 value={attendants.length}
                 icon={Headset}
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.attendants}
-                valueClassName="text-2xl sm:text-3xl"
+                className={`${SUPPORT_KPI_CARD} border-sky-500/15 bg-gradient-to-br from-sky-500/[0.08] via-card to-card`}
+                valueClassName={`${SUPPORT_KPI_VALUE} text-sky-950 dark:text-sky-100`}
                 numericValue
               />
               <StatsCard
@@ -764,7 +784,8 @@ export default function SystemSupport() {
                 icon={Layers}
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.groups}
-                valueClassName="text-2xl sm:text-3xl"
+                className={`${SUPPORT_KPI_CARD} border-indigo-500/15 bg-gradient-to-br from-indigo-500/[0.08] via-card to-card`}
+                valueClassName={`${SUPPORT_KPI_VALUE} text-indigo-950 dark:text-indigo-100`}
                 numericValue
               />
               <StatsCard
@@ -773,16 +794,18 @@ export default function SystemSupport() {
                 icon={Clock3}
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.inactive}
-                valueClassName="text-2xl sm:text-3xl"
+                className={`${SUPPORT_KPI_CARD} border-amber-500/15 bg-gradient-to-br from-amber-500/[0.10] via-card to-card`}
+                valueClassName={`${SUPPORT_KPI_VALUE} text-amber-950 dark:text-amber-100`}
                 numericValue
               />
               <StatsCard
-                title="Média grupos/atend."
+                title="Média grupos"
                 value={avgGroupsPerAttendant.toFixed(1).replace(".", ",")}
                 icon={Activity}
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.avgGroups}
-                valueClassName="text-2xl sm:text-3xl"
+                className={`${SUPPORT_KPI_CARD} border-teal-500/15 bg-gradient-to-br from-teal-500/[0.08] via-card to-card`}
+                valueClassName={`${SUPPORT_KPI_VALUE} text-teal-950 dark:text-teal-100`}
                 numericValue
               />
               <StatsCard
@@ -791,7 +814,8 @@ export default function SystemSupport() {
                 icon={Clock3}
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.tmr}
-                valueClassName="text-2xl sm:text-3xl"
+                className={`${SUPPORT_KPI_CARD} border-violet-500/15 bg-gradient-to-br from-violet-500/[0.08] via-card to-card`}
+                valueClassName={`${SUPPORT_KPI_VALUE} text-violet-950 dark:text-violet-100`}
                 description={`${answeredInteractions30d.toLocaleString("pt-BR")} interações • horário comercial`}
                 numericValue
               />
@@ -801,17 +825,19 @@ export default function SystemSupport() {
                 icon={CheckCircle2}
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.sla}
-                valueClassName="text-2xl sm:text-3xl"
+                className={`${SUPPORT_KPI_CARD} border-emerald-500/15 bg-gradient-to-br from-emerald-500/[0.08] via-card to-card`}
+                valueClassName={`${SUPPORT_KPI_VALUE} text-emerald-950 dark:text-emerald-100`}
                 description={`${answeredWithinSla30d.toLocaleString("pt-BR")} respostas no SLA`}
                 numericValue
               />
               <StatsCard
-                title="Pendências sem resposta"
+                title="Pendências abertas"
                 value={openPendingInteractions.toLocaleString("pt-BR")}
                 icon={Headset}
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.pending}
-                valueClassName="text-2xl sm:text-3xl"
+                className={`${SUPPORT_KPI_CARD} border-rose-500/15 bg-gradient-to-br from-rose-500/[0.08] via-card to-card`}
+                valueClassName={`${SUPPORT_KPI_VALUE} text-rose-950 dark:text-rose-100`}
                 description={`${openPendingSlaBreached.toLocaleString("pt-BR")} fora do SLA`}
                 numericValue
               />
@@ -821,7 +847,8 @@ export default function SystemSupport() {
                 icon={Activity}
                 variant="kpi"
                 help={SYSTEM_SUPPORT_KPI_HELP.messages}
-                valueClassName="text-2xl sm:text-3xl"
+                className={`${SUPPORT_KPI_CARD} border-cyan-500/15 bg-gradient-to-br from-cyan-500/[0.08] via-card to-card`}
+                valueClassName={`${SUPPORT_KPI_VALUE} text-cyan-950 dark:text-cyan-100`}
                 description="Amostral em grupos vinculados"
                 numericValue
               />

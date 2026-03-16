@@ -24,7 +24,7 @@ function clearClientSideSessionData() {
     'system-admin-period',
   ]);
 
-  const removeLocalStoragePrefixes = ['sb-', 'org-period:', 'group-period:'];
+  const removeLocalStoragePrefixes = ['sb-', 'org-period:', 'group-period:', 'boris-onboarding:'];
 
   const keys: string[] = [];
   for (let i = 0; i < localStorage.length; i += 1) {

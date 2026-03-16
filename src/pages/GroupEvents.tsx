@@ -171,11 +171,14 @@ export default function GroupEvents() {
     {
       key: "created_at",
       header: "Data",
+      sortable: true,
+      sortValue: (event) => event.created_at,
       render: (event) => formatDateTimeBR(event.created_at),
     },
     {
       key: "event_type",
       header: "Tipo",
+      sortable: true,
       render: (event) => (
         <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
           {event.event_type}
@@ -186,6 +189,8 @@ export default function GroupEvents() {
       key: "metadata",
       header: "Resumo",
       hideOn: "sm",
+      sortable: true,
+      sortValue: (event) => JSON.stringify(event.metadata ?? {}),
       render: (event) => {
         if (!event.metadata) return <span className="text-muted-foreground">-</span>;
         const preview = JSON.stringify(event.metadata).slice(0, 60);
@@ -197,7 +202,6 @@ export default function GroupEvents() {
       },
     },
   ];
-
 
   return (
     <AdminLayout title="Eventos do Grupo" subtitle={`${group?.name ? `${group.name} — ` : ""}${eventsData?.total ?? 0} eventos no período selecionado`}>

@@ -261,8 +261,8 @@ export function GroupPageTop({
   }, [adminsModalOpen, orderedSpecialMembers]);
 
   return (
-    <section className={cn("space-y-4 mb-6", className)}>
-      <div className="static sm:sticky sm:top-16 z-20 -mx-4 px-4 py-3 bg-background/80 backdrop-blur border-b border-border/60 sm:-mx-6 sm:px-6">
+    <section className={cn("mb-6 space-y-5", className)}>
+      <div className="static z-20 -mx-4 border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur sm:sticky sm:top-16 sm:-mx-6 sm:px-6">
         <Breadcrumbs items={breadcrumbItems} />
       </div>
       <div className="space-y-0">
@@ -278,8 +278,8 @@ export function GroupPageTop({
       </div>
 
       {filters && (
-        <div className="rounded-lg border border-border bg-card p-3">
-          <div className="flex flex-wrap items-center gap-3 justify-between">
+        <div className="rounded-[var(--radius-lg)] border border-border/80 bg-card/95 p-3 shadow-subtle">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">{filters}</div>
             <div className="flex items-center gap-2">
               {_showClearFilters && _onClearFilters ? (

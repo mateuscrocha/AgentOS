@@ -17,6 +17,7 @@ import AccessDenied from "./AccessDenied";
 import { formatDateSimpleBR } from "@/lib/date";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, PeriodType, DateRange } from "@/components/group-dashboard/period-utils";
+import { Input } from "@/components/ui/input";
 
 interface PersonAgg {
   personKey: string;
@@ -137,6 +138,7 @@ export default function SystemPeople() {
     {
       key: "name",
       header: "Pessoa",
+      sortable: true,
       render: (p: PersonAgg) => (
         <UserInline name={p.name} avatarUrl={p.photo_url} />
       ),
@@ -145,6 +147,7 @@ export default function SystemPeople() {
       key: "provider",
       header: "Provedor",
       hideOn: "sm",
+      sortable: true,
       render: (p: PersonAgg) => (
         <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium capitalize">
           {p.provider}
@@ -155,6 +158,8 @@ export default function SystemPeople() {
       key: "groups",
       header: "Grupos",
       hideOn: "sm",
+      sortable: true,
+      sortValue: (p: PersonAgg) => p.groups.length,
       render: (p: PersonAgg) => (
         <span className="text-sm text-muted-foreground">{p.groups.length}</span>
       ),
@@ -163,6 +168,8 @@ export default function SystemPeople() {
       key: "organizations",
       header: "Organizações",
       hideOn: "sm",
+      sortable: true,
+      sortValue: (p: PersonAgg) => p.organizations.length,
       render: (p: PersonAgg) => (
         <span className="text-sm text-muted-foreground">{p.organizations.length}</span>
       ),
@@ -171,13 +178,14 @@ export default function SystemPeople() {
       key: "created_at",
       header: "Criado em",
       hideOn: "md",
+      sortable: true,
       render: (p: PersonAgg) => formatDateSimpleBR(p.created_at),
     },
   ];
 
   return (
     <AdminLayout title="Pessoas" subtitle="Central de Comando › Pessoas">
-      <div className="space-y-8 animate-fade-in">
+      <div className="mx-auto max-w-[1480px] space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Pessoas" }]}
           title="Pessoas"
@@ -189,12 +197,12 @@ export default function SystemPeople() {
                 customRange={customRange}
                 onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
               />
-              <input
+              <Input
                 type="text"
                 placeholder="Buscar por nome"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-64 px-3 py-2 rounded-lg border border-border bg-card text-sm"
+                className="w-64"
               />
             </div>
           )}

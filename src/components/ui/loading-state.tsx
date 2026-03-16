@@ -12,10 +12,12 @@ export function LoadingState({
 }: LoadingStateProps) {
   return (
     <div className={cn(
-      "flex flex-col items-center justify-center py-12 px-4",
+      "flex flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-border bg-card/70 px-4 py-12",
       className
     )}>
-      <Loader2 className="h-8 w-8 text-primary animate-spin mb-3" />
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/[0.08]">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+      </div>
       <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );

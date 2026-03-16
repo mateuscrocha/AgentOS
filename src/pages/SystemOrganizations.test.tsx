@@ -74,8 +74,15 @@ vi.mock("@/components/ui/boris-table", () => ({
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenuItem: ({ children, onSelect, disabled }: any) => (
-    <button disabled={disabled} onClick={() => !disabled && onSelect?.()}>
+  DropdownMenuItem: ({ children, onSelect, onClick, disabled }: any) => (
+    <button
+      disabled={disabled}
+      onClick={(event) => {
+        if (disabled) return;
+        onClick?.(event);
+        onSelect?.(event);
+      }}
+    >
       {children}
     </button>
   ),
@@ -255,17 +262,17 @@ describe("SystemOrganizations page", () => {
     const { container, root } = await renderPage();
 
     const deleteButton = Array.from(container.querySelectorAll("button")).find((b) =>
-      b.textContent === "Excluir (remova grupos antes)",
+      b.textContent === "Excluir organização",
     );
     expect(deleteButton).toBeTruthy();
-    expect(deleteButton?.disabled).toBe(true);
+    expect(deleteButton?.disabled).toBe(false);
 
     await act(async () => {
       deleteButton?.click();
       await flush();
     });
 
-    expect(notifyMock.warning).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Digite o nome da organização para confirmar");
     expect(deleteEqMock).not.toHaveBeenCalled();
 
     await act(async () => root.unmount());

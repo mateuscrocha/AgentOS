@@ -27,7 +27,7 @@ import { addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { SAO_PAULO_TZ } from "@/lib/date";
 import { getPostLoginRedirectPath } from "@/lib/auth-routing";
-import { buildGroupMomentum, buildParticipationChange, buildSystemDaySummary } from "./index-dashboard-utils";
+import { buildGroupMomentum, buildParticipationChange } from "./index-dashboard-utils";
 
 type RecentGroupRow = {
   id: string;
@@ -702,16 +702,7 @@ const Index = () => {
     const top4Messages = top.slice(0, 4).reduce((acc, g) => acc + Number(g.count || 0), 0);
     const top4Share = totalMessages ? top4Messages / totalMessages : 0;
     const sharePct = Math.round(top4Share * 100);
-    const concentration = sharePct >= 65 ? "alta" : sharePct >= 45 ? "média" : "baixa";
-    return { totalMessages, activeGroups, sharePct, concentration };
-  })();
-  const previousPulseMeta = (() => {
-    const totalMessages = Number(previousPulse24h?.totalMessages || 0);
-    const top = previousPulse24h?.topGroups || [];
-    const top4Messages = top.slice(0, 4).reduce((acc, g) => acc + Number(g.count || 0), 0);
-    const top4Share = totalMessages ? top4Messages / totalMessages : 0;
-    const sharePct = Math.round(top4Share * 100);
-    return { totalMessages, sharePct };
+    return { totalMessages, activeGroups, sharePct };
   })();
 
   if (authLoading || rolesLoading) {
@@ -726,76 +717,16 @@ const Index = () => {
     return null;
   }
 
-  const daySummary = (() => {
-    return buildSystemDaySummary({
-      isLoading: newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading,
-      hasError: Boolean(newGroups24hError || newGroups24hCountError || pulse24hError),
-      newGroupsCount: newGroups24hCount ?? newGroups24h?.length ?? 0,
-      totalMessages: pulseMeta.totalMessages,
-      activeGroups: pulseMeta.activeGroups,
-      concentration: pulseMeta.concentration,
-      sharePct: pulseMeta.sharePct,
-      topGroupCount: Math.min(4, pulse24h?.topGroups?.length ?? 0),
-      formatNumber: formatNumberBR,
-    });
-  })();
-
   const newGroupsSummaryLoading = newGroups24hLoading || newGroups24hCountLoading;
   const newGroupsSummaryError = Boolean(newGroups24hError || newGroups24hCountError);
   const pulseSummaryLoading = pulse24hLoading;
   const pulseSummaryError = Boolean(pulse24hError);
   const pulseComparisonLoading = previousPulse24hLoading;
   const pulseComparisonError = Boolean(previousPulse24hError);
-  const executiveSummaryLoading = newGroupsSummaryLoading || pulseSummaryLoading;
-  const executiveSummaryError = newGroupsSummaryError || pulseSummaryError;
   const newGroupsCreated24h = newGroups24hCount ?? newGroups24h?.length ?? 0;
-  const topGroups24h = pulse24h?.topGroups ?? [];
-  const topFocusedGroup = topGroups24h[0] ?? null;
   const previousTopGroupsById = new Map(
     (previousPulse24h?.topGroups ?? []).map((group) => [group.id, Number(group.count || 0)]),
   );
-  const concentrationTone = pulseMeta.concentration === "alta"
-    ? {
-        label: "Concentração alta",
-        badgeClassName: "border-primary/30 bg-primary/10 text-primary",
-        barClassName: "bg-primary",
-        panelClassName: "border-primary/25 bg-primary/[0.04]",
-      }
-    : pulseMeta.concentration === "média"
-      ? {
-          label: "Concentração moderada",
-          badgeClassName: "border-amber-500/30 bg-amber-500/10 text-amber-700",
-          barClassName: "bg-amber-500",
-          panelClassName: "border-amber-500/20 bg-amber-500/[0.04]",
-        }
-      : {
-          label: "Distribuição equilibrada",
-          badgeClassName: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
-          barClassName: "bg-emerald-500",
-          panelClassName: "border-emerald-500/20 bg-emerald-500/[0.04]",
-        };
-  const averageMessagesPerActiveGroup = pulseMeta.activeGroups
-    ? Math.round(pulseMeta.totalMessages / pulseMeta.activeGroups)
-    : 0;
-  const topFocusedGroupMomentum = topFocusedGroup
-    ? buildGroupMomentum(
-        Number(topFocusedGroup.count || 0),
-        previousTopGroupsById.has(topFocusedGroup.id) ? previousTopGroupsById.get(topFocusedGroup.id) ?? 0 : 0,
-      )
-    : null;
-  const topFocusedGroupMomentumClassName = topFocusedGroupMomentum?.type === "positive"
-    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-    : topFocusedGroupMomentum?.type === "negative"
-      ? "border-rose-500/30 bg-rose-500/10 text-rose-700"
-      : "border-border/70 bg-background/80 text-muted-foreground";
-  const concentrationDeltaLabel = (() => {
-    if (pulseComparisonLoading) return "Comparando com as 24h anteriores...";
-    if (pulseComparisonError || previousPulseMeta.totalMessages === 0) return "Sem base suficiente para comparar concentração.";
-    const delta = pulseMeta.sharePct - previousPulseMeta.sharePct;
-    if (Math.abs(delta) <= 3) return "Concentração estável em relação às 24h anteriores.";
-    if (delta > 0) return `Concentração subiu ${delta} p.p. vs. 24h anteriores.`;
-    return `Concentração caiu ${Math.abs(delta)} p.p. vs. 24h anteriores.`;
-  })();
   const retryExecutiveSummary = () => {
     if (newGroupsSummaryError) {
       void queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h"] });
@@ -820,11 +751,6 @@ const Index = () => {
       label: "Grupos ativos",
       value: pulseSummaryLoading ? "—" : pulseSummaryError ? "Erro" : formatNumberBR(pulseMeta.activeGroups),
       helper: "com atividade",
-    },
-    {
-      label: "Concentração",
-      value: pulseSummaryLoading ? "—" : pulseSummaryError ? "Erro" : `${pulseMeta.sharePct}%`,
-      helper: "atividade concentrada",
     },
   ];
   const kpiSignalStrip = [
@@ -963,197 +889,109 @@ const Index = () => {
       title="Central de Comando" 
       subtitle="Panorama geral do Bóris"
     >
-      <div className="space-y-8 animate-fade-in">
+      <div className="mx-auto max-w-[1480px] space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando" }]}
           title={(
-            <>
-              <span className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Panorama geral</span>
-              <span className="ml-2 inline-flex h-6 items-center rounded-full border border-primary/20 bg-primary/[0.08] px-2.5 align-middle text-[11px] font-semibold text-primary">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-3xl">Panorama geral</span>
+              <span className="inline-flex h-6 items-center rounded-full border border-primary/20 bg-primary/[0.08] px-2.5 align-middle text-[11px] font-semibold uppercase tracking-[0.06em] text-primary">
                 Sistema
               </span>
-            </>
+            </div>
           )}
           description="Visão executiva do Bóris com sinais de uso recente, volume e alcance da base."
           className="mb-4"
           filters={(
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <Badge variant="outline" className="h-5 border-primary/20 bg-primary/[0.04] px-2 text-[11px] font-medium text-primary/85">
+              <Badge variant="outline" className="h-6 border-primary/20 bg-primary/[0.05] px-2.5 text-[11px] font-medium text-primary/85">
                 Visão geral do sistema
               </Badge>
-              <Badge variant="outline" className="h-5 border-border/60 bg-background/70 px-2 text-[11px] font-medium text-muted-foreground">
+              <Badge variant="outline" className="h-6 border-border/60 bg-background/70 px-2.5 text-[11px] font-medium text-muted-foreground">
                 Base consolidada
               </Badge>
-              <span className="text-xs sm:text-sm text-muted-foreground">
-                Atualizado às <span className="font-mono text-[0.95em] font-medium text-foreground">{formatTimeBR(liveUpdatedAtDate)}</span> (BRT)
+              <span className="inline-flex h-6 items-center rounded-full border border-border/60 bg-background px-2.5 text-[11px] font-medium text-muted-foreground">
+                Atualizado às <span className="ml-1 font-mono text-[0.95em] text-foreground">{formatTimeBR(liveUpdatedAtDate)}</span> BRT
               </span>
             </div>
           )}
         />
 
-        <section className="scroll-mt-32 rounded-2xl border border-primary/10 bg-card p-5 shadow-sm" id="executive-summary" aria-busy={newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading ? "true" : undefined}>
+        <section className="scroll-mt-32 rounded-[var(--radius-xl)] border border-border/60 bg-card/95 p-5 shadow-subtle sm:p-6" id="kpis">
+          <ExecutiveSectionHeader
+            eyebrow="Base e Tendência"
+            title="Indicadores principais (30d)"
+            description="Volume, alcance e crescimento em leitura executiva."
+            icon={Layers}
+            badge={(
+              <Badge variant="outline" className="h-6 px-2.5 text-[11px] font-medium text-muted-foreground">
+                {ADMIN_MICROCOPY.labels.selectedPeriod}
+              </Badge>
+            )}
+          />
+          <div className="grid gap-3 rounded-[var(--radius-lg)] border border-border/60 bg-background/80 p-3 md:grid-cols-3">
+            {kpiSignalStrip.map((item) => {
+              const toneClassName = item.tone === "positive"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                : item.tone === "negative"
+                  ? "border-rose-500/30 bg-rose-500/10 text-rose-700"
+                  : "border-border/70 bg-background text-muted-foreground";
+
+              return (
+                <div key={item.label} className="rounded-[var(--radius-md)] border border-border/60 bg-card/90 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      {item.label}
+                    </p>
+                    <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${toneClassName}`}>
+                      {item.value}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {mainKpis}
+          </div>
+          {kpiMembersError || kpiMembersPrevBaseError || currentPeriodKpisError || prevPeriodKpisError || systemTotalsError ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Alguns indicadores podem estar incompletos no momento. Tente atualizar a página em instantes.
+            </p>
+          ) : null}
+        </section>
+
+        <section className="scroll-mt-32 rounded-[var(--radius-xl)] border border-primary/10 bg-card/95 p-5 shadow-subtle sm:p-6" id="executive-summary" aria-busy={newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading ? "true" : undefined}>
           <ExecutiveSectionHeader
             eyebrow="Operação"
             eyebrowTone="primary"
             title="Resumo das últimas 24h"
-            description="Sinais operacionais para decidir onde agir agora"
+            description="Leitura rápida do movimento recente, sem camadas de priorização."
             icon={Activity}
             badge={(
-              <Badge variant="outline" className="h-5 border-primary/20 bg-primary/[0.04] px-2 text-[11px] font-medium text-primary/85">
+              <Badge variant="outline" className="h-6 border-primary/20 bg-primary/[0.04] px-2.5 text-[11px] font-medium text-primary/85">
                 Atualização contínua
               </Badge>
             )}
           />
           <div className="mt-6 space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-3">
               {executiveHighlights.map((item) => (
-                <div key={item.label} className="rounded-xl border border-border/60 bg-background px-4 py-3 shadow-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                <div key={item.label} className="rounded-[var(--radius-lg)] border border-border/70 bg-background/80 px-4 py-4 shadow-subtle">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                     {item.label}
                   </p>
-                  <p className="mt-1 text-[2rem] font-semibold tracking-tight leading-none text-foreground">
+                  <p className="mt-2 text-[2rem] font-semibold leading-none tracking-[-0.04em] text-foreground">
                     {item.value}
                   </p>
-                  <p className="mt-1 text-xs leading-none text-muted-foreground">
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                     {item.helper}
                   </p>
                 </div>
               ))}
             </div>
 
-            {!executiveSummaryLoading && !executiveSummaryError && topFocusedGroup ? (
-              <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-4 shadow-sm">
-                <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-4">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary/85">
-                      Prioridade agora
-                    </p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                      <p className="truncate text-base font-semibold tracking-tight text-foreground">
-                        {topFocusedGroup.name}
-                      </p>
-                      {topFocusedGroupMomentum ? (
-                        <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${topFocusedGroupMomentumClassName}`}>
-                          {pulseComparisonLoading ? "Comparando" : pulseComparisonError ? "Sem comparação" : topFocusedGroupMomentum.shortLabel}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      {formatNumberBR(Number(topFocusedGroup.count || 0))} mensagens nas últimas 24h.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                    <Button asChild size="sm">
-                      <Link
-                        to={`/groups/${topFocusedGroup.id}`}
-                        onClick={() => trackDashboardInteraction("pulse_priority_cta_click", { groupId: topFocusedGroup.id })}
-                      >
-                        Abrir grupo prioritário
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm">
-                      <Link
-                        to="/groups"
-                        onClick={() => trackDashboardInteraction("pulse_priority_list_click")}
-                      >
-                        Comparar ranking completo
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
-            <div className={`rounded-xl border p-4 shadow-sm ${concentrationTone.panelClassName}`}>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary/85">Concentração da atividade</p>
-                  <h3 className="mt-1 text-lg font-semibold tracking-tight text-foreground">Onde o volume se concentrou</h3>
-                </div>
-                <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${concentrationTone.badgeClassName}`}>
-                  {executiveSummaryLoading ? "Calculando" : executiveSummaryError ? "Indisponível" : concentrationTone.label}
-                </Badge>
-              </div>
-
-              {executiveSummaryLoading ? (
-                <div className="mt-5 space-y-3" aria-live="polite" aria-busy="true">
-                  <Skeleton className="h-12 w-32" />
-                  <Skeleton className="h-4 w-11/12" />
-                  <Skeleton className="h-4 w-9/12" />
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-20 w-full" />
-                  </div>
-                </div>
-              ) : executiveSummaryError ? (
-                <div className="mt-4">
-                  <ErrorState title="Falha ao carregar" message="Não foi possível consolidar a leitura operacional das últimas 24h." retry={retryExecutiveSummary} />
-                </div>
-              ) : (
-                <div className="mt-4 space-y-4">
-                  <div className="flex flex-wrap items-end gap-3">
-                    <div className="text-4xl font-semibold tracking-[-0.04em] text-foreground">
-                      {pulseMeta.sharePct}%
-                    </div>
-                    <p className="max-w-sm pb-1 text-sm leading-5 text-muted-foreground">
-                      das mensagens ficaram nos 4 grupos com maior movimento.
-                    </p>
-                  </div>
-
-                  <div className="h-2 overflow-hidden rounded-full bg-background/80">
-                    <div className={`h-full rounded-full ${concentrationTone.barClassName}`} style={{ width: `${Math.min(Math.max(pulseMeta.sharePct, 4), 100)}%` }} />
-                  </div>
-
-                  <p className="max-w-xl text-sm leading-5 text-card-foreground">
-                    {daySummary}
-                  </p>
-                  <p className="max-w-xl text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                    {concentrationDeltaLabel}
-                  </p>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-border/60 bg-background p-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Média por grupo ativo</p>
-                      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground">
-                        {formatNumberBR(averageMessagesPerActiveGroup)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">mensagens por grupo ativo</p>
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-background p-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Frente de reação</p>
-                      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground">
-                        {formatNumberBR(topGroups24h.length)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">grupos para investigação</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {topFocusedGroup ? (
-                      <Button asChild size="sm">
-                        <Link
-                          to={`/groups/${topFocusedGroup.id}`}
-                          onClick={() => trackDashboardInteraction("pulse_primary_cta_click", { groupId: topFocusedGroup.id })}
-                        >
-                          Investigar pico principal
-                        </Link>
-                      </Button>
-                    ) : null}
-                    <Button asChild variant="outline" size="sm">
-                      <Link
-                        to="/groups"
-                        onClick={() => trackDashboardInteraction("pulse_list_cta_click")}
-                      >
-                        Ver todos os grupos
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-xl border border-border/60 bg-card p-4 lg:flex lg:max-h-[760px] lg:flex-col">
+            <div className="rounded-[var(--radius-lg)] border border-border/60 bg-card/95 p-4 shadow-subtle lg:flex lg:max-h-[760px] lg:flex-col">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grupos mais movimentados</p>
@@ -1206,7 +1044,7 @@ const Index = () => {
                             key={g.id}
                             to={`/groups/${g.id}`}
                             onClick={() => trackDashboardInteraction("pulse_top_group_click", { groupId: g.id, rank: idx + 1 })}
-                            className="ripple-surface group block rounded-xl border border-border/70 bg-background px-3 py-2.5 transition-colors hover:bg-secondary/20"
+                            className="ripple-surface group block rounded-[var(--radius-md)] border border-border/70 bg-background/80 px-3 py-3 transition-colors hover:bg-secondary/20"
                           >
                             <div className="flex items-start gap-3">
                               <div className="min-w-0 flex-1">
@@ -1255,52 +1093,7 @@ const Index = () => {
                 </div>
               )}
             </div>
-            </div>
           </div>
-        </section>
-
-        <section className="scroll-mt-32 rounded-2xl border border-border/60 bg-card p-5 shadow-sm" id="kpis">
-          <ExecutiveSectionHeader
-            eyebrow="Base e Tendência"
-            title="Indicadores principais (30d)"
-            description="Volume, alcance e crescimento em leitura executiva."
-            icon={Layers}
-            badge={(
-              <Badge variant="outline" className="h-5 px-2 text-[11px] font-medium text-muted-foreground">
-                {ADMIN_MICROCOPY.labels.selectedPeriod}
-              </Badge>
-            )}
-          />
-          <div className="grid gap-3 rounded-xl border border-border/60 bg-background p-3 md:grid-cols-3">
-            {kpiSignalStrip.map((item) => {
-              const toneClassName = item.tone === "positive"
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-                : item.tone === "negative"
-                  ? "border-rose-500/30 bg-rose-500/10 text-rose-700"
-                  : "border-border/70 bg-background text-muted-foreground";
-
-              return (
-                <div key={item.label} className="rounded-lg border border-border/60 bg-card p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                      {item.label}
-                    </p>
-                    <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${toneClassName}`}>
-                      {item.value}
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-            {mainKpis}
-          </div>
-          {kpiMembersError || kpiMembersPrevBaseError || currentPeriodKpisError || prevPeriodKpisError || systemTotalsError ? (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Alguns indicadores podem estar incompletos no momento. Tente atualizar a página em instantes.
-            </p>
-          ) : null}
         </section>
 
         {showBackToTop ? (

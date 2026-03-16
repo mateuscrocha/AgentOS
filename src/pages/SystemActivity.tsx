@@ -2,13 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Legend,
   Line,
   LineChart,
   XAxis,
@@ -41,6 +37,7 @@ import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -49,6 +46,8 @@ import { StatusTag } from "@/components/ui/status-tag";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { FilterChips } from "@/components/ui/filter-chips";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getDateRange, type DateRange, type PeriodType } from "@/components/group-dashboard/period-utils";
 import { formatDateTickBR, formatDateTimeBR } from "@/lib/date";
 import AccessDenied from "./AccessDenied";
@@ -127,12 +126,6 @@ type DailyMetricsRow = {
   page_views: number;
 };
 
-type DailyOrgStatusRow = {
-  day: string;
-  orgs_active: number;
-  orgs_inactive: number;
-};
-
 type TopPageRow = {
   page: string;
   page_views: number;
@@ -149,9 +142,35 @@ type TimelineRow = {
   page: string | null;
 };
 
+type ActivationEventType =
+  | "ORG_ACTIVATION_STARTED"
+  | "ORG_ACTIVATION_DISMISSED"
+  | "ORG_ACTIVATION_RESUMED"
+  | "ORG_ACTIVATION_COMPLETED"
+  | "GROUP_WELCOME_STARTED"
+  | "GROUP_WELCOME_COMPLETED";
+
+type ActivationEventRow = {
+  created_at: string;
+  entity_id: string;
+  entity_type: "organization" | "group" | "member" | "message";
+  event_type: ActivationEventType;
+  metadata: Record<string, any> | null;
+  user_id: string | null;
+};
+
 const PAGE_SIZE = 20;
 const TIMELINE_LIMIT = 12;
 const ENGAGEMENT_LIMIT = 8;
+const ACTIVATION_EVENT_LIMIT = 8;
+const ACTIVATION_EVENT_TYPES: ActivationEventType[] = [
+  "ORG_ACTIVATION_STARTED",
+  "ORG_ACTIVATION_DISMISSED",
+  "ORG_ACTIVATION_RESUMED",
+  "ORG_ACTIVATION_COMPLETED",
+  "GROUP_WELCOME_STARTED",
+  "GROUP_WELCOME_COMPLETED",
+];
 
 function rpc<T>(name: string, params: Record<string, unknown>) {
   return (supabase as any).rpc(name, params) as Promise<{ data: T; error: any }>;
@@ -273,6 +292,16 @@ function getActivityBand(activityFilter: string) {
   return { min: null as number | null, max: null as number | null };
 }
 
+function getPeriodLabel(period: PeriodType, customRange?: DateRange) {
+  if (period === "7d") return "Ultimos 7 dias";
+  if (period === "30d") return "Ultimos 30 dias";
+  if (period === "90d") return "Ultimos 90 dias";
+  if (period === "custom" && customRange) {
+    return `${customRange.from.toLocaleDateString("pt-BR")} - ${customRange.to.toLocaleDateString("pt-BR")}`;
+  }
+  return "Periodo";
+}
+
 function buildInsightLines(kpis: KpiRow | null, topOrg: OrgIntelligenceRow | null, topPage: TopPageRow | null) {
   if (!kpis) return [];
   const insights = [
@@ -289,6 +318,15 @@ function buildInsightLines(kpis: KpiRow | null, topOrg: OrgIntelligenceRow | nul
   }
 
   return insights.slice(0, 4);
+}
+
+function getActivationEventLabel(eventType: ActivationEventType) {
+  if (eventType === "ORG_ACTIVATION_STARTED") return "Ativação da organização iniciada";
+  if (eventType === "ORG_ACTIVATION_DISMISSED") return "Ativação da organização pausada";
+  if (eventType === "ORG_ACTIVATION_RESUMED") return "Ativação da organização retomada";
+  if (eventType === "ORG_ACTIVATION_COMPLETED") return "Ativação da organização concluída";
+  if (eventType === "GROUP_WELCOME_STARTED") return "Boas-vindas do grupo exibidas";
+  return "Boas-vindas do grupo concluídas";
 }
 
 export default function SystemActivity() {
@@ -487,6 +525,27 @@ export default function SystemActivity() {
     enabled: isAuthenticated && isSystemAdmin,
   });
 
+  const neverLoggedUsersQuery = useQuery({
+    queryKey: ["system-user-never-logged-preview", startISO, endISO],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("system_user_activity_list", {
+        _start: startISO,
+        _end: endISO,
+        _recent_days: 7,
+        _search: null,
+        _status: "never_logged_in",
+        _role: null,
+        _order_by: "user_name",
+        _order_dir: "asc",
+        _limit: 5,
+        _offset: 0,
+      });
+      if (error) throw error;
+      return (data ?? []) as UserActivityRow[];
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+  });
+
   const topPagesQuery = useQuery({
     queryKey: ["system-activity-top-pages-v2", startISO, endISO],
     queryFn: async () => {
@@ -527,19 +586,6 @@ export default function SystemActivity() {
     enabled: isAuthenticated && isSystemAdmin,
   });
 
-  const dailyOrgStatusQuery = useQuery({
-    queryKey: ["system-activity-daily-org-status", startISO, endISO],
-    queryFn: async () => {
-      const { data, error } = await rpc<DailyOrgStatusRow[]>("system_activity_daily_org_status", {
-        _start: startISO,
-        _end: endISO,
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-  });
-
   const timelineQuery = useQuery({
     queryKey: ["system-activity-recent-timeline", startISO, endISO],
     queryFn: async () => {
@@ -550,6 +596,24 @@ export default function SystemActivity() {
       });
       if (error) throw error;
       return data ?? [];
+    },
+    enabled: isAuthenticated && isSystemAdmin,
+  });
+
+  const activationEventsQuery = useQuery({
+    queryKey: ["system-activation-events", startISO, endISO],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("created_at, entity_id, entity_type, event_type, metadata, user_id")
+        .in("event_type", ACTIVATION_EVENT_TYPES)
+        .gte("created_at", startISO)
+        .lte("created_at", endISO)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (error) throw error;
+      return (data ?? []) as ActivationEventRow[];
     },
     enabled: isAuthenticated && isSystemAdmin,
   });
@@ -600,10 +664,11 @@ export default function SystemActivity() {
     kpiQuery.error,
     previousKpiQuery.error,
     orgsQuery.error,
+    neverLoggedUsersQuery.error,
     topPagesQuery.error,
     dailyMetricsQuery.error,
-    dailyOrgStatusQuery.error,
     timelineQuery.error,
+    activationEventsQuery.error,
   ].some(Boolean);
 
   const kpis = kpiQuery.data;
@@ -611,17 +676,10 @@ export default function SystemActivity() {
   const topOrg = orgRankingQuery.data?.[0] ?? null;
   const topPage = topPagesQuery.data?.[0] ?? null;
 
-  const headlineCards = useMemo(() => {
+  const primaryCards = useMemo(() => {
     if (!kpis) return [];
     const previous = previousKpis ?? ({} as KpiRow);
     return [
-      {
-        title: "Organizações",
-        value: toCount(kpis.organizations_total),
-        trend: getTrendMeta(toCount(kpis.organizations_total), toCount(previous.organizations_total)),
-        icon: Building2,
-        description: "Base total",
-      },
       {
         title: "Organizações com atividade",
         value: toCount(kpis.organizations_with_activity),
@@ -651,32 +709,11 @@ export default function SystemActivity() {
         description: "Navegação registrada",
       },
       {
-        title: "Usuários que nunca logaram",
+        title: "Nunca logaram",
         value: toCount(kpis.never_logged_in_users),
         trend: getTrendMeta(toCount(kpis.never_logged_in_users), toCount(previous.never_logged_in_users)),
         icon: UserX,
-        description: "Contas sem ativação",
-      },
-      {
-        title: "Admins ativos hoje",
-        value: toCount(kpis.admins_active_today),
-        trend: getTrendMeta(toCount(kpis.admins_active_today), toCount(previous.admins_active_today)),
-        icon: Activity,
-        description: "Últimas 24h",
-      },
-      {
-        title: "Admins ativos nos últimos 7 dias",
-        value: toCount(kpis.admins_active_7d),
-        trend: getTrendMeta(toCount(kpis.admins_active_7d), toCount(previous.admins_active_7d)),
-        icon: TrendingUp,
-        description: "Recorrência semanal",
-      },
-      {
-        title: "Usuários inativos há 30 dias",
-        value: toCount(kpis.users_inactive_30d),
-        trend: getTrendMeta(toCount(kpis.users_inactive_30d), toCount(previous.users_inactive_30d)),
-        icon: UserMinus,
-        description: "Risco de churn",
+        description: "Contas ainda sem primeiro acesso",
       },
       {
         title: "Organizações em risco",
@@ -688,15 +725,33 @@ export default function SystemActivity() {
     ];
   }, [kpis, previousKpis]);
 
-  const featureUsageData = useMemo(
-    () =>
-      (topPagesQuery.data ?? []).map((item, index) => ({
-        ...item,
-        label: getPageLabel(item.page),
-        fill: index === 0 ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.65)",
-      })),
-    [topPagesQuery.data],
-  );
+  const attentionCards = useMemo(() => {
+    if (!kpis) return [];
+    const previous = previousKpis ?? ({} as KpiRow);
+    return [
+      {
+        title: "Contas sem ativação",
+        value: toCount(kpis.never_logged_in_users),
+        trend: getTrendMeta(toCount(kpis.never_logged_in_users), toCount(previous.never_logged_in_users)),
+        description: "Usuarios criados que nunca fizeram login.",
+        icon: UserX,
+      },
+      {
+        title: "Inativos há 30 dias",
+        value: toCount(kpis.users_inactive_30d),
+        trend: getTrendMeta(toCount(kpis.users_inactive_30d), toCount(previous.users_inactive_30d)),
+        description: "Usuarios com maior risco de abandono.",
+        icon: UserMinus,
+      },
+      {
+        title: "Ritmo recente de admins",
+        value: `${toCount(kpis.admins_active_today).toLocaleString("pt-BR")} hoje / ${toCount(kpis.admins_active_7d).toLocaleString("pt-BR")} em 7d`,
+        trend: getTrendMeta(toCount(kpis.admins_active_today), toCount(previous.admins_active_today)),
+        description: "Ajuda a ver recorrencia, nao so volume total.",
+        icon: TrendingUp,
+      },
+    ];
+  }, [kpis, previousKpis]);
 
   const orgEngagementData = useMemo(
     () =>
@@ -718,12 +773,59 @@ export default function SystemActivity() {
     [dailyMetricsQuery.data, previousDailyMetricsQuery.data],
   );
 
-  const orgStatusTrendData = useMemo(
-    () => (dailyOrgStatusQuery.data ?? []).map((item) => ({ label: formatDateTickBR(item.day), ...item })),
-    [dailyOrgStatusQuery.data],
-  );
-
   const insights = useMemo(() => buildInsightLines(kpis ?? null, topOrg, topPage), [kpis, topOrg, topPage]);
+  const activationSummary = useMemo(() => {
+    const rows = activationEventsQuery.data ?? [];
+    const orgStarted = new Set<string>();
+    const orgCompleted = new Set<string>();
+    const groupWelcomeStarted = new Set<string>();
+    const groupWelcomeCompleted = new Set<string>();
+
+    let orgDismissedCount = 0;
+    let orgResumedCount = 0;
+
+    for (const row of rows) {
+      if (row.event_type === "ORG_ACTIVATION_STARTED") orgStarted.add(row.entity_id);
+      if (row.event_type === "ORG_ACTIVATION_COMPLETED") orgCompleted.add(row.entity_id);
+      if (row.event_type === "GROUP_WELCOME_STARTED") groupWelcomeStarted.add(row.entity_id);
+      if (row.event_type === "GROUP_WELCOME_COMPLETED") groupWelcomeCompleted.add(row.entity_id);
+      if (row.event_type === "ORG_ACTIVATION_DISMISSED") orgDismissedCount += 1;
+      if (row.event_type === "ORG_ACTIVATION_RESUMED") orgResumedCount += 1;
+    }
+
+    return {
+      orgStarted: orgStarted.size,
+      orgCompleted: orgCompleted.size,
+      orgDismissed: orgDismissedCount,
+      orgResumed: orgResumedCount,
+      groupWelcomeStarted: groupWelcomeStarted.size,
+      groupWelcomeCompleted: groupWelcomeCompleted.size,
+      recent: rows.slice(0, ACTIVATION_EVENT_LIMIT),
+    };
+  }, [activationEventsQuery.data]);
+
+  const activeFilterChips = useMemo(() => {
+    const items: Array<{ key: string; label: string; onRemove?: () => void }> = [];
+    if (selectedPeriod !== "30d" || customRange) {
+      items.push({
+        key: "period",
+        label: getPeriodLabel(selectedPeriod, customRange),
+        onRemove: () => {
+          setSelectedPeriod("30d");
+          setCustomRange(undefined);
+        },
+      });
+    }
+    if (search) items.push({ key: "search", label: `Busca: ${search}`, onRemove: () => setSearch("") });
+    if (orgStatus !== "all") items.push({ key: "orgStatus", label: `Status: ${getStatusLabel(orgStatus)}`, onRemove: () => setOrgStatus("all") });
+    if (lastActivityFilter !== "all") items.push({ key: "lastActivity", label: `Atividade: ${lastActivityFilter} dias`, onRemove: () => setLastActivityFilter("all") });
+    if (daysWithoutLoginFilter !== "all") items.push({ key: "daysWithoutLogin", label: daysWithoutLoginFilter === "never" ? "Nunca logou" : `Sem login: ${daysWithoutLoginFilter} dias`, onRemove: () => setDaysWithoutLoginFilter("all") });
+    if (scoreFilter !== "all") items.push({ key: "score", label: `Score: ${scoreFilter}`, onRemove: () => setScoreFilter("all") });
+    if (userStatus !== "all") items.push({ key: "userStatus", label: `Usuarios: ${getUserActivityStatusLabel(userStatus)}`, onRemove: () => setUserStatus("all") });
+    if (userRole !== "all") items.push({ key: "userRole", label: `Papel: ${getRoleLabel(userRole)}`, onRemove: () => setUserRole("all") });
+    if (selectedOrgForAdmins) items.push({ key: "adminOrg", label: "Gestores filtrados por organizacao", onRemove: () => setSelectedOrgForAdmins(null) });
+    return items;
+  }, [customRange, daysWithoutLoginFilter, lastActivityFilter, orgStatus, search, scoreFilter, selectedOrgForAdmins, selectedPeriod, userRole, userStatus]);
 
   if (authLoading || rolesLoading) {
     return (
@@ -737,10 +839,17 @@ export default function SystemActivity() {
     return <AccessDenied />;
   }
 
+  const focusNeverLoggedUsers = () => {
+    setTab("users");
+    setUserStatus("never_logged_in");
+    setUsersPage(1);
+  };
+
   const orgColumns = [
     {
       key: "org_name",
       header: "Organização",
+      sortable: true,
       render: (org: OrgIntelligenceRow) => (
         <div className="min-w-0">
           <div className="font-semibold text-card-foreground truncate">{org.org_name}</div>
@@ -777,6 +886,7 @@ export default function SystemActivity() {
     {
       key: "usage_score",
       header: "Score de uso",
+      sortable: true,
       render: (org: OrgIntelligenceRow) => (
         <div className="w-32 space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -791,12 +901,14 @@ export default function SystemActivity() {
       key: "last_login_at",
       header: "Último login",
       hideOn: "md",
+      sortable: true,
       render: (org: OrgIntelligenceRow) => (org.last_login_at ? <span className="text-xs text-muted-foreground">{formatDateTimeBR(org.last_login_at)}</span> : "—"),
     },
     {
       key: "last_activity_at",
       header: "Última atividade",
       hideOn: "md",
+      sortable: true,
       render: (org: OrgIntelligenceRow) => (org.last_activity_at ? <span className="text-xs text-muted-foreground">{formatDateTimeBR(org.last_activity_at)}</span> : "—"),
     },
     {
@@ -824,6 +936,7 @@ export default function SystemActivity() {
     {
       key: "user_name",
       header: "Gestor",
+      sortable: true,
       render: (admin: AdminActivityRow) => (
         <div className="min-w-0">
           <div className="font-semibold text-card-foreground truncate">{admin.user_name || "—"}</div>
@@ -841,6 +954,7 @@ export default function SystemActivity() {
       key: "active_days",
       header: "Dias ativos",
       hideOn: "sm",
+      sortable: true,
       render: (admin: AdminActivityRow) => <span className="tabular-nums">{admin.active_days}</span>,
     },
     {
@@ -863,6 +977,7 @@ export default function SystemActivity() {
       key: "last_activity_at",
       header: "Última atividade",
       hideOn: "md",
+      sortable: true,
       render: (admin: AdminActivityRow) => (admin.last_activity_at ? <span className="text-xs text-muted-foreground">{formatDateTimeBR(admin.last_activity_at)}</span> : "—"),
     },
   ];
@@ -871,6 +986,7 @@ export default function SystemActivity() {
     {
       key: "user_name",
       header: "Usuário",
+      sortable: true,
       render: (userRow: UserActivityRow) => (
         <div className="min-w-0">
           <div className="font-semibold text-card-foreground truncate">{userRow.user_name}</div>
@@ -901,18 +1017,21 @@ export default function SystemActivity() {
       key: "page_views",
       header: "Page views",
       hideOn: "md",
+      sortable: true,
       render: (userRow: UserActivityRow) => <span className="tabular-nums">{userRow.page_views.toLocaleString("pt-BR")}</span>,
     },
     {
       key: "last_login_at",
       header: "Último login",
       hideOn: "md",
+      sortable: true,
       render: (userRow: UserActivityRow) => (userRow.last_login_at ? <span className="text-xs text-muted-foreground">{formatDateTimeBR(userRow.last_login_at)}</span> : "—"),
     },
     {
       key: "last_seen_at",
       header: "Última atividade",
       hideOn: "md",
+      sortable: true,
       render: (userRow: UserActivityRow) => (userRow.last_seen_at ? <span className="text-xs text-muted-foreground">{formatDateTimeBR(userRow.last_seen_at)}</span> : "—"),
     },
   ];
@@ -935,11 +1054,11 @@ export default function SystemActivity() {
 
   return (
     <AdminLayout title="Atividade" subtitle="Central de Comando › Atividade">
-      <div className="space-y-8 animate-fade-in">
+      <div className="mx-auto max-w-[1480px] space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Atividade" }]}
-          title="Product Usage Dashboard"
-          description="Painel de inteligência de uso para adoção, engajamento e risco de churn."
+          title="Comportamento de usuários"
+          description="Visão mais clara de login, navegação e risco de abandono para entender onde o uso está saudável e onde precisa de ação."
           filters={
             <div className="flex flex-wrap items-center gap-2">
               <PeriodFilter
@@ -953,115 +1072,12 @@ export default function SystemActivity() {
                   setUsersPage(1);
                 }}
               />
-              <select
-                value={orgStatus}
-                onChange={(e) => {
-                  setOrgStatus(e.target.value as "all" | OrgUsageStatus);
-                  setOrgsPage(1);
-                }}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-                aria-label="Status da organização"
-              >
-                <option value="all">Todas</option>
-                <option value="engajada">Engajadas</option>
-                <option value="ativa">Ativas</option>
-                <option value="morna">Mornas</option>
-                <option value="em_risco">Em risco</option>
-                <option value="abandonada">Abandonadas</option>
-              </select>
-              <select
-                value={lastActivityFilter}
-                onChange={(e) => {
-                  setLastActivityFilter(e.target.value as any);
-                  setOrgsPage(1);
-                }}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-                aria-label="Última atividade"
-              >
-                <option value="all">Última atividade</option>
-                <option value="0-3">Até 3 dias</option>
-                <option value="0-7">Até 7 dias</option>
-                <option value="0-30">Até 30 dias</option>
-                <option value="31+">Mais de 30 dias</option>
-              </select>
-              <select
-                value={daysWithoutLoginFilter}
-                onChange={(e) => {
-                  setDaysWithoutLoginFilter(e.target.value as any);
-                  setOrgsPage(1);
-                }}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-                aria-label="Dias sem login"
-              >
-                <option value="all">Dias sem login</option>
-                <option value="0-7">0 a 7 dias</option>
-                <option value="8-30">8 a 30 dias</option>
-                <option value="31+">Mais de 30 dias</option>
-                <option value="never">Nunca logou</option>
-              </select>
-              <select
-                value={scoreFilter}
-                onChange={(e) => {
-                  setScoreFilter(e.target.value as any);
-                  setOrgsPage(1);
-                }}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-                aria-label="Score de uso"
-              >
-                <option value="all">Score de uso</option>
-                <option value="76-100">76 a 100</option>
-                <option value="51-75">51 a 75</option>
-                <option value="26-50">26 a 50</option>
-                <option value="0-25">0 a 25</option>
-              </select>
-              <select
-                value={tab === "orgs" ? orderByOrgs : tab === "admins" ? orderByAdmins : orderByUsers}
-                onChange={(e) => {
-                  if (tab === "orgs") setOrderByOrgs(e.target.value as OrgOrderBy);
-                  if (tab === "admins") setOrderByAdmins(e.target.value as AdminOrderBy);
-                  if (tab === "users") setOrderByUsers(e.target.value as UserOrderBy);
-                }}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-                aria-label="Ordenação"
-              >
-                {tab === "orgs" ? (
-                  <>
-                    <option value="usage_score">Ordenar: score de uso</option>
-                    <option value="last_login_at">Ordenar: último login</option>
-                    <option value="last_activity_at">Ordenar: última atividade</option>
-                    <option value="org_name">Ordenar: organização</option>
-                    <option value="logins">Ordenar: logins</option>
-                  </>
-                ) : tab === "admins" ? (
-                  <>
-                    <option value="last_activity_at">Ordenar: última atividade</option>
-                    <option value="user_name">Ordenar: gestor</option>
-                    <option value="active_days">Ordenar: dias ativos</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="last_seen_at">Ordenar: última atividade</option>
-                    <option value="last_login_at">Ordenar: último login</option>
-                    <option value="user_name">Ordenar: usuário</option>
-                    <option value="page_views">Ordenar: page views</option>
-                  </>
-                )}
-              </select>
-              <select
-                value={orderDir}
-                onChange={(e) => setOrderDir(e.target.value as "asc" | "desc")}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
-                aria-label="Direção da ordenação"
-              >
-                <option value="desc">Direção: desc</option>
-                <option value="asc">Direção: asc</option>
-              </select>
-              <input
+              <Input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar por organização, gestor ou usuário"
-                className="w-72 px-3 py-2 rounded-lg border border-border bg-card text-sm"
+                className="w-72"
               />
             </div>
           }
@@ -1086,10 +1102,9 @@ export default function SystemActivity() {
             setUsersPage(1);
           }}
           generalKpis={
-            headlineCards.length ? (
+            primaryCards.length ? (
               <>
-                {headlineCards.map((card) => {
-                  const TrendIcon = card.trend.icon;
+                {primaryCards.map((card) => {
                   return (
                     <StatsCard
                       key={card.title}
@@ -1108,6 +1123,7 @@ export default function SystemActivity() {
                       }}
                       valueClassName="font-mono"
                       titleClassName="max-w-[13ch]"
+                      onClick={card.title === "Nunca logaram" ? focusNeverLoggedUsers : undefined}
                     />
                   );
                 })}
@@ -1116,32 +1132,216 @@ export default function SystemActivity() {
           }
         />
 
-        {hasAnyError ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-            <div className="text-sm font-semibold text-card-foreground">Falha ao carregar parte dos dados</div>
-            <div className="text-xs text-muted-foreground mt-1">Verifique sua sessão e tente novamente.</div>
-          </div>
-        ) : null}
+        <FilterChips items={activeFilterChips} onClearAll={showClearFilters ? () => {
+          setSelectedPeriod("30d");
+          setCustomRange(undefined);
+          setSearch("");
+          setOrgStatus("all");
+          setLastActivityFilter("all");
+          setDaysWithoutLoginFilter("all");
+          setScoreFilter("all");
+          setUserStatus("all");
+          setUserRole("all");
+          setSelectedOrgForAdmins(null);
+          setOrderByOrgs("usage_score");
+          setOrderByAdmins("last_activity_at");
+          setOrderByUsers("last_seen_at");
+          setOrderDir("desc");
+          setOrgsPage(1);
+          setAdminsPage(1);
+          setUsersPage(1);
+        } : undefined} className="-mt-2" />
 
-        <section className="rounded-xl border border-border/70 bg-card p-5">
-          <ExecutiveSectionHeader
-            eyebrow="Insights do sistema"
-            title="Leituras automáticas"
-            description="Resumo rápido das principais conclusões de adoção e risco no período."
-            icon={AlertTriangle}
-            className="mb-4"
-          />
-          <div className="grid gap-3 lg:grid-cols-2">
-            {insights.map((insight, index) => (
-              <div key={index} className="rounded-lg border border-border/70 bg-secondary/20 p-4 text-sm text-card-foreground">
-                {insight}
+        {hasAnyError ? (
+          <div className="rounded-[var(--radius-lg)] border border-destructive/30 bg-destructive/5 p-4 shadow-subtle">
+          <div className="text-sm font-semibold text-card-foreground">Falha ao carregar parte dos dados</div>
+          <div className="text-xs text-muted-foreground mt-1">Verifique sua sessão e tente novamente.</div>
+        </div>
+      ) : null}
+
+        <section className="rounded-[var(--radius-xl)] border border-warning/25 bg-[hsl(var(--warning)/0.08)] p-5 shadow-subtle">
+          <div className="grid gap-4 xl:grid-cols-[0.78fr_1.22fr] xl:items-start">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-warning">Ação imediata</div>
+              <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-card-foreground">Contas sem primeiro login</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Esse é o grupo mais importante para ativação: contas criadas que ainda não fizeram o primeiro acesso.
+              </p>
+              <div className="mt-4 flex items-end gap-3">
+                <div className="text-4xl font-semibold tracking-[-0.04em] text-card-foreground">
+                  {toCount(kpis?.never_logged_in_users).toLocaleString("pt-BR")}
+                </div>
+                <div className="pb-1 text-sm text-muted-foreground">usuários sem login</div>
+              </div>
+              <Button variant="default" className="mt-4" onClick={focusNeverLoggedUsers}>
+                Ver lista completa
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              {(neverLoggedUsersQuery.data ?? []).map((userRow) => (
+                <button
+                  key={userRow.user_id}
+                  type="button"
+                  onClick={() => {
+                    focusNeverLoggedUsers();
+                    setSelectedUser(userRow);
+                  }}
+                  className="w-full rounded-[var(--radius-lg)] border border-border/70 bg-card/90 p-3 text-left shadow-subtle transition-colors hover:bg-card"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-card-foreground">{userRow.user_name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {getRoleLabel(userRow.primary_role)}
+                        {userRow.organization_name ? ` • ${userRow.organization_name}` : ""}
+                      </div>
+                    </div>
+                    <StatusTag variant="warning">Nunca logou</StatusTag>
+                  </div>
+                </button>
+              ))}
+              {!neverLoggedUsersQuery.isLoading && !(neverLoggedUsersQuery.data ?? []).length ? (
+                <div className="rounded-[var(--radius-lg)] border border-border/70 bg-card/90 p-4 text-sm text-muted-foreground">
+                  Nenhuma conta pendente de primeiro login no período.
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+          <div className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
+            <ExecutiveSectionHeader
+              eyebrow="Ativação"
+              title="Camada de onboarding do Boris"
+              description="Leitura rápida de início, pausa e conclusão da ativação no período."
+              icon={MousePointerClick}
+              className="mb-4"
+            />
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+              <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4">
+                <div className="text-xs text-muted-foreground">Orgs que iniciaram</div>
+                <div className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">
+                  {activationSummary.orgStarted.toLocaleString("pt-BR")}
+                </div>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4">
+                <div className="text-xs text-muted-foreground">Orgs concluídas</div>
+                <div className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">
+                  {activationSummary.orgCompleted.toLocaleString("pt-BR")}
+                </div>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4">
+                <div className="text-xs text-muted-foreground">Pausas</div>
+                <div className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">
+                  {activationSummary.orgDismissed.toLocaleString("pt-BR")}
+                </div>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4">
+                <div className="text-xs text-muted-foreground">Retomadas</div>
+                <div className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">
+                  {activationSummary.orgResumed.toLocaleString("pt-BR")}
+                </div>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4">
+                <div className="text-xs text-muted-foreground">Welcome de grupo exibido</div>
+                <div className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">
+                  {activationSummary.groupWelcomeStarted.toLocaleString("pt-BR")}
+                </div>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4">
+                <div className="text-xs text-muted-foreground">Welcome concluído</div>
+                <div className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">
+                  {activationSummary.groupWelcomeCompleted.toLocaleString("pt-BR")}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
+            <ExecutiveSectionHeader
+              eyebrow="Timeline"
+              title="Eventos recentes de ativação"
+              description="Últimos sinais da camada de primeiro login e boas-vindas do grupo."
+              icon={Activity}
+              className="mb-4"
+            />
+            <div className="space-y-3">
+              {activationSummary.recent.map((event, index) => (
+                <div key={`${event.created_at}:${event.event_type}:${index}`} className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-card-foreground">
+                        {getActivationEventLabel(event.event_type)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {event.entity_type === "organization" ? "Organização" : "Grupo"} • {event.entity_id.slice(0, 8)}
+                      </div>
+                    </div>
+                    <div className="text-xs whitespace-nowrap text-muted-foreground">{formatDateTimeBR(event.created_at)}</div>
+                  </div>
+                </div>
+              ))}
+              {!activationEventsQuery.isLoading && !activationSummary.recent.length ? (
+                <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                  Nenhum evento de ativação registrado no período selecionado.
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
+            <ExecutiveSectionHeader
+              eyebrow="Leitura rápida"
+              title="O que merece atenção agora"
+              description="Primeiro mostramos o que ajuda a decidir rápido; o detalhamento fica logo abaixo."
+              icon={AlertTriangle}
+              className="mb-4"
+            />
+            <div className="space-y-3">
+              {insights.map((insight, index) => (
+                <div key={index} className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4 text-sm text-card-foreground">
+                  {insight}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            {attentionCards.map((card) => (
+              <div key={card.title} className="rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-4 shadow-subtle">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      {card.title}
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">
+                      {typeof card.value === "number" ? card.value.toLocaleString("pt-BR") : card.value}
+                    </div>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] border border-primary/15 bg-primary/10 shadow-subtle">
+                    <card.icon className="h-4 w-4 text-primary" />
+                  </div>
+                </div>
+                <div className="mt-3 inline-flex rounded-full border border-border/70 bg-muted/30 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                  {card.trend.label}
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{card.description}</p>
+                {card.title === "Contas sem ativação" ? (
+                  <Button variant="outline" size="sm" className="mt-3" onClick={focusNeverLoggedUsers}>
+                    Ver quem ainda não logou
+                  </Button>
+                ) : null}
               </div>
             ))}
           </div>
         </section>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <section className="rounded-xl border border-border/70 bg-card p-5">
+          <section className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
             <ExecutiveSectionHeader
               eyebrow="Tendência"
               title="Admins ativos por dia"
@@ -1169,7 +1369,7 @@ export default function SystemActivity() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-border/70 bg-card p-5">
+          <section className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
             <ExecutiveSectionHeader
               eyebrow="Tendência"
               title="Logins por dia"
@@ -1199,36 +1399,39 @@ export default function SystemActivity() {
           </section>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-          <section className="rounded-xl border border-border/70 bg-card p-5">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+          <section className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
             <ExecutiveSectionHeader
-              eyebrow="Analytics"
-              title="Funcionalidades mais usadas"
-              description="Ranking das áreas mais acessadas do produto."
+              eyebrow="Navegação"
+              title="Páginas mais acessadas"
+              description="Ajuda a entender onde o produto está concentrando uso no período."
               icon={BarChart3}
               className="mb-4"
             />
-            <div className="h-[320px]">
-              <ChartContainer
-                config={{ page_views: { label: "Page views", color: "hsl(var(--primary))" } }}
-                className="h-full w-full"
-              >
-                <BarChart data={featureUsageData} layout="vertical" margin={{ left: 24 }}>
-                  <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.15} horizontal={false} />
-                  <XAxis type="number" axisLine={false} tickLine={false} />
-                  <YAxis dataKey="label" type="category" width={120} axisLine={false} tickLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="page_views" radius={[0, 8, 8, 0]}>
-                    {featureUsageData.map((entry) => (
-                      <Cell key={entry.page} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
+            <div className="space-y-3">
+              {(topPagesQuery.data ?? []).slice(0, 6).map((page, index) => (
+                <div key={page.page ?? index} className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-card-foreground">{getPageLabel(page.page)}</div>
+                      <div className="text-xs text-muted-foreground">{page.admins.toLocaleString("pt-BR")} admins diferentes navegaram por aqui</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-semibold text-card-foreground">{page.page_views.toLocaleString("pt-BR")}</div>
+                      <div className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">page views</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {!topPagesQuery.isLoading && !(topPagesQuery.data ?? []).length ? (
+                <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                  Nenhuma navegação registrada no período selecionado.
+                </div>
+              ) : null}
             </div>
           </section>
 
-          <section className="rounded-xl border border-border/70 bg-card p-5">
+          <section className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
             <ExecutiveSectionHeader
               eyebrow="Ranking"
               title="Engajamento por organização"
@@ -1249,7 +1452,6 @@ export default function SystemActivity() {
                   <XAxis type="number" axisLine={false} tickLine={false} />
                   <YAxis dataKey="label" type="category" width={140} axisLine={false} tickLine={false} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend />
                   <Bar dataKey="usage_score" radius={[0, 8, 8, 0]} fill="var(--color-usage_score)" />
                   <Bar dataKey="logins" radius={[0, 8, 8, 0]} fill="var(--color-logins)" />
                 </BarChart>
@@ -1258,36 +1460,8 @@ export default function SystemActivity() {
           </section>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-          <section className="rounded-xl border border-border/70 bg-card p-5">
-            <ExecutiveSectionHeader
-              eyebrow="Saúde da base"
-              title="Organizações ativas vs inativas"
-              description="Variação diária entre organizações com sinal de uso e organizações sem sinal."
-              icon={ShieldAlert}
-              className="mb-4"
-            />
-            <div className="h-[280px]">
-              <ChartContainer
-                config={{
-                  orgs_active: { label: "Ativas", color: "hsl(var(--primary))" },
-                  orgs_inactive: { label: "Inativas", color: "hsl(var(--destructive))" },
-                }}
-                className="h-full w-full"
-              >
-                <AreaChart data={orgStatusTrendData}>
-                  <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.2} vertical={false} />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} width={28} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area type="monotone" dataKey="orgs_active" stroke="var(--color-orgs_active)" fill="var(--color-orgs_active)" fillOpacity={0.22} />
-                  <Area type="monotone" dataKey="orgs_inactive" stroke="var(--color-orgs_inactive)" fill="var(--color-orgs_inactive)" fillOpacity={0.12} />
-                </AreaChart>
-              </ChartContainer>
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-border/70 bg-card p-5">
+        <div className="grid grid-cols-1 gap-4">
+          <section className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
             <ExecutiveSectionHeader
               eyebrow="Timeline"
               title="Atividade recente"
@@ -1297,7 +1471,7 @@ export default function SystemActivity() {
             />
             <div className="space-y-3">
               {(timelineQuery.data ?? []).map((event, index) => (
-                <div key={`${event.created_at}:${index}`} className="rounded-lg border border-border/70 bg-secondary/20 p-3">
+                <div key={`${event.created_at}:${index}`} className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-card-foreground">
@@ -1313,7 +1487,7 @@ export default function SystemActivity() {
                 </div>
               ))}
               {!timelineQuery.isLoading && !(timelineQuery.data ?? []).length ? (
-                <div className="rounded-lg border border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
                   Nenhum evento recente no período selecionado.
                 </div>
               ) : null}
@@ -1322,13 +1496,115 @@ export default function SystemActivity() {
         </div>
 
         <Tabs value={tab} onValueChange={(value) => setTab(value as TabKey)} className="space-y-3">
-          <TabsList className="h-10 rounded-lg border border-border/70 bg-card p-1">
+          <TabsList className="h-10 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-1 shadow-subtle">
             <TabsTrigger value="orgs">Organizações</TabsTrigger>
             <TabsTrigger value="admins">Gestores</TabsTrigger>
             <TabsTrigger value="users">Usuários</TabsTrigger>
           </TabsList>
 
           <TabsContent value="orgs" className="mt-0 space-y-0">
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-3 shadow-subtle">
+              <Select
+                value={orgStatus}
+                onValueChange={(value) => {
+                  setOrgStatus(value as "all" | OrgUsageStatus);
+                  setOrgsPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[180px]" aria-label="Status da organização">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="engajada">Engajadas</SelectItem>
+                  <SelectItem value="ativa">Ativas</SelectItem>
+                  <SelectItem value="morna">Mornas</SelectItem>
+                  <SelectItem value="em_risco">Em risco</SelectItem>
+                  <SelectItem value="abandonada">Abandonadas</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={lastActivityFilter}
+                onValueChange={(value) => {
+                  setLastActivityFilter(value as any);
+                  setOrgsPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[180px]" aria-label="Última atividade">
+                  <SelectValue placeholder="Última atividade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Última atividade</SelectItem>
+                  <SelectItem value="0-3">Até 3 dias</SelectItem>
+                  <SelectItem value="0-7">Até 7 dias</SelectItem>
+                  <SelectItem value="0-30">Até 30 dias</SelectItem>
+                  <SelectItem value="31+">Mais de 30 dias</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={daysWithoutLoginFilter}
+                onValueChange={(value) => {
+                  setDaysWithoutLoginFilter(value as any);
+                  setOrgsPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[180px]" aria-label="Dias sem login">
+                  <SelectValue placeholder="Dias sem login" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Dias sem login</SelectItem>
+                  <SelectItem value="0-7">0 a 7 dias</SelectItem>
+                  <SelectItem value="8-30">8 a 30 dias</SelectItem>
+                  <SelectItem value="31+">Mais de 30 dias</SelectItem>
+                  <SelectItem value="never">Nunca logou</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={scoreFilter}
+                onValueChange={(value) => {
+                  setScoreFilter(value as any);
+                  setOrgsPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[180px]" aria-label="Score de uso">
+                  <SelectValue placeholder="Score de uso" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Score de uso</SelectItem>
+                  <SelectItem value="76-100">76 a 100</SelectItem>
+                  <SelectItem value="51-75">51 a 75</SelectItem>
+                  <SelectItem value="26-50">26 a 50</SelectItem>
+                  <SelectItem value="0-25">0 a 25</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={orderByOrgs}
+                onValueChange={(value) => setOrderByOrgs(value as OrgOrderBy)}
+              >
+                <SelectTrigger className="w-[220px]" aria-label="Ordenação das organizações">
+                  <SelectValue placeholder="Ordenar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="usage_score">Ordenar: score de uso</SelectItem>
+                  <SelectItem value="last_login_at">Ordenar: último login</SelectItem>
+                  <SelectItem value="last_activity_at">Ordenar: última atividade</SelectItem>
+                  <SelectItem value="org_name">Ordenar: organização</SelectItem>
+                  <SelectItem value="logins">Ordenar: logins</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={orderDir}
+                onValueChange={(value) => setOrderDir(value as "asc" | "desc")}
+              >
+                <SelectTrigger className="w-[150px]" aria-label="Direção da ordenação">
+                  <SelectValue placeholder="Direção" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Direção: desc</SelectItem>
+                  <SelectItem value="asc">Direção: asc</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <ListSectionHeader
               className="mb-3"
               title="Tabela de organizações"
@@ -1346,12 +1622,52 @@ export default function SystemActivity() {
               onPageChange={setOrgsPage}
               loading={orgsQuery.isLoading}
               error={!!orgsQuery.error}
+              sortMode="manual"
+              sortState={{ key: orderByOrgs, direction: orderDir }}
+              onSortChange={(sort) => {
+                if (!sort || !["org_name", "usage_score", "last_login_at", "last_activity_at"].includes(sort.key)) return;
+                setOrderByOrgs(sort.key as OrgOrderBy);
+                setOrderDir(sort.direction);
+                setOrgsPage(1);
+              }}
               emptyIcon={Building2}
               emptyMessage="Nenhuma organização encontrada para os filtros aplicados."
             />
           </TabsContent>
 
           <TabsContent value="admins" className="mt-0 space-y-0">
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-3 shadow-subtle">
+              <Select
+                value={orderByAdmins}
+                onValueChange={(value) => setOrderByAdmins(value as AdminOrderBy)}
+              >
+                <SelectTrigger className="w-[220px]" aria-label="Ordenação dos gestores">
+                  <SelectValue placeholder="Ordenar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="last_activity_at">Ordenar: última atividade</SelectItem>
+                  <SelectItem value="user_name">Ordenar: gestor</SelectItem>
+                  <SelectItem value="active_days">Ordenar: dias ativos</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={orderDir}
+                onValueChange={(value) => setOrderDir(value as "asc" | "desc")}
+              >
+                <SelectTrigger className="w-[150px]" aria-label="Direção da ordenação">
+                  <SelectValue placeholder="Direção" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Direção: desc</SelectItem>
+                  <SelectItem value="asc">Direção: asc</SelectItem>
+                </SelectContent>
+              </Select>
+              {selectedOrgForAdmins ? (
+                <Button variant="ghost" size="sm" onClick={() => setSelectedOrgForAdmins(null)}>
+                  Remover filtro de organização
+                </Button>
+              ) : null}
+            </div>
             <ListSectionHeader
               className="mb-3"
               title={selectedOrgForAdmins ? "Gestores da organização selecionada" : "Lista de gestores"}
@@ -1369,40 +1685,82 @@ export default function SystemActivity() {
               onPageChange={setAdminsPage}
               loading={adminsQuery.isLoading}
               error={!!adminsQuery.error}
+              sortMode="manual"
+              sortState={{ key: orderByAdmins, direction: orderDir }}
+              onSortChange={(sort) => {
+                if (!sort || !["user_name", "active_days", "last_activity_at"].includes(sort.key)) return;
+                setOrderByAdmins(sort.key as AdminOrderBy);
+                setOrderDir(sort.direction);
+                setAdminsPage(1);
+              }}
               emptyIcon={Users}
               emptyMessage="Nenhum gestor encontrado no período."
             />
           </TabsContent>
 
           <TabsContent value="users" className="mt-0 space-y-0">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <select
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-3 shadow-subtle">
+              <Select
                 value={userStatus}
-                onChange={(e) => {
-                  setUserStatus(e.target.value as UserActivityStatus);
+                onValueChange={(value) => {
+                  setUserStatus(value as UserActivityStatus);
                   setUsersPage(1);
                 }}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
               >
-                <option value="all">Todos os status</option>
-                <option value="active">Ativos</option>
-                <option value="inactive">Inativos</option>
-                <option value="never_logged_in">Nunca logaram</option>
-              </select>
-              <select
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Todos os status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="active">Ativos</SelectItem>
+                  <SelectItem value="inactive">Inativos</SelectItem>
+                  <SelectItem value="never_logged_in">Nunca logaram</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
                 value={userRole}
-                onChange={(e) => {
-                  setUserRole(e.target.value as UserPrimaryRole);
+                onValueChange={(value) => {
+                  setUserRole(value as UserPrimaryRole);
                   setUsersPage(1);
                 }}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-sm"
               >
-                <option value="all">Todos os papéis</option>
-                <option value="SYSTEM_ADMIN">System Admin</option>
-                <option value="ORG_ADMIN">Gestor de Organização</option>
-                <option value="GROUP_MANAGER">Gestor de Grupo</option>
-                <option value="USER">Usuário</option>
-              </select>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Todos os papéis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os papéis</SelectItem>
+                  <SelectItem value="SYSTEM_ADMIN">System Admin</SelectItem>
+                  <SelectItem value="ORG_ADMIN">Gestor de Organização</SelectItem>
+                  <SelectItem value="GROUP_MANAGER">Gestor de Grupo</SelectItem>
+                  <SelectItem value="USER">Usuário</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={orderByUsers}
+                onValueChange={(value) => setOrderByUsers(value as UserOrderBy)}
+              >
+                <SelectTrigger className="w-[220px]" aria-label="Ordenação dos usuários">
+                  <SelectValue placeholder="Ordenar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="last_seen_at">Ordenar: última atividade</SelectItem>
+                  <SelectItem value="last_login_at">Ordenar: último login</SelectItem>
+                  <SelectItem value="user_name">Ordenar: usuário</SelectItem>
+                  <SelectItem value="page_views">Ordenar: page views</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={orderDir}
+                onValueChange={(value) => setOrderDir(value as "asc" | "desc")}
+              >
+                <SelectTrigger className="w-[150px]" aria-label="Direção da ordenação">
+                  <SelectValue placeholder="Direção" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Direção: desc</SelectItem>
+                  <SelectItem value="asc">Direção: asc</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <ListSectionHeader
               className="mb-3"
@@ -1421,6 +1779,14 @@ export default function SystemActivity() {
               onPageChange={setUsersPage}
               loading={usersQuery.isLoading}
               error={!!usersQuery.error}
+              sortMode="manual"
+              sortState={{ key: orderByUsers, direction: orderDir }}
+              onSortChange={(sort) => {
+                if (!sort || !["user_name", "page_views", "last_login_at", "last_seen_at"].includes(sort.key)) return;
+                setOrderByUsers(sort.key as UserOrderBy);
+                setOrderDir(sort.direction);
+                setUsersPage(1);
+              }}
               emptyIcon={Users}
               emptyMessage="Nenhum usuário encontrado para os filtros aplicados."
               onRowClick={(userRow) => setSelectedUser(userRow)}

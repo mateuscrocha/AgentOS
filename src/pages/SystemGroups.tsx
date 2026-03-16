@@ -464,6 +464,8 @@ export default function SystemGroups() {
       key: "name",
       header: "Grupo",
       className: "max-w-[18rem] lg:max-w-[22rem]",
+      sortable: true,
+      sortValue: (g: GroupRow) => g.name || "",
       render: (g: GroupRow) => (
         <div className="min-w-0 max-w-[18rem] lg:max-w-[22rem]">
           <div className="truncate text-sm font-semibold text-foreground">{g.name || "—"}</div>
@@ -510,6 +512,7 @@ export default function SystemGroups() {
       key: "created_at",
       header: "Criado",
       hideOn: "lg",
+      sortable: true,
       render: (g: GroupRow) => (
         <span className="text-xs text-muted-foreground">{g.created_at ? formatDateSimpleBR(g.created_at) : "—"}</span>
       ),
@@ -673,11 +676,11 @@ export default function SystemGroups() {
 
   return (
     <AdminLayout title="Grupos" subtitle="Central de Comando › Grupos">
-      <div className="space-y-8 animate-fade-in">
+      <div className="mx-auto max-w-[1480px] space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
           title="Grupos"
-          description="Todos os grupos conectados ao Bóris"
+          description="Visão operacional da base de grupos conectados ao Bóris, com filtros, status e ações administrativas."
           generalKpis={(
             <>
               <StatsCard
@@ -736,7 +739,7 @@ export default function SystemGroups() {
           )}
         />
 
-        <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+        <div className="rounded-[var(--radius-lg)] border border-border/80 bg-card/95 p-3 shadow-subtle sm:p-4">
           <FilterBarRow
             desktopFilters={filtersForm}
             mobileTrigger={(
@@ -749,7 +752,7 @@ export default function SystemGroups() {
             )}
             rightActions={hasActiveFilters ? (
               <>
-                <Badge variant="secondary" className="h-6 px-2 text-[11px]">
+                <Badge variant="secondary" className="h-6 px-2.5 text-[11px]">
                   {activeFiltersCount} filtro{activeFiltersCount > 1 ? "s" : ""} ativo{activeFiltersCount > 1 ? "s" : ""}
                 </Badge>
                 <Button variant="ghost" size="sm" onClick={handleClearFilters}>
@@ -780,7 +783,7 @@ export default function SystemGroups() {
         />
 
         <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <DrawerContent className="bg-card border-border">
+          <DrawerContent className="border-border bg-card">
             <DrawerHeader className="text-left">
               <DrawerTitle>Filtrar grupos</DrawerTitle>
               <DrawerDescription>Encontre mais rápido usando busca, organização, status e ordenação.</DrawerDescription>
@@ -814,7 +817,7 @@ export default function SystemGroups() {
           {isLoading ? (
             <div className="space-y-3">
               {[...Array(4)].map((_, idx) => (
-                <div key={idx} className="rounded-2xl bg-secondary/20 p-4">
+                <div key={idx} className="rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-4 shadow-subtle">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1 space-y-2">
                       <Skeleton className="h-5 w-2/3" />
@@ -847,15 +850,15 @@ export default function SystemGroups() {
                 return (
                   <div
                     key={g.id}
-                    className="rounded-2xl bg-secondary/20 p-4 transition-colors cursor-pointer hover:bg-secondary/30"
+                    className="cursor-pointer rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-4 shadow-subtle transition-colors hover:bg-secondary/20"
                     onClick={() => navigate(`/groups/${g.id}`)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-base font-semibold text-foreground">{g.name || "—"}</div>
+                        <div className="truncate text-base font-semibold tracking-[-0.02em] text-foreground">{g.name || "—"}</div>
                         <button
                           type="button"
-                          className="mt-0.5 truncate text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-4"
+                          className="mt-1 truncate text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-4"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (g.organization_id) navigate(`/organization/${g.organization_id}/dashboard`);
@@ -873,11 +876,11 @@ export default function SystemGroups() {
                       </div>
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between gap-3">
+                    <div className="mt-4 flex items-center justify-between gap-3">
                       <div className="text-sm text-muted-foreground">
-                        <span className="font-semibold text-foreground tabular-nums">{membersLabel}</span>
+                        <span className="font-semibold tabular-nums text-foreground">{membersLabel}</span>
                         <span> membros · </span>
-                        <span className={lastActivityTone === "attention" ? "text-warning font-medium" : undefined}>
+                        <span className={lastActivityTone === "attention" ? "font-medium text-warning" : undefined}>
                           {lastActivityLabel}
                         </span>
                       </div>
@@ -906,13 +909,21 @@ export default function SystemGroups() {
             loading={isLoading}
             error={!!error}
             onRetry={() => refetch()}
+            sortMode="manual"
+            sortState={{ key: orderBy, direction: orderDir }}
+            onSortChange={(sort) => {
+              if (!sort || (sort.key !== "name" && sort.key !== "created_at")) return;
+              setOrderBy(sort.key);
+              setOrderDir(sort.direction);
+              setPage(1);
+            }}
             emptyIcon={Users}
             emptyMessage={hasActiveFilters ? "Nenhum grupo com esses filtros." : "Ainda não há grupos cadastrados."}
           />
         </div>
 
         <AlertDialog open={!!removeGroup} onOpenChange={(open) => !open && setRemoveGroup(null)}>
-          <AlertDialogContent className="bg-card border-border">
+          <AlertDialogContent className="border-border bg-card">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Arquivar grupo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
@@ -949,7 +960,7 @@ export default function SystemGroups() {
         </AlertDialog>
 
         <AlertDialog open={!!editInviteGroup} onOpenChange={(open) => !open && setEditInviteGroup(null)}>
-          <AlertDialogContent className="bg-card border-border">
+          <AlertDialogContent className="border-border bg-card">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Editar link de convite</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
@@ -957,7 +968,7 @@ export default function SystemGroups() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-3">
-              <input
+              <Input
                 type="text"
                 value={inviteLinkInput}
                 onChange={(e) => {
@@ -965,7 +976,7 @@ export default function SystemGroups() {
                   if (inviteLinkError) setInviteLinkError(null);
                 }}
                 placeholder="https://chat.whatsapp.com/…"
-                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+                className="w-full"
               />
               {inviteLinkError && (
                 <div className="text-xs text-destructive">{inviteLinkError}</div>
@@ -995,7 +1006,7 @@ export default function SystemGroups() {
         </AlertDialog>
 
         <AlertDialog open={!!cascadeGroup} onOpenChange={(open) => !open && setCascadeGroup(null)}>
-          <AlertDialogContent className="bg-card border-border">
+          <AlertDialogContent className="border-border bg-card">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Excluir grupo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">

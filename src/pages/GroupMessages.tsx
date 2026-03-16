@@ -172,7 +172,7 @@ const GroupMessages = () => {
       title="Mensagens" 
       subtitle={`${messagesData?.count ?? 0} mensagens`}
     >
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-success/5 space-y-6">
+      <div className="mx-auto max-w-[1480px] animate-fade-in space-y-6 bg-gradient-to-b from-background via-background to-success/5 pb-8 sm:pb-10">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central de Comando", href: "/" },
@@ -266,9 +266,9 @@ const GroupMessages = () => {
           />
         ) : (
           <div className="space-y-4">
-            <div className="rounded-3xl border border-border/60 bg-gradient-to-br from-emerald-50/60 via-background to-teal-50/40 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/10 p-3 sm:p-4 shadow-sm">
+            <div className="rounded-[var(--radius-xl)] border border-border/60 bg-gradient-to-br from-emerald-50/60 via-background to-teal-50/40 p-3 shadow-subtle sm:p-4 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/10">
               <div
-                className="rounded-2xl border border-white/40 dark:border-white/5 p-2 sm:p-3 space-y-3"
+                className="space-y-3 rounded-[var(--radius-lg)] border border-white/40 p-2 sm:p-3 dark:border-white/5"
                 style={{
                   backgroundImage:
                     "radial-gradient(circle at 1px 1px, rgba(120,120,120,0.09) 1px, transparent 0)",
@@ -294,7 +294,7 @@ const GroupMessages = () => {
               if (totalPages <= 1) return null;
               const items = buildPagination(page, totalPages);
               return (
-                <div className="rounded-2xl border border-success/20 bg-card/90 px-4 py-3 shadow-sm">
+                <div className="rounded-[var(--radius-lg)] border border-success/20 bg-card/95 px-4 py-3 shadow-subtle">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="text-sm text-muted-foreground">
                       Página <span className="font-medium text-foreground tabular-nums">{page}</span> de{" "}

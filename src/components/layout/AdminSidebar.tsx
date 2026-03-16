@@ -223,7 +223,7 @@ export function AdminSidebar() {
       }
       return items;
     },
-    [alertasHref, gruposHref, isGroupManager, isGroupScopedUser, minhaOrganizacaoHref, organizacoesHref, painelHref, unreadAlertsQuery.data],
+    [alertasHref, gruposHref, isGroupScopedUser, minhaOrganizacaoHref, organizacoesHref, painelHref, unreadAlertsQuery.data],
   );
 
   const groupItems: NavItem[] = useMemo(() => {
@@ -291,10 +291,11 @@ export function AdminSidebar() {
           aria-disabled={item.disabled}
           disabled={item.disabled}
           className={cn(
-            "relative",
+            "relative min-h-10 rounded-[var(--radius-md)] px-2.5 text-[13px] font-medium",
             "before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-transparent",
             showThisHint && "before:bg-primary/40",
             "data-[active=true]:before:bg-primary",
+            "data-[active=true]:bg-primary/10 data-[active=true]:text-foreground",
             showThisHint && "bg-primary/5 ring-1 ring-primary/20",
             showThisHint && groupsHintPulse && "animate-pulse",
             item.disabled && "cursor-not-allowed opacity-50",
@@ -327,7 +328,7 @@ export function AdminSidebar() {
                     </span>
                   ) : null}
                   {item.badge ? (
-                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground shadow-subtle">
                       {item.badge}
                     </span>
                   ) : null}
@@ -341,9 +342,9 @@ export function AdminSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" variant="sidebar" className="border-r border-sidebar-border">
+    <Sidebar collapsible="icon" variant="sidebar" className="border-r border-sidebar-border bg-sidebar/95">
       <SidebarHeader className="p-2">
-        <div className="flex items-center gap-2 rounded-md px-2 py-2">
+        <div className="flex items-center gap-2 rounded-[var(--radius-lg)] border border-transparent px-2 py-2">
           <a
             href="/"
             onClick={(event) => {
@@ -353,12 +354,15 @@ export function AdminSidebar() {
               event.preventDefault();
               navigate("/");
             }}
-            className="flex min-w-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex min-w-0 items-center gap-2 rounded-[var(--radius-md)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden shrink-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-md)] border border-border/60 bg-background shadow-subtle">
               <img src="/admin-logo.png" alt="Central de Comando do Bóris" className="h-8 w-8 object-cover" />
             </div>
-            <span className="truncate text-sm font-semibold text-foreground group-data-[collapsible=icon]:hidden">Central de Comando do Bóris</span>
+            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+              <span className="block truncate text-sm font-semibold tracking-[-0.02em] text-foreground">Central de Controle</span>
+              <span className="block truncate text-[11px] text-muted-foreground">Boris</span>
+            </div>
           </a>
           <div className="ml-auto">
             <SidebarTrigger variant="ghost" size="icon" className="h-8 w-8" />
@@ -370,7 +374,7 @@ export function AdminSidebar() {
 
       <SidebarContent>
         <div className="px-2 pt-2">
-          <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground group-data-[collapsible=icon]:hidden">
+          <div className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground group-data-[collapsible=icon]:hidden">
             Geral
           </div>
           <SidebarMenu>{generalItems.map(renderNavItem)}</SidebarMenu>
@@ -380,7 +384,7 @@ export function AdminSidebar() {
           <>
             <SidebarSeparator />
             <div className="px-2 pt-2">
-              <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground group-data-[collapsible=icon]:hidden">
+              <div className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground group-data-[collapsible=icon]:hidden">
                 Grupo
               </div>
               <SidebarMenu>{groupItems.map(renderNavItem)}</SidebarMenu>
@@ -399,9 +403,10 @@ export function AdminSidebar() {
                       <SidebarMenuButton
                         tooltip="Administração"
                         className={cn(
-                          "relative",
+                          "relative min-h-10 rounded-[var(--radius-md)] px-2.5 text-[13px] font-medium",
                           "before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-transparent",
                           adminHasActiveItem && "before:bg-primary",
+                          adminHasActiveItem && "bg-primary/10 text-foreground",
                         )}
                       >
                         <Shield className={cn(adminHasActiveItem && "text-primary")} />

@@ -35,7 +35,7 @@ async function maybeClickLinkByText(label) {
 try {
   await page.goto(`${baseUrl}/auth`, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Senha").fill(password);
+  await page.locator('input[autocomplete="current-password"]').fill(password);
   await page.getByRole("button", { name: "Entrar" }).click();
 
   await waitForStableUrl();
@@ -65,11 +65,13 @@ try {
     sidebarLinks,
   }));
 } catch (error) {
+  const bodyText = await page.locator("body").innerText().catch(() => null);
   console.error(JSON.stringify({
     success: false,
     currentUrl: page.url(),
     title: await page.title().catch(() => null),
     visitLog,
+    bodyText,
     error: error instanceof Error ? error.message : String(error),
   }));
   process.exitCode = 1;

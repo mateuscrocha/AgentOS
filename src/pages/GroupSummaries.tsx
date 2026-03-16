@@ -187,15 +187,15 @@ function DiaryContent({
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm sm:p-6">
+      <Card className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-5 shadow-subtle sm:p-6">
         <div className="flex flex-col gap-5">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary" className="rounded-full bg-primary/10 px-3 text-primary hover:bg-primary/10">
+              <Badge variant="secondary" className="rounded-full border border-primary/15 bg-primary/[0.08] px-3 text-primary hover:bg-primary/[0.08]">
                 Visão do período
               </Badge>
               {selectedKeyword ? (
-                <Badge variant="secondary" className="rounded-full px-3">
+                <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/80 px-3">
                   Filtro ativo: {cleanInlineLabel(selectedKeyword)}
                 </Badge>
               ) : null}
@@ -223,11 +223,11 @@ function DiaryContent({
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] gap-7">
+      <div className="grid grid-cols-1 gap-7 md:grid-cols-[280px_minmax(0,1fr)]">
         <div className="hidden self-start md:sticky md:top-24 md:block">
-          <Card className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-5 shadow-sm">
+          <Card className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-4 shadow-subtle sm:p-5">
             <div className="space-y-1">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dias</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Linha do tempo</div>
               <div className="text-xs text-muted-foreground/80">
                 {formatCount(filteredConversationsView.length, "dia", "dias")} filtrados
               </div>
@@ -252,9 +252,9 @@ function DiaryContent({
                           type="button"
                           onClick={() => onSelectDay(day.id)}
                           className={cn(
-                            "mb-3 w-full min-w-0 max-w-full rounded-xl border px-3 py-3 text-left transition-colors",
-                            "bg-card/60 border-transparent hover:bg-secondary/25",
-                            isActive && "border-primary/30 bg-primary/5",
+                            "mb-3 w-full min-w-0 max-w-full rounded-[var(--radius-lg)] border px-3 py-3 text-left shadow-subtle transition-colors",
+                            "border-border/40 bg-background/70 hover:bg-secondary/25",
+                            isActive && "border-primary/25 bg-primary/[0.05]",
                           )}
                         >
                           <div className="min-w-0 text-sm font-medium text-card-foreground whitespace-normal break-words">
@@ -285,7 +285,7 @@ function DiaryContent({
         <div className="space-y-7">
           <div className="md:hidden">
             <Select value={openSummaryId || ""} onValueChange={onSelectDay}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full rounded-[var(--radius-lg)] border-border/80 bg-card/95 shadow-subtle">
                 <SelectValue placeholder="Selecione um dia" />
               </SelectTrigger>
               <SelectContent>
@@ -298,7 +298,7 @@ function DiaryContent({
             </Select>
           </div>
 
-          <Card className="rounded-3xl border border-primary/20 bg-card px-6 py-6 shadow-sm sm:px-8 sm:py-8">
+          <Card className="rounded-[var(--radius-xl)] border border-primary/15 bg-gradient-to-br from-primary/[0.05] via-card/95 to-card/95 px-6 py-6 shadow-subtle sm:px-8 sm:py-8">
             <div className="space-y-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 space-y-3">
@@ -313,7 +313,7 @@ function DiaryContent({
 
                 <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:min-w-[360px]">
                   {selectedDayMetrics.map((item) => (
-                    <div key={item.label} className="border-l border-border/70 pl-3">
+                    <div key={item.label} className="rounded-[var(--radius-md)] border border-border/60 bg-background/70 px-3 py-3 shadow-subtle">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                         {item.label}
                       </div>
@@ -325,22 +325,22 @@ function DiaryContent({
 
               <div className="flex flex-wrap gap-2">
                 {selectedPrimaryTopic ? (
-                  <Badge variant="secondary" className="rounded-full bg-background/80 px-3 py-1 text-foreground hover:bg-background/80">
+                  <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/90 px-3 py-1 text-foreground hover:bg-background/90">
                     Tema principal: {cleanInlineLabel(selectedPrimaryTopic.topic.title || "")}
                   </Badge>
                 ) : null}
                 {selectedSummary?.painsCount ? (
-                  <Badge variant="secondary" className="rounded-full bg-background/80 px-3 py-1 hover:bg-background/80">
+                  <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/90 px-3 py-1 hover:bg-background/90">
                     {selectedSummary.painsCount} dores
                   </Badge>
                 ) : null}
                 {selectedSummary?.desiresCount ? (
-                  <Badge variant="secondary" className="rounded-full bg-background/80 px-3 py-1 hover:bg-background/80">
+                  <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/90 px-3 py-1 hover:bg-background/90">
                     {selectedSummary.desiresCount} oportunidades
                   </Badge>
                 ) : null}
                 {selectedSummary?.keywords.length ? (
-                  <Badge variant="secondary" className="rounded-full bg-background/80 px-3 py-1 hover:bg-background/80">
+                  <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/90 px-3 py-1 hover:bg-background/90">
                     {selectedSummary.keywords.length} termos capturados
                   </Badge>
                 ) : null}
@@ -356,7 +356,7 @@ function DiaryContent({
 
             <div className="grid gap-3 lg:grid-cols-3">
               {executiveHighlights.map((item) => (
-                <Card key={item.label} className={cn("rounded-2xl border p-4", item.tone)}>
+                <Card key={item.label} className={cn("rounded-[var(--radius-lg)] border p-4 shadow-subtle", item.tone)}>
                   <div className="space-y-2">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{item.label}</div>
                     <div className="text-sm font-medium leading-relaxed text-foreground">{cleanInlineLabel(item.value)}</div>
@@ -387,7 +387,7 @@ function DiaryContent({
                   />
                 ))
               ) : (
-                <Card className="rounded-2xl border border-dashed border-border/80 bg-muted/20 p-5">
+                <Card className="rounded-[var(--radius-lg)] border border-dashed border-border/80 bg-muted/20 p-5 shadow-subtle">
                   <div className="space-y-2">
                     <div className="text-sm font-medium text-foreground">Nenhum tópico identificado neste dia</div>
                     <div className="text-sm leading-relaxed text-muted-foreground">
@@ -417,7 +417,7 @@ function DiaryContent({
           <div className="space-y-2.5">
             <SectionDivider title="Resumo" subtitle={selectedSummary ? "Texto completo do dia" : undefined} />
 
-            <Card className="rounded-[28px] border border-border/80 bg-card p-6 shadow-sm sm:p-8">
+            <Card className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-6 shadow-subtle sm:p-8">
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="space-y-1">
@@ -451,7 +451,7 @@ function DiaryContent({
                   </div>
                 </div>
 
-                <div className="rounded-[24px] border border-border/70 bg-background px-6 py-6 sm:px-8 sm:py-8">
+                <div className="rounded-[var(--radius-lg)] border border-border/70 bg-background px-6 py-6 shadow-subtle sm:px-8 sm:py-8">
                   <div className="mx-auto max-w-[78ch] border-l border-border/60 pl-5 sm:pl-7">
                     <div className="mb-6 space-y-2">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -468,7 +468,7 @@ function DiaryContent({
                 </div>
 
                 {selectedPrimaryTopic ? (
-                  <div className="rounded-2xl border border-border/70 bg-muted/15 px-5 py-4">
+                  <div className="rounded-[var(--radius-lg)] border border-border/70 bg-muted/15 px-5 py-4 shadow-subtle">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Tese central do dia
                     </div>
@@ -492,7 +492,7 @@ function DiaryContent({
             />
 
             <Collapsible defaultOpen={!!selectedKeyword}>
-              <Card className="rounded-2xl border border-border/80 bg-card/90">
+              <Card className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 shadow-subtle">
                 <CollapsibleTrigger asChild>
                   <button
                     type="button"
@@ -506,7 +506,7 @@ function DiaryContent({
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       {selectedKeyword ? (
-                        <Badge variant="secondary" className="rounded-full px-3">
+                        <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/80 px-3">
                           {cleanInlineLabel(selectedKeyword)}
                         </Badge>
                       ) : null}
@@ -681,7 +681,7 @@ const GroupSummaries = () => {
       title="Diário"
       subtitle="Tópicos e palavras-chave por dia"
     >
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-accent/10 space-y-6">
+      <div className="mx-auto max-w-[1480px] animate-fade-in space-y-6 bg-gradient-to-b from-background via-background to-warning/[0.06] pb-8 sm:pb-10">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central de Comando", href: "/" },

@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
  
 import AccessDenied from "./AccessDenied";
 import { MemberDetailsDrawer } from "@/components/members/MemberDetailsDrawer";
+import { Input } from "@/components/ui/input";
 
 const PAGE_SIZE = 10;
 
@@ -259,7 +260,7 @@ const GroupMembers = () => {
       subtitle={`${(totalMembersCount ?? 0).toLocaleString("pt-BR")} membros${search.trim() ? ` • ${(membersData?.count ?? 0).toLocaleString("pt-BR")} encontrados` : ""}`}
     >
       <TooltipProvider>
-        <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-info/5 space-y-6">
+        <div className="mx-auto max-w-[1480px] animate-fade-in space-y-6 bg-gradient-to-b from-background via-background to-info/5 pb-8 sm:pb-10">
           <GroupPageTop
             breadcrumbItems={[
               { label: "Central de Comando", href: "/" },
@@ -281,7 +282,7 @@ const GroupMembers = () => {
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input
+                    <Input
                       type="text"
                       placeholder="Buscar pessoas..."
                       aria-label="Buscar membros"
@@ -290,7 +291,7 @@ const GroupMembers = () => {
                         setSearch(e.target.value);
                         setPage(1);
                       }}
-                      className="w-full pl-10 pr-16 h-11 rounded-xl border border-border/80 bg-card/95 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className="h-11 w-full pl-10 pr-16"
                     />
 
                     {isSearching || isFetching ? (
@@ -351,7 +352,11 @@ const GroupMembers = () => {
                   />
                 ) : null}
 
-                <div className="hidden sm:flex flex-wrap items-center gap-2">
+                <div className="hidden rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-3 shadow-subtle sm:flex sm:flex-col sm:items-start sm:gap-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Filter className="h-4 w-4" />
+                    <span>Função no grupo</span>
+                  </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {ROLE_FILTER_OPTIONS.map((opt) => (
                       <button
@@ -370,7 +375,7 @@ const GroupMembers = () => {
                       >
                         {opt.label}
                       </button>
-                    ))}
+                      ))}
                   </div>
 
                   {hasActiveFilters ? (
@@ -390,7 +395,7 @@ const GroupMembers = () => {
                 </div>
 
                 <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
-                  <DrawerContent className="bg-card border-border">
+                  <DrawerContent className="border-border bg-card">
                     <DrawerHeader className="text-left">
                       <DrawerTitle>Filtrar membros</DrawerTitle>
                       <DrawerDescription>Refine por função para navegar mais rápido.</DrawerDescription>
@@ -451,7 +456,7 @@ const GroupMembers = () => {
             }}
           />
 
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <StatsCard
               title="Total de membros"
               value={(totalMembersCount ?? 0).toLocaleString("pt-BR")}
@@ -519,7 +524,7 @@ const GroupMembers = () => {
                 return (
                   <article
                     key={m.id}
-                    className="rounded-2xl border border-border/80 bg-card/90 px-4 py-4 sm:px-5 cursor-pointer transition-[transform,background-color,box-shadow] hover:bg-card hover:shadow-sm hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="cursor-pointer rounded-[var(--radius-lg)] border border-border/80 bg-card/95 px-4 py-4 shadow-subtle transition-[transform,background-color,box-shadow] hover:bg-card hover:shadow-card hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-5"
                     onClick={() => setSelectedMemberId(m.id)}
                     role="button"
                     tabIndex={0}
@@ -584,7 +589,7 @@ const GroupMembers = () => {
               if (totalPages <= 1) return null;
               const items = buildPagination(page, totalPages);
               return (
-                <div className="rounded-2xl border border-info/20 bg-card/90 px-4 py-3 shadow-sm">
+                <div className="rounded-[var(--radius-lg)] border border-info/20 bg-card/95 px-4 py-3 shadow-subtle">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="text-sm text-muted-foreground">
                       Página <span className="font-medium text-foreground tabular-nums">{page}</span> de{" "}

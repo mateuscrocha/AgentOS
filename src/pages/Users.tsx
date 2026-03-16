@@ -930,11 +930,11 @@ export default function Users() {
   const renderListTable = (rows: UserRow[]) => {
     const sorted = sortRows(rows);
     return (
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border/80 bg-card/95 shadow-subtle">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border bg-secondary/10">
+              <tr className="border-b border-border bg-muted/30">
                 <th className={cn(headerCls, "w-[320px]")}> 
                   <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-2 hover:text-card-foreground transition-colors">
                     <span>Nome</span>
@@ -966,23 +966,23 @@ export default function Users() {
                 return (
                   <tr
                     key={profile.id}
-                    className={cn("transition-colors h-11", isRecent && "bg-primary/[0.04]", "hover:bg-secondary/20")}
+                    className={cn("h-11 transition-colors", isRecent && "bg-primary/[0.04]", "hover:bg-muted/40")}
                   >
                     <td className={cellCls}>
                       <div className="flex items-start gap-3">
                         <div className={cn(
-                          "h-9 w-9 rounded-lg flex items-center justify-center",
+                          "flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] shadow-subtle",
                           row.primaryRole ? ROLE_ICON_COLORS[row.primaryRole] : "bg-secondary/60 text-secondary-foreground"
                         )}>
                           <PrimaryIcon className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-card-foreground truncate">{profile.name || 'Sem nome'}</span>
-                            {isRecent && (
+                          <span className="font-semibold text-card-foreground truncate">{profile.name || 'Sem nome'}</span>
+                          {isRecent && (
                               <Badge className="border-transparent bg-primary/10 text-primary hover:bg-primary/10">Atualizado</Badge>
-                            )}
-                          </div>
+                          )}
+                        </div>
                         </div>
                       </div>
                     </td>
@@ -1025,7 +1025,7 @@ export default function Users() {
       title="Usuários" 
       subtitle="Gerenciamento de usuários e papéis do sistema"
     >
-      <div className="space-y-6">
+      <div className="mx-auto max-w-[1480px] space-y-6 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Usuários" }]}
           title="Usuários"
@@ -1082,34 +1082,37 @@ export default function Users() {
                 title="Admins do Sistema"
                 value={allRoles?.filter(r => r.role === 'SYSTEM_ADMIN').length || 0}
                 icon={Crown}
-                variant="compact"
+                variant="kpi"
                 help={{
                   whatIs: "Quantidade de usuários com papel de Administrador do Sistema.",
                   howToInterpret: "Representa usuários com maior nível de permissão global.",
                   whatToObserve: "Revise periodicamente para manter controle de acesso mínimo necessário.",
                 }}
+                numericValue
               />
               <StatsCard
                 title="Gestores de Org"
                 value={allRoles?.filter(r => r.role === 'ORG_ADMIN').length || 0}
                 icon={Building2}
-                variant="compact"
+                variant="kpi"
                 help={{
                   whatIs: "Quantidade de usuários com papel de gestor de organização.",
                   howToInterpret: "Mostra quem administra organizações no sistema.",
                   whatToObserve: "Compare com o número de organizações para avaliar cobertura de gestão.",
                 }}
+                numericValue
               />
               <StatsCard
                 title="Gestores de Grupo"
                 value={allRoles?.filter(r => r.role === 'GROUP_MANAGER').length || 0}
                 icon={UserCog}
-                variant="compact"
+                variant="kpi"
                 help={{
                   whatIs: "Quantidade de usuários com papel de gestor de grupo.",
                   howToInterpret: "Indica quem tem permissão de gestão no nível de grupos.",
                   whatToObserve: "Observe crescimento e distribuição em relação ao volume de grupos operados.",
                 }}
+                numericValue
               />
             </>
           )}
@@ -1117,7 +1120,7 @@ export default function Users() {
 
         <TooltipProvider>
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-border/80 bg-card/95 px-4 py-3 shadow-subtle">
               <div className="text-sm text-muted-foreground">
                 Exibindo <span className="font-semibold text-card-foreground">{filteredRows.length}</span> de {profiles?.length ?? 0} usuários
               </div>
@@ -1173,12 +1176,12 @@ export default function Users() {
                     <div key={section.key} className="space-y-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-lg bg-secondary/60 flex items-center justify-center">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] bg-secondary/60 shadow-subtle">
                             <SectionIcon className="h-4 w-4 text-muted-foreground" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <h3 className="text-base font-semibold text-card-foreground">{section.title}</h3>
+                              <h3 className="text-base font-semibold tracking-[-0.02em] text-card-foreground">{section.title}</h3>
                               <Badge variant="secondary" className="tabular-nums">{rows.length}</Badge>
                             </div>
                             <div className="text-sm text-muted-foreground">{section.hint}</div>

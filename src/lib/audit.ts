@@ -9,7 +9,13 @@ export type EventType =
   | 'ORG_ADMIN_ASSIGNED'
   | 'ORG_ACCESS_GRANTED'
   | 'ORG_ACCESS_DENIED'
-  | 'ORG_DASHBOARD_LOAD_FAILED';
+  | 'ORG_DASHBOARD_LOAD_FAILED'
+  | 'ORG_ACTIVATION_STARTED'
+  | 'ORG_ACTIVATION_DISMISSED'
+  | 'ORG_ACTIVATION_RESUMED'
+  | 'ORG_ACTIVATION_COMPLETED'
+  | 'GROUP_WELCOME_STARTED'
+  | 'GROUP_WELCOME_COMPLETED';
 
 export type EntityType = 'organization' | 'group' | 'member' | 'message';
 

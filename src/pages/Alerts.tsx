@@ -730,6 +730,7 @@ export default function Alerts() {
       key: "status",
       header: "Status",
       className: "w-[110px] align-top",
+      sortable: true,
       render: (ev) => (
         <span
           className={
@@ -747,6 +748,8 @@ export default function Alerts() {
     {
       key: "alert",
       header: "Alerta",
+      sortable: true,
+      sortValue: (ev) => `${ev.alert_terms?.term_raw ?? ""} ${ev.groups?.name ?? ""} ${ev.alert_definitions?.name ?? ""}`,
       render: (ev) => (
         <div className="min-w-0 py-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -768,6 +771,8 @@ export default function Alerts() {
       key: "last_activity",
       header: "Última atividade",
       className: "w-[180px] align-top",
+      sortable: true,
+      sortValue: (ev) => ev.last_triggered_at,
       render: (ev) => (
         <div className="py-1 text-sm">
           <div className="tabular-nums font-medium text-foreground">{formatDateTimeBR(ev.last_triggered_at)}</div>
@@ -840,11 +845,19 @@ export default function Alerts() {
     {
       key: "name",
       header: "Regra",
+      sortable: true,
       render: (definition) => <span className="font-medium">{definition.name}</span>,
     },
     {
       key: "scope",
       header: "Onde vale",
+      sortable: true,
+      sortValue: (definition) => {
+        const scope = deriveScopeType(definition);
+        if (scope === "system") return "Sistema inteiro";
+        if (scope === "org") return orgsQuery.data?.find((org) => org.id === definition.organization_id)?.name ?? "Organização";
+        return groupsQuery.data?.find((group) => group.id === definition.group_id)?.name ?? "Grupo";
+      },
       render: (definition) => {
         const scope = deriveScopeType(definition);
         if (scope === "system") return <span className="text-muted-foreground">Sistema inteiro</span>;
@@ -861,6 +874,8 @@ export default function Alerts() {
       header: "Termos",
       className: "w-[90px] text-right",
       align: "right",
+      sortable: true,
+      sortValue: (definition) => termsByDefinition.get(definition.id)?.length ?? 0,
       render: (definition) => (
         <span className="tabular-nums text-muted-foreground">{termsByDefinition.get(definition.id)?.length ?? 0}</span>
       ),
@@ -869,6 +884,7 @@ export default function Alerts() {
       key: "status",
       header: "Status",
       className: "w-[110px]",
+      sortable: true,
       render: (definition) => (
         <span
           className={
@@ -885,6 +901,7 @@ export default function Alerts() {
       key: "updated_at",
       header: "Atualizada",
       className: "w-[180px]",
+      sortable: true,
       render: (definition) => <span className="tabular-nums text-muted-foreground">{formatDateTimeBR(definition.updated_at)}</span>,
     },
     {
@@ -964,7 +981,7 @@ export default function Alerts() {
 
   return (
     <AdminLayout title="Alertas" subtitle="Acompanhe alertas e ajuste regras de monitoramento">
-      <div className="space-y-6">
+      <div className="mx-auto max-w-[1480px] space-y-6 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[
             { label: "Central de Comando", href: "/" },
@@ -1064,11 +1081,11 @@ export default function Alerts() {
 
         {!isDefinitionsPage ? (
         <section className="space-y-4">
-          <Card className="border-border/80">
+          <Card className="border-border/80 shadow-subtle">
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-1">
-                  <div className="text-sm font-semibold text-foreground">Centro de alertas</div>
+                  <div className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground">Centro de alertas</div>
                   <p className="text-xs text-muted-foreground">
                     {eventsQuery.data?.total ?? 0} alerta(s) encontrados.
                   </p>
@@ -1092,23 +1109,17 @@ export default function Alerts() {
               </div>
 
               {activeFilterChips.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {activeFilterChips.map((chip) => (
-                    <button
-                      key={chip.key}
-                      type="button"
-                      className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/40 px-3 py-1 text-xs text-foreground transition-colors hover:bg-secondary/60"
-                      onClick={() => {
-                        chip.clear();
-                        setEventsPage(1);
-                      }}
-                      title="Remover filtro"
-                    >
-                      <span>{chip.label}</span>
-                      <span className="text-muted-foreground">remover</span>
-                    </button>
-                  ))}
-                </div>
+                <FilterChips
+                  className="mt-3"
+                  items={activeFilterChips.map((chip) => ({
+                    key: chip.key,
+                    label: chip.label,
+                    onRemove: () => {
+                      chip.clear();
+                      setEventsPage(1);
+                    },
+                  }))}
+                />
               ) : (
                 <div className="mt-3 text-xs text-muted-foreground">
                   Nenhum filtro extra ativo. A lista abaixo mostra os alertas conforme o status escolhido.
@@ -1145,9 +1156,9 @@ export default function Alerts() {
 
         {isDefinitionsPage ? (
         <section className="space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 rounded-[var(--radius-lg)] border border-border/80 bg-card/95 px-4 py-3 shadow-subtle sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-sm font-semibold text-foreground">Definições</div>
+              <div className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground">Definições</div>
               <p className="text-xs text-muted-foreground">
                 Escolha o que realmente deve gerar alerta.
               </p>

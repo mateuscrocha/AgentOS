@@ -61,7 +61,7 @@ export function TopicCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border p-4 sm:p-5",
+        "rounded-[var(--radius-lg)] border p-4 shadow-subtle sm:p-5",
         "transition-colors duration-200",
         meta.cardClassName,
         meta.accentClassName,
@@ -92,15 +92,15 @@ export function TopicCard({
 
         <div
           className={cn(
-            "font-semibold text-foreground leading-snug max-w-[92ch]",
+            "max-w-[92ch] font-semibold leading-snug text-foreground",
             emphasis === "top" ? "text-base sm:text-[15px]" : "text-sm sm:text-[15px]",
           )}
         >
           {title}
         </div>
 
-        <div className={cn("rounded-xl border px-3 py-3", meta.bodyClassName)}>
-          <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap break-words max-w-[92ch]">
+        <div className={cn("rounded-[var(--radius-md)] border px-3 py-3 shadow-subtle", meta.bodyClassName)}>
+          <div className="max-w-[92ch] whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">
             {topic.content || "Sem detalhes adicionais para este assunto."}
           </div>
         </div>

@@ -33,21 +33,21 @@ export function AdminPageHeader({
   const hasTitleBlock = title != null || !!description || !!actions;
 
   return (
-    <section className={cn("space-y-4 mb-6", className)}>
-      <div className="pointer-events-none static sm:sticky sm:top-16 z-20 -mx-4 px-4 py-3 bg-background/80 backdrop-blur border-b border-border sm:-mx-6 sm:px-6">
+    <section className={cn("mb-6 space-y-5", className)}>
+      <div className="pointer-events-none static z-20 -mx-4 border-b border-border/80 bg-background/80 px-4 py-3 backdrop-blur sm:sticky sm:top-16 sm:-mx-6 sm:px-6">
         <div className="pointer-events-auto">
           <Breadcrumbs items={breadcrumbItems} />
         </div>
       </div>
 
       {hasTitleBlock ? (
-        <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
-          <div className="min-w-0">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+          <div className="min-w-0 space-y-1">
             {title != null ? (
-              <h2 className="text-xl font-semibold text-foreground sm:text-2xl">{title}</h2>
+              <h2 className="text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-[28px] sm:leading-8">{title}</h2>
             ) : null}
             {description && (
-              <p className="text-sm text-muted-foreground">{description}</p>
+              <p className="max-w-3xl text-[13px] leading-5 text-muted-foreground sm:text-sm">{description}</p>
             )}
           </div>
           {actions && (
@@ -57,14 +57,14 @@ export function AdminPageHeader({
       ) : null}
 
       {generalKpis && (
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {generalKpis}
         </div>
       )}
 
       {filters && (
-        <div className="rounded-lg border border-border bg-card p-3">
-          <div className="flex flex-wrap items-center gap-3 justify-between">
+        <div className="rounded-[var(--radius-lg)] border border-border/80 bg-card/95 p-3 shadow-subtle">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">{filters}</div>
             {showClearFilters && onClearFilters && (
               <Button variant="ghost" size="sm" onClick={onClearFilters}>
@@ -76,7 +76,7 @@ export function AdminPageHeader({
       )}
 
       {filteredKpis && (
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {filteredKpis}
         </div>
       )}

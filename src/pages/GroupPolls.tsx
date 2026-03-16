@@ -265,7 +265,7 @@ export default function GroupPolls() {
 
   return (
     <AdminLayout title="Enquetes" subtitle={`${groupInfo?.groupName ? `${groupInfo.groupName} — ` : ""}${pollsData?.count ?? 0} no período selecionado`}>
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-warning/5 space-y-6">
+      <div className="mx-auto max-w-[1480px] animate-fade-in space-y-6 bg-gradient-to-b from-background via-background to-warning/[0.06] pb-8 sm:pb-10">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central de Comando", href: "/" },
@@ -283,7 +283,7 @@ export default function GroupPolls() {
             syncStatus: groupInfo?.syncStatus || null,
           }}
           filters={(
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-lg)] border border-border/80 bg-card/95 p-3 shadow-subtle">
               <Input
                 value={search}
                 onChange={(e) => {
@@ -291,7 +291,7 @@ export default function GroupPolls() {
                   setPage(1);
                 }}
                 placeholder="Buscar pergunta…"
-                className="h-9 w-[220px] max-w-[45vw] bg-card/95 border-border/80"
+                className="h-10 w-[240px] max-w-[50vw] border-border/80 bg-background sm:h-9"
                 aria-label="Buscar por texto da pergunta"
               />
               {searchTooShort ? (
@@ -304,7 +304,7 @@ export default function GroupPolls() {
                 customRange={customRange}
                 onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
               />
-              <span className="hidden sm:inline text-xs text-muted-foreground">Período</span>
+              <span className="hidden text-xs text-muted-foreground sm:inline">Período</span>
             </div>
           )}
           showClearFilters={hasActiveFilters}
@@ -333,7 +333,7 @@ export default function GroupPolls() {
         ) : isLoading ? (
           <div className="space-y-4" aria-label="Carregando enquetes">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-2xl border border-warning/20 bg-card/90 overflow-hidden shadow-sm">
+              <div key={i} className="overflow-hidden rounded-[var(--radius-xl)] border border-border/80 bg-card/95 shadow-subtle">
                 <div className="p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1 space-y-2">
@@ -347,7 +347,7 @@ export default function GroupPolls() {
                   </div>
 
                   <div className="mt-4 space-y-3">
-                    <div className="rounded-2xl border border-primary/20 bg-primary/10 px-3.5 py-3">
+                    <div className="rounded-[var(--radius-lg)] border border-primary/20 bg-primary/[0.07] px-3.5 py-3 shadow-subtle">
                       <Skeleton className="h-3 w-32" />
                       <div className="mt-2 flex items-center justify-between gap-3">
                         <Skeleton className="h-4 w-2/3" />
@@ -357,7 +357,7 @@ export default function GroupPolls() {
 
                     <div className="space-y-2">
                       {Array.from({ length: 3 }).map((__, j) => (
-                        <div key={j} className="rounded-xl px-2 py-2">
+                        <div key={j} className="rounded-[var(--radius-md)] px-2 py-2">
                           <div className="flex items-start justify-between gap-3">
                             <Skeleton className="h-4 w-2/3" />
                             <Skeleton className="h-4 w-20" />
@@ -400,7 +400,7 @@ export default function GroupPolls() {
           />
         ) : (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {(pollsData.items || []).map((p) => {
                 const options = (resultsMap?.[p.id] || [])
                   .slice()
@@ -423,7 +423,7 @@ export default function GroupPolls() {
                 return (
                   <section
                     key={p.id}
-                    className="rounded-2xl border border-warning/20 bg-card/90 overflow-hidden shadow-sm h-full"
+                    className="h-full overflow-hidden rounded-[var(--radius-xl)] border border-border/80 bg-card/95 shadow-subtle"
                     role="article"
                     aria-labelledby={`poll-${p.id}-title`}
                   >
@@ -460,7 +460,7 @@ export default function GroupPolls() {
                             <span className="tabular-nums">Criada em {createdAtLabel}</span> • <span className="tabular-nums">{voteEventsCount}</span> votos registrados
                           </div>
                           {hasLegacyWarning ? (
-                            <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900">
+                            <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900 shadow-subtle">
                               <TriangleAlert className="h-3.5 w-3.5" />
                               Possível divergência histórica
                             </div>
@@ -486,13 +486,13 @@ export default function GroupPolls() {
                       ) : (
                         <div className="mt-4 space-y-3">
                           {winner ? (
-                            <div className="rounded-2xl border border-primary/20 bg-primary/10 px-3.5 py-3">
+                            <div className="rounded-[var(--radius-lg)] border border-primary/20 bg-primary/[0.07] px-3.5 py-3 shadow-subtle">
                               <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0">
                                   <div className="text-xs font-semibold uppercase tracking-wide text-primary">Resultado principal</div>
                                   <div className="mt-1 flex items-center gap-2">
                                     <div className="text-sm font-semibold text-foreground break-words">{winner.optionText}</div>
-                                    <Badge variant="secondary" className="h-6 px-2 text-[11px] bg-primary text-primary-foreground">
+                                    <Badge variant="secondary" className="h-6 border border-primary/15 bg-primary px-2 text-[11px] text-primary-foreground">
                                       {hasTie ? "Empate" : "Mais votada"}
                                     </Badge>
                                   </div>
@@ -509,7 +509,13 @@ export default function GroupPolls() {
                               const pct = computePollPercent(opt.votesCount, percentBase, 0);
                               const isWinner = maxVotes > 0 && opt.votesCount === maxVotes;
                               return (
-                                <div key={`${p.id}-${opt.optionIndex}`} className={cn("rounded-xl px-2 py-2", isWinner ? "bg-primary/5" : "bg-transparent")}>
+                                <div
+                                  key={`${p.id}-${opt.optionIndex}`}
+                                  className={cn(
+                                    "rounded-[var(--radius-md)] border px-3 py-3 shadow-subtle",
+                                    isWinner ? "border-primary/15 bg-primary/[0.05]" : "border-border/50 bg-background/65",
+                                  )}
+                                >
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                       <div className="flex flex-wrap items-center gap-2">
@@ -519,7 +525,7 @@ export default function GroupPolls() {
                                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{opt.votesCount} • {pct}%</span>
                                   </div>
 
-                                  <div className="mt-2 h-2 rounded-full bg-muted/60 overflow-hidden">
+                                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted/60">
                                     {opt.votesCount <= 0 ? (
                                       <div className="h-full w-full rounded-full border border-dashed border-foreground/20" />
                                     ) : (
@@ -545,7 +551,7 @@ export default function GroupPolls() {
             </div>
 
             {(pollsData.count ?? 0) > PAGE_SIZE ? (
-              <div className="rounded-2xl border border-warning/20 bg-card/90 px-4 py-3 shadow-sm">
+              <div className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 px-4 py-3 shadow-subtle">
                 {(() => {
                   const totalPages = Math.max(1, Math.ceil((pollsData.count ?? 0) / PAGE_SIZE));
                   const items = buildPagination(page, totalPages);

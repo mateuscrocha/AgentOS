@@ -4,6 +4,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
 import { LoadingState } from "@/components/ui/loading-state";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
+import { Badge } from "@/components/ui/badge";
 
 const Settings = () => {
   const { loading: authLoading } = useAuth();
@@ -29,28 +31,44 @@ const Settings = () => {
       title="Configurações" 
       subtitle="Configurações do sistema Admin V4"
     >
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Supabase Config */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-card animate-fade-in">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+      <div className="mx-auto max-w-[1480px] space-y-8 animate-fade-in">
+        <AdminPageHeader
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Configurações" }]}
+          title="Configurações"
+          description="Parâmetros estruturais e informações de integração do ambiente administrativo do Bóris."
+          filters={(
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="h-6 border-primary/20 bg-primary/[0.04] px-2.5 text-[11px] font-medium text-primary/85">
+                Visão de sistema
+              </Badge>
+              <Badge variant="secondary" className="h-6 px-2.5 text-[11px]">
+                Ambiente administrativo
+              </Badge>
+            </div>
+          )}
+        />
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-6 shadow-subtle">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-primary/10 shadow-subtle">
               <Database className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-card-foreground">Supabase</h3>
+              <h3 className="font-semibold tracking-[-0.02em] text-card-foreground">Supabase</h3>
               <p className="text-sm text-muted-foreground">Conexão externa</p>
             </div>
           </div>
           <div className="space-y-3">
-            <div className="rounded-lg bg-secondary/50 px-4 py-3">
+            <div className="rounded-[var(--radius-md)] border border-border/60 bg-secondary/50 px-4 py-3">
               <p className="text-xs font-medium text-muted-foreground mb-1">Project URL</p>
               <p className="text-sm text-card-foreground font-mono">{SUPABASE_URL ?? "Não configurado"}</p>
             </div>
-            <div className="rounded-lg bg-secondary/50 px-4 py-3">
+            <div className="rounded-[var(--radius-md)] border border-border/60 bg-secondary/50 px-4 py-3">
               <p className="text-xs font-medium text-muted-foreground mb-1">Anon Key</p>
               <p className="text-sm text-card-foreground font-mono">{maskedAnonKey}</p>
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-4 py-3">
+            <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-border bg-secondary/50 px-4 py-3">
               <div className="flex items-center gap-2">
                 {isCorrectProject ? (
                   <CheckCircle className="h-4 w-4 text-success" />
@@ -67,29 +85,28 @@ const Settings = () => {
           </p>
         </div>
 
-        {/* Security Info */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-card animate-fade-in">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-success/10">
+        <div className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-6 shadow-subtle">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-success/10 shadow-subtle">
               <Shield className="h-5 w-5 text-success" />
             </div>
             <div>
-              <h3 className="font-semibold text-card-foreground">Segurança</h3>
+              <h3 className="font-semibold tracking-[-0.02em] text-card-foreground">Segurança</h3>
               <p className="text-sm text-muted-foreground">Políticas RLS</p>
             </div>
           </div>
           <div className="space-y-3">
-            <div className="rounded-lg bg-secondary/50 px-4 py-3">
+            <div className="rounded-[var(--radius-md)] border border-border/60 bg-secondary/50 px-4 py-3">
               <p className="text-sm text-card-foreground">
                 ✓ Todas as permissões são gerenciadas via RLS no Supabase
               </p>
             </div>
-            <div className="rounded-lg bg-secondary/50 px-4 py-3">
+            <div className="rounded-[var(--radius-md)] border border-border/60 bg-secondary/50 px-4 py-3">
               <p className="text-sm text-card-foreground">
                 ✓ O Admin não armazena dados sensíveis localmente
               </p>
             </div>
-            <div className="rounded-lg bg-secondary/50 px-4 py-3">
+            <div className="rounded-[var(--radius-md)] border border-border/60 bg-secondary/50 px-4 py-3">
               <p className="text-sm text-card-foreground">
                 ✓ Autenticação gerenciada pelo Supabase Auth
               </p>
@@ -97,18 +114,17 @@ const Settings = () => {
           </div>
         </div>
 
-        {/* API Info */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-card animate-fade-in lg:col-span-2">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10">
+        <div className="lg:col-span-2 rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-6 shadow-subtle">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-warning/10 shadow-subtle">
               <Key className="h-5 w-5 text-warning" />
             </div>
             <div>
-              <h3 className="font-semibold text-card-foreground">Integração de Dados</h3>
+              <h3 className="font-semibold tracking-[-0.02em] text-card-foreground">Integração de Dados</h3>
               <p className="text-sm text-muted-foreground">Regras de ingestão</p>
             </div>
           </div>
-          <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
+          <div className="rounded-[var(--radius-lg)] border border-warning/30 bg-warning/5 p-4">
             <p className="text-sm text-card-foreground">
               <strong>Importante:</strong> O Admin V4 não realiza ingestão de dados externos. 
               Todos os dados (Groups, Members, Messages) devem ser inseridos diretamente no Supabase 
@@ -117,7 +133,7 @@ const Settings = () => {
           </div>
         </div>
       </div>
-
+      </div>
     </AdminLayout>
   );
 };

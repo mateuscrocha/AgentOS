@@ -182,6 +182,8 @@ export default function SystemEvents() {
       key: "created_at",
       header: "Momento",
       className: "w-[160px]",
+      sortable: true,
+      sortValue: (event) => event.created_at,
       render: (event) => (
         <div className="space-y-1">
           <p className="text-sm font-medium text-card-foreground">{formatDateTimeBR(event.created_at)}</p>
@@ -193,6 +195,8 @@ export default function SystemEvents() {
       key: "signal",
       header: "Sinal",
       className: "min-w-[360px]",
+      sortable: true,
+      sortValue: (event) => getEventSummary(event),
       render: (event) => {
         const severity = getAuditSeverity(event);
         const outcome = getAuditOutcome(event);
@@ -215,6 +219,8 @@ export default function SystemEvents() {
       key: "actor",
       header: "Ator",
       hideOn: "md",
+      sortable: true,
+      sortValue: (event) => getEventActorLabel(event),
       render: (event) => (
         <div>
           <p className="text-sm text-card-foreground">{getEventActorLabel(event)}</p>
@@ -226,6 +232,8 @@ export default function SystemEvents() {
       key: "target",
       header: "Alvo",
       hideOn: "lg",
+      sortable: true,
+      sortValue: (event) => getEventTargetLabel(event),
       render: (event) => (
         <div>
           <p className="text-sm text-card-foreground">{getEventTargetLabel(event)}</p>
@@ -237,6 +245,8 @@ export default function SystemEvents() {
       key: "origin",
       header: "Origem",
       hideOn: "lg",
+      sortable: true,
+      sortValue: (event) => getEventOriginLabel(event),
       render: (event) => <span className="text-sm text-muted-foreground">{getEventOriginLabel(event)}</span>,
     },
   ];

@@ -20,14 +20,18 @@ import {
   Loader2,
   Ban,
   X,
+  CheckCircle2,
+  CircleDashed,
+  Sparkles,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import { useOrgCounts } from "@/hooks/use-org-counts";
 import { useOrgCoreData } from "@/hooks/use-org-core-data";
+import { useUserOnboarding } from "@/hooks/use-user-onboarding";
 import AccessDenied from "./AccessDenied";
 import { formatDateSimpleBR } from "@/lib/date";
 import { EditOrganizationModal } from "@/components/modals/EditOrganizationModal";
@@ -92,6 +96,22 @@ const PANORAMA_PAGE_SIZE = 20;
 const RECENT_MESSAGES_HOURS = 24;
 const ORG_PAGE_STALE_TIME_MS = 30_000;
 const ORG_PAGE_GC_TIME_MS = 5 * 60_000;
+
+const hasTrackedSessionEvent = (key: string) => {
+  try {
+    return globalThis.sessionStorage?.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const markSessionEventTracked = (key: string) => {
+  try {
+    globalThis.sessionStorage?.setItem(key, "1");
+  } catch {
+    void 0;
+  }
+};
 
 const normalizeWhatsAppInviteLink = (value: string): string => {
   const trimmed = (value ?? "").trim();
@@ -416,6 +436,7 @@ const Org = () => {
     () => new Date(Date.now() - RECENT_MESSAGES_HOURS * 60 * 60 * 1000).toISOString(),
   );
   const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const { isOrgActivationDismissed, dismissOrgActivation, reopenOrgActivation, isSaving: onboardingSaving } = useUserOnboarding(user?.id);
   const { canEditOrg, canEditGroup, hasOrgAccess, isLoading: rolesLoading, isSystemAdmin } = useUserRoles();
   const [editOrgOpen, setEditOrgOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<GroupDetails | null>(null);
@@ -883,6 +904,7 @@ const Org = () => {
       {
         key: "name",
         header: "Grupo",
+        sortable: true,
         render: (g: any) => (
           <div className="min-w-0">
             <div className="font-semibold text-card-foreground truncate">{g.name}</div>
@@ -900,6 +922,7 @@ const Org = () => {
         key: "members",
         header: "Integrantes",
         align: "right" as const,
+        sortable: true,
         render: (g: any) => (
           <span className="tabular-nums text-sm font-medium text-card-foreground">
             {typeof g.members === "number" ? g.members.toLocaleString("pt-BR") : "-"}
@@ -910,6 +933,7 @@ const Org = () => {
         key: "status",
         header: "Status",
         align: "center" as const,
+        sortable: true,
         render: (g: any) => (
           <StatusTag variant={g.status === "Ativo" ? "success" : "neutral"}>
             {g.status}
@@ -1027,6 +1051,13 @@ const Org = () => {
             onRowClick={(g: any) => navigate(`/groups/${g.id}`)}
             loading={groupsLoading}
             error={groupsError ? "erro" : false}
+            sortMode="manual"
+            sortState={{ key: profileOrderBy, direction: profileOrderDir }}
+            onSortChange={(sort) => {
+              if (!sort || !["name", "members", "status"].includes(sort.key)) return;
+              setProfileOrderBy(sort.key as "name" | "members" | "status");
+              setProfileOrderDir(sort.direction);
+            }}
             onRetry={() => {
               void refetchProfileGroups();
             }}
@@ -1043,7 +1074,7 @@ const Org = () => {
     return curr / prev;
   };
 
-  const computeActivityLevel = (row: OrgGroupSignalRow): ActivityLevel => {
+  const computeActivityLevel = useCallback((row: OrgGroupSignalRow): ActivityLevel => {
     const curr = typeof row.messagesCurrent === "number" ? row.messagesCurrent : null;
     if (curr === null) {
       const lastAt = row.lastMessageAt ? new Date(row.lastMessageAt) : null;
@@ -1056,9 +1087,9 @@ const Org = () => {
     if (curr >= 120) return "alto";
     if (curr >= 40) return "medio";
     return "baixo";
-  };
+  }, []);
 
-  const computeTrend = (row: OrgGroupSignalRow): TrendLevel => {
+  const computeTrend = useCallback((row: OrgGroupSignalRow): TrendLevel => {
     const curr = typeof row.messagesCurrent === "number" ? row.messagesCurrent : null;
     const prev = typeof row.messagesPrevious === "number" ? row.messagesPrevious : null;
     if (curr === null || prev === null) return "sem_dados";
@@ -1068,9 +1099,9 @@ const Org = () => {
     if (ratio >= 1.25) return "subindo";
     if (ratio <= 0.75) return "caindo";
     return "estavel";
-  };
+  }, []);
 
-  const computeAttention = (row: OrgGroupSignalRow) => {
+  const computeAttention = useCallback((row: OrgGroupSignalRow) => {
     const now = new Date();
     const silentCutoff = subDays(now, 7);
     const lastAt = row.lastMessageAt ? new Date(row.lastMessageAt) : null;
@@ -1099,7 +1130,7 @@ const Org = () => {
     }
 
     return null;
-  };
+  }, []);
 
   const { data: orgGroupsSignals, isLoading: signalsLoading, error: signalsError, refetch: refetchSignals } = useQuery({
     queryKey: ["org-groups-signals", orgId, decisionStartISO, decisionEndISO, decisionPrevStartISO, decisionPrevEndISO],
@@ -1281,7 +1312,7 @@ const Org = () => {
         const attention = computeAttention(row);
         return { row, activity, trend, attention };
       }),
-    [signals],
+    [computeAttention, computeActivityLevel, computeTrend, signals],
   );
 
   const totalGroupsCount = typeof orgGroupIds?.length === "number" ? orgGroupIds.length : signals.length;
@@ -1305,12 +1336,15 @@ const Org = () => {
 
   const alertGroupsCount = attentionGroups.length;
 
-  const activityRank: Record<ActivityLevel, number> = {
-    silencio: 0,
-    baixo: 1,
-    medio: 2,
-    alto: 3,
-  };
+  const activityRank = useMemo<Record<ActivityLevel, number>>(
+    () => ({
+      silencio: 0,
+      baixo: 1,
+      medio: 2,
+      alto: 3,
+    }),
+    [],
+  );
 
   const trendRank: Record<TrendLevel, number> = {
     caindo: 0,
@@ -1334,7 +1368,7 @@ const Org = () => {
         const bAt = b.row.lastMessageAt ? new Date(b.row.lastMessageAt).getTime() : 0;
         return bAt - aAt;
       }),
-    [signalsWithMetrics],
+    [activityRank, signalsWithMetrics],
   );
 
   const panoramaTotal = panoramaSorted.length;
@@ -1430,6 +1464,8 @@ const Org = () => {
     {
       key: "name",
       header: "Grupo",
+      sortable: true,
+      sortValue: (g: any) => g.row.name,
       render: (g: any) => (
         <div className="min-w-0">
           <div className="font-semibold text-card-foreground truncate">{g.row.name}</div>
@@ -1449,6 +1485,8 @@ const Org = () => {
       key: "activity",
       header: "Atividade",
       hideOn: "sm",
+      sortable: true,
+      sortValue: (g: any) => g.activity,
       render: (g: any) => {
         const variant = g.activity === "silencio" ? "error" : g.activity === "alto" ? "success" : "neutral";
         const label =
@@ -1460,6 +1498,8 @@ const Org = () => {
       key: "recentMessages",
       header: `${RECENT_MESSAGES_HOURS}h`,
       align: "right" as const,
+      sortable: true,
+      sortValue: (g: any) => panoramaRecentMessages?.[g.row.id] ?? -1,
       render: (g: any) => {
         if (panoramaRecentMessagesLoading) {
           return <span className="text-sm text-muted-foreground">…</span>;
@@ -1628,6 +1668,19 @@ const Org = () => {
       }
 
       notify.success("Grupo adicionado com sucesso.");
+      if (!hasGroups && user?.id) {
+        void logEvent({
+          eventType: "ORG_ACTIVATION_COMPLETED",
+          entityType: "organization",
+          entityId: orgId,
+          userId: user.id,
+          metadata: {
+            completed_via: "group_connected",
+            had_primary_contact: hasPrimaryContactData,
+            group_id: attachedGroupId,
+          },
+        });
+      }
       setAttachGroupOpen(false);
       setAttachInviteLink("");
       await queryClient.invalidateQueries({ queryKey: ["org-profile-groups", orgId] });
@@ -1658,7 +1711,36 @@ const Org = () => {
   const hasPrimaryContactData = !!(contactName || contactEmail || contactPhone || contactRole);
   const hasGroups = totalGroupsCount > 0;
   const allHealthKpisZero = [totalGroupsCount, activeGroupsValue, alertGroupsCount].every((v) => (v ?? 0) === 0);
+  const orgActivationDismissed = isOrgActivationDismissed(orgId ?? null);
   const showOrgOnboarding = (isDashboardRoute || isDefaultOrgHome) && !hasGroups;
+  const showOrgActivationCard = showOrgOnboarding && !orgActivationDismissed;
+  const orgActivationSteps = [
+    {
+      id: "group",
+      title: hasGroups ? "Primeiro grupo conectado" : "Conectar o primeiro grupo",
+      description: hasGroups
+        ? "Seu ambiente ja tem um grupo ativo para iniciar a coleta."
+        : "Adicione o link do grupo para começar a captar atividade, mensagens e sinais.",
+      done: hasGroups,
+    },
+    {
+      id: "contact",
+      title: hasPrimaryContactData ? "Contato principal revisado" : "Revisar contato principal",
+      description: hasPrimaryContactData
+        ? "A organizacao ja tem um contato de referencia para suporte e billing."
+        : "Cadastre um contato oficial para centralizar suporte e comunicacao comercial.",
+      done: hasPrimaryContactData,
+    },
+    {
+      id: "monitoring",
+      title: "Acompanhar as primeiras interacoes",
+      description: hasGroups
+        ? "Assim que o grupo começar a conversar, o Boris preenche painel, diario e sinais automaticamente."
+        : "Depois de conectar um grupo, volte aqui para acompanhar a primeira atividade.",
+      done: hasGroups && !allHealthKpisZero,
+    },
+  ];
+  const completedOrgActivationSteps = orgActivationSteps.filter((step) => step.done).length;
   const addGroupLabel = hasGroups ? "Adicionar grupo" : "Criar primeiro grupo";
   const modalContact =
     primaryContact ??
@@ -1681,6 +1763,73 @@ const Org = () => {
     org.plan ? `Plano ${String(org.plan).toUpperCase()}` : "Plano não definido",
   ];
   const headerDescription = `${formatDateSimpleBR(org.created_at)} • ${headerSummaryParts.join(" • ")} • Atualizada em ${formatDateSimpleBR(org.updated_at)}`;
+
+  const handleDismissOrgActivation = useCallback(async () => {
+    if (!orgId) return;
+    await dismissOrgActivation(orgId);
+    if (user?.id) {
+      void logEvent({
+        eventType: "ORG_ACTIVATION_DISMISSED",
+        entityType: "organization",
+        entityId: orgId,
+        userId: user.id,
+        metadata: {
+          completed_steps: completedOrgActivationSteps,
+          has_primary_contact: hasPrimaryContactData,
+          has_groups: hasGroups,
+        },
+      });
+    }
+  }, [completedOrgActivationSteps, dismissOrgActivation, hasGroups, hasPrimaryContactData, orgId, user?.id]);
+
+  const handleReopenOrgActivation = useCallback(async () => {
+    if (!orgId) return;
+    await reopenOrgActivation(orgId);
+    if (user?.id) {
+      void logEvent({
+        eventType: "ORG_ACTIVATION_RESUMED",
+        entityType: "organization",
+        entityId: orgId,
+        userId: user.id,
+        metadata: {
+          completed_steps: completedOrgActivationSteps,
+        },
+      });
+    }
+  }, [completedOrgActivationSteps, orgId, reopenOrgActivation, user?.id]);
+
+  useEffect(() => {
+    if (authLoading || rolesLoading) return;
+    if (!isAuthenticated || !user?.id || !orgId) return;
+    if (!showOrgActivationCard) return;
+
+    const key = `onboarding-event:org-activation-started:${user.id}:${orgId}`;
+    if (hasTrackedSessionEvent(key)) return;
+
+    markSessionEventTracked(key);
+    void logEvent({
+      eventType: "ORG_ACTIVATION_STARTED",
+      entityType: "organization",
+      entityId: orgId,
+      userId: user.id,
+      metadata: {
+        completed_steps: completedOrgActivationSteps,
+        has_primary_contact: hasPrimaryContactData,
+        has_groups: hasGroups,
+        path: typeof window !== "undefined" ? window.location.pathname : null,
+      },
+    });
+  }, [
+    authLoading,
+    completedOrgActivationSteps,
+    hasGroups,
+    hasPrimaryContactData,
+    isAuthenticated,
+    orgId,
+    rolesLoading,
+    showOrgActivationCard,
+    user?.id,
+  ]);
 
   const adminSummarySection = (isDashboardRoute || isDefaultOrgHome) ? (
     <Card className="border-0 shadow-none">
@@ -1815,14 +1964,14 @@ const Org = () => {
       title="Organização" 
       subtitle={org?.name || "Organização"}
     >
-      <div className="space-y-8 animate-fade-in">
+      <div className="mx-auto max-w-[1480px] space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={breadcrumbItems}
           title={
             <div className="flex flex-wrap items-center gap-2 min-w-0">
               <span className="truncate">{org?.name || "Organização"}</span>
               <span className={
-                `px-2.5 py-0.5 rounded-full text-xs font-medium ${orgStatusClassName}`
+                `inline-flex h-6 items-center rounded-full px-2.5 text-[11px] font-medium uppercase tracking-[0.06em] ${orgStatusClassName}`
               }>
                 {orgStatusLabel}
               </span>
@@ -1912,12 +2061,12 @@ const Org = () => {
               const cover = md.cover_url || "/org-cover-placeholder.jpg";
               const logo = md.logo_url || "/org-logo-placeholder.png";
               return (
-                <section className="rounded-2xl overflow-hidden border border-border bg-card">
+                <section className="overflow-hidden rounded-[var(--radius-xl)] border border-border/80 bg-card/95 shadow-subtle">
                   <div className="h-32 sm:h-44 w-full bg-center bg-cover" style={{ backgroundImage: `url(${cover})` }} />
                   <div className="p-4 sm:p-6 flex items-start gap-4">
-                    <img src={logo} alt="Logo" className="h-16 w-16 rounded-lg border border-border bg-background object-cover" />
+                    <img src={logo} alt="Logo" className="h-16 w-16 rounded-[var(--radius-md)] border border-border bg-background object-cover shadow-subtle" />
                     <div className="min-w-0">
-                      <h3 className="text-lg sm:text-xl font-semibold text-card-foreground">{org?.name}</h3>
+                      <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.02em] text-card-foreground">{org?.name}</h3>
                       <p className="text-sm text-muted-foreground truncate">{md?.area || ""}</p>
                       {md?.area && md?.founded_at && (
                         <p className="text-xs text-muted-foreground">Fundada em {formatDateSimpleBR(md.founded_at)}</p>
@@ -1929,8 +2078,8 @@ const Org = () => {
             })()}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
-                <h4 className="text-sm font-semibold text-foreground">Dados da Organização</h4>
+              <section className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-6 shadow-subtle space-y-4">
+                <h4 className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground">Dados da Organização</h4>
                 {(() => {
                   const md = (org?.metadata || {}) as OrgProfileMetadata;
                   const stats = [
@@ -1972,11 +2121,11 @@ const Org = () => {
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         {stats.map((s) => (
-                          <div key={s.label} className="rounded-xl bg-secondary/30 p-4">
-                            <div className="text-xl font-semibold tabular-nums text-card-foreground">
+                          <div key={s.label} className="rounded-[var(--radius-lg)] border border-border/60 bg-background/80 p-4 shadow-subtle">
+                            <div className="text-xl font-semibold tracking-[-0.03em] tabular-nums text-card-foreground">
                               {typeof s.value === "number" ? s.value.toLocaleString("pt-BR") : "-"}
                             </div>
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                               <span>{s.label}</span>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1997,9 +2146,9 @@ const Org = () => {
                 })()}
               </section>
 
-              <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
+              <section className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-6 shadow-subtle space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-foreground">Contato</h4>
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground">Contato</h4>
                   <Button
                     variant="outline"
                     size="sm"
@@ -2030,17 +2179,17 @@ const Org = () => {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {md?.socials?.facebook && (
-                          <a href={md.socials.facebook} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-md bg-secondary/50 text-xs">Facebook</a>
+                          <a href={md.socials.facebook} target="_blank" rel="noreferrer" className="rounded-[var(--radius-md)] border border-border/60 bg-secondary/50 px-2.5 py-1.5 text-xs">Facebook</a>
                         )}
                         {md?.socials?.instagram && (
-                          <a href={md.socials.instagram} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-md bg-secondary/50 text-xs">Instagram</a>
+                          <a href={md.socials.instagram} target="_blank" rel="noreferrer" className="rounded-[var(--radius-md)] border border-border/60 bg-secondary/50 px-2.5 py-1.5 text-xs">Instagram</a>
                         )}
                         {md?.socials?.linkedin && (
-                          <a href={md.socials.linkedin} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-md bg-secondary/50 text-xs">LinkedIn</a>
+                          <a href={md.socials.linkedin} target="_blank" rel="noreferrer" className="rounded-[var(--radius-md)] border border-border/60 bg-secondary/50 px-2.5 py-1.5 text-xs">LinkedIn</a>
                         )}
                       </div>
                       <div>
-                        <a href={contactEmail ? `mailto:${contactEmail}` : undefined} className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm disabled:opacity-50" aria-disabled={!contactEmail}>
+                        <a href={contactEmail ? `mailto:${contactEmail}` : undefined} className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-primary px-3 py-2 text-sm text-primary-foreground shadow-subtle disabled:opacity-50" aria-disabled={!contactEmail}>
                           Enviar mensagem
                         </a>
                       </div>
@@ -2064,22 +2213,60 @@ const Org = () => {
 
         {(isDashboardRoute || isDefaultOrgHome) && (
           <div id="org-dashboard" className="space-y-6">
-            {showOrgOnboarding && (
-              <Card className="border-0 shadow-none">
+            {showOrgActivationCard && (
+              <Card className="border-border/80 shadow-subtle">
                 <CardContent className="p-6">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-2">
-                      <div className="text-sm font-semibold text-card-foreground">Organização pronta para começar</div>
-                      <p className="text-sm text-muted-foreground max-w-2xl">
-                        Esta organização ainda não tem grupos ativos. Para começar a operação, crie o primeiro grupo, cadastre um contato e sincronize atividade.
-                      </p>
-                      <div className="grid gap-2 text-sm mt-3">
-                        <div className="rounded-lg bg-secondary/20 px-3 py-2">1. Criar o primeiro grupo para iniciar a coleta de atividade.</div>
-                        <div className="rounded-lg bg-secondary/20 px-3 py-2">2. Cadastrar contato principal para atendimento e billing.</div>
-                        <div className="rounded-lg bg-secondary/20 px-3 py-2">3. Acompanhar atividade dos grupos após as primeiras mensagens.</div>
+                  <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="space-y-3">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Primeira ativacao
+                        </div>
+                        <div className="space-y-2">
+                          <div className="text-lg font-semibold tracking-[-0.02em] text-card-foreground">Vamos colocar sua operacao no ar</div>
+                          <p className="text-sm text-muted-foreground max-w-2xl">
+                            Sua organizacao ja esta pronta no Boris. O proximo passo e conectar o primeiro grupo para
+                            acompanhar atividade, mensagens e sinais sem precisar configurar o resto agora.
+                          </p>
+                        </div>
+                        <div className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-secondary/40 px-3 py-2 text-sm text-card-foreground">
+                          <span className="font-semibold">{completedOrgActivationSteps}/3 passos concluídos</span>
+                          <span className="text-muted-foreground">Foque no essencial e avance quando fizer sentido.</span>
+                        </div>
+                      </div>
+                      <div className="flex items-start justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleDismissOrgActivation()}
+                          disabled={!orgId || onboardingSaving}
+                        >
+                          Fazer isso depois
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0">
+                    <div className="grid gap-3">
+                      {orgActivationSteps.map((step, index) => (
+                        <div
+                          key={step.id}
+                          className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-border/60 bg-secondary/20 px-4 py-3"
+                        >
+                          <div className="mt-0.5 shrink-0">
+                            {step.done ? (
+                              <CheckCircle2 className="h-5 w-5 text-success" />
+                            ) : (
+                              <CircleDashed className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-card-foreground">{index + 1}. {step.title}</div>
+                            <p className="mt-1 text-sm text-muted-foreground">{step.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row lg:flex-row">
                       <Button
                         onClick={() => setAttachGroupOpen(true)}
                         className="gap-2"
@@ -2087,7 +2274,7 @@ const Org = () => {
                         title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem criar grupos."}
                       >
                         <Plus className="h-4 w-4" />
-                        Criar primeiro grupo
+                        Conectar primeiro grupo
                       </Button>
                       <Button
                         variant="outline"
@@ -2095,18 +2282,47 @@ const Org = () => {
                         disabled={!userCanEditOrg}
                         title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem alterar contato."}
                       >
-                        {hasPrimaryContactData ? "Editar contato" : "Cadastrar contato"}
+                        {hasPrimaryContactData ? "Revisar contato" : "Cadastrar contato"}
                       </Button>
+                      {hasGroups ? (
+                        <Button
+                          variant="ghost"
+                          onClick={() => void handleDismissOrgActivation()}
+                          disabled={!orgId || onboardingSaving}
+                        >
+                          Continuar explorando
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
-            <Card className="border-0 shadow-none">
+            {showOrgOnboarding && orgActivationDismissed && (
+              <Card className="border-dashed border-border/80 shadow-none">
+                <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-card-foreground">Ativacao inicial pausada</div>
+                    <p className="text-sm text-muted-foreground">
+                      Você pode retomar a checklist quando quiser para conectar o primeiro grupo e revisar o contato.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleReopenOrgActivation()}
+                    disabled={!orgId || onboardingSaving}
+                  >
+                    Retomar ativacao
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            <Card className="border-border/80 shadow-subtle">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-sm font-semibold text-card-foreground">KPIs executivos</div>
+                    <div className="text-sm font-semibold uppercase tracking-[0.08em] text-card-foreground">KPIs executivos</div>
                     <div className="text-xs text-muted-foreground">Últimos 7 dias</div>
                   </div>
                   {signalsError ? (
@@ -2118,7 +2334,7 @@ const Org = () => {
 
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div className={`rounded-xl ${allHealthKpisZero ? "bg-secondary/20 p-3" : "bg-secondary/30 p-4"}`}>
-                    <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-card-foreground">
+                    <div className="text-2xl sm:text-3xl font-semibold tracking-[-0.03em] tabular-nums text-card-foreground">
                       {formatNumberBR(totalGroupsCount ?? 0)}
                     </div>
                     <div className="mt-1 text-sm font-medium text-card-foreground flex items-center gap-1">
@@ -2138,7 +2354,7 @@ const Org = () => {
                   </div>
 
                   <div className={`rounded-xl ${allHealthKpisZero ? "bg-secondary/20 p-3" : "bg-secondary/30 p-4"}`}>
-                    <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-success">
+                    <div className="text-2xl sm:text-3xl font-semibold tracking-[-0.03em] tabular-nums text-success">
                       {formatNumberBR(activeGroupsValue ?? 0)}
                     </div>
                     <div className="mt-1 text-sm font-medium text-card-foreground flex items-center gap-1">
@@ -2166,7 +2382,7 @@ const Org = () => {
                   >
                     <div
                       className={
-                        `text-2xl sm:text-3xl font-semibold tabular-nums ${
+                        `text-2xl sm:text-3xl font-semibold tracking-[-0.03em] tabular-nums ${
                           (alertGroupsCount ?? 0) === 0 ? "text-success" : "text-warning"
                         }`
                       }
@@ -2194,11 +2410,11 @@ const Org = () => {
 
             {adminSummarySection}
 
-            <Card className="border-0 shadow-none">
+            <Card className="border-border/80 shadow-subtle">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-sm font-semibold text-card-foreground">Atividade dos grupos</div>
+                    <div className="text-sm font-semibold uppercase tracking-[0.08em] text-card-foreground">Atividade dos grupos</div>
                     <div className="text-xs text-muted-foreground">Últimas {RECENT_MESSAGES_HOURS} horas</div>
                   </div>
                 </div>
@@ -2245,12 +2461,12 @@ const Org = () => {
                         return (
                           <div
                             key={g.row.id}
-                            className="rounded-2xl bg-secondary/30 p-4 transition-colors cursor-pointer hover:bg-secondary/40"
+                            className="cursor-pointer rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-4 shadow-subtle transition-colors hover:bg-secondary/20"
                             onClick={() => navigate(`/groups/${g.row.id}`)}
                           >
                             <div className="flex items-start justify-between gap-4">
                               <div className="min-w-0">
-                                <div className="font-semibold text-card-foreground truncate">{g.row.name}</div>
+                                <div className="truncate font-semibold tracking-[-0.02em] text-card-foreground">{g.row.name}</div>
                                 <div className="mt-1 text-xs text-muted-foreground truncate">{contextText}</div>
                               </div>
 

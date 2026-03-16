@@ -44,13 +44,14 @@ export function GroupTabs({ groupId, activeTab, variant = "standalone" }: GroupT
       const t = tabs.find((x) => x.key === (val as ActiveTab));
       if (t && !t.disabled) navigate(t.href);
     }}>
-      <TabsList className={variant === "embedded" ? "border-0" : undefined}>
+      <TabsList className={variant === "embedded" ? "border-0 bg-transparent p-0" : "rounded-none border-0 bg-transparent p-2"}>
         {tabs.map((tab) => (
           <TabsTrigger
             key={tab.key}
             value={tab.key}
             disabled={tab.disabled}
             title={tab.disabled ? "Temporariamente desabilitado" : undefined}
+            className="rounded-[var(--radius-md)]"
           >
             {tab.icon && <tab.icon className="h-4 w-4" />}
             {tab.label}
@@ -65,7 +66,7 @@ export function GroupTabs({ groupId, activeTab, variant = "standalone" }: GroupT
   }
 
   return (
-    <div className="border-x border-b border-border bg-card rounded-b-xl -mt-px">
+    <div className="-mt-px rounded-b-[var(--radius-xl)] border-x border-b border-border/70 bg-card/95 shadow-subtle">
       {content}
     </div>
   );

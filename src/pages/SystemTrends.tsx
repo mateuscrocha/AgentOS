@@ -238,6 +238,8 @@ export default function SystemTrends() {
     {
       key: "groupName",
       header: "Grupo",
+      sortable: true,
+      sortValue: (row: GroupImpactRow) => row.groupName,
       render: (row: GroupImpactRow) => (
         <div className="min-w-0">
           <div className="font-semibold text-card-foreground truncate">{row.groupName}</div>
@@ -248,11 +250,13 @@ export default function SystemTrends() {
     {
       key: "messages",
       header: "Mensagens",
+      sortable: true,
       render: (row: GroupImpactRow) => <span className="tabular-nums font-semibold">{row.messages}</span>,
     },
     {
       key: "deltaMessages",
       header: "Delta vs anterior",
+      sortable: true,
       render: (row: GroupImpactRow) => (
         <span className={row.deltaMessages > 0 ? "text-success" : row.deltaMessages < 0 ? "text-destructive" : "text-muted-foreground"}>
           {formatAbsoluteDelta(row.deltaMessages, "msgs")}
@@ -263,12 +267,14 @@ export default function SystemTrends() {
       key: "topPain",
       header: "Dor dominante",
       hideOn: "sm" as const,
+      sortable: true,
       render: (row: GroupImpactRow) => <Badge variant="secondary">{row.topPain}</Badge>,
     },
     {
       key: "topKeyword",
       header: "Palavra em alta",
       hideOn: "md" as const,
+      sortable: true,
       render: (row: GroupImpactRow) => <span className="text-sm text-muted-foreground">{row.topKeyword}</span>,
     },
   ];

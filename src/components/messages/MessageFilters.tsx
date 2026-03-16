@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { translateMessageType } from "@/lib/messages";
+import { Input } from "@/components/ui/input";
 
 type MessageFiltersProps = {
   search: string;
@@ -62,13 +63,13 @@ export function MessageFilters({
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
+          <Input
             type="text"
             placeholder="Buscar no conteúdo..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             aria-label="Buscar mensagens por conteúdo"
-            className="w-full pl-10 pr-10 h-11 rounded-xl border border-border/80 bg-card/95 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="h-11 w-full pl-10 pr-10"
           />
 
           {isFetching ? (
@@ -136,11 +137,11 @@ export function MessageFilters({
         />
       ) : null}
 
-      <div className="hidden sm:flex items-center gap-2">
-        <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="hidden rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-3 shadow-subtle sm:flex sm:flex-col sm:items-start sm:gap-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Filter className="h-4 w-4" />
-          Tipo
-        </span>
+          <span>Tipo de mensagem</span>
+        </div>
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => onTypeFilterChange("")}
@@ -195,8 +196,8 @@ export function MessageFilters({
         </div>
       </div>
 
-      <div className="hidden sm:grid sm:grid-cols-2 gap-2">
-        <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-card/80 px-3 h-11 text-sm">
+      <div className="hidden gap-2 sm:grid sm:grid-cols-2">
+        <label className="flex h-11 items-center gap-2 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 px-3 text-sm shadow-subtle">
           <span className="text-xs text-muted-foreground shrink-0">De</span>
           <input
             type="date"
@@ -206,7 +207,7 @@ export function MessageFilters({
             aria-label="Filtrar mensagens a partir da data"
           />
         </label>
-        <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-card/80 px-3 h-11 text-sm">
+        <label className="flex h-11 items-center gap-2 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 px-3 text-sm shadow-subtle">
           <span className="text-xs text-muted-foreground shrink-0">Até</span>
           <input
             type="date"

@@ -1,10 +1,10 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Building2, ChevronLeft, ChevronRight, Loader2, Plus, SlidersHorizontal, Users } from "lucide-react";
@@ -235,6 +235,7 @@ export default function SystemOrganizations() {
     {
       key: "name",
       header: "Organização",
+      sortable: true,
       render: (org: OrganizationListItem) => (
         <div className="min-w-0">
           <Link
@@ -266,6 +267,7 @@ export default function SystemOrganizations() {
       key: "created_at",
       header: "Criada em",
       hideOn: "md",
+      sortable: true,
       render: (org: OrganizationListItem) => (
         <span className="text-xs text-muted-foreground tabular-nums">{formatDateSimpleBR(org.created_at)}</span>
       ),
@@ -359,74 +361,64 @@ export default function SystemOrganizations() {
 
   return (
     <AdminLayout title="Organizações" subtitle="Gerencie quem usa o Bóris e seus grupos">
-      <div className="space-y-8 animate-fade-in">
-        <div className="space-y-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-1">
-              <Breadcrumbs
-                items={[{ label: "Central de Comando", href: "/" }, { label: "Organizações" }]}
-                className="text-xs text-muted-foreground/80 [&_a]:text-muted-foreground/80 [&_a:hover]:text-foreground [&_span]:text-muted-foreground/80 [&_span]:font-normal"
-              />
-              <ExecutiveSectionHeader
-                eyebrow="Base de clientes"
-                title="Organizações"
-                description="Cadastros, status e estrutura de grupos das organizações que usam o Bóris."
-                icon={Building2}
-                className="mb-0"
-                badge={(
-                  <Badge variant="outline" className="h-6 border-primary/20 bg-primary/[0.04] px-2 text-[11px] font-medium text-primary/85">
-                    Visão de sistema
-                  </Badge>
-                )}
-              />
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{hasActiveFilters ? "Resultados" : "Base total"}</span>
-                <Badge variant="secondary" className="tabular-nums">
-                  {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
-                </Badge>
-                {orgsFetching ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />
-                ) : null}
-              </div>
-            </div>
-
+      <div className="mx-auto max-w-[1480px] space-y-8 animate-fade-in">
+        <AdminPageHeader
+          breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Organizações" }]}
+          title="Organizações"
+          description="Cadastros, status e estrutura de grupos das organizações que usam o Bóris."
+          actions={(
             <Button onClick={() => setCreateOrgOpen(true)} size="lg" className="w-full sm:w-auto">
               <Plus className="h-4 w-4" />
               Nova organização
             </Button>
-          </div>
+          )}
+          generalKpis={(
+            <>
+              <StatsCard
+                title="Total"
+                value={overview?.orgsTotal?.toLocaleString("pt-BR") ?? "—"}
+                icon={Building2}
+                variant="kpi"
+                isLoading={overviewLoading}
+                numericValue
+                help={{
+                  whatIs: "Quantidade total de organizações cadastradas no sistema.",
+                  howToInterpret: "Mostra o tamanho da base de clientes/organizações na plataforma.",
+                  whatToObserve: "Compare com ‘Grupos’ para acompanhar crescimento de estrutura por organização.",
+                }}
+              />
+              <StatsCard
+                title="Grupos"
+                value={overview?.groupsTotal?.toLocaleString("pt-BR") ?? "—"}
+                icon={Users}
+                variant="kpi"
+                isLoading={overviewLoading}
+                numericValue
+                help={{
+                  whatIs: "Total de grupos vinculados às organizações cadastradas.",
+                  howToInterpret: "Mostra a escala operacional distribuída entre as organizações.",
+                  whatToObserve: "Mudanças bruscas podem refletir criação/remoção em lote ou ajustes de vínculo.",
+                }}
+              />
+            </>
+          )}
+          filters={(
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="h-6 border-primary/20 bg-primary/[0.04] px-2.5 text-[11px] font-medium text-primary/85">
+                Visão de sistema
+              </Badge>
+              <Badge variant="secondary" className="tabular-nums">
+                {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
+              </Badge>
+              <span className="text-[12px] text-muted-foreground">{hasActiveFilters ? "Resultados filtrados" : "Base total"}</span>
+              {orgsFetching ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />
+              ) : null}
+            </div>
+          )}
+        />
 
-          <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
-            <StatsCard
-              title="Total"
-              value={overview?.orgsTotal?.toLocaleString("pt-BR") ?? "—"}
-              icon={Building2}
-              variant="kpi"
-              isLoading={overviewLoading}
-              numericValue
-              help={{
-                whatIs: "Quantidade total de organizações cadastradas no sistema.",
-                howToInterpret: "Mostra o tamanho da base de clientes/organizações na plataforma.",
-                whatToObserve: "Compare com ‘Grupos’ para acompanhar crescimento de estrutura por organização.",
-              }}
-            />
-            <StatsCard
-              title="Grupos"
-              value={overview?.groupsTotal?.toLocaleString("pt-BR") ?? "—"}
-              icon={Users}
-              variant="kpi"
-              isLoading={overviewLoading}
-              numericValue
-              help={{
-                whatIs: "Total de grupos vinculados às organizações cadastradas.",
-                howToInterpret: "Mostra a escala operacional distribuída entre as organizações.",
-                whatToObserve: "Mudanças bruscas podem refletir criação/remoção em lote ou ajustes de vínculo.",
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+        <div className="rounded-[var(--radius-lg)] border border-border/80 bg-card/95 p-3 shadow-subtle sm:p-4">
           <FilterBarRow
             desktopFilters={filtersForm}
             mobileTrigger={(
@@ -439,7 +431,7 @@ export default function SystemOrganizations() {
             )}
             rightActions={hasActiveFilters ? (
               <>
-                <Badge variant="secondary" className="h-6 px-2 text-[11px]">
+                <Badge variant="secondary" className="h-6 px-2.5 text-[11px]">
                   {activeFiltersCount} filtro{activeFiltersCount > 1 ? "s" : ""} ativo{activeFiltersCount > 1 ? "s" : ""}
                 </Badge>
                 <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -501,7 +493,7 @@ export default function SystemOrganizations() {
         />
 
         <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <DrawerContent className="bg-card border-border">
+          <DrawerContent className="border-border bg-card">
             <DrawerHeader className="text-left">
               <DrawerTitle>Filtrar organizações</DrawerTitle>
               <DrawerDescription>Encontre mais rápido usando busca, status e ordenação.</DrawerDescription>
@@ -533,7 +525,7 @@ export default function SystemOrganizations() {
           {orgsLoading ? (
             <div className="space-y-3">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="rounded-xl border border-border bg-card p-4">
+                <div key={i} className="rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-4 shadow-subtle">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-2">
                       <Skeleton className="h-5 w-48" />
@@ -572,14 +564,14 @@ export default function SystemOrganizations() {
                 {(orgsData?.items ?? []).map((org) => {
                   const groupsCount = orgGroupCounts?.[org.id] ?? 0;
                   return (
-                    <li key={org.id} className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/30 transition-colors">
+                    <li key={org.id} className="rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-4 shadow-subtle transition-colors hover:bg-secondary/20">
                       <div className="flex items-start justify-between gap-3">
                         <Link
                           to={`/org/${org.id}`}
                           className="min-w-0 flex-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                           aria-label={`Abrir organização ${org.name}`}
                         >
-                          <div className="text-base font-semibold text-card-foreground truncate hover:underline">{org.name}</div>
+                          <div className="truncate text-base font-semibold tracking-[-0.02em] text-card-foreground hover:underline">{org.name}</div>
                           <div className="mt-1">{renderStatusChip(org.status)}</div>
                           <div className="mt-2 text-sm text-muted-foreground">
                             {groupsCount} grupos · Criada em {formatDateSimpleBR(org.created_at)}
@@ -596,7 +588,7 @@ export default function SystemOrganizations() {
               </ul>
 
               {typeof orgsData?.count === "number" && orgsData.count > PAGE_SIZE && (
-                <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card">
+                <div className="flex items-center justify-between rounded-[var(--radius-lg)] border border-border/70 bg-card/95 px-4 py-3 shadow-subtle">
                   <p className="text-xs text-muted-foreground">
                     Página {page} de {Math.max(1, Math.ceil(orgsData.count / PAGE_SIZE))}
                   </p>
@@ -637,6 +629,14 @@ export default function SystemOrganizations() {
             loading={orgsLoading}
             error={!!orgsError}
             onRetry={() => refetchOrgs()}
+            sortMode="manual"
+            sortState={{ key: orderBy, direction: orderDir }}
+            onSortChange={(sort) => {
+              if (!sort || (sort.key !== "name" && sort.key !== "created_at")) return;
+              setOrderBy(sort.key);
+              setOrderDir(sort.direction);
+              setPage(1);
+            }}
             emptyIcon={Building2}
             emptyMessage={
               hasActiveFilters
@@ -647,7 +647,7 @@ export default function SystemOrganizations() {
         </div>
 
         <AlertDialog open={!!cascadeOrg} onOpenChange={(open) => !open && setCascadeOrg(null)}>
-          <AlertDialogContent className="bg-card border-border">
+          <AlertDialogContent className="border-border bg-card">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Excluir organização</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
@@ -659,13 +659,13 @@ export default function SystemOrganizations() {
               <label htmlFor="confirm-cascade-name" className="text-sm font-medium text-card-foreground">
                 Digite o nome da organização para confirmar
               </label>
-              <input
+              <Input
                 id="confirm-cascade-name"
                 type="text"
                 value={confirmCascadeName}
                 onChange={(e) => setConfirmCascadeName(e.target.value)}
                 placeholder={cascadeOrg?.name || "Nome da organização"}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+                className="w-full"
               />
             </div>
             <AlertDialogFooter>

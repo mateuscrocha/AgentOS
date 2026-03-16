@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ReactNode } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 
 interface AdminHeaderProps {
   title: string;
@@ -67,13 +68,14 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-sm sm:h-16 sm:flex-nowrap sm:px-6 sm:py-0">
+    <header className="sticky top-0 z-30 border-b border-border/80 bg-background/85 backdrop-blur-md">
+      <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:h-16 sm:flex-nowrap sm:px-6 sm:py-0">
       <div className="flex min-w-0 items-start gap-3">
-        <SidebarTrigger variant="ghost" size="icon" className="mt-1 md:hidden" />
+        <SidebarTrigger variant="ghost" size="icon" className="mt-0.5 md:hidden" />
         <div className="min-w-0">
-          <h1 className="text-base font-semibold text-foreground sm:text-lg truncate">{title}</h1>
+          <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-foreground">{title}</h1>
           {subtitle && (
-            <p className="text-xs text-muted-foreground sm:text-sm truncate">{subtitle}</p>
+            <p className="truncate text-[13px] text-muted-foreground">{subtitle}</p>
           )}
         </div>
       </div>
@@ -84,35 +86,37 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
             {actions}
           </div>
         )}
-        {/* User menu */}
         {isAuthenticated ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="flex items-center gap-3 rounded-lg p-2 hover:bg-secondary transition-colors">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-primary">
+              <button
+                type="button"
+                className="flex items-center gap-3 rounded-[var(--radius-lg)] border border-transparent px-2.5 py-2 transition-colors hover:border-border/70 hover:bg-muted/50"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-primary shadow-subtle">
                   <User className="h-4 w-4 text-primary-foreground" />
                 </div>
-                <div className="hidden md:block text-left">
+                <div className="hidden min-w-0 md:block text-left">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground">{displayName}</p>
+                    <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
                     {roleLabel && (
-                      <Badge variant={getRoleBadgeVariant()} className="text-[10px] px-1.5 py-0 h-4 flex items-center gap-1">
+                      <Badge variant={getRoleBadgeVariant()} className="flex h-5 items-center gap-1 px-1.5 py-0 text-[10px]">
                         {getRoleIcon()}
                         <span className="hidden lg:inline">{roleLabel}</span>
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">{displayEmail}</p>
+                  <p className="truncate text-xs text-muted-foreground">{displayEmail}</p>
                 </div>
                 <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <div className="px-2 py-1.5">
+            <DropdownMenuContent align="end" className="w-64 rounded-[var(--radius-lg)] border-border/80 p-1 shadow-medium">
+              <div className="px-2 py-2">
                 <p className="text-sm font-medium">{displayName}</p>
                 <p className="text-xs text-muted-foreground">{displayEmail}</p>
                 {roleLabel && (
-                  <Badge variant={getRoleBadgeVariant()} className="mt-1 text-xs flex items-center gap-1 w-fit">
+                  <Badge variant={getRoleBadgeVariant()} className="mt-2 flex w-fit items-center gap-1 text-[11px]">
                     {getRoleIcon()}
                     {roleLabel}
                   </Badge>
@@ -131,14 +135,11 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <button
-            type="button"
-            onClick={() => navigate('/auth')}
-            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
+          <Button type="button" onClick={() => navigate('/auth')}>
             Entrar
-          </button>
+          </Button>
         )}
+      </div>
       </div>
     </header>
   );

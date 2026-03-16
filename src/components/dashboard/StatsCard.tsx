@@ -21,6 +21,17 @@ interface StatsCardProps {
   numericValue?: boolean;
 }
 
+function buildKpiDescription(description: string | undefined, help: MetricHelpContent | undefined, title: string) {
+  if (description?.trim()) return description.trim();
+
+  const baseText = help?.whatIs?.trim() || `Resumo do KPI ${title}.`;
+  const firstSentence = baseText.split(/(?<=[.!?])\s+/)[0] || baseText;
+  const normalized = firstSentence.replace(/\s+/g, " ").trim();
+
+  if (normalized.length <= 88) return normalized;
+  return `${normalized.slice(0, 85).trimEnd()}...`;
+}
+
 export function StatsCard({ 
   title, 
   value, 
@@ -40,6 +51,7 @@ export function StatsCard({
   const Component = onClick ? 'button' : 'div';
   const componentProps = onClick ? ({ type: "button" } as const) : undefined;
   const resolvedHelp = help ?? buildMetricHelpFallback(title);
+  const kpiDescription = buildKpiDescription(description, resolvedHelp, title);
   
   if (variant === "kpi") {
     return (
@@ -47,14 +59,14 @@ export function StatsCard({
         {...componentProps}
         onClick={onClick}
         className={cn(
-          "rounded-xl border border-border/70 bg-card p-4 shadow-none text-left w-full min-h-[128px]",
-          onClick && "ripple-surface cursor-pointer transition-all hover:border-primary/20 hover:bg-secondary/20 hover:scale-[1.01] active:scale-[0.99]",
+          "min-h-[132px] w-full rounded-[var(--radius-lg)] border border-border/80 bg-card/95 p-4 text-left shadow-subtle",
+          onClick && "ripple-surface cursor-pointer transition-all hover:border-primary/20 hover:bg-secondary/20 hover:shadow-card hover:scale-[1.01] active:scale-[0.99]",
           className
         )}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/[0.08]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-primary/20 bg-primary/[0.08] shadow-subtle">
               <Icon className="h-4 w-4 text-primary" />
             </div>
             <div className="flex items-start gap-1 min-w-0">
@@ -69,8 +81,8 @@ export function StatsCard({
           ) : (
             <p
               className={cn(
-                "text-2xl sm:text-[2.1rem] font-semibold text-card-foreground tracking-tight tabular-nums whitespace-nowrap max-w-[65%] sm:max-w-none truncate sm:overflow-visible sm:text-clip shrink-0 text-right",
-                numericValue && "font-mono text-[1.35rem] sm:text-[1.95rem]",
+                "font-mono text-[1.35rem] sm:text-[1.95rem] font-semibold text-card-foreground tracking-[-0.03em] whitespace-nowrap max-w-[65%] sm:max-w-none truncate sm:overflow-visible sm:text-clip shrink-0 text-right",
+                numericValue && "tabular-nums",
                 valueClassName,
               )}
             >
@@ -87,18 +99,16 @@ export function StatsCard({
             {change && (
               <p
                 className={cn(
-                  "mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                  "mt-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
                   changeType === "positive" && "bg-success/10 text-success",
                   changeType === "negative" && "bg-destructive/10 text-destructive",
-                  changeType === "neutral" && "bg-muted/40 text-muted-foreground"
+                  changeType === "neutral" && "border-border/70 bg-muted/40 text-muted-foreground"
                 )}
               >
                 {change}
               </p>
             )}
-            {description && (
-              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/90">{description}</p>
-            )}
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/90">{kpiDescription}</p>
           </>
         )}
       </Component>

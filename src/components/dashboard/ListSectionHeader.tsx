@@ -20,10 +20,10 @@ export function ListSectionHeader({
   className,
 }: ListSectionHeaderProps) {
   return (
-    <div className={cn("rounded-lg border border-border bg-card px-4 py-3", className)}>
+    <div className={cn("rounded-[var(--radius-lg)] border border-border/80 bg-card/95 px-4 py-3 shadow-subtle", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             {title}
           </span>
           <Badge variant="secondary" className="tabular-nums">
@@ -31,7 +31,7 @@ export function ListSectionHeader({
           </Badge>
           {isLoading ? loadingIndicator : null}
         </div>
-        {statusLabel ? <p className="text-xs text-muted-foreground">{statusLabel}</p> : null}
+        {statusLabel ? <p className="text-[12px] text-muted-foreground">{statusLabel}</p> : null}
       </div>
     </div>
   );

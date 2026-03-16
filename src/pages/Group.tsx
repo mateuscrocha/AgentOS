@@ -7,6 +7,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import { useGroupDashboard } from "@/hooks/use-group-dashboard";
+import { useUserOnboarding } from "@/hooks/use-user-onboarding";
 import AccessDenied from "./AccessDenied";
 import {
   SummarySection,
@@ -27,14 +28,31 @@ import {
 } from "@/components/group-dashboard/period-utils";
 import { EditIkigaiModal } from "@/components/modals/EditIkigaiModal";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { SendGroupMessageDialog } from "@/components/modals/SendGroupMessageDialog";
 import { sendGroupMessageWebhook } from "@/lib/group-message-webhook";
 import { notify } from "@/components/ui/sonner";
 import { notifyActionError } from "@/lib/notify-action-error";
-import { SendHorizontal } from "lucide-react";
+import { CheckCircle2, SendHorizontal, Sparkles } from "lucide-react";
+import { logEvent } from "@/lib/audit";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
- 
+
+const hasTrackedSessionEvent = (key: string) => {
+  try {
+    return globalThis.sessionStorage?.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const markSessionEventTracked = (key: string) => {
+  try {
+    globalThis.sessionStorage?.setItem(key, "1");
+  } catch {
+    void 0;
+  }
+};
 
 function loadSavedGroupPeriod(groupId?: string): { period: PeriodType; range?: DateRange } {
   if (!groupId) return { period: "7d" };
@@ -64,7 +82,8 @@ function loadSavedGroupPeriod(groupId?: string): { period: PeriodType; range?: D
 const Group = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
-  const { loading: authLoading } = useAuth();
+  const { loading: authLoading, user } = useAuth();
+  const { isGroupWelcomeDismissed, dismissGroupWelcome, isSaving: onboardingSaving } = useUserOnboarding(user?.id);
   const { isLoading: rolesLoading, canEditGroup, isSystemAdmin } = useUserRoles();
   const isGroupIdValid = typeof groupId === "string" && UUID_RE.test(groupId);
   
@@ -134,6 +153,48 @@ const Group = () => {
   };
 
   const canSendMessage = !!group && canEditGroup(group.id, group.organization_id);
+  const totalMessages = Number((stats as any)?.totalMessages ?? (stats as any)?.totalMessages7d ?? 0);
+  const hasGroupActivity = totalMessages > 0 || Boolean(stats.lastMessageAt);
+  const welcomeDismissed = isGroupWelcomeDismissed(groupId ?? null);
+
+  useEffect(() => {
+    if (authLoading || rolesLoading) return;
+    if (!user?.id || !groupId || welcomeDismissed) return;
+
+    const key = `onboarding-event:group-welcome-started:${user.id}:${groupId}`;
+    if (hasTrackedSessionEvent(key)) return;
+
+    markSessionEventTracked(key);
+    void logEvent({
+      eventType: "GROUP_WELCOME_STARTED",
+      entityType: "group",
+      entityId: groupId,
+      userId: user.id,
+      metadata: {
+        has_activity: hasGroupActivity,
+        total_messages: totalMessages,
+        path: typeof window !== "undefined" ? window.location.pathname : null,
+      },
+    });
+  }, [authLoading, groupId, hasGroupActivity, rolesLoading, totalMessages, user?.id, welcomeDismissed]);
+
+  const handleDismissWelcome = async () => {
+    if (!groupId) return;
+    await dismissGroupWelcome(groupId);
+    if (user?.id) {
+      void logEvent({
+        eventType: "GROUP_WELCOME_COMPLETED",
+        entityType: "group",
+        entityId: groupId,
+        userId: user.id,
+        metadata: {
+          completed_via: "dismiss",
+          has_activity: hasGroupActivity,
+          total_messages: totalMessages,
+        },
+      });
+    }
+  };
 
   const handleSendMessage = async (message: string) => {
     if (!group) return;
@@ -228,7 +289,7 @@ const Group = () => {
       title="Painel do Grupo" 
       subtitle={group?.name || "Grupo"}
     >
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-primary/5 space-y-8">
+      <div className="mx-auto max-w-[1480px] animate-fade-in space-y-8 bg-gradient-to-b from-background via-background to-primary/5 pb-8 sm:pb-10">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central de Comando", href: "/" },
@@ -271,7 +332,67 @@ const Group = () => {
           onSubmit={handleSendMessage}
         />
 
-        <div className="space-y-12">
+        {!welcomeDismissed && (
+          <Card className="border-border/80 shadow-subtle">
+            <CardContent className="p-6">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Primeira visita ao grupo
+                  </div>
+                  <div className="space-y-2">
+                    <h2 className="text-lg font-semibold tracking-[-0.02em] text-card-foreground">
+                      {hasGroupActivity ? "Seu grupo ja esta em operacao" : "Grupo conectado. Agora e so comecar a acompanhar."}
+                    </h2>
+                    <p className="max-w-3xl text-sm text-muted-foreground">
+                      {hasGroupActivity
+                        ? "Aqui voce acompanha ritmo da conversa, participantes, diario e sinais do grupo sem precisar navegar por tudo agora."
+                        : "Quando as primeiras mensagens chegarem, o Boris começa a preencher o painel, o diario e os sinais do grupo automaticamente."}
+                    </p>
+                  </div>
+                  <div className="grid gap-2 text-sm">
+                    <div className="flex items-start gap-2 rounded-[var(--radius-md)] bg-secondary/30 px-3 py-2 text-card-foreground">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                      <span>Painel principal para acompanhar atividade e participacao.</span>
+                    </div>
+                    <div className="flex items-start gap-2 rounded-[var(--radius-md)] bg-secondary/30 px-3 py-2 text-card-foreground">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                      <span>Use o Diario para revisar contexto e o Atendimento para agir quando precisar.</span>
+                    </div>
+                    {!hasGroupActivity ? (
+                      <div className="flex items-start gap-2 rounded-[var(--radius-md)] bg-secondary/30 px-3 py-2 text-card-foreground">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                        <span>Se quiser, envie uma mensagem inicial para acelerar a primeira leitura da conversa.</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
+                  {canSendMessage && !hasGroupActivity ? (
+                    <Button type="button" onClick={() => setSendDialogOpen(true)}>
+                      <SendHorizontal className="h-4 w-4" />
+                      Enviar mensagem inicial
+                    </Button>
+                  ) : null}
+                  <Button type="button" variant="outline" onClick={() => navigate(`/groups/${group.id}/summaries`)}>
+                    Ver diario
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => void handleDismissWelcome()}
+                    disabled={!groupId || onboardingSaving}
+                  >
+                    Entendi
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="space-y-10">
           <section className="space-y-6">
             <div className="space-y-8">
               {(() => {
@@ -346,9 +467,9 @@ const Group = () => {
             </div>
           </section>
 
-          <section className="space-y-6">
+          <section className="space-y-6 rounded-[var(--radius-xl)] border border-border/60 bg-card/50 p-4 shadow-subtle sm:p-5">
             <header className="space-y-1">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Crescimento do grupo</h2>
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Crescimento do grupo</h2>
               <p className="text-sm text-muted-foreground">Entradas, saídas e saldo do período</p>
             </header>
 
@@ -369,7 +490,7 @@ const Group = () => {
             </div>
           </section>
 
-          <section className="space-y-6">
+          <section className="space-y-6 rounded-[var(--radius-xl)] border border-border/60 bg-card/50 p-4 shadow-subtle sm:p-5">
             <div className="space-y-8">
               <PurposeAlignmentSection
                 alignedPercent={alignedMessagesPercent}

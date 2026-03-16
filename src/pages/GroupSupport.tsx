@@ -140,6 +140,9 @@ const GROUP_SUPPORT_KPI_HELP = {
   },
 } as const;
 
+const GROUP_SUPPORT_KPI_CARD = "rounded-[26px] shadow-subtle";
+const GROUP_SUPPORT_KPI_VALUE = "text-2xl sm:text-3xl";
+
 export function normalizePhoneForIdentity(phone?: string | null) {
   const raw = (phone || "").trim();
   if (!raw) return "";
@@ -922,32 +925,35 @@ const GroupSupport = () => {
           )}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           <StatsCard
             title="Atendentes ativos"
             value={activeSupportRowsCount.toLocaleString("pt-BR")}
             icon={Headset}
             variant="kpi"
             help={GROUP_SUPPORT_KPI_HELP.attendants}
-            valueClassName="text-2xl sm:text-3xl"
+            className={`${GROUP_SUPPORT_KPI_CARD} border-sky-500/15 bg-gradient-to-br from-sky-500/[0.08] via-card to-card`}
+            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-sky-950 dark:text-sky-100`}
             description="Pessoas marcadas para contagem de atendimento"
           />
           <StatsCard
-            title="Mensagens dos atendentes (30d)"
+            title="Msgs atendentes (30d)"
             value={(kpis?.supportMessages30d ?? 0).toLocaleString("pt-BR")}
             icon={MessageSquare}
             variant="kpi"
             help={GROUP_SUPPORT_KPI_HELP.supportMessages}
-            valueClassName="text-2xl sm:text-3xl"
+            className={`${GROUP_SUPPORT_KPI_CARD} border-cyan-500/15 bg-gradient-to-br from-cyan-500/[0.08] via-card to-card`}
+            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-cyan-950 dark:text-cyan-100`}
             description="Volume total enviado por suportes ativos"
           />
           <StatsCard
-            title="Participação no grupo (30d)"
+            title="Participação (30d)"
             value={`${(kpis?.supportParticipationPct ?? 0).toFixed(1).replace(".", ",")}%`}
             icon={Activity}
             variant="kpi"
             help={GROUP_SUPPORT_KPI_HELP.participation}
-            valueClassName="text-2xl sm:text-3xl"
+            className={`${GROUP_SUPPORT_KPI_CARD} border-teal-500/15 bg-gradient-to-br from-teal-500/[0.08] via-card to-card`}
+            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-teal-950 dark:text-teal-100`}
             description={`${(kpis?.totalMessages30d ?? 0).toLocaleString("pt-BR")} mensagens no grupo`}
           />
           <StatsCard
@@ -956,7 +962,8 @@ const GroupSupport = () => {
             icon={Clock3}
             variant="kpi"
             help={GROUP_SUPPORT_KPI_HELP.tmr}
-            valueClassName="text-2xl sm:text-3xl"
+            className={`${GROUP_SUPPORT_KPI_CARD} border-violet-500/15 bg-gradient-to-br from-violet-500/[0.08] via-card to-card`}
+            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-violet-950 dark:text-violet-100`}
             description={`${(kpis?.answeredInteractions ?? 0).toLocaleString("pt-BR")} interações respondidas • horário comercial`}
           />
           <StatsCard
@@ -965,16 +972,18 @@ const GroupSupport = () => {
             icon={CheckCircle2}
             variant="kpi"
             help={GROUP_SUPPORT_KPI_HELP.sla}
-            valueClassName="text-2xl sm:text-3xl"
+            className={`${GROUP_SUPPORT_KPI_CARD} border-emerald-500/15 bg-gradient-to-br from-emerald-500/[0.08] via-card to-card`}
+            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-emerald-950 dark:text-emerald-100`}
             description={`${(kpis?.answeredWithinSla ?? 0).toLocaleString("pt-BR")} respostas no SLA`}
           />
           <StatsCard
-            title="Pendências sem resposta"
+            title="Pendências abertas"
             value={(kpis?.openPendingInteractions ?? 0).toLocaleString("pt-BR")}
             icon={MessageSquare}
             variant="kpi"
             help={GROUP_SUPPORT_KPI_HELP.pending}
-            valueClassName="text-2xl sm:text-3xl"
+            className={`${GROUP_SUPPORT_KPI_CARD} border-rose-500/15 bg-gradient-to-br from-rose-500/[0.08] via-card to-card`}
+            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-rose-950 dark:text-rose-100`}
             description={`${(kpis?.openPendingSlaBreached ?? 0).toLocaleString("pt-BR")} fora do SLA`}
           />
           <StatsCard
@@ -983,7 +992,8 @@ const GroupSupport = () => {
             icon={isGroupInactive ? Clock3 : CheckCircle2}
             variant="kpi"
             help={GROUP_SUPPORT_KPI_HELP.inactivity}
-            valueClassName="text-2xl sm:text-3xl"
+            className={`${GROUP_SUPPORT_KPI_CARD} border-amber-500/15 bg-gradient-to-br from-amber-500/[0.10] via-card to-card`}
+            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-amber-950 dark:text-amber-100`}
             description={
               lastMessageAt
                 ? `Última mensagem há ${(inactiveDays ?? 0).toLocaleString("pt-BR")} dia(s)`
