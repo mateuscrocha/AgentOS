@@ -1,7 +1,7 @@
 export const borisTypography = {
   fontFamily: {
     sans: ["Inter", "system-ui", "sans-serif"],
-    mono: ["JetBrains Mono", "monospace"],
+    mono: ["Inter", "system-ui", "sans-serif"],
   },
   fontSize: {
     "display-lg": ["2rem", { lineHeight: "2.5rem", fontWeight: "700", letterSpacing: "-0.02em" }],

@@ -67,7 +67,7 @@ vi.mock("@/components/ui/boris-table", () => ({
   BorisTable: ({ page, onPageChange }: any) => (
     <div>
       <div data-testid="boris-table-page">page:{page}</div>
-      <button onClick={() => onPageChange?.(page + 1)}>next-page</button>
+      <button type="button" onClick={() => onPageChange?.(page + 1)}>next-page</button>
     </div>
   ),
   RowActions: ({ children }: { children: any }) => <div>{children}</div>,
@@ -235,6 +235,39 @@ describe("SystemOrganizations page", () => {
       await flush();
     });
 
+    expect(hookCalls.some((c) => c.page === 2)).toBe(true);
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("não submete formulário ao paginar na lista mobile", async () => {
+    const Page = (await import("./SystemOrganizations")).default;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const submitSpy = vi.fn((event: Event) => event.preventDefault());
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <form onSubmit={submitSpy}>
+            <Page />
+          </form>
+        </MemoryRouter>,
+      );
+      await flush();
+    });
+
+    const nextButton = Array.from(container.querySelectorAll("button")).find((b) => b.getAttribute("aria-label") === "Próxima página");
+    expect(nextButton).toBeTruthy();
+
+    await act(async () => {
+      nextButton?.click();
+      await flush();
+    });
+
+    expect(submitSpy).not.toHaveBeenCalled();
     expect(hookCalls.some((c) => c.page === 2)).toBe(true);
 
     await act(async () => root.unmount());

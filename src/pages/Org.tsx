@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   CircleDashed,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -466,6 +467,7 @@ const Org = () => {
   const loadFailedLoggedRef = useRef(false);
 
   const hasAccess = !!orgId && (isSystemAdmin || hasOrgAccess(orgId));
+  const userCanEditOrg = !!orgId && canEditOrg(orgId);
 
   useEffect(() => {
     try {
@@ -869,6 +871,11 @@ const Org = () => {
       profileLeaderFilter.trim().length > 0 ||
       profileOrderBy !== "name" ||
       profileOrderDir !== "asc";
+    const activeCount = list.filter((g: any) => g.status === "Ativo").length;
+    const inactiveCount = Math.max(0, list.length - activeCount);
+    const membersTotal = list.reduce((sum: number, g: any) => sum + (typeof g.members === "number" ? g.members : 0), 0);
+    const groupsSectionAddLabel = list.length > 0 ? "Adicionar grupo" : "Criar primeiro grupo";
+    const compactGroupsLayout = isGroupsRoute;
 
     const clearFilters = () => {
       setProfileSearch("");
@@ -904,11 +911,14 @@ const Org = () => {
       {
         key: "name",
         header: "Grupo",
+        className: "w-[44%] max-w-0",
         sortable: true,
         render: (g: any) => (
-          <div className="min-w-0">
-            <div className="font-semibold text-card-foreground truncate">{g.name}</div>
-            <div className="text-xs text-muted-foreground truncate">{g.description || "Sem descrição"}</div>
+          <div className="min-w-0 max-w-full overflow-hidden">
+            <div className="truncate font-semibold text-card-foreground" title={g.name}>{g.name}</div>
+            <div className="block truncate text-xs text-muted-foreground" title={g.description || "Sem descrição"}>
+              {g.description || "Sem descrição"}
+            </div>
           </div>
         ),
       },
@@ -965,104 +975,188 @@ const Org = () => {
     ];
 
     return (
-      <section className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
-        <div className="space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-1">
-              <h4 className="text-sm font-semibold text-foreground">Grupos da organização</h4>
-              <p className="text-xs text-muted-foreground">Padrão de listagem administrativa com filtros e exportação</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleExportCsv}>
-                Exportar CSV
-              </Button>
-            </div>
-          </div>
+      <section className="space-y-5">
+        <div className="overflow-hidden rounded-[28px] border border-border/80 bg-card/95 shadow-subtle">
+          {!compactGroupsLayout ? (
+            <>
+              <div className="border-b border-border/70 bg-gradient-to-r from-secondary/40 via-background to-secondary/10 px-5 py-5 sm:px-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      <FolderOpen className="h-3.5 w-3.5" />
+                      Operacao de grupos
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Base de grupos da organização</h4>
+                      <p className="max-w-2xl text-sm text-muted-foreground">
+                        Visualize a estrutura ativa, encontre líderes mais rápido e acompanhe a operação da organização em um só lugar.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handleExportCsv}>
+                      Exportar CSV
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setAttachGroupOpen(true)}
+                      disabled={!userCanEditOrg}
+                      title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem criar grupos."}
+                    >
+                      <Plus className="h-4 w-4" />
+                      {groupsSectionAddLabel}
+                    </Button>
+                  </div>
+                </div>
+              </div>
 
-          <ListSectionHeader
-            title="Grupos"
-            count={sorted.length}
-            statusLabel={`${list.length} no total`}
-            isLoading={groupsLoading}
-          />
-        </div>
-
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4">
-            <Input
-              type="text"
-              placeholder="Buscar por nome ou descrição"
-              value={profileSearch}
-              onChange={(e) => setProfileSearch(e.target.value)}
-              className="h-9"
-            />
-            <Select value={profileStatusFilter} onValueChange={(v) => setProfileStatusFilter(v as any)}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Status</SelectItem>
-                <SelectItem value="active">Ativos</SelectItem>
-                <SelectItem value="inactive">Inativos</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input
-              type="text"
-              placeholder="Filtrar por líder"
-              value={profileLeaderFilter}
-              onChange={(e) => setProfileLeaderFilter(e.target.value)}
-              className="h-9"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <Select value={profileOrderBy} onValueChange={(v) => setProfileOrderBy(v as any)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Ordenar" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">Ordenar: nome</SelectItem>
-                  <SelectItem value="members">Ordenar: integrantes</SelectItem>
-                  <SelectItem value="status">Ordenar: status</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={profileOrderDir} onValueChange={(v) => setProfileOrderDir(v as any)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Direção" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="asc">Asc</SelectItem>
-                  <SelectItem value="desc">Desc</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {hasActiveFilters ? (
-            <div className="flex justify-end">
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                Limpar filtros
-              </Button>
-            </div>
+              <div className="grid grid-cols-1 gap-3 border-b border-border/70 bg-background/60 p-5 sm:grid-cols-2 xl:grid-cols-4 sm:p-6">
+                <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Total de grupos</div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{formatNumberBR(list.length)}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Estrutura conectada nesta organização</div>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Ativos</div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-success">{formatNumberBR(activeCount)}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{formatNumberBR(inactiveCount)} inativos ou pausados</div>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Integrantes</div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{formatNumberBR(membersTotal)}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Soma estimada da base listada</div>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Visão atual</div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{formatNumberBR(sorted.length)}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {hasActiveFilters ? "Grupos correspondem aos filtros aplicados" : "Nenhum filtro aplicado no momento"}
+                  </div>
+                </div>
+              </div>
+            </>
           ) : null}
 
-          <BorisTable
-            columns={columns}
-            data={sorted as any}
-            keyExtractor={(g: any) => g.id}
-            onRowClick={(g: any) => navigate(`/groups/${g.id}`)}
-            loading={groupsLoading}
-            error={groupsError ? "erro" : false}
-            sortMode="manual"
-            sortState={{ key: profileOrderBy, direction: profileOrderDir }}
-            onSortChange={(sort) => {
-              if (!sort || !["name", "members", "status"].includes(sort.key)) return;
-              setProfileOrderBy(sort.key as "name" | "members" | "status");
-              setProfileOrderDir(sort.direction);
-            }}
-            onRetry={() => {
-              void refetchProfileGroups();
-            }}
-            emptyMessage="Nenhum grupo encontrado com os filtros atuais."
-          />
+          <div className="space-y-4 p-5 sm:p-6">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <ListSectionHeader
+                title="Grupos"
+                count={sorted.length}
+                statusLabel={`${list.length} no total`}
+                isLoading={groupsLoading}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleExportCsv}>
+                  Exportar CSV
+                </Button>
+                {!compactGroupsLayout ? (
+                  <Button
+                    size="sm"
+                    onClick={() => setAttachGroupOpen(true)}
+                    disabled={!userCanEditOrg}
+                    title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem criar grupos."}
+                  >
+                    <Plus className="h-4 w-4" />
+                    {groupsSectionAddLabel}
+                  </Button>
+                ) : null}
+                {hasActiveFilters ? (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="self-start xl:self-auto">
+                    Limpar filtros
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 bg-secondary/15 p-3 sm:p-4">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+                <Input
+                  type="text"
+                  placeholder="Buscar por nome ou descrição"
+                  value={profileSearch}
+                  onChange={(e) => setProfileSearch(e.target.value)}
+                  className="h-10 bg-background"
+                />
+                <Select value={profileStatusFilter} onValueChange={(v) => setProfileStatusFilter(v as any)}>
+                  <SelectTrigger className="h-10 bg-background">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Status</SelectItem>
+                    <SelectItem value="active">Ativos</SelectItem>
+                    <SelectItem value="inactive">Inativos</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="text"
+                  placeholder="Filtrar por líder"
+                  value={profileLeaderFilter}
+                  onChange={(e) => setProfileLeaderFilter(e.target.value)}
+                  className="h-10 bg-background"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Select value={profileOrderBy} onValueChange={(v) => setProfileOrderBy(v as any)}>
+                    <SelectTrigger className="h-10 bg-background">
+                      <SelectValue placeholder="Ordenar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Ordenar: nome</SelectItem>
+                      <SelectItem value="members">Ordenar: integrantes</SelectItem>
+                      <SelectItem value="status">Ordenar: status</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={profileOrderDir} onValueChange={(v) => setProfileOrderDir(v as any)}>
+                    <SelectTrigger className="h-10 bg-background">
+                      <SelectValue placeholder="Direção" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">Asc</SelectItem>
+                      <SelectItem value="desc">Desc</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {!groupsLoading && !groupsError && sorted.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border/80 bg-background/60 p-2">
+                <EmptyState
+                  icon={FolderOpen}
+                  title={hasActiveFilters ? "Nenhum grupo corresponde aos filtros" : "Nenhum grupo conectado ainda"}
+                  message={
+                    hasActiveFilters
+                      ? "Ajuste os filtros para encontrar outros grupos desta organização."
+                      : "Conecte o primeiro grupo para começar a acompanhar operação, líderes e integrantes por aqui."
+                  }
+                  action={
+                    hasActiveFilters
+                      ? { label: "Limpar filtros", onClick: clearFilters }
+                      : { label: groupsSectionAddLabel, onClick: () => setAttachGroupOpen(true) }
+                  }
+                />
+              </div>
+            ) : (
+              <BorisTable
+                columns={columns}
+                data={sorted as any}
+                keyExtractor={(g: any) => g.id}
+                onRowClick={(g: any) => navigate(`/groups/${g.id}`)}
+                loading={groupsLoading}
+                error={groupsError ? "erro" : false}
+                sortMode="manual"
+                sortState={{ key: profileOrderBy, direction: profileOrderDir }}
+                onSortChange={(sort) => {
+                  if (!sort || !["name", "members", "status"].includes(sort.key)) return;
+                  setProfileOrderBy(sort.key as "name" | "members" | "status");
+                  setProfileOrderDir(sort.direction);
+                }}
+                onRetry={() => {
+                  void refetchProfileGroups();
+                }}
+                emptyMessage="Nenhum grupo encontrado com os filtros atuais."
+              />
+            )}
+          </div>
         </div>
       </section>
     );
@@ -1335,6 +1429,8 @@ const Org = () => {
   );
 
   const alertGroupsCount = attentionGroups.length;
+  const hasGroups = totalGroupsCount > 0;
+  const addGroupLabel = hasGroups ? "Adicionar grupo" : "Criar primeiro grupo";
 
   const activityRank = useMemo<Record<ActivityLevel, number>>(
     () => ({
@@ -1517,6 +1613,106 @@ const Org = () => {
     },
   ];
 
+  const hasPrimaryContactData = !!(contactName || contactEmail || contactPhone || contactRole);
+  const allHealthKpisZero = [totalGroupsCount, activeGroupsValue, alertGroupsCount].every((v) => (v ?? 0) === 0);
+  const orgActivationDismissed = isOrgActivationDismissed(orgId ?? null);
+  const showOrgOnboarding = (isDashboardRoute || isDefaultOrgHome) && !hasGroups;
+  const showOrgActivationCard = showOrgOnboarding && !orgActivationDismissed;
+  const orgActivationSteps = [
+    {
+      id: "group",
+      title: hasGroups ? "Primeiro grupo conectado" : "Conectar o primeiro grupo",
+      description: hasGroups
+        ? "Seu ambiente ja tem um grupo ativo para iniciar a coleta."
+        : "Adicione o link do grupo para começar a captar atividade, mensagens e sinais.",
+      done: hasGroups,
+    },
+    {
+      id: "contact",
+      title: hasPrimaryContactData ? "Contato principal revisado" : "Revisar contato principal",
+      description: hasPrimaryContactData
+        ? "A organizacao ja tem um contato de referencia para suporte e billing."
+        : "Cadastre um contato oficial para centralizar suporte e comunicacao comercial.",
+      done: hasPrimaryContactData,
+    },
+    {
+      id: "monitoring",
+      title: "Acompanhar as primeiras interacoes",
+      description: hasGroups
+        ? "Assim que o grupo começar a conversar, o Boris preenche painel, diario e sinais automaticamente."
+        : "Depois de conectar um grupo, volte aqui para acompanhar a primeira atividade.",
+      done: hasGroups && !allHealthKpisZero,
+    },
+  ];
+  const completedOrgActivationSteps = orgActivationSteps.filter((step) => step.done).length;
+
+  const handleDismissOrgActivation = useCallback(async () => {
+    if (!orgId) return;
+    await dismissOrgActivation(orgId);
+    if (user?.id) {
+      void logEvent({
+        eventType: "ORG_ACTIVATION_DISMISSED",
+        entityType: "organization",
+        entityId: orgId,
+        userId: user.id,
+        metadata: {
+          completed_steps: completedOrgActivationSteps,
+          has_primary_contact: hasPrimaryContactData,
+          has_groups: hasGroups,
+        },
+      });
+    }
+  }, [completedOrgActivationSteps, dismissOrgActivation, hasGroups, hasPrimaryContactData, orgId, user?.id]);
+
+  const handleReopenOrgActivation = useCallback(async () => {
+    if (!orgId) return;
+    await reopenOrgActivation(orgId);
+    if (user?.id) {
+      void logEvent({
+        eventType: "ORG_ACTIVATION_RESUMED",
+        entityType: "organization",
+        entityId: orgId,
+        userId: user.id,
+        metadata: {
+          completed_steps: completedOrgActivationSteps,
+        },
+      });
+    }
+  }, [completedOrgActivationSteps, orgId, reopenOrgActivation, user?.id]);
+
+  useEffect(() => {
+    if (authLoading || rolesLoading) return;
+    if (!isAuthenticated || !user?.id || !orgId) return;
+    if (!showOrgActivationCard) return;
+
+    const key = `onboarding-event:org-activation-started:${user.id}:${orgId}`;
+    if (hasTrackedSessionEvent(key)) return;
+
+    markSessionEventTracked(key);
+    void logEvent({
+      eventType: "ORG_ACTIVATION_STARTED",
+      entityType: "organization",
+      entityId: orgId,
+      userId: user.id,
+      metadata: {
+        completed_steps: completedOrgActivationSteps,
+        has_primary_contact: hasPrimaryContactData,
+        has_groups: hasGroups,
+        path: typeof window !== "undefined" ? window.location.pathname : null,
+      },
+    });
+  }, [
+    authLoading,
+    completedOrgActivationSteps,
+    hasGroups,
+    hasPrimaryContactData,
+    isAuthenticated,
+    orgId,
+    rolesLoading,
+    showOrgActivationCard,
+    user?.id,
+  ]);
+
   // Loading state while checking auth/roles
   if (authLoading || rolesLoading) {
     return (
@@ -1577,8 +1773,6 @@ const Org = () => {
       </AdminLayout>
     );
   }
-
-  const userCanEditOrg = canEditOrg(orgId!);
 
   const handleAttachGroup = async () => {
     if (!orgId) return;
@@ -1708,40 +1902,6 @@ const Org = () => {
         ? "bg-muted text-muted-foreground"
         : "bg-destructive/10 text-destructive";
 
-  const hasPrimaryContactData = !!(contactName || contactEmail || contactPhone || contactRole);
-  const hasGroups = totalGroupsCount > 0;
-  const allHealthKpisZero = [totalGroupsCount, activeGroupsValue, alertGroupsCount].every((v) => (v ?? 0) === 0);
-  const orgActivationDismissed = isOrgActivationDismissed(orgId ?? null);
-  const showOrgOnboarding = (isDashboardRoute || isDefaultOrgHome) && !hasGroups;
-  const showOrgActivationCard = showOrgOnboarding && !orgActivationDismissed;
-  const orgActivationSteps = [
-    {
-      id: "group",
-      title: hasGroups ? "Primeiro grupo conectado" : "Conectar o primeiro grupo",
-      description: hasGroups
-        ? "Seu ambiente ja tem um grupo ativo para iniciar a coleta."
-        : "Adicione o link do grupo para começar a captar atividade, mensagens e sinais.",
-      done: hasGroups,
-    },
-    {
-      id: "contact",
-      title: hasPrimaryContactData ? "Contato principal revisado" : "Revisar contato principal",
-      description: hasPrimaryContactData
-        ? "A organizacao ja tem um contato de referencia para suporte e billing."
-        : "Cadastre um contato oficial para centralizar suporte e comunicacao comercial.",
-      done: hasPrimaryContactData,
-    },
-    {
-      id: "monitoring",
-      title: "Acompanhar as primeiras interacoes",
-      description: hasGroups
-        ? "Assim que o grupo começar a conversar, o Boris preenche painel, diario e sinais automaticamente."
-        : "Depois de conectar um grupo, volte aqui para acompanhar a primeira atividade.",
-      done: hasGroups && !allHealthKpisZero,
-    },
-  ];
-  const completedOrgActivationSteps = orgActivationSteps.filter((step) => step.done).length;
-  const addGroupLabel = hasGroups ? "Adicionar grupo" : "Criar primeiro grupo";
   const modalContact =
     primaryContact ??
     (isFallbackContact && orgId
@@ -1763,73 +1923,6 @@ const Org = () => {
     org.plan ? `Plano ${String(org.plan).toUpperCase()}` : "Plano não definido",
   ];
   const headerDescription = `${formatDateSimpleBR(org.created_at)} • ${headerSummaryParts.join(" • ")} • Atualizada em ${formatDateSimpleBR(org.updated_at)}`;
-
-  const handleDismissOrgActivation = useCallback(async () => {
-    if (!orgId) return;
-    await dismissOrgActivation(orgId);
-    if (user?.id) {
-      void logEvent({
-        eventType: "ORG_ACTIVATION_DISMISSED",
-        entityType: "organization",
-        entityId: orgId,
-        userId: user.id,
-        metadata: {
-          completed_steps: completedOrgActivationSteps,
-          has_primary_contact: hasPrimaryContactData,
-          has_groups: hasGroups,
-        },
-      });
-    }
-  }, [completedOrgActivationSteps, dismissOrgActivation, hasGroups, hasPrimaryContactData, orgId, user?.id]);
-
-  const handleReopenOrgActivation = useCallback(async () => {
-    if (!orgId) return;
-    await reopenOrgActivation(orgId);
-    if (user?.id) {
-      void logEvent({
-        eventType: "ORG_ACTIVATION_RESUMED",
-        entityType: "organization",
-        entityId: orgId,
-        userId: user.id,
-        metadata: {
-          completed_steps: completedOrgActivationSteps,
-        },
-      });
-    }
-  }, [completedOrgActivationSteps, orgId, reopenOrgActivation, user?.id]);
-
-  useEffect(() => {
-    if (authLoading || rolesLoading) return;
-    if (!isAuthenticated || !user?.id || !orgId) return;
-    if (!showOrgActivationCard) return;
-
-    const key = `onboarding-event:org-activation-started:${user.id}:${orgId}`;
-    if (hasTrackedSessionEvent(key)) return;
-
-    markSessionEventTracked(key);
-    void logEvent({
-      eventType: "ORG_ACTIVATION_STARTED",
-      entityType: "organization",
-      entityId: orgId,
-      userId: user.id,
-      metadata: {
-        completed_steps: completedOrgActivationSteps,
-        has_primary_contact: hasPrimaryContactData,
-        has_groups: hasGroups,
-        path: typeof window !== "undefined" ? window.location.pathname : null,
-      },
-    });
-  }, [
-    authLoading,
-    completedOrgActivationSteps,
-    hasGroups,
-    hasPrimaryContactData,
-    isAuthenticated,
-    orgId,
-    rolesLoading,
-    showOrgActivationCard,
-    user?.id,
-  ]);
 
   const adminSummarySection = (isDashboardRoute || isDefaultOrgHome) ? (
     <Card className="border-0 shadow-none">
@@ -2205,6 +2298,90 @@ const Org = () => {
 
         {isGroupsRoute && (
           <div id="org-groups" className="space-y-8">
+            <section className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
+              <div className="bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.18),transparent_38%),linear-gradient(135deg,hsl(var(--secondary)/0.65),transparent_70%)] px-5 py-6 sm:px-6 lg:px-7">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="max-w-3xl space-y-3">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      <FolderOpen className="h-3.5 w-3.5" />
+                      Organização
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-3xl">
+                        Gestão dos grupos de {org?.name || "Organização"}
+                      </h3>
+                      <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+                        Centralize criação, acompanhamento e navegação dos grupos da organização com indicadores rápidos e uma listagem mais direta para operação do dia a dia.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      onClick={() => setAttachGroupOpen(true)}
+                      className="gap-2"
+                      disabled={!userCanEditOrg}
+                      title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem criar grupos."}
+                    >
+                      <Plus className="h-4 w-4" />
+                      {addGroupLabel}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setEditOrgOpen(true)}
+                      className="gap-2 bg-background/80"
+                      disabled={!userCanEditOrg}
+                      title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem alterar a organização."}
+                    >
+                      <Edit className="h-4 w-4" />
+                      Editar organização
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 border-t border-border/70 p-5 sm:grid-cols-2 xl:grid-cols-4 sm:p-6">
+                <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                    <FolderOpen className="h-3.5 w-3.5" />
+                    Grupos
+                  </div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{formatNumberBR(totalGroupsCount ?? 0)}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Base conectada nesta organização</div>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Atividade
+                  </div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-success">
+                    {activeGroupsLoading ? "..." : formatNumberBR(activeGroupsValue ?? 0)}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Grupos com status ativo</div>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                    <Users className="h-3.5 w-3.5" />
+                    Integrantes
+                  </div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">
+                    {membersCountLoading ? "..." : formatNumberBR(totalMembersCount ?? 0)}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Base total consolidada</div>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Mensagens 7d
+                  </div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">
+                    {messagesCountLoading ? "..." : formatNumberBR(messagesLast7dCount ?? 0)}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {alertGroupsCount > 0 ? `${formatNumberBR(alertGroupsCount)} grupos pedem atenção` : "Operação sem alertas críticos agora"}
+                  </div>
+                </div>
+              </div>
+            </section>
             {orgGroupsListSection}
           </div>
         )}

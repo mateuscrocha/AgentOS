@@ -21,6 +21,23 @@ interface StatsCardProps {
   numericValue?: boolean;
 }
 
+function formatDisplayValue(value: string | number) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value.toLocaleString("pt-BR");
+  }
+
+  if (typeof value !== "string") return value;
+
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+
+  if (/^-?\d+$/.test(trimmed)) {
+    return Number(trimmed).toLocaleString("pt-BR");
+  }
+
+  return value;
+}
+
 function buildKpiDescription(description: string | undefined, help: MetricHelpContent | undefined, title: string) {
   if (description?.trim()) return description.trim();
 
@@ -52,6 +69,7 @@ export function StatsCard({
   const componentProps = onClick ? ({ type: "button" } as const) : undefined;
   const resolvedHelp = help ?? buildMetricHelpFallback(title);
   const kpiDescription = buildKpiDescription(description, resolvedHelp, title);
+  const formattedValue = formatDisplayValue(value);
   
   if (variant === "kpi") {
     return (
@@ -81,12 +99,12 @@ export function StatsCard({
           ) : (
             <p
               className={cn(
-                "font-mono text-[1.35rem] sm:text-[1.95rem] font-semibold text-card-foreground tracking-[-0.03em] whitespace-nowrap max-w-[65%] sm:max-w-none truncate sm:overflow-visible sm:text-clip shrink-0 text-right",
+                "font-sans text-[1.35rem] sm:text-[1.95rem] font-semibold text-card-foreground tracking-[-0.03em] whitespace-nowrap max-w-[65%] sm:max-w-none truncate sm:overflow-visible sm:text-clip shrink-0 text-right",
                 numericValue && "tabular-nums",
                 valueClassName,
               )}
             >
-              {value}
+              {formattedValue}
             </p>
           )}
         </div>
@@ -136,7 +154,7 @@ export function StatsCard({
           {isLoading ? (
             <Skeleton className="h-6 w-14" />
           ) : (
-            <p className={cn("text-xl font-semibold text-card-foreground", valueClassName)}>{value}</p>
+            <p className={cn("text-xl font-semibold text-card-foreground", valueClassName)}>{formattedValue}</p>
           )}
         </div>
       </Component>
@@ -172,7 +190,7 @@ export function StatsCard({
             </>
           ) : (
             <>
-              <p className={cn("mt-2 text-3xl font-bold text-card-foreground", valueClassName)}>{value}</p>
+              <p className={cn("mt-2 text-3xl font-bold text-card-foreground", valueClassName)}>{formattedValue}</p>
               {change && (
                 <p className={cn(
                   "mt-1 text-sm font-medium",

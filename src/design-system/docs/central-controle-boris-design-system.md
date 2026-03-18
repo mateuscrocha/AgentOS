@@ -30,7 +30,7 @@ O Boris e uma central operacional para leitura rapida, acompanhamento de comunid
 
 ### Tipografia
 - Interface: `Inter`
-- Dados tecnicos e metricas auxiliares: `JetBrains Mono`
+- Dados tecnicos e metricas auxiliares: `Inter`
 - Titulos de pagina: `display-md` ou `heading-xl`
 - Titulo de card: `heading-sm`
 - Corpo: `body-md`

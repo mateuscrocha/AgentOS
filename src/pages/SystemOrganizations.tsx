@@ -594,6 +594,7 @@ export default function SystemOrganizations() {
                   </p>
                   <div className="flex gap-1">
                     <button
+                      type="button"
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={page <= 1}
                       className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -602,6 +603,7 @@ export default function SystemOrganizations() {
                       <ChevronLeft className="h-4 w-4" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => setPage((p) => p + 1)}
                       disabled={page >= Math.ceil(orgsData.count / PAGE_SIZE)}
                       className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

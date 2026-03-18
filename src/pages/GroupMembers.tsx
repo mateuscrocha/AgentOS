@@ -4,7 +4,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { useParams } from "react-router-dom";
-import { Users, Search, X, Filter, ChevronLeft, ChevronRight, Loader2, Shield, BarChart3 } from "lucide-react";
+import { Users, Search, X, Filter, ChevronLeft, ChevronRight, Loader2, Shield, BarChart3, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useState } from "react";
@@ -23,8 +23,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import AccessDenied from "./AccessDenied";
 import { MemberDetailsDrawer } from "@/components/members/MemberDetailsDrawer";
 import { Input } from "@/components/ui/input";
+import { notify } from "@/components/ui/sonner";
 
 const PAGE_SIZE = 10;
+const EXPORT_PAGE_SIZE = 500;
 
 const ROLE_FILTER_OPTIONS = [
   { key: "all", label: "Todos" },
@@ -55,6 +57,59 @@ interface Member {
   raw_provider: Record<string, any> | null;
 }
 
+const MEMBER_EXPORT_HEADERS = [
+  "id",
+  "group_id",
+  "name",
+  "display_name",
+  "phone_e164",
+  "lid",
+  "is_admin",
+  "is_super_admin",
+  "is_owner",
+  "status",
+  "provider",
+  "provider_member_id",
+  "whatsapp_provider_id",
+  "profile_pic_url",
+  "joined_at",
+  "left_at",
+  "last_seen_message_at",
+  "created_at",
+  "updated_at",
+  "deleted_at",
+  "metadata",
+  "raw_provider",
+] as const;
+
+const escapeCsvValue = (value: unknown) => {
+  const stringValue =
+    value == null
+      ? ""
+      : typeof value === "object"
+        ? JSON.stringify(value)
+        : String(value);
+  const escapedValue = stringValue.replace(/"/g, '""');
+  return /[",\n]/.test(escapedValue) ? `"${escapedValue}"` : escapedValue;
+};
+
+const buildMembersCsv = (rows: Array<Member & { group_id: string; is_owner: boolean | null; provider_member_id: string | null }>) => {
+  const lines = [MEMBER_EXPORT_HEADERS.join(",")];
+  for (const row of rows) {
+    lines.push(MEMBER_EXPORT_HEADERS.map((header) => escapeCsvValue(row[header])).join(","));
+  }
+  return lines.join("\n");
+};
+
+const sanitizeFilenamePart = (value?: string | null) =>
+  (value || "grupo")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase() || "grupo";
+
 type MemberRoleKey = "SUPERADMIN" | "ADMIN" | "MEMBRO";
 
 const getMemberRoleKey = (m: Pick<Member, "is_super_admin" | "is_admin">): MemberRoleKey => {
@@ -73,6 +128,7 @@ const GroupMembers = () => {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -253,6 +309,82 @@ const GroupMembers = () => {
   const activeFiltersCount = (search.trim() ? 1 : 0) + (roleFilter !== "all" ? 1 : 0);
   const isSearching = search !== debouncedSearch;
   const roleFilterLabel = ROLE_FILTER_OPTIONS.find((opt) => opt.key === roleFilter)?.label;
+
+  const handleExportMembers = async () => {
+    if (!groupId || isExporting) return;
+
+    setIsExporting(true);
+
+    try {
+      let from = 0;
+      const rows: Array<Member & { group_id: string; is_owner: boolean | null; provider_member_id: string | null }> = [];
+
+      while (true) {
+        const to = from + EXPORT_PAGE_SIZE - 1;
+        const { data, error } = await supabase
+          .from("members")
+          .select(`
+            id,
+            group_id,
+            name,
+            display_name,
+            phone_e164,
+            lid,
+            is_admin,
+            is_super_admin,
+            is_owner,
+            status,
+            provider,
+            provider_member_id,
+            whatsapp_provider_id,
+            profile_pic_url,
+            joined_at,
+            left_at,
+            last_seen_message_at,
+            created_at,
+            updated_at,
+            deleted_at,
+            metadata,
+            raw_provider
+          `)
+          .eq("group_id", groupId)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+
+        const batch = (data ?? []) as Array<Member & { group_id: string; is_owner: boolean | null; provider_member_id: string | null }>;
+        rows.push(...batch);
+
+        if (batch.length < EXPORT_PAGE_SIZE) break;
+        from += EXPORT_PAGE_SIZE;
+      }
+
+      if (rows.length === 0) {
+        notify.info("Nenhum membro para exportar", "Esse grupo ainda não possui membros disponíveis para download.");
+        return;
+      }
+
+      const csv = buildMembersCsv(rows);
+      const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${sanitizeFilenamePart(groupInfo?.groupName)}-membros-completo.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      notify.success("Exportacao concluida", `${rows.length.toLocaleString("pt-BR")} membros baixados com todas as informacoes.`);
+    } catch (exportError) {
+      const message = exportError instanceof Error ? exportError.message : "Tente novamente em alguns instantes.";
+      notify.error("Nao foi possivel baixar os membros", message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <AdminLayout 
@@ -454,6 +586,12 @@ const GroupMembers = () => {
               setRoleFilter("all");
               setPage(1);
             }}
+            rightActions={
+              <Button type="button" variant="secondary" className="h-10 rounded-xl" onClick={handleExportMembers} disabled={isExporting || isLoading}>
+                {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Baixar membros
+              </Button>
+            }
           />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
