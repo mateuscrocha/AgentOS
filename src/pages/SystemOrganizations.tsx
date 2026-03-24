@@ -88,6 +88,48 @@ function parseDbError(err: any): { title: string; message: string } {
   return { title: "Não foi possível concluir", message: raw || "Algo deu errado. Tente novamente." };
 }
 
+function getRelationshipTypeMeta(value?: string | null) {
+  switch (value) {
+    case "partner":
+      return { label: "Parceiro", className: "bg-violet-50 text-violet-700 border-violet-200" };
+    case "courtesy":
+      return { label: "Cortesia", className: "bg-cyan-50 text-cyan-700 border-cyan-200" };
+    case "internal":
+      return { label: "Interno", className: "bg-zinc-100 text-zinc-700 border-zinc-200" };
+    case "trial":
+      return { label: "Teste / trial", className: "bg-amber-50 text-amber-700 border-amber-200" };
+    case "demo":
+      return { label: "Demo", className: "bg-sky-50 text-sky-700 border-sky-200" };
+    default:
+      return { label: "Cliente pagante", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+  }
+}
+
+function getBillingStatusMeta(value?: string | null) {
+  switch (value) {
+    case "active":
+      return { label: "Ativo", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+    case "trialing":
+      return { label: "Trial", className: "bg-amber-50 text-amber-700 border-amber-200" };
+    case "past_due":
+      return { label: "Em atraso", className: "bg-orange-50 text-orange-700 border-orange-200" };
+    case "unpaid":
+      return { label: "Inadimplente", className: "bg-rose-50 text-rose-700 border-rose-200" };
+    case "canceled":
+      return { label: "Cancelado", className: "bg-zinc-100 text-zinc-700 border-zinc-200" };
+    case "incomplete":
+      return { label: "Incompleto", className: "bg-slate-100 text-slate-700 border-slate-200" };
+    case "incomplete_expired":
+      return { label: "Expirado", className: "bg-zinc-100 text-zinc-700 border-zinc-200" };
+    case "paused":
+      return { label: "Pausado", className: "bg-sky-50 text-sky-700 border-sky-200" };
+    case "inactive":
+      return { label: "Sem assinatura", className: "bg-muted text-muted-foreground border-border" };
+    default:
+      return { label: "Sem billing", className: "bg-muted text-muted-foreground border-border" };
+  }
+}
+
 export default function SystemOrganizations() {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -252,6 +294,30 @@ export default function SystemOrganizations() {
       key: "status",
       header: "Status",
       render: (org: OrganizationListItem) => renderStatusChip(org.status),
+    },
+    {
+      key: "relationship_type",
+      header: "Relacionamento",
+      render: (org: OrganizationListItem) => {
+        const meta = getRelationshipTypeMeta(org.relationship_type);
+        return (
+          <Badge variant="outline" className={meta.className}>
+            {meta.label}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "billing_status",
+      header: "Billing",
+      render: (org: OrganizationListItem) => {
+        const meta = getBillingStatusMeta(org.billing_status);
+        return (
+          <Badge variant="outline" className={meta.className}>
+            {meta.label}
+          </Badge>
+        );
+      },
     },
     {
       key: "groups_count",
@@ -573,6 +639,16 @@ export default function SystemOrganizations() {
                         >
                           <div className="truncate text-base font-semibold tracking-[-0.02em] text-card-foreground hover:underline">{org.name}</div>
                           <div className="mt-1">{renderStatusChip(org.status)}</div>
+                          <div className="mt-2">
+                            <Badge variant="outline" className={getRelationshipTypeMeta(org.relationship_type).className}>
+                              {getRelationshipTypeMeta(org.relationship_type).label}
+                            </Badge>
+                          </div>
+                          <div className="mt-2">
+                            <Badge variant="outline" className={getBillingStatusMeta(org.billing_status).className}>
+                              {getBillingStatusMeta(org.billing_status).label}
+                            </Badge>
+                          </div>
                           <div className="mt-2 text-sm text-muted-foreground">
                             {groupsCount} grupos · Criada em {formatDateSimpleBR(org.created_at)}
                           </div>

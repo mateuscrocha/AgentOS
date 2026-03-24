@@ -44,7 +44,7 @@ interface BorisTableProps<T> {
   page?: number;
   pageSize?: number;
   totalCount?: number;
-  onPageChange?: (page: number) => void;
+  onPageChange?: React.Dispatch<React.SetStateAction<number>>;
   className?: string;
   loading?: boolean;
   error?: string | boolean;
@@ -290,7 +290,7 @@ export function BorisTable<T>({
           <div className="flex gap-1">
             <button
               type="button"
-              onClick={() => onPageChange(page - 1)}
+              onClick={() => onPageChange((current) => Math.max(1, current - 1))}
               disabled={page <= 1}
               aria-label="Página anterior"
               className="rounded-[var(--radius-md)] border border-transparent p-1.5 text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
@@ -299,7 +299,7 @@ export function BorisTable<T>({
             </button>
             <button
               type="button"
-              onClick={() => onPageChange(page + 1)}
+              onClick={() => onPageChange((current) => Math.min(totalPages, current + 1))}
               disabled={page >= totalPages}
               aria-label="Próxima página"
               className="rounded-[var(--radius-md)] border border-transparent p-1.5 text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"

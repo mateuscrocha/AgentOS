@@ -21,6 +21,7 @@ const SystemOrganizations = lazy(() => import("./pages/SystemOrganizations"));
 const SystemGroups = lazy(() => import("./pages/SystemGroups"));
 const SystemActivity = lazy(() => import("./pages/SystemActivity"));
 const SystemTrends = lazy(() => import("./pages/SystemTrends"));
+const SystemCRM = lazy(() => import("./pages/SystemCRM"));
 const Org = lazy(() => import("./pages/Org"));
 const Group = lazy(() => import("./pages/Group"));
 const GroupMembers = lazy(() => import("./pages/GroupMembers"));
@@ -87,6 +88,11 @@ function AppRoutes() {
       <Route path="/system/events" element={<SystemEvents />} />
       <Route path="/system/activity" element={<SystemActivity />} />
       <Route path="/system/trends" element={<SystemTrends />} />
+      <Route path="/system/crm" element={<Navigate to="/system/crm/pipeline" replace />} />
+      <Route path="/system/crm/pipeline" element={<SystemCRM />} />
+      <Route path="/system/crm/companies" element={<SystemCRM />} />
+      <Route path="/system/crm/contacts" element={<SystemCRM />} />
+      <Route path="/system/crm/tasks" element={<SystemCRM />} />
       <Route path="/system/settings" element={<Settings />} />
       <Route path="/system/alerts" element={<Alerts />} />
       <Route path="/system/alert-definitions" element={<Alerts />} />

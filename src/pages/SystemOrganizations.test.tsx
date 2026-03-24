@@ -42,6 +42,10 @@ vi.mock("@/hooks/use-system-organizations", () => ({
   },
 }));
 
+vi.mock("@/hooks/use-stripe-organizations-auto-sync", () => ({
+  useStripeOrganizationsAutoSync: () => ({ isSyncing: false }),
+}));
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: () => ({
@@ -161,6 +165,8 @@ function createHookState() {
             id: "org-1",
             name: "Org 1",
             status: "active",
+            relationship_type: "partner",
+            billing_status: "past_due",
             created_at: "2026-02-22T00:00:00.000Z",
             settings: { description: "desc" },
           },
@@ -285,6 +291,16 @@ describe("SystemOrganizations page", () => {
 
     expect(container.textContent).toContain("EDIT_MODAL:Org 1");
     expect(editModalSnapshots.some((s) => s.open && s.name === "Org 1")).toBe(true);
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("mostra relacionamento e billing status na listagem", async () => {
+    const { container, root } = await renderPage();
+
+    expect(container.textContent).toContain("Parceiro");
+    expect(container.textContent).toContain("Em atraso");
 
     await act(async () => root.unmount());
     container.remove();

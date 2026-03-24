@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
   Bell,
+  BriefcaseBusiness,
   ChartColumnIncreasing,
   Building2,
   ChevronDown,
@@ -54,12 +55,13 @@ function stripAlertCountPrefix(title: string) {
   return title.replace(ALERT_TITLE_PREFIX_REGEX, "");
 }
 
+type NavTone = "default" | "crm";
+
 export function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const { isSystemAdmin, isOrgAdmin, isGroupManager, getAccessibleOrgIds, getAccessibleGroupIds } = useUserRoles();
-  const isGroupScopedUser = !isSystemAdmin && (isGroupManager || !isOrgAdmin);
 
   const canUseAlerts = isSystemAdmin || isOrgAdmin || isGroupManager;
   const unreadAlertsQuery = useQuery<number>({
@@ -191,6 +193,7 @@ export function AdminSidebar() {
     if (!orgIdForNavigation) return null;
     return `/organization/${orgIdForNavigation}/dashboard`;
   }, [orgIdForNavigation]);
+  const shouldShowMyOrganization = !isSystemAdmin && !!minhaOrganizacaoHref;
 
   const organizacoesHref = useMemo(() => {
     if (!isSystemAdmin) return null;
@@ -206,10 +209,8 @@ export function AdminSidebar() {
     () => {
       const items: NavItem[] = [{ icon: LayoutDashboard, label: "Painel", href: painelHref }];
       if (organizacoesHref) items.push({ icon: Building2, label: "Organizações", href: organizacoesHref });
-      if (isGroupScopedUser) {
-        if (minhaOrganizacaoHref) {
-          items.push({ icon: Building2, label: "Minha organização", href: minhaOrganizacaoHref });
-        }
+      if (shouldShowMyOrganization && minhaOrganizacaoHref) {
+        items.push({ icon: Building2, label: "Minha organização", href: minhaOrganizacaoHref });
       } else {
         items.push({ icon: Users, label: "Grupos", href: gruposHref });
       }
@@ -223,7 +224,7 @@ export function AdminSidebar() {
       }
       return items;
     },
-    [alertasHref, gruposHref, isGroupScopedUser, minhaOrganizacaoHref, organizacoesHref, painelHref, unreadAlertsQuery.data],
+    [alertasHref, gruposHref, minhaOrganizacaoHref, organizacoesHref, painelHref, shouldShowMyOrganization, unreadAlertsQuery.data],
   );
 
   const groupItems: NavItem[] = useMemo(() => {
@@ -258,12 +259,28 @@ export function AdminSidebar() {
     ];
   }, [isSystemAdmin]);
 
+  const crmItems: NavItem[] = useMemo(() => {
+    if (!isSystemAdmin) return [];
+    return [
+      { icon: BriefcaseBusiness, label: "Pipeline", href: "/system/crm/pipeline" },
+      { icon: Building2, label: "Empresas", href: "/system/crm/companies" },
+      { icon: Users, label: "Contatos", href: "/system/crm/contacts" },
+      { icon: ListChecks, label: "Tarefas", href: "/system/crm/tasks" },
+    ];
+  }, [isSystemAdmin]);
+
   const adminHasActiveItem = useMemo(() => adminItems.some((x) => isActive(x.href)), [adminItems, isActive]);
+  const crmHasActiveItem = useMemo(() => crmItems.some((x) => isActive(x.href)), [crmItems, isActive]);
   const [adminOpen, setAdminOpen] = useState(adminHasActiveItem);
+  const [crmOpen, setCrmOpen] = useState(crmHasActiveItem);
 
   useEffect(() => {
     if (adminHasActiveItem) setAdminOpen(true);
   }, [adminHasActiveItem]);
+
+  useEffect(() => {
+    if (crmHasActiveItem) setCrmOpen(true);
+  }, [crmHasActiveItem]);
 
   const handleGroupsNavClick = useCallback(() => {
     try {
@@ -274,7 +291,7 @@ export function AdminSidebar() {
     setShowGroupsHint(false);
   }, []);
 
-  const renderNavItem = (item: NavItem) => {
+  const renderNavItem = (item: NavItem, tone: NavTone = "default") => {
     const active = !item.disabled && isActive(item.href);
     const isGroupsItem = item.label === "Grupos";
     const showThisHint = showGroupsHint && isGroupsItem;
@@ -282,6 +299,7 @@ export function AdminSidebar() {
       if (item.disabled) return;
       if (isGroupsItem) handleGroupsNavClick();
     };
+    const isCrmTone = tone === "crm";
     return (
       <SidebarMenuItem key={`${item.href}:${item.label}`}>
         <SidebarMenuButton
@@ -296,6 +314,10 @@ export function AdminSidebar() {
             showThisHint && "before:bg-primary/40",
             "data-[active=true]:before:bg-primary",
             "data-[active=true]:bg-primary/10 data-[active=true]:text-foreground",
+            isCrmTone &&
+              "text-sky-700/90 hover:bg-sky-500/8 hover:text-sky-900 dark:text-sky-300 dark:hover:bg-sky-500/12 dark:hover:text-sky-100",
+            isCrmTone &&
+              "data-[active=true]:before:bg-sky-500 data-[active=true]:bg-sky-500/14 data-[active=true]:text-sky-950 dark:data-[active=true]:bg-sky-500/18 dark:data-[active=true]:text-sky-50",
             showThisHint && "bg-primary/5 ring-1 ring-primary/20",
             showThisHint && groupsHintPulse && "animate-pulse",
             item.disabled && "cursor-not-allowed opacity-50",
@@ -303,7 +325,7 @@ export function AdminSidebar() {
         >
           {item.disabled ? (
             <>
-              <item.icon className={cn(active && "text-primary")} />
+              <item.icon className={cn(active && (isCrmTone ? "text-sky-600 dark:text-sky-300" : "text-primary"))} />
               {item.featureBadge ? (
                 <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary group-data-[collapsible=icon]:hidden">
                   {item.featureBadge}
@@ -313,7 +335,7 @@ export function AdminSidebar() {
             </>
           ) : (
             <NavLink to={item.href} onClick={handleNavClick}>
-              <item.icon className={cn(active && "text-primary")} />
+              <item.icon className={cn(active && (isCrmTone ? "text-sky-600 dark:text-sky-300" : "text-primary"))} />
               {item.featureBadge ? (
                 <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary group-data-[collapsible=icon]:hidden">
                   {item.featureBadge}
@@ -388,6 +410,45 @@ export function AdminSidebar() {
                 Grupo
               </div>
               <SidebarMenu>{groupItems.map(renderNavItem)}</SidebarMenu>
+            </div>
+          </>
+        ) : null}
+
+        {crmItems.length > 0 ? (
+          <>
+            <SidebarSeparator />
+            <div className="px-2 pt-2">
+              <Collapsible open={crmOpen} onOpenChange={setCrmOpen}>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        tooltip="CRM"
+                        className={cn(
+                          "relative min-h-10 rounded-[var(--radius-md)] px-2.5 text-[13px] font-medium text-sky-700/90 transition-colors hover:bg-sky-500/8 hover:text-sky-900 dark:text-sky-300 dark:hover:bg-sky-500/12 dark:hover:text-sky-100",
+                          "before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-transparent",
+                          crmHasActiveItem && "before:bg-sky-500 bg-sky-500/16 text-sky-950 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.16)] dark:bg-sky-500/18 dark:text-sky-50",
+                        )}
+                      >
+                        <BriefcaseBusiness className={cn(crmHasActiveItem && "text-sky-600 dark:text-sky-300")} />
+                        <span className="group-data-[collapsible=icon]:hidden">CRM</span>
+                        <ChevronDown
+                          className={cn(
+                            "ml-auto h-4 w-4 text-muted-foreground transition-transform group-data-[collapsible=icon]:hidden",
+                            crmOpen && "rotate-180",
+                          )}
+                        />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+
+                <CollapsibleContent>
+                  <div className="mt-1">
+                    <SidebarMenu>{crmItems.map((item) => renderNavItem(item, "crm"))}</SidebarMenu>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           </>
         ) : null}

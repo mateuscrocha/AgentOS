@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.import-manual-messages]
 verify_jwt = true
+
+[functions.crm-sync-stripe]
+verify_jwt = true

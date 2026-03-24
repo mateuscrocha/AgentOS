@@ -6,6 +6,8 @@ export type OrganizationListItem = {
   id: string;
   name: string;
   status: string;
+  relationship_type: string | null;
+  billing_status: string | null;
   created_at: string;
   settings?: Record<string, any> | null;
 };
@@ -96,7 +98,9 @@ export function useSystemOrganizations({
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
-      let query = supabase.from("organizations").select("id, name, status, created_at, settings", { count: "exact" });
+      let query = supabase
+        .from("organizations")
+        .select("id, name, status, relationship_type, billing_status, created_at, settings", { count: "exact" });
 
       if (search) query = query.ilike("name", `%${search}%`);
       if (statusFilter !== "all") query = query.eq("status", statusFilter);
@@ -161,4 +165,3 @@ export function useSystemOrganizations({
     refreshAll,
   };
 }
-

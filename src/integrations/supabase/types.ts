@@ -1100,6 +1100,7 @@ export type Database = {
           name: string
           owner_user_id: string | null
           plan: string | null
+          relationship_type: string
           settings: Json | null
           slug: string | null
           status: string
@@ -1124,6 +1125,7 @@ export type Database = {
           name: string
           owner_user_id?: string | null
           plan?: string | null
+          relationship_type?: string
           settings?: Json | null
           slug?: string | null
           status?: string
@@ -1148,6 +1150,7 @@ export type Database = {
           name?: string
           owner_user_id?: string | null
           plan?: string | null
+          relationship_type?: string
           settings?: Json | null
           slug?: string | null
           status?: string
@@ -2617,6 +2620,7 @@ export type Database = {
           name: string | null
           owner_user_id: string | null
           plan: string | null
+          relationship_type: string | null
           settings: Json | null
           slug: string | null
           status: string | null
@@ -2643,6 +2647,7 @@ export type Database = {
           name?: string | null
           owner_user_id?: string | null
           plan?: string | null
+          relationship_type?: string | null
           settings?: Json | null
           slug?: string | null
           status?: string | null
@@ -2669,6 +2674,7 @@ export type Database = {
           name?: string | null
           owner_user_id?: string | null
           plan?: string | null
+          relationship_type?: string | null
           settings?: Json | null
           slug?: string | null
           status?: string | null

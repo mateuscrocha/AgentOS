@@ -185,6 +185,113 @@ describe("AdminSidebar — menu do grupo", () => {
     container.remove();
   });
 
+  it("para org admin remove 'Grupos' e exibe 'Minha organização'", async () => {
+    isOrgAdminValue = true;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { AdminSidebar } = await import("./AdminSidebar");
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter
+            initialEntries={["/organization/00000000-0000-4000-8000-000000000001/dashboard"]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
+            <AdminSidebar />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+    });
+
+    expect(container.textContent).toContain("Minha organização");
+    expect(container.textContent).not.toContain("Grupos");
+
+    const orgLink = Array.from(container.querySelectorAll("a")).find((a) =>
+      a.textContent?.includes("Minha organização"),
+    );
+    expect(orgLink?.getAttribute("href")).toBe("/organization/00000000-0000-4000-8000-000000000001/dashboard");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("exibe o grupo CRM apenas para SYSTEM_ADMIN", async () => {
+    isSystemAdminValue = true;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { AdminSidebar } = await import("./AdminSidebar");
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter
+            initialEntries={["/system/crm/pipeline"]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
+            <AdminSidebar />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+    });
+
+    expect(container.textContent).toContain("CRM");
+    expect(container.textContent).toContain("Pipeline");
+    expect(container.textContent).toContain("Empresas");
+    expect(container.textContent).toContain("Contatos");
+    expect(container.textContent).toContain("Tarefas");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("não exibe CRM para perfis sem SYSTEM_ADMIN", async () => {
+    isOrgAdminValue = true;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { AdminSidebar } = await import("./AdminSidebar");
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter
+            initialEntries={["/organization/00000000-0000-4000-8000-000000000001/dashboard"]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
+            <AdminSidebar />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+    });
+
+    expect(container.textContent).not.toContain("CRM");
+    expect(container.textContent).not.toContain("Pipeline");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
   it("navega de Alertas para Organizações ao clicar no link", async () => {
     isSystemAdminValue = true;
     const container = document.createElement("div");

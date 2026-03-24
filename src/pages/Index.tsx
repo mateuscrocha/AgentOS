@@ -85,6 +85,7 @@ const Index = () => {
   const {
     isLoading: rolesLoading,
     isSystemAdmin,
+    isOrgAdmin,
     getAccessibleOrgIds,
     getAccessibleGroupIds,
   } = useUserRoles();
@@ -101,12 +102,13 @@ const Index = () => {
       const orgs = getAccessibleOrgIds();
       const redirectPath = getPostLoginRedirectPath({
         isSystemAdmin,
+        isOrgAdmin,
         groupIds: groups ?? [],
         orgIds: orgs ?? [],
       });
       if (redirectPath) navigate(redirectPath, { replace: true });
     }
-  }, [authLoading, rolesLoading, isAuthenticated, isSystemAdmin, getAccessibleGroupIds, getAccessibleOrgIds, navigate]);
+  }, [authLoading, rolesLoading, isAuthenticated, isOrgAdmin, isSystemAdmin, getAccessibleGroupIds, getAccessibleOrgIds, navigate]);
 
   const selectedPeriod: PeriodType = "30d";
   const currentRange = useMemo(

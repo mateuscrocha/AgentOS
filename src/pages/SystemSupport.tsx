@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Headset, Layers, Clock3, Activity, CheckCircle2 } from "lucide-react";
+import { Headset, Layers, Clock3, Activity, CheckCircle2, MessageCircleWarning, TimerReset, Radio, PauseCircle } from "lucide-react";
 
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
@@ -23,6 +23,8 @@ import { DEFAULT_SUPPORT_BUSINESS_HOURS, businessMsBetween } from "@/lib/busines
 import { compareDemandClusters, type DemandClusterTrendStat } from "@/lib/support-demand-clusters";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { getDateRange, type DateRange, type PeriodType } from "@/components/group-dashboard/period-utils";
+import { cn } from "@/lib/utils";
+import { buildSupportNowSummary, memberIdentityKey, type SupportNowStatus, type SupportNowSummary } from "@/lib/support-now";
 
 import AccessDenied from "./AccessDenied";
 
@@ -86,6 +88,7 @@ type SupportDashboardData = {
   avgResponseMs30d: number | null;
   sequenceSampleCapped: boolean;
   supportMessagesSampleCapped: boolean;
+  nowSummary: SupportNowSummary;
 };
 
 type OrganizationOption = {
@@ -94,12 +97,13 @@ type OrganizationOption = {
 };
 
 const PAGE_SIZE = 20;
-const INACTIVITY_DAYS = 7;
 const KPI_LOOKBACK_DAYS = 30;
 const SUPPORT_MESSAGES_SAMPLE_LIMIT = 12000;
 const SEQUENCE_MESSAGES_SAMPLE_LIMIT = 12000;
 const RESPONSE_SLA_BUSINESS_MINUTES = 30;
 const DEMAND_CLUSTER_SAMPLE_LIMIT = 4000;
+const NOW_STATE_LOOKBACK_DAYS = 14;
+const NOW_STATE_SAMPLE_LIMIT = 12000;
 const SYSTEM_SUPPORT_KPI_HELP = {
   attendants: {
     whatIs: "Total de atendentes ativos configurados nos grupos filtrados.",
@@ -138,38 +142,6 @@ const SYSTEM_SUPPORT_KPI_HELP = {
 const SUPPORT_KPI_CARD = "rounded-[26px] shadow-subtle";
 const SUPPORT_KPI_VALUE = "text-2xl sm:text-3xl";
 
-function normalizePhoneForIdentity(phone?: string | null) {
-  const raw = (phone || "").trim();
-  if (!raw) return "";
-  return raw.replace(/[^\d+]/g, "");
-}
-
-function memberIdentityKey(member: Pick<SupportMemberRow, "id" | "phone_e164" | "lid">) {
-  const phone = normalizePhoneForIdentity(member.phone_e164);
-  if (phone) return `phone:${phone}`;
-  if (member.lid) return `lid:${String(member.lid).trim()}`;
-  return `member:${member.id}`;
-}
-
-function daysSince(date?: string | null) {
-  if (!date) return Number.POSITIVE_INFINITY;
-  const diff = Date.now() - new Date(date).getTime();
-  if (!Number.isFinite(diff)) return Number.POSITIVE_INFINITY;
-  return Math.max(0, Math.floor(diff / (24 * 60 * 60 * 1000)));
-}
-
-function messageIdentityKey(
-  message: { member_id: string | null; sender_phone: string | null },
-  memberIdentityById: Map<string, string>,
-) {
-  if (message.member_id && memberIdentityById.has(message.member_id)) {
-    return memberIdentityById.get(message.member_id)!;
-  }
-  const phone = normalizePhoneForIdentity(message.sender_phone);
-  if (phone) return `phone:${phone}`;
-  return null;
-}
-
 function formatRelativeMinutes(ms: number | null) {
   if (!ms || !Number.isFinite(ms)) return "N/A";
   const minutes = Math.round(ms / 60000);
@@ -177,6 +149,19 @@ function formatRelativeMinutes(ms: number | null) {
   const hours = Math.floor(minutes / 60);
   const rem = minutes % 60;
   return rem ? `${hours}h ${rem}m` : `${hours}h`;
+}
+
+function formatRelativeSince(date?: string | null) {
+  if (!date) return "Sem atividade recente";
+  const diffMs = Date.now() - new Date(date).getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "Agora";
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes <= 1) return "Agora";
+  if (minutes < 60) return `Há ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Há ${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `Há ${days}d`;
 }
 
 export default function SystemSupport() {
@@ -245,6 +230,15 @@ export default function SystemSupport() {
           avgResponseMs30d: null,
           sequenceSampleCapped: false,
           supportMessagesSampleCapped: false,
+          nowSummary: {
+            items: [],
+            counts: {
+              awaiting_attendant: 0,
+              awaiting_customer: 0,
+              in_progress: 0,
+              inactive: 0,
+            },
+          },
         };
       }
 
@@ -361,10 +355,21 @@ export default function SystemSupport() {
           avgResponseMs30d: null,
           sequenceSampleCapped: false,
           supportMessagesSampleCapped: false,
+          nowSummary: {
+            items: [],
+            counts: {
+              awaiting_attendant: 0,
+              awaiting_customer: 0,
+              in_progress: 0,
+              inactive: 0,
+            },
+          },
         };
       }
 
-      const [supportMessagesSampleRes, sequenceMessagesSampleRes, demandMessagesSampleRes, previousDemandMessagesSampleRes] = await Promise.all([
+      const nowStateStartISO = new Date(Date.now() - NOW_STATE_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+      const [supportMessagesSampleRes, sequenceMessagesSampleRes, demandMessagesSampleRes, previousDemandMessagesSampleRes, nowMessagesSampleRes] = await Promise.all([
         supabase
           .from("messages")
           .select("group_id, member_id, sender_phone, created_at")
@@ -403,11 +408,20 @@ export default function SystemSupport() {
           .eq("message_type", "text")
           .order("created_at", { ascending: false })
           .limit(DEMAND_CLUSTER_SAMPLE_LIMIT),
+        supabase
+          .from("messages")
+          .select("group_id, member_id, sender_phone, created_at")
+          .in("group_id", filteredGroupIds)
+          .is("deleted_at", null)
+          .gte("created_at", nowStateStartISO)
+          .order("created_at", { ascending: true })
+          .limit(NOW_STATE_SAMPLE_LIMIT),
       ]);
       if (supportMessagesSampleRes.error) throw supportMessagesSampleRes.error;
       if (sequenceMessagesSampleRes.error) throw sequenceMessagesSampleRes.error;
       if (demandMessagesSampleRes.error) throw demandMessagesSampleRes.error;
       if (previousDemandMessagesSampleRes.error) throw previousDemandMessagesSampleRes.error;
+      if (nowMessagesSampleRes.error) throw nowMessagesSampleRes.error;
 
       const supportMessagesSample = (supportMessagesSampleRes.data ?? []) as Array<{
         group_id: string;
@@ -434,6 +448,12 @@ export default function SystemSupport() {
         sender_phone: string | null;
         text: string | null;
         content: string | null;
+      }>;
+      const nowMessagesSample = (nowMessagesSampleRes.data ?? []) as Array<{
+        group_id: string;
+        member_id: string | null;
+        sender_phone: string | null;
+        created_at: string;
       }>;
 
       let supportMessages30d = 0;
@@ -558,6 +578,16 @@ export default function SystemSupport() {
         return a.name.localeCompare(b.name, "pt-BR");
       });
 
+      const nowSummary = buildSupportNowSummary({
+        filteredGroupIds,
+        nowMessagesSample,
+        supportIdentityKeysByGroup,
+        memberIdentityById,
+        groupById,
+        overviewByGroupId,
+        responseSlaBusinessMinutes: RESPONSE_SLA_BUSINESS_MINUTES,
+      });
+
       return {
         attendants,
         totalAssignedGroups: assignedGroupsDistinct.size,
@@ -573,6 +603,7 @@ export default function SystemSupport() {
         avgResponseMs30d: totalResponseCount ? totalResponseMs / totalResponseCount : null,
         sequenceSampleCapped: sequenceMessagesSample.length >= SEQUENCE_MESSAGES_SAMPLE_LIMIT,
         supportMessagesSampleCapped: supportMessagesSample.length >= SUPPORT_MESSAGES_SAMPLE_LIMIT,
+        nowSummary,
       };
     },
     enabled: isAuthenticated && isSystemAdmin,
@@ -638,8 +669,46 @@ export default function SystemSupport() {
   const openPendingSlaBreached = supportQuery.data?.openPendingSlaBreached ?? 0;
   const demandClusters = supportQuery.data?.demandClusters ?? [];
   const avgResponseMs30d = supportQuery.data?.avgResponseMs30d ?? null;
+  const nowSummary = supportQuery.data?.nowSummary;
   const avgGroupsPerAttendant = attendants.length ? totalAssignedGroups / attendants.length : 0;
   const periodLabel = selectedPeriod === "custom" ? "período" : selectedPeriod;
+  const organizationNameById = new Map((organizationsQuery.data ?? []).map((org) => [org.id, org.name]));
+  const nowStatusMeta: Array<{
+    key: SupportNowStatus;
+    title: string;
+    description: string;
+    icon: typeof MessageCircleWarning;
+    accent: string;
+  }> = [
+    {
+      key: "awaiting_attendant",
+      title: "Aguardando atendente",
+      description: "Cliente falou por último e o time ainda deve resposta.",
+      icon: MessageCircleWarning,
+      accent: "border-rose-500/20 bg-rose-500/[0.06] text-rose-950 dark:text-rose-100",
+    },
+    {
+      key: "in_progress",
+      title: "Em atendimento",
+      description: "Houve troca recente entre cliente e suporte nas últimas horas.",
+      icon: Radio,
+      accent: "border-sky-500/20 bg-sky-500/[0.06] text-sky-950 dark:text-sky-100",
+    },
+    {
+      key: "awaiting_customer",
+      title: "Aguardando cliente",
+      description: "O time respondeu por último e a próxima ação depende do cliente.",
+      icon: TimerReset,
+      accent: "border-amber-500/20 bg-amber-500/[0.08] text-amber-950 dark:text-amber-100",
+    },
+    {
+      key: "inactive",
+      title: "Sem atividade recente",
+      description: `Sem sinal forte de conversa recente nos últimos ${INACTIVITY_DAYS} dias.`,
+      icon: PauseCircle,
+      accent: "border-slate-500/20 bg-slate-500/[0.06] text-slate-950 dark:text-slate-100",
+    },
+  ];
 
   const columns = [
     {
@@ -861,6 +930,65 @@ export default function SystemSupport() {
             Métricas de atendimento do período usam amostragem para manter performance em bases maiores. TMR é aproximado e considera horário comercial (seg-sex, 08h-18h SP).
           </div>
         ) : null}
+
+        <section className="rounded-[28px] border border-border/70 bg-card p-5 shadow-subtle">
+          <ExecutiveSectionHeader
+            eyebrow="Operação ao vivo"
+            title="Resumo Agora"
+            description="Leitura do estado atual dos grupos vinculados. Este bloco ignora o filtro de período e usa a janela recente para mostrar quem está esperando o quê agora."
+            icon={MessageCircleWarning}
+            className="mb-4"
+          />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-4">
+            {nowStatusMeta.map((meta) => {
+              const count = nowSummary?.counts[meta.key] ?? 0;
+              const items = (nowSummary?.items ?? []).filter((item) => item.status === meta.key).slice(0, 4);
+              const Icon = meta.icon;
+
+              return (
+                <div key={meta.key} className={cn("rounded-[24px] border p-4", meta.accent)}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{meta.title}</div>
+                      <div className="mt-2 text-3xl font-semibold tracking-[-0.04em] tabular-nums">{count.toLocaleString("pt-BR")}</div>
+                    </div>
+                    <div className="rounded-2xl border border-current/10 bg-background/80 p-2 text-current">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <p className="mt-2 text-sm leading-5 text-muted-foreground">{meta.description}</p>
+                  <div className="mt-4 space-y-2">
+                    {items.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-border/60 bg-background/60 px-3 py-2 text-sm text-muted-foreground">
+                        Nenhum grupo nesta faixa agora.
+                      </div>
+                    ) : items.map((item) => {
+                      const orgName = organizationNameById.get(item.organizationId) ?? "Organização";
+                      return (
+                        <div key={item.groupId} className="rounded-2xl border border-border/60 bg-background/80 px-3 py-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium text-foreground">{item.groupName}</div>
+                              <div className="truncate text-xs text-muted-foreground">{orgName}</div>
+                            </div>
+                            <Badge variant={item.slaBreached ? "destructive" : "outline"}>
+                              {item.assignedAttendants.toLocaleString("pt-BR")} atend.
+                            </Badge>
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {item.status === "awaiting_attendant"
+                              ? `${formatRelativeSince(item.waitingSinceAt)} • pendência ${formatRelativeMinutes(item.waitingBusinessMs)}${item.slaBreached ? " • fora do SLA" : ""}`
+                              : `${formatRelativeSince(item.lastMessageAt)} • última atividade`}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         <section className="rounded-2xl border border-border/60 bg-card p-5">
           <ExecutiveSectionHeader

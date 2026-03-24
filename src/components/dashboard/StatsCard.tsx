@@ -18,6 +18,8 @@ interface StatsCardProps {
   className?: string;
   titleClassName?: string;
   valueClassName?: string;
+  iconContainerClassName?: string;
+  iconClassName?: string;
   numericValue?: boolean;
 }
 
@@ -63,6 +65,8 @@ export function StatsCard({
   className,
   titleClassName,
   valueClassName,
+  iconContainerClassName,
+  iconClassName,
   numericValue = false,
 }: StatsCardProps) {
   const Component = onClick ? 'button' : 'div';
@@ -84,8 +88,13 @@ export function StatsCard({
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-primary/20 bg-primary/[0.08] shadow-subtle">
-              <Icon className="h-4 w-4 text-primary" />
+            <div
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-primary/20 bg-primary/[0.08] shadow-subtle",
+                iconContainerClassName,
+              )}
+            >
+              <Icon className={cn("h-4 w-4 text-primary", iconClassName)} />
             </div>
             <div className="flex items-start gap-1 min-w-0">
               <p className={cn("text-[11px] font-semibold uppercase tracking-[0.08em] leading-snug text-muted-foreground/90 line-clamp-2", titleClassName)}>{title}</p>
@@ -207,8 +216,13 @@ export function StatsCard({
             </>
           )}
         </div>
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-primary/15 bg-primary/10">
-          <Icon className="h-6 w-6 text-primary" />
+        <div
+          className={cn(
+            "flex h-12 w-12 items-center justify-center rounded-xl border border-primary/15 bg-primary/10",
+            iconContainerClassName,
+          )}
+        >
+          <Icon className={cn("h-6 w-6 text-primary", iconClassName)} />
         </div>
       </div>
     </Component>

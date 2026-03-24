@@ -74,15 +74,21 @@ Exemplo (produção):
 VITE_SUPABASE_URL="https://<project-ref>.supabase.co"
 ```
 
-### VITE_N8N_SEND_GROUP_MESSAGE_URL
+### ZAPI_BASE_URL
 
-`VITE_N8N_SEND_GROUP_MESSAGE_URL` define a URL do webhook usada para envio de mensagem em grupo.
+`ZAPI_BASE_URL` permite sobrescrever a URL base da Z-API usada pelas Edge Functions. Quando ausente, o backend usa `https://api.z-api.io`.
 
-Exemplo:
+### ZAPI_INSTANCE
 
-```sh
-VITE_N8N_SEND_GROUP_MESSAGE_URL="https://test.n8n.euboris.com.br/webhook/send-group-message"
-```
+`ZAPI_INSTANCE` define o identificador da instância da Z-API usado para envios.
+
+### ZAPI_TOKEN
+
+`ZAPI_TOKEN` define o token da instância da Z-API usado para envios.
+
+### ZAPI_CLIENT_TOKEN
+
+`ZAPI_CLIENT_TOKEN` define o `Client-Token` enviado nas chamadas de envio para a Z-API.
 
 ### TEST_BASE_URL
 

@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { StatusTag } from "@/components/ui/status-tag";
 import { notify } from "@/components/ui/sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -761,6 +762,7 @@ const GroupSupport = () => {
 
   const kpis = kpisQuery.data;
   const activeSupportRowsCount = supportRows.filter((r) => r.isActive).length;
+  const supportCoveragePct = totalMembersCount ? (activeSupportRowsCount / totalMembersCount) * 100 : 0;
 
   return (
     <AdminLayout
@@ -796,27 +798,53 @@ const GroupSupport = () => {
               </div>
 
               {canManageSupport ? (
-                <div className="rounded-xl border border-border/60 bg-background/60 p-3">
-                  <div className="flex items-center gap-2 mb-2 text-xs font-medium text-muted-foreground">
-                    <UserPlus className="h-3.5 w-3.5" />
-                    Designar suporte (admin de sistema/organização/grupo)
-                  </div>
-                  <div className="space-y-3">
-                    <div className="rounded-lg border border-border/60 bg-card/60 p-3">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="text-xs font-medium text-muted-foreground">
-                          Já incluídos ({activeSupportRowsCount.toLocaleString("pt-BR")})
+                <div className="overflow-hidden rounded-[28px] border border-border/70 bg-background/70">
+                  <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.14),transparent_42%),linear-gradient(135deg,hsl(var(--secondary)/0.38),transparent_75%)] px-4 py-4 sm:px-5">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          <UserPlus className="h-3.5 w-3.5" />
+                          Definição de atendentes
                         </div>
-                        {activeSupportRowsCount > 0 ? (
-                          <div className="text-[11px] text-muted-foreground">
-                            A lista completa aparece abaixo em “Lista de suporte por grupo”.
+                        <div>
+                          <div className="text-base font-semibold text-foreground">Quem entra na operação deste grupo</div>
+                          <div className="text-sm text-muted-foreground">
+                            Marque as pessoas que realmente contam nos KPIs e no acompanhamento operacional deste atendimento.
                           </div>
-                        ) : null}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:w-auto">
+                        <div className="rounded-2xl border border-border/70 bg-background/85 px-3 py-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Ativos</div>
+                          <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">{activeSupportRowsCount.toLocaleString("pt-BR")}</div>
+                        </div>
+                        <div className="rounded-2xl border border-border/70 bg-background/85 px-3 py-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Cobertura</div>
+                          <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">{supportCoveragePct.toFixed(1).replace(".", ",")}%</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr),minmax(320px,420px)] sm:p-5">
+                    <div className="rounded-[24px] border border-border/60 bg-card/70 p-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            Atendentes já definidos
+                          </div>
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            Pessoas que contam agora nos KPIs e entram como referência da operação.
+                          </div>
+                        </div>
+                        <Badge variant="outline">{activeSupportRowsCount.toLocaleString("pt-BR")} ativos</Badge>
                       </div>
                       {activeSupportPreview.length === 0 ? (
-                          <div className="mt-2 text-sm text-muted-foreground">Nenhum atendente ativo configurado.</div>
+                        <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-background/70 px-4 py-6 text-sm text-muted-foreground">
+                          Nenhum atendente ativo configurado.
+                        </div>
                       ) : (
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="mt-4 flex flex-wrap gap-2">
                           {activeSupportPreview.map((row) => {
                             const label = (row.member.display_name || row.member.name || "Membro").trim();
                             return (
@@ -842,19 +870,24 @@ const GroupSupport = () => {
                       )}
                     </div>
 
-                    <div className="rounded-lg border border-border/60 bg-card/60 p-3 space-y-2">
-                      <div className="text-xs font-medium text-muted-foreground">Buscar e adicionar suporte</div>
+                    <div className="rounded-[24px] border border-border/60 bg-card/70 p-4 space-y-3">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Buscar e adicionar</div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                          Procure por nome ou telefone e marque quem deve entrar nesta carteira de atendimento.
+                        </div>
+                      </div>
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <input
                           type="text"
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
-                          placeholder="Digite nome, atendente ou telefone"
+                          placeholder="Digite nome ou telefone"
                           className="w-full h-10 rounded-xl border border-border/60 bg-background pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
                       </div>
-                      <div className="rounded-lg border border-border/60 bg-background/70">
+                      <div className="rounded-2xl border border-border/60 bg-background/70">
                         {searchQuery.length < 2 ? (
                           <div className="p-3 text-sm text-muted-foreground">
                             Digite pelo menos 2 caracteres para buscar membros e ir adicionando aos atendentes.

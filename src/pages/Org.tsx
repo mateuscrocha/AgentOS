@@ -5,6 +5,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
+import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
@@ -24,6 +25,12 @@ import {
   CircleDashed,
   Sparkles,
   MessageSquare,
+  Headset,
+  MessageCircleWarning,
+  PauseCircle,
+  Radio,
+  TimerReset,
+  RefreshCw,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -92,11 +99,134 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { logEvent } from "@/lib/audit";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { parseSupabaseFunctionInvokeError } from "@/lib/supabase-function-invoke-error";
+import { buildSupportNowSummary, memberIdentityKey, type SupportNowStatus } from "@/lib/support-now";
+import { cn } from "@/lib/utils";
 
 const PANORAMA_PAGE_SIZE = 20;
 const RECENT_MESSAGES_HOURS = 24;
 const ORG_PAGE_STALE_TIME_MS = 30_000;
 const ORG_PAGE_GC_TIME_MS = 5 * 60_000;
+const SUPPORT_NOW_LOOKBACK_DAYS = 14;
+const SUPPORT_NOW_SAMPLE_LIMIT = 12_000;
+const SUPPORT_RESPONSE_SLA_BUSINESS_MINUTES = 30;
+const BORIS_DEFAULT_PRICE_ID = (import.meta.env.VITE_STRIPE_PRICE_ID_DEFAULT ?? "").trim();
+
+type StripeSubscriptionLookup = {
+  id: string;
+  status: string;
+  billing_status: string | null;
+  stripe_price_id: string | null;
+  price_nickname: string | null;
+  unit_amount: number | null;
+  currency: string | null;
+  interval: string | null;
+  current_period_end: string | null;
+};
+
+const subscriptionPriorityOrder = ["active", "trialing", "past_due", "incomplete", "canceled", "unpaid", "incomplete_expired"];
+
+function isBorisStripeSubscription(subscription: StripeSubscriptionLookup) {
+  if (BORIS_DEFAULT_PRICE_ID && subscription.stripe_price_id === BORIS_DEFAULT_PRICE_ID) return true;
+  return /boris/i.test(`${subscription.price_nickname ?? ""} ${subscription.stripe_price_id ?? ""}`);
+}
+
+function pickBestStripeSubscription(subscriptions: StripeSubscriptionLookup[]) {
+  if (subscriptions.length === 0) return null;
+
+  const byPriority = [...subscriptions].sort((a, b) => {
+    const borisDiff = Number(isBorisStripeSubscription(b)) - Number(isBorisStripeSubscription(a));
+    if (borisDiff !== 0) return borisDiff;
+
+    const aPriority = subscriptionPriorityOrder.indexOf(a.status);
+    const bPriority = subscriptionPriorityOrder.indexOf(b.status);
+    const normalizedAPriority = aPriority === -1 ? subscriptionPriorityOrder.length : aPriority;
+    const normalizedBPriority = bPriority === -1 ? subscriptionPriorityOrder.length : bPriority;
+
+    if (normalizedAPriority !== normalizedBPriority) return normalizedAPriority - normalizedBPriority;
+
+    const aDate = a.current_period_end ? new Date(a.current_period_end).getTime() : 0;
+    const bDate = b.current_period_end ? new Date(b.current_period_end).getTime() : 0;
+    return bDate - aDate;
+  });
+
+  return byPriority[0] ?? null;
+}
+
+function describeStripeSubscriptionState(subscription: StripeSubscriptionLookup | null) {
+  if (!subscription) {
+    return {
+      title: "Sem assinatura",
+      message: "Nenhuma assinatura foi encontrada para este cliente Stripe. O billing da organização foi limpo para evitar status desatualizado.",
+    };
+  }
+
+  switch (subscription.status) {
+    case "active":
+      return {
+        title: "Billing atualizado",
+        message: isBorisStripeSubscription(subscription)
+          ? "A assinatura ativa do Bóris foi sincronizada com a organização."
+          : "A assinatura ativa mais relevante do cliente foi sincronizada com a organização.",
+      };
+    case "trialing":
+      return {
+        title: "Em trial",
+        message: "A organização está vinculada a uma assinatura em período de teste.",
+      };
+    case "past_due":
+      return {
+        title: "Pagamento pendente",
+        message: "A assinatura está em `past_due`, indicando cobrança pendente ou falha de pagamento.",
+      };
+    case "unpaid":
+      return {
+        title: "Assinatura não paga",
+        message: "A assinatura está em `unpaid`. Isso sugere inadimplência, não apenas ausência de assinatura.",
+      };
+    case "canceled":
+      return {
+        title: "Assinatura cancelada",
+        message: "A última assinatura encontrada está cancelada. Isso não significa necessariamente inadimplência.",
+      };
+    case "incomplete":
+      return {
+        title: "Assinatura incompleta",
+        message: "A assinatura foi criada, mas o primeiro pagamento ainda não foi concluído.",
+      };
+    case "incomplete_expired":
+      return {
+        title: "Assinatura expirada",
+        message: "A tentativa inicial de pagamento expirou antes da ativação da assinatura.",
+      };
+    case "paused":
+      return {
+        title: "Assinatura pausada",
+        message: "A assinatura está pausada e não está gerando cobrança ativa no momento.",
+      };
+    default:
+      return {
+        title: "Billing atualizado",
+        message: "A assinatura mais relevante do cliente foi sincronizada com a organização.",
+      };
+  }
+}
+
+function getRelationshipTypeMeta(value?: string | null) {
+  switch (value) {
+    case "partner":
+      return { label: "Parceiro", tone: "border-violet-200 bg-violet-50 text-violet-700" };
+    case "courtesy":
+      return { label: "Cortesia", tone: "border-cyan-200 bg-cyan-50 text-cyan-700" };
+    case "internal":
+      return { label: "Interno", tone: "border-zinc-200 bg-zinc-100 text-zinc-700" };
+    case "trial":
+      return { label: "Teste / trial", tone: "border-amber-200 bg-amber-50 text-amber-700" };
+    case "demo":
+      return { label: "Demo", tone: "border-sky-200 bg-sky-50 text-sky-700" };
+    default:
+      return { label: "Cliente pagante", tone: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+  }
+}
 
 const hasTrackedSessionEvent = (key: string) => {
   try {
@@ -134,11 +264,16 @@ interface OrganizationDetail {
   name: string;
   slug: string | null;
   status: string;
+  relationship_type: string | null;
   owner_user_id: string | null;
   plan: string | null;
   trial_started_at: string | null;
   trial_ends_at: string | null;
   billing_status: string | null;
+  billing_plan: string | null;
+  current_period_end: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
@@ -450,6 +585,7 @@ const Org = () => {
   const [attachInviteLink, setAttachInviteLink] = useState("");
   const [attachError, setAttachError] = useState<string | null>(null);
   const [attaching, setAttaching] = useState(false);
+  const [syncingStripeBilling, setSyncingStripeBilling] = useState(false);
   const [sendMessageGroup, setSendMessageGroup] = useState<GroupListItem | null>(null);
   const [isSendingGroupMessage, setIsSendingGroupMessage] = useState(false);
 
@@ -461,6 +597,8 @@ const Org = () => {
 
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('7d');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
+  const [supportNowFilter, setSupportNowFilter] = useState<"all" | SupportNowStatus | "sla_breached">("all");
+  const [supportNowSearch, setSupportNowSearch] = useState("");
 
   const accessGrantedLoggedRef = useRef(false);
   const accessDeniedLoggedRef = useRef(false);
@@ -1398,6 +1536,135 @@ const Org = () => {
     () => (Array.isArray(orgGroupsSignals) ? orgGroupsSignals : []),
     [orgGroupsSignals],
   );
+  const orgSupportNowQuery = useQuery({
+    queryKey: ["org-support-now", orgId],
+    queryFn: async () => {
+      const { data: assignmentsData, error: assignmentsError } = await (supabase as any)
+        .from("group_support_members")
+        .select("group_id, member_id, status, is_active")
+        .eq("is_active", true);
+      if (assignmentsError) throw assignmentsError;
+
+      const allAssignments = (assignmentsData ?? []) as Array<{
+        group_id: string;
+        member_id: string;
+        status: "active" | "inactive";
+        is_active: boolean;
+      }>;
+
+      const groupIds = Array.from(new Set(
+        allAssignments
+          .map((assignment) => assignment.group_id)
+          .filter(Boolean),
+      ));
+
+      if (groupIds.length === 0) {
+        return buildSupportNowSummary({
+          filteredGroupIds: [],
+          nowMessagesSample: [],
+          supportIdentityKeysByGroup: new Map(),
+          memberIdentityById: new Map(),
+          groupById: new Map(),
+          overviewByGroupId: new Map(),
+          responseSlaBusinessMinutes: SUPPORT_RESPONSE_SLA_BUSINESS_MINUTES,
+        });
+      }
+
+      const [groupsRes, overviewRes] = await Promise.all([
+        supabase
+          .from("groups")
+          .select("id, name, organization_id, is_archived")
+          .in("id", groupIds)
+          .eq("organization_id", orgId),
+        supabase
+          .from("v_group_overview")
+          .select("group_id, last_message_at")
+          .in("group_id", groupIds),
+      ]);
+
+      if (groupsRes.error) throw groupsRes.error;
+      if (overviewRes.error) throw overviewRes.error;
+
+      const groups = ((groupsRes.data ?? []) as Array<{ id: string; name: string; organization_id: string; is_archived?: boolean | null }>)
+        .filter((group) => !group.is_archived);
+      const filteredGroupIds = groups.map((group) => group.id);
+
+      if (filteredGroupIds.length === 0) {
+        return buildSupportNowSummary({
+          filteredGroupIds: [],
+          nowMessagesSample: [],
+          supportIdentityKeysByGroup: new Map(),
+          memberIdentityById: new Map(),
+          groupById: new Map(),
+          overviewByGroupId: new Map(),
+          responseSlaBusinessMinutes: SUPPORT_RESPONSE_SLA_BUSINESS_MINUTES,
+        });
+      }
+
+      const groupIdSet = new Set(filteredGroupIds);
+      const assignments = allAssignments.filter((assignment) => groupIdSet.has(assignment.group_id));
+      const memberIds = Array.from(new Set(assignments.map((assignment) => assignment.member_id).filter(Boolean)));
+
+      const [membersRes, nowMessagesRes] = await Promise.all([
+        memberIds.length > 0
+          ? supabase
+              .from("members")
+              .select("id, phone_e164, lid")
+              .in("id", memberIds)
+          : Promise.resolve({ data: [], error: null } as const),
+        supabase
+          .from("messages")
+          .select("group_id, member_id, sender_phone, created_at")
+          .in("group_id", filteredGroupIds)
+          .is("deleted_at", null)
+          .gte("created_at", subDays(new Date(), SUPPORT_NOW_LOOKBACK_DAYS).toISOString())
+          .order("group_id", { ascending: true })
+          .order("created_at", { ascending: true })
+          .limit(SUPPORT_NOW_SAMPLE_LIMIT),
+      ]);
+
+      if (membersRes.error) throw membersRes.error;
+      if (nowMessagesRes.error) throw nowMessagesRes.error;
+
+      const members = (membersRes.data ?? []) as Array<{ id: string; phone_e164: string | null; lid: string | null }>;
+      const overviewRows = ((overviewRes.data ?? []) as Array<{ group_id: string; last_message_at: string | null }>).map((row) => ({
+        group_id: row.group_id,
+        last_access_at: row.last_message_at,
+      }));
+      const nowMessagesSample = (nowMessagesRes.data ?? []) as Array<{
+        group_id: string;
+        member_id: string | null;
+        sender_phone: string | null;
+        created_at: string;
+      }>;
+
+      const memberIdentityById = new Map(members.map((member) => [member.id, memberIdentityKey(member)]));
+      const groupById = new Map(groups.map((group) => [group.id, group]));
+      const overviewByGroupId = new Map(overviewRows.map((row) => [row.group_id, row]));
+      const supportIdentityKeysByGroup = new Map<string, Set<string>>();
+
+      for (const assignment of assignments) {
+        const identityKey = memberIdentityById.get(assignment.member_id);
+        if (!identityKey) continue;
+        const current = supportIdentityKeysByGroup.get(assignment.group_id) ?? new Set<string>();
+        current.add(identityKey);
+        supportIdentityKeysByGroup.set(assignment.group_id, current);
+      }
+
+      return buildSupportNowSummary({
+        filteredGroupIds,
+        nowMessagesSample,
+        supportIdentityKeysByGroup,
+        memberIdentityById,
+        groupById,
+        overviewByGroupId,
+        responseSlaBusinessMinutes: SUPPORT_RESPONSE_SLA_BUSINESS_MINUTES,
+      });
+    },
+    enabled: !!orgId && isAuthenticated && hasAccess && shouldLoadDashboardSignals,
+    staleTime: ORG_PAGE_STALE_TIME_MS,
+    gcTime: ORG_PAGE_GC_TIME_MS,
+  });
   const signalsWithMetrics = useMemo(
     () =>
       signals.map((row) => {
@@ -1427,6 +1694,92 @@ const Org = () => {
         }),
     [signalsWithMetrics],
   );
+  const supportNowStatusMeta: Array<{
+    key: SupportNowStatus;
+    title: string;
+    description: string;
+    help: string;
+    icon: typeof TimerReset;
+    accent: string;
+  }> = [
+    {
+      key: "awaiting_attendant",
+      title: "Aguardando equipe",
+      description: "Clientes que estao esperando resposta agora.",
+      help: "Mostra grupos em que a mensagem mais recente relevante veio do cliente e ainda nao houve retorno da equipe. O Boris considera a sequencia recente da conversa e marca como fora do SLA quando a espera util passa de 30 minutos.",
+      icon: TimerReset,
+      accent: "border-warning/30 bg-warning/[0.08] text-warning",
+    },
+    {
+      key: "in_progress",
+      title: "Em atendimento",
+      description: "Trocas recentes com ida e volta entre cliente e equipe.",
+      help: "Mostra grupos com interacao recente entre cliente e equipe, sem uma pendencia aberta clara de um lado so. O Boris classifica assim quando houve troca entre os dois lados dentro da janela recente.",
+      icon: Radio,
+      accent: "border-cyan-500/20 bg-cyan-500/[0.08] text-cyan-700",
+    },
+    {
+      key: "awaiting_customer",
+      title: "Aguardando cliente",
+      description: "A equipe respondeu e a conversa aguarda retorno.",
+      help: "Mostra grupos em que a ultima acao relevante foi da equipe, entao o proximo passo esperado esta do lado do cliente. Tambem pode aparecer quando houve atividade recente, mas sem pendencia aberta para o time.",
+      icon: MessageCircleWarning,
+      accent: "border-primary/20 bg-primary/[0.08] text-primary",
+    },
+    {
+      key: "inactive",
+      title: "Sem atividade recente",
+      description: "Grupos de atendimento sem troca recente na janela atual.",
+      help: "Mostra grupos sem movimentacao recente suficiente para serem lidos como atendimento em curso. Em geral, sao conversas frias ou paradas fora da janela recente analisada pelo Boris.",
+      icon: PauseCircle,
+      accent: "border-border/70 bg-secondary/30 text-muted-foreground",
+    },
+  ];
+  const supportNowStatusMetaByKey = useMemo(
+    () => new Map(supportNowStatusMeta.map((item) => [item.key, item])),
+    [supportNowStatusMeta],
+  );
+  const supportNowItems = orgSupportNowQuery.data?.items ?? [];
+  const supportNowFilteredItems = useMemo(() => {
+    const query = supportNowSearch.trim().toLowerCase();
+    return supportNowItems.filter((item) => {
+      if (supportNowFilter === "sla_breached" && !item.slaBreached) return false;
+      if (supportNowFilter !== "all" && supportNowFilter !== "sla_breached" && item.status !== supportNowFilter) return false;
+      if (query && !item.groupName.toLowerCase().includes(query)) return false;
+      return true;
+    });
+  }, [supportNowFilter, supportNowItems, supportNowSearch]);
+
+  const supportNowSummaryFilters = [
+    { key: "all" as const, label: "Todos", count: supportNowItems.length },
+    { key: "awaiting_attendant" as const, label: "Aguardando equipe", count: orgSupportNowQuery.data?.counts.awaiting_attendant ?? 0 },
+    { key: "sla_breached" as const, label: "Fora do SLA", count: supportNowItems.filter((item) => item.slaBreached).length },
+    { key: "in_progress" as const, label: "Em atendimento", count: orgSupportNowQuery.data?.counts.in_progress ?? 0 },
+    { key: "awaiting_customer" as const, label: "Aguardando cliente", count: orgSupportNowQuery.data?.counts.awaiting_customer ?? 0 },
+    { key: "inactive" as const, label: "Sem atividade recente", count: orgSupportNowQuery.data?.counts.inactive ?? 0 },
+  ];
+
+  const formatSupportRelativeMinutes = (ms: number | null) => {
+    if (!ms || !Number.isFinite(ms)) return "N/A";
+    const minutes = Math.round(ms / 60000);
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const rem = minutes % 60;
+    return rem ? `${hours}h ${rem}m` : `${hours}h`;
+  };
+
+  const formatSupportRelativeSince = (date?: string | null) => {
+    if (!date) return "Sem atividade recente";
+    const diffMs = Date.now() - new Date(date).getTime();
+    if (!Number.isFinite(diffMs) || diffMs < 0) return "Agora";
+    const minutes = Math.round(diffMs / 60000);
+    if (minutes <= 1) return "Agora";
+    if (minutes < 60) return `Há ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `Há ${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `Há ${days}d`;
+  };
 
   const alertGroupsCount = attentionGroups.length;
   const hasGroups = totalGroupsCount > 0;
@@ -1565,9 +1918,7 @@ const Org = () => {
       render: (g: any) => (
         <div className="min-w-0">
           <div className="font-semibold text-card-foreground truncate">{g.row.name}</div>
-          {g.row.lastSummaryText ? (
-            <div className="text-xs text-muted-foreground truncate">{toPreview(g.row.lastSummaryText, 72)}</div>
-          ) : g.row.lastMessagePreview ? (
+          {g.row.lastMessagePreview ? (
             <div className="text-xs text-muted-foreground truncate">{toPreview(g.row.lastMessagePreview, 72)}</div>
           ) : g.row.lastMessageAt ? (
             <div className="text-xs text-muted-foreground truncate">Última mensagem em {formatDateSimpleBR(g.row.lastMessageAt)}</div>
@@ -1894,6 +2245,73 @@ const Org = () => {
     }
   };
 
+  const handleRefreshStripeBilling = async () => {
+    if (!orgId || !org?.stripe_customer_id) {
+      notify.warning("Cliente Stripe ausente", "Vincule primeiro um cliente Stripe à organização.");
+      return;
+    }
+
+    setSyncingStripeBilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("billing-list-stripe-subscriptions", {
+        body: {
+          stripe_customer_id: org.stripe_customer_id,
+          limit: 50,
+        },
+      });
+
+      if (error) throw error;
+
+      const subscriptions = Array.isArray(data?.subscriptions)
+        ? (data.subscriptions as StripeSubscriptionLookup[])
+        : [];
+
+      const bestSubscription = pickBestStripeSubscription(subscriptions);
+      if (!bestSubscription) {
+        const { error: clearBillingError } = await supabase
+          .from("organizations")
+          .update({
+            stripe_subscription_id: null,
+            stripe_price_id: null,
+            billing_status: "inactive",
+            billing_plan: null,
+            current_period_end: null,
+          })
+          .eq("id", orgId);
+
+        if (clearBillingError) throw clearBillingError;
+
+        await refetchOrg();
+        const emptyState = describeStripeSubscriptionState(null);
+        notify.warning(emptyState.title, emptyState.message);
+        return;
+      }
+
+      const { error: linkError } = await supabase.functions.invoke("billing-link-organization-stripe-subscription", {
+        body: {
+          organization_id: orgId,
+          stripe_customer_id: org.stripe_customer_id,
+          stripe_subscription_id: bestSubscription.id,
+        },
+      });
+
+      if (linkError) throw linkError;
+
+      await refetchOrg();
+      const state = describeStripeSubscriptionState(bestSubscription);
+      if (bestSubscription.status === "past_due" || bestSubscription.status === "unpaid" || bestSubscription.status === "incomplete" || bestSubscription.status === "incomplete_expired") {
+        notify.warning(state.title, state.message);
+      } else {
+        notify.success(state.title, state.message);
+      }
+    } catch (err) {
+      const parsed = await parseSupabaseFunctionInvokeError(err);
+      notify.error("Não foi possível atualizar o billing", parsed.message);
+    } finally {
+      setSyncingStripeBilling(false);
+    }
+  };
+
   const orgStatusLabel = org.status === "active" ? "Ativo" : org.status === "inactive" ? "Inativo" : "Suspenso";
   const orgStatusClassName =
     org.status === "active"
@@ -2008,16 +2426,43 @@ const Org = () => {
             )}
           </div>
 
+          {isSystemAdmin ? (
           <div className="rounded-xl bg-secondary/20 p-4 space-y-4">
-            <h3 className="text-sm font-medium text-card-foreground flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              Plano / Cobrança
-            </h3>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-medium text-card-foreground flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                Plano / Cobrança
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleRefreshStripeBilling()}
+                disabled={!userCanEditOrg || syncingStripeBilling || !org.stripe_customer_id}
+                title={
+                  !org.stripe_customer_id
+                    ? "Vincule um cliente Stripe para atualizar o billing."
+                    : !userCanEditOrg
+                      ? "Somente perfis com permissão de edição podem atualizar o billing."
+                      : undefined
+                }
+              >
+                {syncingStripeBilling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Atualizar Stripe
+              </Button>
+            </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
+                <span className="text-muted-foreground">Relacionamento</span>
+                <div className="mt-1">
+                  <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium", getRelationshipTypeMeta(org.relationship_type).tone)}>
+                    {getRelationshipTypeMeta(org.relationship_type).label}
+                  </span>
+                </div>
+              </div>
+              <div>
                 <span className="text-muted-foreground">Plano</span>
-                <p className="font-medium text-card-foreground capitalize">{org.plan || "-"}</p>
+                <p className="font-medium text-card-foreground capitalize">{org.billing_plan || org.plan || "-"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Status do billing</span>
@@ -2034,6 +2479,20 @@ const Org = () => {
                 </p>
               </div>
               <div>
+                <span className="text-muted-foreground">Cliente Stripe</span>
+                <p className="font-medium text-card-foreground">{org.stripe_customer_id || "-"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Assinatura Stripe</span>
+                <p className="font-medium text-card-foreground">{org.stripe_subscription_id || "-"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Próxima renovação</span>
+                <p className="font-medium text-card-foreground">
+                  {org.current_period_end ? formatDateSimpleBR(org.current_period_end) : "-"}
+                </p>
+              </div>
+              <div>
                 <span className="text-muted-foreground">Início do trial</span>
                 <p className="font-medium text-card-foreground">
                   {org.trial_started_at ? formatDateSimpleBR(org.trial_started_at) : "-"}
@@ -2047,6 +2506,7 @@ const Org = () => {
               </div>
             </div>
           </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>
@@ -2587,6 +3047,175 @@ const Org = () => {
 
             {adminSummarySection}
 
+            <section className="rounded-[28px] border border-border/70 bg-card p-5 shadow-subtle">
+              <ExecutiveSectionHeader
+                eyebrow="Operação ao vivo"
+                title="Resumo Agora"
+                description="Quem esta esperando o que neste exato momento nos grupos de atendimento da sua organizacao. Este bloco ignora o filtro de periodo e usa a janela recente."
+                icon={Headset}
+                className="mb-4"
+              />
+
+              {orgSupportNowQuery.isLoading ? (
+                <LoadingState message="Carregando estado atual do atendimento..." />
+              ) : orgSupportNowQuery.error ? (
+                <ErrorState
+                  message="Falha ao carregar o resumo atual do atendimento"
+                  retry={() => orgSupportNowQuery.refetch()}
+                />
+              ) : (orgSupportNowQuery.data?.items.length ?? 0) === 0 ? (
+                <EmptyState
+                  icon={Headset}
+                  title="Ainda não há grupos com atendimento configurado"
+                  message="Quando a organização tiver atendentes vinculados aos grupos, o Boris mostra aqui quem está aguardando equipe, cliente ou segue em atendimento."
+                />
+              ) : (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-4">
+                    {supportNowStatusMeta.map((meta) => {
+                      const count = orgSupportNowQuery.data?.counts[meta.key] ?? 0;
+                      const Icon = meta.icon;
+
+                      return (
+                        <div key={meta.key} className={cn("rounded-[24px] border p-4", meta.accent)}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                <span>{meta.title}</span>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button aria-label={`Ajuda sobre ${meta.title}`} className="text-muted-foreground hover:text-foreground">
+                                      <HelpCircle className="h-3.5 w-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs normal-case tracking-normal text-left leading-relaxed">
+                                    <p className="text-sm font-medium text-foreground normal-case">{meta.title}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground normal-case">{meta.help}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <div className="mt-2 text-3xl font-semibold tracking-[-0.04em] tabular-nums">{count.toLocaleString("pt-BR")}</div>
+                            </div>
+                            <div className="rounded-2xl border border-current/10 bg-background/80 p-2 text-current">
+                              <Icon className="h-4 w-4" />
+                            </div>
+                          </div>
+                          <p className="mt-2 text-sm leading-5 text-muted-foreground">{meta.description}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="rounded-[24px] border border-border/70 bg-background/50 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-card-foreground">Fila operacional</div>
+                        <div className="text-xs text-muted-foreground">
+                          Priorizada por urgência para você entender quem precisa de ação primeiro.
+                        </div>
+                      </div>
+                      <div className="w-full lg:w-[320px]">
+                        <Input
+                          value={supportNowSearch}
+                          onChange={(event) => setSupportNowSearch(event.target.value)}
+                          placeholder="Buscar grupo na operação ao vivo"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {supportNowSummaryFilters.map((filter) => (
+                        <button
+                          key={filter.key}
+                          type="button"
+                          onClick={() => setSupportNowFilter(filter.key)}
+                          className={cn(
+                            "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors",
+                            supportNowFilter === filter.key
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          <span>{filter.label}</span>
+                          <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-[11px] font-medium tabular-nums">
+                            {filter.count.toLocaleString("pt-BR")}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <div className="text-xs text-muted-foreground">
+                        {supportNowFilteredItems.length.toLocaleString("pt-BR")} grupos visíveis nesta triagem
+                      </div>
+                      {(supportNowFilter !== "all" || supportNowSearch.trim()) ? (
+                        <Button variant="ghost" size="sm" onClick={() => { setSupportNowFilter("all"); setSupportNowSearch(""); }}>
+                          Limpar triagem
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-4 overflow-hidden rounded-[20px] border border-border/70 bg-card">
+                      <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] gap-3 border-b border-border/70 bg-secondary/25 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                        <div>Grupo</div>
+                        <div>Status</div>
+                        <div>Espera / atividade</div>
+                        <div>Atendentes</div>
+                        <div></div>
+                      </div>
+
+                      {supportNowFilteredItems.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                          Nenhum grupo encontrado para esse recorte da operação ao vivo.
+                        </div>
+                      ) : (
+                        <div className="max-h-[560px] overflow-auto">
+                          {supportNowFilteredItems.map((item) => {
+                            const meta = supportNowStatusMetaByKey.get(item.status);
+                            const activityLabel = item.status === "awaiting_attendant"
+                              ? `${formatSupportRelativeSince(item.waitingSinceAt)} • pendência ${formatSupportRelativeMinutes(item.waitingBusinessMs)}${item.slaBreached ? " • fora do SLA" : ""}`
+                              : `${formatSupportRelativeSince(item.lastMessageAt)} • última atividade`;
+
+                            return (
+                              <button
+                                key={item.groupId}
+                                type="button"
+                                onClick={() => navigate(`/groups/${item.groupId}/support`)}
+                                className="grid w-full grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] gap-3 border-b border-border/60 px-4 py-3 text-left transition-colors hover:bg-secondary/20"
+                              >
+                                <div className="min-w-0">
+                                  <div className="truncate text-sm font-medium text-foreground">{item.groupName}</div>
+                                  <div className="truncate text-xs text-muted-foreground">Abrir atendimento do grupo</div>
+                                </div>
+                                <div className="min-w-0">
+                                  <div className={cn(
+                                    "inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                                    item.slaBreached
+                                      ? "border-destructive/20 bg-destructive/10 text-destructive"
+                                      : meta?.accent ?? "border-border/70 bg-background text-muted-foreground",
+                                  )}>
+                                    <span className="truncate">{meta?.title ?? item.status}</span>
+                                  </div>
+                                </div>
+                                <div className="min-w-0 text-xs text-muted-foreground">
+                                  <div className="truncate">{activityLabel}</div>
+                                </div>
+                                <div className="text-sm text-card-foreground">
+                                  <span className="font-medium tabular-nums">{item.assignedAttendants.toLocaleString("pt-BR")}</span>
+                                  <span className="ml-1 text-xs text-muted-foreground">atend.</span>
+                                </div>
+                                <div className="text-xs font-medium text-primary">Abrir</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+
             <Card className="border-border/80 shadow-subtle">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
@@ -2627,13 +3256,11 @@ const Org = () => {
                         const canRemove = userCanEditOrg;
                         const canCascade = isSystemAdmin;
                         const canDeleteAction = canCascade || canRemove;
-                        const contextText = g.row.lastSummaryText
-                          ? toPreview(g.row.lastSummaryText, 120)
-                          : g.row.lastMessagePreview
-                            ? toPreview(g.row.lastMessagePreview, 120)
-                            : g.row.lastMessageAt
-                              ? `Última mensagem em ${formatDateSimpleBR(g.row.lastMessageAt)}`
-                              : "Sem histórico recente";
+                        const contextText = g.row.lastMessagePreview
+                          ? toPreview(g.row.lastMessagePreview, 120)
+                          : g.row.lastMessageAt
+                            ? `Última mensagem em ${formatDateSimpleBR(g.row.lastMessageAt)}`
+                            : "Sem histórico recente";
 
                         return (
                           <div
@@ -2882,6 +3509,7 @@ const Org = () => {
         open={editOrgOpen}
         onOpenChange={setEditOrgOpen}
         onSuccess={() => refetchOrg()}
+        canManageStripe={isSystemAdmin}
       />
 
       <EditOrganizationContactModal
