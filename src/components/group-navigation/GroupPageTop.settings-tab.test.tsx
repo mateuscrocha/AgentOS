@@ -181,7 +181,7 @@ describe("GroupTabs — remoção da aba Atividade", () => {
     container.remove();
   });
 
-  it("exibe Configurações desabilitado para SYSTEM_ADMIN", async () => {
+  it("exibe Configurações para SYSTEM_ADMIN", async () => {
     isSystemAdminValue = true;
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -199,7 +199,7 @@ describe("GroupTabs — remoção da aba Atividade", () => {
     const settingsButton = Array.from(container.querySelectorAll("button")).find((button) =>
       button.textContent?.includes("Configurações"),
     );
-    expect(settingsButton?.hasAttribute("disabled")).toBe(true);
+    expect(settingsButton?.hasAttribute("disabled")).toBe(false);
 
     await act(async () => {
       root.unmount();

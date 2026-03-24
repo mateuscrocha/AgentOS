@@ -92,6 +92,17 @@ vi.mock("@tanstack/react-query", async () => {
     invite_link: null,
     provider: "",
     sync_status: null,
+    group_settings: {
+      group_id: "00000000-0000-4000-8000-000000000000",
+      welcome_message_enabled: false,
+      audio_transcription_enabled: false,
+      daily_summary_enabled: true,
+      daily_summary_time: "08:00:00",
+      daily_topics_enabled: true,
+      peak_moment_enabled: false,
+      polls_enabled: false,
+      updated_at: new Date().toISOString(),
+    },
   };
 
   initialGroupEditData = mockGroup;
@@ -222,10 +233,10 @@ describe("GroupEdit — ajustes de UI", () => {
       metadata: {
         ...(initialGroupEditData?.metadata || {}),
         timezone: "Invalid/Timezone",
-        operations: {
-          ...((initialGroupEditData?.metadata as any)?.operations || {}),
-          summary_time: "25:99",
-        },
+      },
+      group_settings: {
+        ...(initialGroupEditData?.group_settings || {}),
+        daily_summary_time: "25:99:00",
       },
     };
     const container = document.createElement("div");

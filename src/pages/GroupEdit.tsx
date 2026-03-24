@@ -36,11 +36,25 @@ import { AlertTriangle, CheckCircle2, Trash2, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { notifyValidation } from "@/lib/notify-validation";
 
-type FeatureKey =
-  | "WELCOME_MESSAGE"
-  | "SUMMARY_HEADER"
-  | "SUMMARY"
-  | "AUDIO_TRANSCRIPTION";
+type AutomationKey =
+  | "welcome_message_enabled"
+  | "audio_transcription_enabled"
+  | "daily_summary_enabled"
+  | "daily_topics_enabled"
+  | "peak_moment_enabled"
+  | "polls_enabled";
+
+type GroupSettingsRow = {
+  group_id: string;
+  welcome_message_enabled: boolean;
+  audio_transcription_enabled: boolean;
+  daily_summary_enabled: boolean;
+  daily_summary_time: string;
+  daily_topics_enabled: boolean;
+  peak_moment_enabled: boolean;
+  polls_enabled: boolean;
+  updated_at: string;
+};
 
 interface GroupRow {
   id: string;
@@ -53,6 +67,7 @@ interface GroupRow {
   invite_link: string | null;
   provider?: string;
   sync_status?: string | null;
+  group_settings?: GroupSettingsRow | GroupSettingsRow[] | null;
 }
 
 const normalizeWhatsAppInviteLink = (value: string): string => {
@@ -70,26 +85,36 @@ const normalizeWhatsAppInviteLink = (value: string): string => {
   }
 };
 
-const FEATURE_LABELS: Record<FeatureKey, { name: string; description: string; hasContent: boolean }> = {
-  WELCOME_MESSAGE: {
-    name: "Mensagem de boas-vindas aos membros",
-    description: "Envia uma mensagem quando alguém entra no grupo.",
-    hasContent: false,
+const AUTOMATION_LABELS: Record<AutomationKey, { name: string; description: string; availability: "live" | "prepared" }> = {
+  welcome_message_enabled: {
+    name: "Mensagem de boas-vindas",
+    description: "Envia automaticamente uma saudação quando um novo participante entra no grupo.",
+    availability: "live",
   },
-  SUMMARY_HEADER: {
-    name: "Texto antes do resumo",
-    description: "Mensagem enviada antes da mensagem de resumo do Bóris.",
-    hasContent: false,
-  },
-  SUMMARY: {
-    name: "Resumo diário",
-    description: "Liga ou desliga o envio do resumo do Bóris.",
-    hasContent: false,
-  },
-  AUDIO_TRANSCRIPTION: {
+  audio_transcription_enabled: {
     name: "Áudio do Bóris",
-    description: "Liga ou desliga o envio de áudio do Bóris.",
-    hasContent: false,
+    description: "Reserva o grupo para automações de áudio e transcrição do Bóris.",
+    availability: "prepared",
+  },
+  daily_summary_enabled: {
+    name: "Resumo diário",
+    description: "Gera e envia o resumo diário do grupo no horário configurado.",
+    availability: "live",
+  },
+  daily_topics_enabled: {
+    name: "Tópicos e keywords",
+    description: "Gera os tópicos mais falados e as palavras-chave do dia.",
+    availability: "live",
+  },
+  peak_moment_enabled: {
+    name: "Momento de pico",
+    description: "Ativa leituras automáticas sobre os períodos de maior atividade do grupo.",
+    availability: "live",
+  },
+  polls_enabled: {
+    name: "Enquetes",
+    description: "Reserva o grupo para automações ligadas a enquetes e interações futuras.",
+    availability: "prepared",
   },
 };
 
@@ -163,6 +188,24 @@ function isValidIanaTimeZone(value: string) {
   }
 }
 
+function toHHmm(value?: string | null) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return raw.slice(0, 5);
+}
+
+function toDbTime(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return "19:00:00";
+  return normalized.length === 5 ? `${normalized}:00` : normalized;
+}
+
+function truncateText(value: string, limit = 220) {
+  const text = value.trim();
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit).trimEnd()}...`;
+}
+
 export default function GroupEdit() {
   const { groupId } = useParams();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -200,7 +243,7 @@ export default function GroupEdit() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("groups")
-        .select("id, name, description, status, is_archived, metadata, organization_id, invite_link, provider, sync_status")
+        .select("id, name, description, status, is_archived, metadata, organization_id, invite_link, provider, sync_status, group_settings(group_id,welcome_message_enabled,audio_transcription_enabled,daily_summary_enabled,daily_summary_time,daily_topics_enabled,peak_moment_enabled,polls_enabled,updated_at)")
         .eq("id", groupId!)
         .maybeSingle();
       if (error) throw error;
@@ -260,15 +303,55 @@ export default function GroupEdit() {
     refetchOnWindowFocus: false,
   });
 
-  const [featuresEnabled, setFeaturesEnabled] = useState<Record<FeatureKey, boolean>>({
-    WELCOME_MESSAGE: false,
-    SUMMARY_HEADER: false,
-    SUMMARY: false,
-    AUDIO_TRANSCRIPTION: false,
+  const { data: latestSummary } = useQuery({
+    queryKey: ["group-latest-summary", groupId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("group_daily_summaries")
+        .select("id, summary_date, summary_text, metadata, created_at")
+        .eq("group_id", groupId!)
+        .order("summary_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !!groupId && isAuthenticated && isSystemAdmin,
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: latestTopicsSnapshot } = useQuery({
+    queryKey: ["group-latest-topics-snapshot", groupId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("group_daily_topics")
+        .select("topic_date")
+        .eq("group_id", groupId!)
+        .order("topic_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !!groupId && isAuthenticated && isSystemAdmin,
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const [automationsEnabled, setAutomationsEnabled] = useState<Record<AutomationKey, boolean>>({
+    welcome_message_enabled: false,
+    audio_transcription_enabled: false,
+    daily_summary_enabled: false,
+    daily_topics_enabled: false,
+    peak_moment_enabled: false,
+    polls_enabled: false,
   });
 
   useEffect(() => {
     if (!group) return;
+    const settings = Array.isArray(group.group_settings) ? group.group_settings[0] : group.group_settings;
 
     // Hydrate form once per group to avoid wiping unsaved drafts after partial refetches.
     if (hydratedGroupIdRef.current !== group.id) {
@@ -281,17 +364,15 @@ export default function GroupEdit() {
       const m = group.metadata || {};
       setLanguage((m.language as string) || "");
       setTimezone((m.timezone as string) || "");
-
-      const ops = (m.operations || {}) as Record<string, any>;
-      setSummaryTime((ops.summary_time as string) || "");
-
-      const feats = (m.features || {}) as Record<string, any>;
-      const nextEnabled = (Object.keys(FEATURE_LABELS) as FeatureKey[]).reduce((acc, key) => {
-        const cfg = feats[key] || {};
-        acc[key] = !!cfg.enabled;
-        return acc;
-      }, {} as Record<FeatureKey, boolean>);
-      setFeaturesEnabled(nextEnabled);
+      setSummaryTime(toHHmm(settings?.daily_summary_time) || "19:00");
+      setAutomationsEnabled({
+        welcome_message_enabled: !!settings?.welcome_message_enabled,
+        audio_transcription_enabled: !!settings?.audio_transcription_enabled,
+        daily_summary_enabled: !!settings?.daily_summary_enabled,
+        daily_topics_enabled: !!settings?.daily_topics_enabled,
+        peak_moment_enabled: !!settings?.peak_moment_enabled,
+        polls_enabled: !!settings?.polls_enabled,
+      });
 
       setInviteLinkInput(group.invite_link || "");
       return;
@@ -305,21 +386,6 @@ export default function GroupEdit() {
     mutationFn: async () => {
       const baseMeta = group?.metadata || {};
       const baseOps = ((baseMeta as any).operations || {}) as Record<string, any>;
-      const baseFeatures = ((baseMeta as any).features || {}) as Record<string, any>;
-
-      const nextFeatures = { ...baseFeatures } as Record<string, any>;
-      (Object.keys(FEATURE_LABELS) as FeatureKey[]).forEach((k) => {
-        const current = (baseFeatures[k] || {}) as Record<string, any>;
-        nextFeatures[k] = {
-          ...current,
-          enabled: !!featuresEnabled[k],
-        };
-      });
-      // Legacy options removed from the UI should remain desligadas.
-      ["SUMMARY_FOOTER", "REPORT"].forEach((k) => {
-        const current = (baseFeatures[k] || {}) as Record<string, any>;
-        nextFeatures[k] = { ...current, enabled: false };
-      });
 
       const nextMeta = {
         ...baseMeta,
@@ -329,10 +395,9 @@ export default function GroupEdit() {
           ...baseOps,
           summary_time: summaryTime || null,
         },
-        features: nextFeatures,
       };
 
-      const { error } = await supabase
+      const groupUpdate = supabase
         .from("groups")
         .update({
           description: description.trim() || null,
@@ -343,7 +408,23 @@ export default function GroupEdit() {
         })
         .eq("id", groupId!);
 
-      if (error) throw error;
+      const settingsUpsert = supabase
+        .from("group_settings")
+        .upsert({
+          group_id: groupId!,
+          welcome_message_enabled: automationsEnabled.welcome_message_enabled,
+          audio_transcription_enabled: automationsEnabled.audio_transcription_enabled,
+          daily_summary_enabled: automationsEnabled.daily_summary_enabled,
+          daily_summary_time: toDbTime(summaryTime),
+          daily_topics_enabled: automationsEnabled.daily_topics_enabled,
+          peak_moment_enabled: automationsEnabled.peak_moment_enabled,
+          polls_enabled: automationsEnabled.polls_enabled,
+        }, { onConflict: "group_id" });
+
+      const [{ error: groupError }, { error: settingsError }] = await Promise.all([groupUpdate, settingsUpsert]);
+
+      if (groupError) throw groupError;
+      if (settingsError) throw settingsError;
     },
     onSuccess: async () => {
       notify.success("Alterações salvas", "Tudo certo.");
@@ -486,6 +567,72 @@ export default function GroupEdit() {
     onError: () => notify.error("Não foi possível arquivar", "Algo deu errado. Tente novamente."),
   });
 
+  const runSummaryNowMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("generate-group-summary", {
+        body: {
+          groupId: groupId!,
+          sendToGroup: false,
+        },
+      });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (data) => {
+      const summaryType = typeof data?.summaryType === "string" ? data.summaryType : "resumo";
+      notify.success("Resumo gerado", `${summaryType} processado com sucesso.`);
+      queryClient.invalidateQueries({ queryKey: ["group-edit", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["group-latest-summary", groupId] });
+    },
+    onError: (error: any) => {
+      notify.error("Não foi possível gerar resumo", error?.message || "Algo deu errado. Tente novamente.");
+    },
+  });
+
+  const sendSummaryNowMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("generate-group-summary", {
+        body: {
+          groupId: groupId!,
+          sendToGroup: true,
+        },
+      });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (data) => {
+      const summaryType = typeof data?.summaryType === "string" ? data.summaryType : "resumo";
+      notify.success("Resumo enviado", `${summaryType} gerado e enviado no grupo.`);
+      queryClient.invalidateQueries({ queryKey: ["group-edit", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["group-latest-summary", groupId] });
+    },
+    onError: (error: any) => {
+      notify.error("Não foi possível enviar resumo", error?.message || "Algo deu errado. Tente novamente.");
+    },
+  });
+
+  const runTopicsNowMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("generate-group-topics-keywords", {
+        body: {
+          groupId: groupId!,
+        },
+      });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (data) => {
+      const topicsCount = Number(data?.topicsCount || 0);
+      const keywordsCount = Number(data?.keywordsCount || 0);
+      notify.success("Tópicos e keywords gerados", `${topicsCount} tópicos e ${keywordsCount} keywords processados.`);
+      queryClient.invalidateQueries({ queryKey: ["group-edit", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["group-latest-topics-snapshot", groupId] });
+    },
+    onError: (error: any) => {
+      notify.error("Não foi possível gerar tópicos", error?.message || "Algo deu errado. Tente novamente.");
+    },
+  });
+
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
 
@@ -581,6 +728,10 @@ export default function GroupEdit() {
   }, [summaryTime]);
 
   const hasValidationErrors = !!timezoneError || !!summaryTimeError;
+  const activeAutomationsCount = useMemo(
+    () => Object.values(automationsEnabled).filter(Boolean).length,
+    [automationsEnabled]
+  );
 
   useEffect(() => {
     if (timezoneError || summaryTimeError) {
@@ -893,48 +1044,161 @@ export default function GroupEdit() {
 
           <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
             <div className="space-y-1">
-              <h2 className="text-lg sm:text-xl font-semibold">Mensagens automáticas</h2>
-              <p className="text-sm text-muted-foreground">Escolha o que o Bóris pode enviar no grupo.</p>
+              <h2 className="text-lg sm:text-xl font-semibold">Automações do grupo</h2>
+              <p className="text-sm text-muted-foreground">Escolha quais rotinas automáticas do Bóris ficam ativas neste grupo.</p>
             </div>
 
             <div className="mt-5 space-y-4">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <div className="rounded-xl border border-border/70 bg-card/80 p-4">
+                  <div className="text-sm font-semibold text-card-foreground">Último resumo</div>
+                  {latestSummary?.summary_text ? (
+                    <>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {String(latestSummary.summary_date || "") || "Sem data"} · {String(latestSummary?.metadata?.summary_type || "Resumo")}
+                      </div>
+                      <div className="mt-3 text-sm leading-relaxed text-card-foreground">
+                        {truncateText(String(latestSummary.summary_text || ""))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-2 text-sm text-muted-foreground">Nenhum resumo gerado ainda para este grupo.</div>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-card/80 p-4">
+                  <div className="text-sm font-semibold text-card-foreground">Última execução analítica</div>
+                  <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border border-border/60 bg-secondary/20 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Resumo</div>
+                      <div className="mt-1 text-sm font-medium text-card-foreground">
+                        {latestSummary?.summary_date ? String(latestSummary.summary_date) : "Nunca executado"}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-secondary/20 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Tópicos/keywords</div>
+                      <div className="mt-1 text-sm font-medium text-card-foreground">
+                        {latestTopicsSnapshot?.topic_date ? String(latestTopicsSnapshot.topic_date) : "Nunca executado"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-card/80 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-card-foreground">Ações manuais</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">Use estas ações para testar o grupo sem esperar o horário automático.</div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="rounded-xl"
+                      onClick={() => runSummaryNowMutation.mutate()}
+                      disabled={runSummaryNowMutation.isPending}
+                    >
+                      {runSummaryNowMutation.isPending ? "Gerando resumo..." : "Gerar resumo agora"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="rounded-xl"
+                      onClick={() => sendSummaryNowMutation.mutate()}
+                      disabled={sendSummaryNowMutation.isPending}
+                    >
+                      {sendSummaryNowMutation.isPending ? "Enviando resumo..." : "Enviar resumo no grupo"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="rounded-xl"
+                      onClick={() => runTopicsNowMutation.mutate()}
+                      disabled={runTopicsNowMutation.isPending}
+                    >
+                      {runTopicsNowMutation.isPending ? "Gerando tópicos..." : "Gerar tópicos/keywords agora"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-xl border border-border/70 bg-secondary/15 p-4">
-                <div className="text-sm font-semibold text-card-foreground">O que o Bóris pode fazer</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">Ative somente o que você deseja usar no grupo.</div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-card-foreground">Central de automações</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">As opções abaixo alimentam diretamente o backend do Bóris.</div>
+                  </div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground">{activeAutomationsCount}</span>
+                    <span>{activeAutomationsCount === 1 ? "automação ativa" : "automações ativas"}</span>
+                  </div>
+                </div>
 
-                <div className="mt-4 space-y-3">
-                  {(Object.keys(FEATURE_LABELS) as FeatureKey[]).map((key) => {
-                    const info = FEATURE_LABELS[key];
+                <div className="mt-4 grid grid-cols-1 gap-3">
+                  {(Object.keys(AUTOMATION_LABELS) as AutomationKey[]).map((key) => {
+                    const info = AUTOMATION_LABELS[key];
+                    const enabled = !!automationsEnabled[key];
+                    const isPreparedOnly = info.availability === "prepared";
                     return (
-                      <div key={key} className="flex items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-card-foreground">{info.name}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{info.description}</div>
-
-                          {key === "SUMMARY" && showTechnicalOptions ? (
-                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="space-y-2">
-                                <label htmlFor="group-summary-time" className="text-xs font-medium text-muted-foreground">Horário do resumo (aprox.)</label>
-                                <Input
-                                  id="group-summary-time"
-                                  value={summaryTime}
-                                  onChange={(e) => setSummaryTime(e.target.value)}
-                                  placeholder="08:00"
-                                  className={cn("h-11 rounded-xl", summaryTimeError ? "border-destructive focus-visible:ring-destructive/30" : "")}
-                                  aria-invalid={!!summaryTimeError}
-                                  aria-describedby={summaryTimeError ? "group-summary-time-error" : undefined}
-                                />
-                                <div className="text-[11px] text-muted-foreground">Define o horário aproximado de envio do resumo diário.</div>
-                                {summaryTimeError ? <div id="group-summary-time-error" className="text-[11px] text-destructive">{summaryTimeError}</div> : null}
-                              </div>
+                      <div key={key} className="rounded-xl border border-border/70 bg-card/85 p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="text-sm font-medium text-card-foreground">{info.name}</div>
+                              <span
+                                className={cn(
+                                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                  enabled
+                                    ? "border-primary/25 bg-primary/10 text-primary"
+                                    : "border-border/80 bg-secondary/30 text-muted-foreground",
+                                )}
+                              >
+                                {enabled ? "Ligado" : "Desligado"}
+                              </span>
+                              <span
+                                className={cn(
+                                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                  isPreparedOnly
+                                    ? "border-warning/30 bg-warning/10 text-warning"
+                                    : "border-success/30 bg-success/10 text-success",
+                                )}
+                              >
+                                {isPreparedOnly ? "Preparado" : "Ao vivo"}
+                              </span>
                             </div>
-                          ) : null}
-                        </div>
+                            <div className="mt-1 text-xs text-muted-foreground">{info.description}</div>
+                            {isPreparedOnly ? (
+                              <div className="mt-2 text-[11px] text-muted-foreground">
+                                Configuração pronta no grupo. A rotina operacional ainda não foi conectada no backend.
+                              </div>
+                            ) : null}
 
-                        <Switch
-                          checked={!!featuresEnabled[key]}
-                          onCheckedChange={(v) => setFeaturesEnabled((prev) => ({ ...prev, [key]: v }))}
-                        />
+                            {key === "daily_summary_enabled" ? (
+                              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <label htmlFor="group-summary-time" className="text-xs font-medium text-muted-foreground">Horário do resumo (aprox.)</label>
+                                  <Input
+                                    id="group-summary-time"
+                                    value={summaryTime}
+                                    onChange={(e) => setSummaryTime(e.target.value)}
+                                    placeholder="08:00"
+                                    className={cn("h-11 rounded-xl", summaryTimeError ? "border-destructive focus-visible:ring-destructive/30" : "")}
+                                    aria-invalid={!!summaryTimeError}
+                                    aria-describedby={summaryTimeError ? "group-summary-time-error" : undefined}
+                                  />
+                                  <div className="text-[11px] text-muted-foreground">Define o horário aproximado de envio do resumo diário.</div>
+                                  {summaryTimeError ? <div id="group-summary-time-error" className="text-[11px] text-destructive">{summaryTimeError}</div> : null}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <Switch
+                            checked={enabled}
+                            onCheckedChange={(v) => setAutomationsEnabled((prev) => ({ ...prev, [key]: v }))}
+                          />
+                        </div>
                       </div>
                     );
                   })}

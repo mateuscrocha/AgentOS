@@ -234,6 +234,67 @@ export type Database = {
           },
         ]
       }
+      group_ai_prompt_configs: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          is_enabled: boolean
+          metadata: Json | null
+          model: string
+          prompt_key: string
+          prompt_text: string
+          runtime: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          is_enabled?: boolean
+          metadata?: Json | null
+          model?: string
+          prompt_key: string
+          prompt_text: string
+          runtime?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          is_enabled?: boolean
+          metadata?: Json | null
+          model?: string
+          prompt_key?: string
+          prompt_text?: string
+          runtime?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_ai_prompt_configs_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_ai_prompt_configs_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_overview"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "group_ai_prompt_configs_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "v_groups_br_time"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_daily_summaries: {
         Row: {
           created_at: string
@@ -465,6 +526,7 @@ export type Database = {
       }
       group_settings: {
         Row: {
+          audio_transcription_enabled: boolean
           daily_summary_enabled: boolean
           daily_summary_time: string
           daily_topics_enabled: boolean
@@ -472,8 +534,10 @@ export type Database = {
           peak_moment_enabled: boolean
           polls_enabled: boolean
           updated_at: string
+          welcome_message_enabled: boolean
         }
         Insert: {
+          audio_transcription_enabled?: boolean
           daily_summary_enabled?: boolean
           daily_summary_time?: string
           daily_topics_enabled?: boolean
@@ -481,8 +545,10 @@ export type Database = {
           peak_moment_enabled?: boolean
           polls_enabled?: boolean
           updated_at?: string
+          welcome_message_enabled?: boolean
         }
         Update: {
+          audio_transcription_enabled?: boolean
           daily_summary_enabled?: boolean
           daily_summary_time?: string
           daily_topics_enabled?: boolean
@@ -490,6 +556,7 @@ export type Database = {
           peak_moment_enabled?: boolean
           polls_enabled?: boolean
           updated_at?: string
+          welcome_message_enabled?: boolean
         }
         Relationships: [
           {
@@ -518,7 +585,9 @@ export type Database = {
       groups: {
         Row: {
           assistant_id: string | null
+          assistant_model: string | null
           assistant_prompt: string | null
+          assistant_runtime: string | null
           counts_cache: Json | null
           created_at: string
           created_at_provider: string | null
@@ -544,7 +613,9 @@ export type Database = {
         }
         Insert: {
           assistant_id?: string | null
+          assistant_model?: string | null
           assistant_prompt?: string | null
+          assistant_runtime?: string | null
           counts_cache?: Json | null
           created_at?: string
           created_at_provider?: string | null
@@ -570,7 +641,9 @@ export type Database = {
         }
         Update: {
           assistant_id?: string | null
+          assistant_model?: string | null
           assistant_prompt?: string | null
+          assistant_runtime?: string | null
           counts_cache?: Json | null
           created_at?: string
           created_at_provider?: string | null

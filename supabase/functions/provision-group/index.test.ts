@@ -15,20 +15,11 @@ function getTestBaseUrl() {
 }
 
 const testBaseUrl = getTestBaseUrl();
-const testWebhookUrl = (process.env.TEST_WEBHOOK_URL || "http://127.0.0.1:9999/webhook").trim();
-
 function assertEquals(actual: any, expected: any) {
   if (actual !== expected) {
     throw new Error(`assertEquals falhou: esperado=${String(expected)} atual=${String(actual)}`);
   }
 }
-
-const okFetch = async () => {
-  return new Response(JSON.stringify({ success: true }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
-};
 
 function makeReq(body: any) {
   return new Request(new URL("/functions/v1/provision-group", testBaseUrl).toString(), {
@@ -44,6 +35,7 @@ function makeReq(body: any) {
 
 DenoRef.test("provision-group marca SUPERADMIN também como is_admin ...", async () => {
   const membersInserted: any[] = [];
+  const groupUpdates: any[] = [];
 
   const payload = {
     organization_id: "org-1",
@@ -76,6 +68,9 @@ DenoRef.test("provision-group marca SUPERADMIN também como is_admin ...", async
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     assistant_id: null,
+    assistant_prompt: null,
+    assistant_model: null,
+    assistant_runtime: null,
     has_assistant: false,
     metadata: null,
     raw_provider: null,
@@ -141,6 +136,12 @@ DenoRef.test("provision-group marca SUPERADMIN também como is_admin ...", async
                 maybeSingle: async () => ({ data: groupRow, error: null }),
               }),
             }),
+            update: (values: any) => ({
+              eq: async (id: string) => {
+                groupUpdates.push({ id, values });
+                return { error: null };
+              },
+            }),
             delete: () => ({
               eq: async () => ({ error: null }),
             }),
@@ -155,6 +156,12 @@ DenoRef.test("provision-group marca SUPERADMIN também como is_admin ...", async
                 eq: async () => ({ error: null }),
               }),
             }),
+          } as any;
+        }
+
+        if (table === "group_ai_prompt_configs") {
+          return {
+            upsert: async () => ({ error: null }),
           } as any;
         }
 
@@ -179,11 +186,9 @@ DenoRef.test("provision-group marca SUPERADMIN também como is_admin ...", async
         if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
-    fetch: okFetch,
     crypto: { randomUUID: () => "uuid-1" } as any,
     createClient: createClientMock,
   });
@@ -199,10 +204,20 @@ DenoRef.test("provision-group marca SUPERADMIN também como is_admin ...", async
   assertEquals(inserted[0]?.phone_e164, "+5511999990000");
   assertEquals(inserted[0]?.is_admin, true);
   assertEquals(inserted[0]?.is_super_admin, true);
+  assertEquals(groupUpdates.length, 1);
+  assertEquals(groupUpdates[0]?.values?.assistant_id, null);
+  assertEquals(groupUpdates[0]?.values?.has_assistant, true);
+  assertEquals(groupUpdates[0]?.values?.assistant_model, "gpt-4o-mini");
+  assertEquals(groupUpdates[0]?.values?.assistant_runtime, "responses");
+  assertEquals(
+    groupUpdates[0]?.values?.assistant_prompt,
+    "Você é o Bóris, um assistente que acompanha este grupo de WhatsApp. Seu papel é ajudar a resumir conversas, identificar temas e tornar a informação clara, sem inventar nada."
+  );
 });
 
 DenoRef.test("provision-group deduplica participantes por whatsapp_provider_id", async () => {
   const membersInserted: any[] = [];
+  const groupUpdates: any[] = [];
 
   const payload = {
     organization_id: "org-1",
@@ -242,6 +257,9 @@ DenoRef.test("provision-group deduplica participantes por whatsapp_provider_id",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     assistant_id: null,
+    assistant_prompt: null,
+    assistant_model: null,
+    assistant_runtime: null,
     has_assistant: false,
     metadata: null,
     raw_provider: null,
@@ -302,6 +320,12 @@ DenoRef.test("provision-group deduplica participantes por whatsapp_provider_id",
                 maybeSingle: async () => ({ data: groupRow, error: null }),
               }),
             }),
+            update: (values: any) => ({
+              eq: async (id: string) => {
+                groupUpdates.push({ id, values });
+                return { error: null };
+              },
+            }),
             delete: () => ({
               eq: async () => ({ error: null }),
             }),
@@ -315,6 +339,11 @@ DenoRef.test("provision-group deduplica participantes por whatsapp_provider_id",
                 eq: async () => ({ error: null }),
               }),
             }),
+          } as any;
+        }
+        if (table === "group_ai_prompt_configs") {
+          return {
+            upsert: async () => ({ error: null }),
           } as any;
         }
         if (table === "members") {
@@ -335,11 +364,9 @@ DenoRef.test("provision-group deduplica participantes por whatsapp_provider_id",
         if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
-    fetch: okFetch,
     crypto: { randomUUID: () => "uuid-1" } as any,
     createClient: createClientMock,
   });
@@ -352,10 +379,12 @@ DenoRef.test("provision-group deduplica participantes por whatsapp_provider_id",
   const inserted = membersInserted as any[];
   assertEquals(inserted.length, 1);
   assertEquals(inserted[0]?.whatsapp_provider_id, "lid-1");
+  assertEquals(groupUpdates.length, 1);
 });
 
 DenoRef.test("provision-group ignora duplicidade e continua inserindo outros membros", async () => {
   const membersInserted: any[] = [];
+  const groupUpdates: any[] = [];
   let insertCalls = 0;
 
   const payload = {
@@ -396,6 +425,9 @@ DenoRef.test("provision-group ignora duplicidade e continua inserindo outros mem
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     assistant_id: null,
+    assistant_prompt: null,
+    assistant_model: null,
+    assistant_runtime: null,
     has_assistant: false,
     metadata: null,
     raw_provider: null,
@@ -460,6 +492,12 @@ DenoRef.test("provision-group ignora duplicidade e continua inserindo outros mem
                 maybeSingle: async () => ({ data: groupRow, error: null }),
               }),
             }),
+            update: (values: any) => ({
+              eq: async (id: string) => {
+                groupUpdates.push({ id, values });
+                return { error: null };
+              },
+            }),
             delete: () => ({
               eq: async () => ({ error: null }),
             }),
@@ -473,6 +511,11 @@ DenoRef.test("provision-group ignora duplicidade e continua inserindo outros mem
                 eq: async () => ({ error: null }),
               }),
             }),
+          } as any;
+        }
+        if (table === "group_ai_prompt_configs") {
+          return {
+            upsert: async () => ({ error: null }),
           } as any;
         }
         if (table === "members") {
@@ -493,11 +536,9 @@ DenoRef.test("provision-group ignora duplicidade e continua inserindo outros mem
         if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
-    fetch: okFetch,
     crypto: { randomUUID: () => "uuid-1" } as any,
     createClient: createClientMock,
   });
@@ -508,4 +549,152 @@ DenoRef.test("provision-group ignora duplicidade e continua inserindo outros mem
   assertEquals(body.success, true);
   assertEquals(membersInserted.length, 1);
   assertEquals(membersInserted[0]?.whatsapp_provider_id, "lid-2");
+  assertEquals(groupUpdates.length, 1);
+});
+
+DenoRef.test("provision-group tolera schema sem coluna has_assistant", async () => {
+  const groupUpdates: any[] = [];
+
+  const payload = {
+    organization_id: "org-1",
+    group: {
+      provider: "whatsapp",
+      whatsapp_provider_id: "g-1",
+      name: "Grupo",
+      invite_link: "https://chat.whatsapp.com/abc",
+    },
+    participants: [],
+  };
+
+  const groupRow = {
+    id: "group-1",
+    name: "Grupo",
+    description: null,
+    organization_id: "org-1",
+    provider: "whatsapp",
+    whatsapp_provider_id: "g-1",
+    provider_phone: null,
+    invite_link: "https://chat.whatsapp.com/abc",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    assistant_id: null,
+    assistant_prompt: null,
+    assistant_model: null,
+    assistant_runtime: null,
+    has_assistant: null,
+    metadata: null,
+    raw_provider: null,
+    status: null,
+    sync_status: null,
+    sync_error: null,
+  };
+
+  let groupsUpdateCalls = 0;
+
+  const createClientMock = ((_: string, key: string) => {
+    if (key === "anon") {
+      return {
+        auth: {
+          getUser: async () => ({ data: { user: { id: "u-1" } }, error: null }),
+        },
+        from: (table: string) => {
+          if (table === "organizations") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({ data: { id: "org-1", name: "Org" }, error: null }),
+                }),
+              }),
+            } as any;
+          }
+          if (table === "groups") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({ data: null, error: null }),
+                }),
+              }),
+              insert: () => ({
+                select: () => ({
+                  single: async () => ({ data: { id: "group-1" }, error: null }),
+                }),
+              }),
+            } as any;
+          }
+          throw new Error(`unexpected table: ${table}`);
+        },
+      } as any;
+    }
+
+    return {
+      from: (table: string) => {
+        if (table === "groups") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: groupRow, error: null }),
+              }),
+            }),
+            update: (values: any) => ({
+              eq: async (id: string) => {
+                groupsUpdateCalls += 1;
+                groupUpdates.push({ id, values });
+                if (groupsUpdateCalls === 1) {
+                  return { error: { code: "PGRST204", message: "Could not find the 'has_assistant' column" } };
+                }
+                return { error: null };
+              },
+            }),
+            delete: () => ({
+              eq: async () => ({ error: null }),
+            }),
+          } as any;
+        }
+        if (table === "events") {
+          return {
+            insert: async () => ({ error: null }),
+            delete: () => ({
+              eq: () => ({
+                eq: async () => ({ error: null }),
+              }),
+            }),
+          } as any;
+        }
+        if (table === "group_ai_prompt_configs") {
+          return {
+            upsert: async () => ({ error: null }),
+          } as any;
+        }
+        if (table === "members") {
+          return {
+            delete: () => ({
+              eq: async () => ({ error: null }),
+            }),
+          } as any;
+        }
+        throw new Error(`unexpected table: ${table}`);
+      },
+    } as any;
+  }) as any;
+
+  const handler = createProvisionGroupHandler({
+    env: {
+      get: (k: string) => {
+        if (k === "SUPABASE_URL") return testBaseUrl;
+        if (k === "SUPABASE_ANON_KEY") return "anon";
+        if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        return undefined;
+      },
+    },
+    crypto: { randomUUID: () => "uuid-1" } as any,
+    createClient: createClientMock,
+  });
+
+  const res = await handler(makeReq(payload));
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals(body.success, true);
+  assertEquals(groupsUpdateCalls, 2);
+  assertEquals("has_assistant" in groupUpdates[0]?.values, true);
+  assertEquals("has_assistant" in groupUpdates[1]?.values, false);
 });

@@ -4,7 +4,7 @@
 - Modelo conceitual do Admin: System → Organization → Group.
 - Mensagens e membros pertencem exclusivamente a um `Group`.
 - Usuários (Admin) acessam dados via papéis e RLS.
-- Dados vêm do WhatsApp (Z-API) via n8n e são persistidos no Supabase.
+- Dados vêm do WhatsApp (Z-API) e de webhooks externos, são processados por Edge Functions e persistidos no Supabase.
 
 ## O que este documento define
 - Entidades do domínio e seus relacionamentos.
@@ -29,7 +29,7 @@
 ## O que não é responsabilidade deste escopo
 - Descrever UI, flows de tela ou microinterações.
 - Detalhar consultas específicas ou views auxiliares.
-- Especificar automações do n8n.
+- Especificar automações externas fora do domínio principal.
 - Propor mudanças de arquitetura.
 
 ## Entidades e relacionamentos
@@ -92,4 +92,3 @@
   - `src/integrations/supabase/types.ts:559` (`profiles` Row)
   - `src/integrations/supabase/types.ts:613` (`user_roles` Row)
   - `src/integrations/supabase/types.ts:47` (`group_members` Row — vínculo administrativo)
-

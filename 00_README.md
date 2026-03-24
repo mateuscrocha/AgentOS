@@ -3,10 +3,9 @@
 ## Contexto
 - O Bóris atua em grupos de WhatsApp.
 - Coleta mensagens e participantes via Z-API.
-- Envia eventos para n8n.
-- n8n persiste no Supabase.
+- Recebe eventos externos por webhook e persiste no Supabase.
 - O Admin é painel web de leitura estratégica e configuração.
-- O Admin não envia mensagens nem altera grupos.
+- O Admin também pode disparar ações operacionais controladas por Edge Functions.
 
 ## O que este documento define
 - Ponto de entrada da documentação oficial do Admin v2.
@@ -26,13 +25,13 @@
 - Admin é somente leitura estratégica + configuração.
 - Sem envio direto de mensagens via Admin.
 - Sem alterações diretas em grupos via Admin.
-- Decisões de stack estão fechadas: Supabase, RLS, n8n, Z-API.
+- Decisões de stack estão fechadas: Supabase, RLS e Z-API.
 - Onboarding público substitui signup clássico.
 
 ## Decisões já tomadas
-- Fluxo de dados: Z-API → n8n → Supabase.
+- Fluxo de dados: Z-API/webhooks → Edge Functions → Supabase.
 - Persistência e segurança: Supabase com RLS.
-- Orquestração: n8n como integração central.
+- Orquestração principal: Edge Functions e Supabase.
 - Provedor de WhatsApp: Z-API (atual).
 - Papéis de acesso: `SYSTEM_ADMIN`, `ORG_ADMIN`, `GROUP_MANAGER`, `READ_ONLY`.
 - Onboarding cria automaticamente `User`, `Organization`, `Group` e vínculos.

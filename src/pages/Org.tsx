@@ -335,231 +335,6 @@ interface GroupDetails {
   whatsapp_provider_id: string | null;
 }
 
-type N8nCheckGroupNotEnabledResponse = {
-  checkBotEnabled: false;
-};
-
-type N8nCheckGroupSuccessItem = {
-  phone?: unknown;
-  provider_phone?: unknown;
-  subject?: unknown;
-  name?: unknown;
-  description?: unknown;
-  creation?: unknown;
-  participants?: unknown;
-  [key: string]: unknown;
-};
-
-const isBotNotEnabledResponse = (payload: unknown): payload is N8nCheckGroupNotEnabledResponse => {
-  if (!payload || typeof payload !== "object") return false;
-  return (payload as any).checkBotEnabled === false;
-};
-
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === "object" && !Array.isArray(value);
-
-const extractGroupAddedFlag = (payload: unknown): boolean | null => {
-  if (isObjectRecord(payload) && typeof payload.groupAdded === "boolean") {
-    return payload.groupAdded;
-  }
-
-  if (Array.isArray(payload)) {
-    for (const item of payload) {
-      const nested = extractGroupAddedFlag(item);
-      if (nested !== null) return nested;
-    }
-  }
-
-  if (isObjectRecord(payload)) {
-    for (const value of Object.values(payload)) {
-      const nested = extractGroupAddedFlag(value);
-      if (nested !== null) return nested;
-    }
-  }
-
-  return null;
-};
-
-const extractN8nGroupItem = (payload: unknown): N8nCheckGroupSuccessItem | null => {
-  if (Array.isArray(payload)) {
-    const candidate = payload.find((item) => isObjectRecord(item) && Array.isArray((item as any).participants));
-    return (candidate as N8nCheckGroupSuccessItem | undefined) ?? null;
-  }
-
-  if (isObjectRecord(payload)) {
-    if (Array.isArray(payload.data)) {
-      return extractN8nGroupItem(payload.data);
-    }
-    if (Array.isArray(payload.result)) {
-      return extractN8nGroupItem(payload.result);
-    }
-    for (const value of Object.values(payload)) {
-      const nested = extractN8nGroupItem(value);
-      if (nested) return nested;
-    }
-  }
-
-  return null;
-};
-
-const toDigits = (raw: unknown): string => String(raw ?? "").replace(/\D/g, "");
-
-const toE164 = (raw: unknown): string | null => {
-  const s = String(raw ?? "").trim();
-  if (!s) return null;
-
-  if (s.startsWith("+")) {
-    const digits = s.replace(/\D/g, "");
-    if (!digits) return null;
-    if (digits.startsWith("55") && digits.length >= 10) return "+" + digits;
-    return "+55" + digits;
-  }
-
-  const digits = s.replace(/\D/g, "");
-  if (!digits) return null;
-  if (digits.startsWith("55") && digits.length >= 10) return "+" + digits;
-  if (digits.length === 10 || digits.length === 11) return "+55" + digits;
-  return "+" + digits;
-};
-
-const toISOFromCreation = (raw: unknown): string | null => {
-  if (typeof raw === "number" && Number.isFinite(raw)) {
-    const ms = raw < 1e12 ? raw * 1000 : raw;
-    const d = new Date(ms);
-    return Number.isNaN(d.getTime()) ? null : d.toISOString();
-  }
-  if (typeof raw === "string") {
-    const d = new Date(raw);
-    return Number.isNaN(d.getTime()) ? null : d.toISOString();
-  }
-  return null;
-};
-
-const upsertMembersForGroup = async (args: {
-  groupId: string;
-  participants: unknown;
-}) => {
-  if (!Array.isArray(args.participants)) {
-    throw new Error("PARTICIPANTS_INVALID");
-  }
-
-  const rows = args.participants
-    .map((p: any) => {
-      const phoneRaw = String(p?.phone ?? "").trim();
-      const lidRaw = typeof p?.lid === "string" ? p.lid.trim() : null;
-      const phoneDigits = toDigits(phoneRaw);
-      const phoneE164 = toE164(phoneRaw);
-
-      const isSuperAdmin = !!(p?.isSuperAdmin ?? p?.is_super_admin);
-      const isAdmin = !!(p?.isAdmin ?? p?.is_admin) || isSuperAdmin;
-
-      const name = String(p?.name ?? "").trim() || phoneE164 || lidRaw || "Membro";
-
-      return {
-        group_id: args.groupId,
-        name,
-        phone_e164: phoneE164,
-        whatsapp_provider_id: phoneDigits || null,
-        lid: lidRaw,
-        is_admin: isAdmin,
-        is_super_admin: isSuperAdmin,
-        provider: "whatsapp",
-        status: "active",
-        deleted_at: null,
-      };
-    })
-    .filter((r) => !!r.whatsapp_provider_id || !!r.lid);
-
-  if (rows.length > 0) {
-    const CHUNK_SIZE = 200;
-    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-      const chunk = rows.slice(i, i + CHUNK_SIZE);
-      const { error } = await supabase
-        .from("members")
-        .upsert(chunk as any, { onConflict: "group_id,provider_member_id" });
-      if (error) throw error;
-    }
-  }
-
-  return { insertedOrUpdated: rows.length };
-};
-
-const ensureGroupFromN8nPayload = async (args: {
-  orgId: string;
-  inviteLink: string;
-  item: N8nCheckGroupSuccessItem;
-}) => {
-  const providerPhoneRaw = String(args.item.provider_phone ?? args.item.phone ?? "").trim();
-  const whatsappProviderId = providerPhoneRaw || null;
-  if (!whatsappProviderId) {
-    throw new Error("GROUP_PROVIDER_ID_MISSING");
-  }
-
-  const groupName = String(args.item.name ?? args.item.subject ?? "").trim() || "Grupo WhatsApp";
-  const description =
-    typeof args.item.description === "string" && args.item.description.trim()
-      ? args.item.description.trim()
-      : null;
-  const createdAtProvider = toISOFromCreation(args.item.creation);
-
-  const { data: existingGroup, error: existingError } = await supabase
-    .from("groups")
-    .select("id")
-    .eq("organization_id", args.orgId)
-    .eq("whatsapp_provider_id", whatsappProviderId)
-    .maybeSingle();
-  if (existingError) throw existingError;
-
-  const groupPayload = {
-    organization_id: args.orgId,
-    name: groupName,
-    description,
-    provider: "whatsapp",
-    provider_phone: providerPhoneRaw || null,
-    whatsapp_provider_id: whatsappProviderId,
-    invite_link: args.inviteLink,
-    invite_link_status: "valid",
-    is_active: true,
-    is_archived: false,
-    status: "active",
-    created_at_provider: createdAtProvider,
-    raw_provider: args.item as any,
-  };
-
-  let groupId = existingGroup?.id as string | undefined;
-  if (groupId) {
-    const { error: updateError } = await supabase
-      .from("groups")
-      .update(groupPayload as any)
-      .eq("id", groupId);
-    if (updateError) throw updateError;
-  } else {
-    const { data: insertedGroup, error: insertError } = await supabase
-      .from("groups")
-      .insert(groupPayload as any)
-      .select("id")
-      .single();
-    if (insertError) throw insertError;
-    groupId = insertedGroup.id;
-  }
-
-  if (!groupId) {
-    throw new Error("GROUP_ID_NOT_RESOLVED");
-  }
-
-  const membersResult = await upsertMembersForGroup({
-    groupId,
-    participants: args.item.participants,
-  });
-
-  return {
-    groupId,
-    groupName,
-    membersUpserted: membersResult.insertedOrUpdated,
-    existed: !!existingGroup?.id,
-  };
-};
-
 let orgGroupsSignalRpcAvailable: boolean | null = null;
 
 const Org = () => {
@@ -2144,73 +1919,67 @@ const Org = () => {
     setAttachError(null);
     try {
       let attachedGroupId: string | null = null;
-      const webhookUrl = ((import.meta as any).env.VITE_N8N_CHECK_GROUP_ENTRY_URL as string | undefined)?.trim();
-      if (!webhookUrl) {
-        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
-        return;
-      }
-
-      const res = await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke("validate-whatsapp-group", {
+        body: {
           invite_link: normalizedLink,
-          organization_id: orgId,
-        }),
+        },
       });
 
-      if (!res.ok) {
+      if (error) {
         setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
         return;
       }
 
-      const payload = (await res.json().catch(() => null)) as unknown;
+      const payload = (data ?? null) as any;
 
       const scenarioBMessage =
         "Não foi possível adicionar esse grupo. O Bóris não está no grupo ou o link está inválido. Inclua o Bóris no grupo e tente novamente.";
 
-      if (isBotNotEnabledResponse(payload)) {
+      if (!payload?.is_valid || !payload?.is_boris_in_group) {
         setAttachError(scenarioBMessage);
         return;
       }
 
-      const groupAdded = extractGroupAddedFlag(payload);
-      if (groupAdded === false) {
-        setAttachError(scenarioBMessage);
-        return;
-      }
-
-      const groupItem = extractN8nGroupItem(payload);
-
-      if (groupAdded === null && !groupItem) {
+      const providerPhone = String(payload?.provider_phone ?? "").trim();
+      const groupName = String(payload?.group_name ?? "").trim();
+      if (!providerPhone || !groupName) {
         setAttachError("Resposta inesperada do verificador. Tente novamente em instantes.");
         return;
       }
 
-      if (groupItem) {
-        const ensuredGroup = await ensureGroupFromN8nPayload({
-          orgId,
-          inviteLink: normalizedLink,
-          item: groupItem,
-        });
-        attachedGroupId = ensuredGroup.groupId;
-      } else {
-        const { data: existingGroupByInvite, error: existingGroupByInviteError } = await supabase
-          .from("groups")
-          .select("id")
-          .eq("organization_id", orgId)
-          .eq("invite_link", normalizedLink)
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (existingGroupByInviteError) throw existingGroupByInviteError;
-        attachedGroupId = existingGroupByInvite?.id ?? null;
-      }
+      const participants = Array.isArray(payload?.participants)
+        ? payload.participants.map((participant: any) => ({
+            phone: participant?.phone,
+            lid: participant?.lid,
+            name: participant?.name,
+            is_admin: !!participant?.is_admin,
+            is_super_admin: !!participant?.is_super_admin,
+            whatsapp_provider_id:
+              typeof participant?.whatsapp_provider_id === "string"
+                ? participant.whatsapp_provider_id
+                : undefined,
+          }))
+        : [];
 
-      if (groupAdded === null && !attachedGroupId) {
-          setAttachError("Resposta inesperada do verificador. Tente novamente em instantes.");
-          return;
-      }
+      const { data: provisioned, error: provisionError } = await supabase.functions.invoke("provision-group", {
+        body: {
+          organization_id: orgId,
+          group: {
+            provider: "whatsapp",
+            name: groupName,
+            provider_phone: providerPhone,
+            whatsapp_provider_id: providerPhone,
+            invite_link: normalizedLink,
+          },
+          participants,
+        },
+      });
+      if (provisionError) throw provisionError;
+
+      attachedGroupId =
+        typeof provisioned?.group_id === "string" && provisioned.group_id.trim()
+          ? provisioned.group_id
+          : null;
 
       notify.success("Grupo adicionado com sucesso.");
       if (!hasGroups && user?.id) {
@@ -2238,8 +2007,9 @@ const Org = () => {
       if (attachedGroupId) {
         navigate(`/groups/${attachedGroupId}`);
       }
-    } catch {
-      setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+    } catch (err) {
+      const parsed = await parseSupabaseFunctionInvokeError(err);
+      setAttachError(parsed.message || "Não foi possível adicionar o grupo agora. Tente novamente em instantes.");
     } finally {
       setAttaching(false);
     }

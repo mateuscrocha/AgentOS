@@ -98,7 +98,7 @@ Se não estiver definida, os testes tentam usar `SUPABASE_URL`, `VITE_SUPABASE_U
 
 ### TEST_WEBHOOK_URL
 
-`TEST_WEBHOOK_URL` permite sobrescrever, nos testes, a URL do webhook (ex.: N8N). Se não estiver definida, os testes usam `http://127.0.0.1:9999/webhook` como valor padrão.
+`TEST_WEBHOOK_URL` permite sobrescrever, nos testes, a URL de um webhook HTTP auxiliar. Se não estiver definida, os testes usam `http://127.0.0.1:9999/webhook` como valor padrão.
 
 **Edit a file directly in GitHub**
 

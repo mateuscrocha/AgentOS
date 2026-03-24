@@ -35,7 +35,6 @@ export function GroupTabs({ groupId, activeTab, variant = "standalone" }: GroupT
       label: "Configurações",
       href: `/groups/${groupId}/edit`,
       icon: Settings,
-      disabled: true,
     });
   }
 

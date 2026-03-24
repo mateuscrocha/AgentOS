@@ -242,7 +242,6 @@ export function AdminSidebar() {
         icon: Settings,
         label: "Configurações do grupo",
         href: `/groups/${currentGroupId}/edit`,
-        disabled: true,
       });
     }
     return items;

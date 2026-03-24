@@ -107,7 +107,7 @@ describe("AdminSidebar — menu do grupo", () => {
     container.remove();
   });
 
-  it("exibe Configurações do grupo desabilitado para SYSTEM_ADMIN", async () => {
+  it("exibe Configurações do grupo para SYSTEM_ADMIN", async () => {
     isSystemAdminValue = true;
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -132,14 +132,10 @@ describe("AdminSidebar — menu do grupo", () => {
     });
 
     expect(container.textContent).toContain("Configurações do grupo");
-    const disabledSettingsItem = container.querySelector('[aria-disabled="true"]');
-    expect(disabledSettingsItem).toBeTruthy();
-    expect(disabledSettingsItem?.textContent).toContain("Configurações do grupo");
-
     const settingsLink = Array.from(container.querySelectorAll("a")).find((a) =>
       a.textContent?.includes("Configurações do grupo"),
     );
-    expect(settingsLink).toBeUndefined();
+    expect(settingsLink?.getAttribute("href")).toBe("/groups/00000000-0000-4000-8000-000000000000/edit");
 
     await act(async () => {
       root.unmount();

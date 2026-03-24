@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ProvisionCoreError, provisionGroupWithMembersCore } from "../_shared/provision-group-core.ts";
+import { AssistantProvisionError, createGroupAssistant } from "../_shared/create-group-assistant.ts";
 
 type Env = {
   get: (key: string) => string | undefined;
@@ -12,7 +13,6 @@ type CreateClient = typeof createClient;
 type Deps = {
   createClient?: CreateClient;
   env?: Env;
-  fetch?: typeof fetch;
   crypto?: Crypto;
 };
 
@@ -27,13 +27,7 @@ const corsHeaders = {
 };
 
 const getInboundProvisionApiKey = (env: Env): string => {
-  return (
-    env.get('PROVISION_ONBOARDING_API_KEY') ||
-    env.get('N8N_PROVISION_ONBOARDING_API_KEY') ||
-    env.get('N8N_WEBHOOK_API_KEY') ||
-    env.get('VITE_N8N_WEBHOOK_API_KEY') ||
-    ''
-  ).trim();
+  return (env.get('PROVISION_ONBOARDING_API_KEY') || '').trim();
 };
 
 interface ProvisionPayload {
@@ -75,6 +69,9 @@ type GroupRow = {
   created_at: string;
   updated_at: string;
   assistant_id: string | null;
+  assistant_prompt?: string | null;
+  assistant_model?: string | null;
+  assistant_runtime?: string | null;
   has_assistant: boolean;
   metadata: unknown | null;
   raw_provider: unknown | null;
@@ -82,30 +79,6 @@ type GroupRow = {
   sync_status: string | null;
   sync_error: string | null;
   [key: string]: unknown;
-};
-
-class WebhookError extends Error {
-  code: string;
-  status?: number;
-  body?: string;
-
-  constructor(args: { code: string; message: string; status?: number; body?: string }) {
-    super(args.message);
-    this.code = args.code;
-    this.status = args.status;
-    this.body = args.body;
-  }
-}
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-const isRetryableStatus = (status: number) => {
-  return status === 408 || status === 429 || (status >= 500 && status <= 599);
-};
-
-const truncateText = (text: string, max = 2000) => {
-  if (text.length <= max) return text;
-  return text.slice(0, max) + '…';
 };
 
 const isUnknownColumnError = (err: any): boolean => {
@@ -130,127 +103,9 @@ const isForeignKeyViolation = (err: any): boolean => {
   return code === '23503';
 };
 
-const sendCreateAssistantWebhook = async (args: {
-  url: string;
-  group: GroupRow;
-  correlationId: string;
-  fetchImpl: typeof fetch;
-  apiKey?: string;
-  timeoutMs?: number;
-  maxAttempts?: number;
-}) => {
-  const { url, group, correlationId, fetchImpl, apiKey } = args;
-  const timeoutMs = args.timeoutMs ?? 10_000;
-  const maxAttempts = args.maxAttempts ?? 3;
-
-  const payload = {
-    id: group.id,
-    name: group.name,
-    description: group.description,
-    organization_id: group.organization_id,
-    whatsapp_group_id: group.whatsapp_provider_id,
-    provider_phone: group.provider_phone,
-    created_at: group.created_at,
-    provider: group.provider,
-    invite_link: group.invite_link,
-    status: group.status,
-    has_assistant: group.has_assistant,
-    assistant_id: group.assistant_id,
-    raw_group: group,
-    source: 'supabase.functions.provision-onboarding',
-    correlation_id: correlationId,
-  };
-
-  let lastError: unknown = null;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      const res = await fetchImpl(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-correlation-id': correlationId,
-          ...(apiKey ? { 'x-api-key': apiKey } : {}),
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      const rawBody = await res.text().catch(() => '');
-      const bodyText = truncateText(rawBody);
-
-      if (res.status === 401 || res.status === 403) {
-        throw new WebhookError({
-          code: 'WEBHOOK_AUTH_FAILED',
-          message: `Falha de autenticação no webhook (HTTP ${res.status})`,
-          status: res.status,
-          body: bodyText,
-        });
-      }
-
-      if (!res.ok) {
-        throw new WebhookError({
-          code: 'WEBHOOK_UPSTREAM_FAILED',
-          message: `Webhook retornou erro (HTTP ${res.status} ${res.statusText})`,
-          status: res.status,
-          body: bodyText,
-        });
-      }
-
-      let parsed: any = null;
-      try {
-        parsed = rawBody ? JSON.parse(rawBody) : null;
-      } catch {
-        parsed = null;
-      }
-
-      if (!parsed || typeof parsed !== 'object') {
-        throw new WebhookError({
-          code: 'WEBHOOK_RESPONSE_INVALID',
-          message: 'Webhook retornou um corpo inválido (JSON esperado)',
-          status: res.status,
-          body: bodyText,
-        });
-      }
-
-      const okFlag = (parsed as any).success ?? (parsed as any).ok;
-      if (okFlag !== true) {
-        throw new WebhookError({
-          code: 'WEBHOOK_RESPONSE_INVALID',
-          message: 'Webhook retornou payload inesperado (success/ok != true)',
-          status: res.status,
-          body: bodyText,
-        });
-      }
-
-      return parsed;
-    } catch (e: unknown) {
-      lastError = e;
-      const status = e instanceof WebhookError ? e.status : undefined;
-      const retryable = typeof status === 'number' ? isRetryableStatus(status) : true;
-      const shouldRetry = attempt < maxAttempts && retryable;
-      if (!shouldRetry) throw e;
-
-      const baseDelay = 400 * Math.pow(2, attempt - 1);
-      const jitter = Math.floor(Math.random() * 150);
-      await sleep(baseDelay + jitter);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-
-  throw lastError instanceof Error
-    ? lastError
-    : new WebhookError({ code: 'WEBHOOK_UPSTREAM_FAILED', message: 'Falha desconhecida ao chamar webhook' });
-};
-
 export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
   const env = deps.env ?? defaultEnv;
   const createClientImpl = deps.createClient ?? createClient;
-  const fetchImpl = deps.fetch ?? fetch;
   const cryptoImpl = deps.crypto ?? crypto;
 
   return async (req: Request) => {
@@ -633,48 +488,7 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
       );
     }
 
-    const createAssistantWebhookUrl =
-      env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_URL') ||
-      env.get('N8N_WEBHOOK_CREATE_ASSISTANT_URL');
-
-    const createAssistantWebhookApiKey =
-      env.get('N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
-      env.get('VITE_N8N_WEBHOOK_CREATE_ASSISTANT_API_KEY') ||
-      env.get('N8N_WEBHOOK_API_KEY') ||
-      env.get('VITE_N8N_WEBHOOK_API_KEY');
-
-    if (!createAssistantWebhookUrl) {
-      console.error('Webhook de criação de assistant não configurado', JSON.stringify({
-        correlation_id: correlationId,
-      }));
-
-      try {
-        await supabase
-          .from('events')
-          .insert({
-            event_type: 'ONBOARDING_WEBHOOK_FAILED',
-            entity_type: 'group',
-            entity_id: groupId,
-            user_id: payload.lead.user_id,
-            metadata: {
-              organization_id: organizationId,
-              code: 'WEBHOOK_NOT_CONFIGURED',
-              correlation_id: correlationId,
-            },
-          });
-      } catch {
-      }
-
-      await cleanupOrg();
-      return json(
-        {
-          success: false,
-          code: 'WEBHOOK_NOT_CONFIGURED',
-          message: 'Webhook de criação do assistente não está configurado',
-        },
-        500
-      );
-    } else {
+    {
       try {
         const { data: groupRow, error: groupError } = await supabase
           .from('groups')
@@ -698,6 +512,9 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           assistant_id: null,
+          assistant_prompt: null,
+          assistant_model: null,
+          assistant_runtime: null,
           has_assistant: false,
           metadata: null,
           raw_provider: null,
@@ -706,22 +523,17 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
           sync_error: null,
         };
 
-        await sendCreateAssistantWebhook({
-          url: createAssistantWebhookUrl,
+        await createGroupAssistant({
+          supabase,
           group: (groupRow as GroupRow) ?? fallbackGroup,
-          correlationId,
-          fetchImpl,
-          apiKey: createAssistantWebhookApiKey,
-          maxAttempts: 3,
-          timeoutMs: 10_000,
         });
       } catch (e: unknown) {
-        const code = e instanceof WebhookError ? e.code : 'WEBHOOK_UPSTREAM_FAILED';
-        const status = e instanceof WebhookError ? e.status : undefined;
-        const body = e instanceof WebhookError ? e.body : undefined;
+        const code = e instanceof AssistantProvisionError ? e.code : 'ASSISTANT_CONFIG_UPDATE_FAILED';
+        const status = e instanceof AssistantProvisionError ? e.status : undefined;
+        const body = e instanceof AssistantProvisionError ? e.body : undefined;
         const message = e instanceof Error ? e.message : String(e);
 
-        console.error('Falha ao chamar/validar webhook de criação de assistant', JSON.stringify({
+        console.error('Falha ao salvar configuração do assistant', JSON.stringify({
           correlation_id: correlationId,
           code,
           status,
@@ -732,7 +544,7 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
           await supabase
             .from('events')
             .insert({
-              event_type: 'ONBOARDING_WEBHOOK_FAILED',
+              event_type: 'ONBOARDING_ASSISTANT_PROVISION_FAILED',
               entity_type: 'group',
               entity_id: groupId,
               user_id: payload.lead.user_id,
@@ -750,12 +562,12 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
 
         await cleanupOrg();
 
-        const httpStatus = code === 'WEBHOOK_AUTH_FAILED' ? 502 : 502;
+        const httpStatus = 502;
         return json(
           {
             success: false,
             code,
-            message: 'Falha ao validar o webhook. Onboarding interrompido.',
+            message: 'Falha ao salvar a configuração do assistant. Onboarding interrompido.',
           },
           httpStatus
         );

@@ -29,7 +29,7 @@ type WebhookParticipant = {
 type WebhookGroup = {
   phone: string;
   provider_phone: string;
-  description: string;
+  description?: string;
   subject: string;
   name: string;
   owner?: string;
@@ -61,7 +61,7 @@ const readString = (obj: Record<string, unknown>, key: string, path: string): st
 
 const readOptionalString = (obj: Record<string, unknown>, key: string, path: string): string | undefined => {
   const v = obj[key];
-  if (v === undefined) return undefined;
+  if (v === undefined || v === null) return undefined;
   if (typeof v !== 'string') return fail(path, 'esperado string');
   return v;
 };
@@ -74,7 +74,7 @@ const readBoolean = (obj: Record<string, unknown>, key: string, path: string): b
 
 const readOptionalBoolean = (obj: Record<string, unknown>, key: string, path: string): boolean | undefined => {
   const v = obj[key];
-  if (v === undefined) return undefined;
+  if (v === undefined || v === null) return undefined;
   if (typeof v !== 'boolean') return fail(path, 'esperado boolean');
   return v;
 };
@@ -87,7 +87,7 @@ const readNumber = (obj: Record<string, unknown>, key: string, path: string): nu
 
 const readOptionalNumber = (obj: Record<string, unknown>, key: string, path: string): number | undefined => {
   const v = obj[key];
-  if (v === undefined) return undefined;
+  if (v === undefined || v === null) return undefined;
   if (typeof v !== 'number' || !Number.isFinite(v)) return fail(path, 'esperado número válido');
   return v;
 };
@@ -150,7 +150,7 @@ export const validateWebhookGroupPayload = (raw: unknown): WebhookGroup => {
   const providerPhone = readOptionalString(obj, 'provider_phone', 'group.provider_phone') ?? phone;
   if (!providerPhone.endsWith('-group')) fail('group.provider_phone', 'deve terminar com "-group"');
 
-  const description = readString(obj, 'description', 'group.description');
+  const description = readOptionalString(obj, 'description', 'group.description');
   const subject = readString(obj, 'subject', 'group.subject');
   const name = readString(obj, 'name', 'group.name');
   const owner = readOptionalString(obj, 'owner', 'group.owner');
@@ -319,15 +319,18 @@ export const createValidateWhatsAppGroupHandler = (args?: {
       );
     }
 
-    const n8nWebhookUrl = envImpl('N8N_CHECK_GROUP_ENTRY_URL') ?? envImpl('VITE_N8N_CHECK_GROUP_ENTRY_URL');
-    
-    if (!n8nWebhookUrl) {
-      console.error('N8N_CHECK_GROUP_ENTRY_URL not configured', JSON.stringify({ correlation_id: correlationId }));
+    const zapiBaseUrl = String(envImpl('ZAPI_BASE_URL') ?? 'https://api.z-api.io').trim().replace(/\/+$/, '');
+    const zapiInstance = String(envImpl('ZAPI_INSTANCE') ?? '').trim();
+    const zapiToken = String(envImpl('ZAPI_TOKEN') ?? '').trim();
+    const zapiClientToken = String(envImpl('ZAPI_CLIENT_TOKEN') ?? '').trim();
+
+    if (!zapiInstance || !zapiToken || !zapiClientToken) {
+      console.error('Z-API not configured', JSON.stringify({ correlation_id: correlationId }));
       return json(
         {
           success: false,
-          code: 'WEBHOOK_NOT_CONFIGURED',
-          message: 'URL do webhook não configurada',
+          code: 'ZAPI_NOT_CONFIGURED',
+          message: 'Credenciais da Z-API não configuradas',
           is_valid: false,
           is_boris_in_group: false,
           provider: 'whatsapp',
@@ -359,24 +362,23 @@ export const createValidateWhatsAppGroupHandler = (args?: {
     console.log('Validating WhatsApp group', JSON.stringify({ correlation_id: correlationId, invite_link: inviteLinkHash }));
 
     const upstreamStartedAt = Date.now();
-    let response: Response;
+    let invitationResponse: Response;
     try {
-      response = await fetchWithTimeout(
-        n8nWebhookUrl,
+      invitationResponse = await fetchWithTimeout(
+        `${zapiBaseUrl}/instances/${encodeURIComponent(zapiInstance)}/token/${encodeURIComponent(zapiToken)}/group-invitation-metadata?url=${encodeURIComponent(inviteLink)}`,
         {
-          method: 'POST',
+          method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
+            'client-token': zapiClientToken,
             'x-correlation-id': correlationId,
           },
-          body: JSON.stringify({ invite_link: inviteLink }),
         },
         upstreamTimeoutMs
       );
     } catch (e: any) {
       const isTimeout = e?.name === 'AbortError';
       const totalMs = Date.now() - requestStartedAt;
-      console.error('n8n webhook timeout', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: Date.now() - upstreamStartedAt }));
+      console.error('zapi invitation metadata timeout', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: Date.now() - upstreamStartedAt }));
       return json(
         {
           success: false,
@@ -394,37 +396,19 @@ export const createValidateWhatsAppGroupHandler = (args?: {
       );
     }
 
-    if (!response.ok) {
-      console.error('n8n webhook error', JSON.stringify({
-        correlation_id: correlationId,
-        status: response.status,
-        status_text: response.statusText,
-      }));
-      return json(
-        {
-          success: false,
-          code: 'VALIDATION_UPSTREAM_FAILED',
-          message: 'Failed to validate group',
-          is_valid: false,
-          is_boris_in_group: false,
-          provider: 'whatsapp',
-          whatsapp_provider_id: '',
-          group_name: '',
-          participants_count: 0,
-          participants: [],
-        },
-        502
-      );
+    const invitationRaw = await invitationResponse.text().catch(() => '');
+    let invitationData: any = null;
+    try {
+      invitationData = invitationRaw ? JSON.parse(invitationRaw) : null;
+    } catch {
+      invitationData = null;
     }
 
-    const data = await response.json();
-    console.log('n8n response', JSON.stringify({
-      correlation_id: correlationId,
-      type: Array.isArray(data) ? 'array' : typeof data,
-    }));
+    const invitationIndicatesBotMissing =
+      invitationResponse.status === 400 ||
+      (invitationData && typeof invitationData === 'object' && !Array.isArray(invitationData) && invitationData.statusCode === 400);
 
-    // Check if Bóris is NOT in the group (returns { checkBotEnabled: false })
-    if (data && typeof data === 'object' && !Array.isArray(data) && data.checkBotEnabled === false) {
+    if (invitationIndicatesBotMissing) {
       console.log('Bóris is NOT in the group');
       const body = {
         success: true,
@@ -448,112 +432,189 @@ export const createValidateWhatsAppGroupHandler = (args?: {
       return json(body as unknown as Record<string, unknown>);
     }
 
-    // Check if response is an array (Bóris IS in the group)
-    if (Array.isArray(data) && data.length > 0) {
-      const groupData = data[0];
-
-      let validatedGroup: WebhookGroup;
-      try {
-        validatedGroup = validateWebhookGroupPayload(groupData);
-      } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : String(e);
-
-        const ownerMismatch = /^group\.owner:\s*/.test(message) && message.includes('deve corresponder ao phone de um participante');
-        const code = ownerMismatch ? 'OWNER_MISMATCH' : 'INVALID_WEBHOOK_PAYLOAD';
-        const status = ownerMismatch ? 422 : 502;
-
-        const ownerRaw = isRecord(groupData) ? (groupData as any).owner : undefined;
-        const ownerE164 = ownerRaw ? toE164(ownerRaw) : null;
-        const ownerDigits = ownerE164 ? toDigits(ownerE164) : null;
-        const maskedOwner = ownerDigits ? `${ownerDigits.slice(0, 4)}…${ownerDigits.slice(-4)}` : null;
-
-        console.error('Invalid group payload from n8n', JSON.stringify({
-          correlation_id: correlationId,
-          code,
-          message,
-          owner: maskedOwner,
-          participants_count: Array.isArray((groupData as any)?.participants) ? (groupData as any).participants.length : null,
-        }));
-
-        return json(
-          {
-            success: false,
-            code,
-            message: ownerMismatch
-              ? 'Não foi possível validar: o dono do grupo não está na lista de participantes.'
-              : message,
-            is_valid: false,
-            is_boris_in_group: false,
-            provider: 'whatsapp',
-            whatsapp_provider_id: '',
-            group_name: '',
-            participants_count: 0,
-            participants: [],
-          },
-          status
-        );
-      }
-
-      const groupName = validatedGroup.name;
-      const providerId = validatedGroup.provider_phone || validatedGroup.phone;
-
-      console.log('Bóris IS in the group', JSON.stringify({
+    if (!invitationResponse.ok) {
+      console.error('zapi invitation metadata error', JSON.stringify({
         correlation_id: correlationId,
-        group_name: groupName,
+        status: invitationResponse.status,
+        status_text: invitationResponse.statusText,
       }));
-
-      const participants = normalizeWebhookParticipants(validatedGroup.participants);
-
-      const ownerPhoneE164 = validatedGroup.owner ? toE164(validatedGroup.owner) : null;
-
-      const body = {
-        success: true,
-        is_valid: true,
-        is_boris_in_group: true,
-        provider: 'whatsapp',
-        provider_phone: providerId,
-        whatsapp_provider_id: providerId,
-        group_name: groupName,
-        owner_phone_e164: ownerPhoneE164,
-        participants_count: participants.length,
-        participants,
-      } as const;
-
-      cacheSet(cacheKey, Date.now(), cacheTtlMs, body as unknown as Record<string, unknown>);
-
-      const totalMs = Date.now() - requestStartedAt;
-      const upstreamMs = Date.now() - upstreamStartedAt;
-      console.log('validate-whatsapp-group timing', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: upstreamMs, cached: false }));
-      if (totalMs > slowThresholdMs) {
-        console.warn('SLOW_VALIDATE_WHATSAPP_GROUP', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: upstreamMs, cached: false }));
-      }
-
-      return json(body as unknown as Record<string, unknown>);
+      return json(
+        {
+          success: false,
+          code: 'VALIDATION_UPSTREAM_FAILED',
+          message: 'Failed to validate group',
+          is_valid: false,
+          is_boris_in_group: false,
+          provider: 'whatsapp',
+          whatsapp_provider_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+        },
+        502
+      );
     }
 
-    // Unknown response format
-    console.error('Unknown n8n response format', JSON.stringify({ correlation_id: correlationId }));
+    const invitationGroupPhone = String(invitationData?.phone ?? invitationData?.provider_phone ?? '').trim();
+    if (!invitationGroupPhone) {
+      console.error('Missing group phone in invitation metadata', JSON.stringify({ correlation_id: correlationId }));
+      return json(
+        {
+          success: false,
+          code: 'INVALID_UPSTREAM_PAYLOAD',
+          message: 'Resposta inválida da Z-API ao consultar convite',
+          is_valid: false,
+          is_boris_in_group: false,
+          provider: 'whatsapp',
+          whatsapp_provider_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+        },
+        502
+      );
+    }
+
+    let metadataResponse: Response;
+    try {
+      metadataResponse = await fetchWithTimeout(
+        `${zapiBaseUrl}/instances/${encodeURIComponent(zapiInstance)}/token/${encodeURIComponent(zapiToken)}/group-metadata/${encodeURIComponent(invitationGroupPhone)}`,
+        {
+          method: 'GET',
+          headers: {
+            'client-token': zapiClientToken,
+            'x-correlation-id': correlationId,
+          },
+        },
+        upstreamTimeoutMs
+      );
+    } catch (e: any) {
+      const isTimeout = e?.name === 'AbortError';
+      const totalMs = Date.now() - requestStartedAt;
+      console.error('zapi group metadata timeout', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: Date.now() - upstreamStartedAt }));
+      return json(
+        {
+          success: false,
+          code: isTimeout ? 'VALIDATION_TIMEOUT' : 'VALIDATION_UPSTREAM_FAILED',
+          message: isTimeout ? 'Validation timed out' : 'Failed to validate group',
+          is_valid: false,
+          is_boris_in_group: false,
+          provider: 'whatsapp',
+          whatsapp_provider_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+        },
+        isTimeout ? 504 : 502
+      );
+    }
+
+    if (!metadataResponse.ok) {
+      console.error('zapi group metadata error', JSON.stringify({
+        correlation_id: correlationId,
+        status: metadataResponse.status,
+        status_text: metadataResponse.statusText,
+      }));
+      return json(
+        {
+          success: false,
+          code: 'VALIDATION_UPSTREAM_FAILED',
+          message: 'Failed to validate group',
+          is_valid: false,
+          is_boris_in_group: false,
+          provider: 'whatsapp',
+          whatsapp_provider_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+        },
+        502
+      );
+    }
+
+    const groupData = await metadataResponse.json().catch(() => null);
+    console.log('zapi response', JSON.stringify({
+      correlation_id: correlationId,
+      type: Array.isArray(groupData) ? 'array' : typeof groupData,
+    }));
+
+    let validatedGroup: WebhookGroup;
+    try {
+      validatedGroup = validateWebhookGroupPayload(groupData);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+
+      const ownerMismatch = /^group\.owner:\s*/.test(message) && message.includes('deve corresponder ao phone de um participante');
+      const code = ownerMismatch ? 'OWNER_MISMATCH' : 'INVALID_WEBHOOK_PAYLOAD';
+      const status = ownerMismatch ? 422 : 502;
+
+      const ownerRaw = isRecord(groupData) ? (groupData as any).owner : undefined;
+      const ownerE164 = ownerRaw ? toE164(ownerRaw) : null;
+      const ownerDigits = ownerE164 ? toDigits(ownerE164) : null;
+      const maskedOwner = ownerDigits ? `${ownerDigits.slice(0, 4)}…${ownerDigits.slice(-4)}` : null;
+
+      console.error('Invalid group payload from Z-API', JSON.stringify({
+        correlation_id: correlationId,
+        code,
+        message,
+        owner: maskedOwner,
+        participants_count: Array.isArray((groupData as any)?.participants) ? (groupData as any).participants.length : null,
+      }));
+
+      return json(
+        {
+          success: false,
+          code,
+          message: ownerMismatch
+            ? 'Não foi possível validar: o dono do grupo não está na lista de participantes.'
+            : message,
+          is_valid: false,
+          is_boris_in_group: false,
+          provider: 'whatsapp',
+          whatsapp_provider_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+        },
+        status
+      );
+    }
+
+    const groupName = validatedGroup.name;
+    const providerId = validatedGroup.provider_phone || validatedGroup.phone;
+
+    console.log('Bóris IS in the group', JSON.stringify({
+      correlation_id: correlationId,
+      group_name: groupName,
+    }));
+
+    const participants = normalizeWebhookParticipants(validatedGroup.participants);
+
+    const ownerPhoneE164 = validatedGroup.owner ? toE164(validatedGroup.owner) : null;
+
+    const body = {
+      success: true,
+      is_valid: true,
+      is_boris_in_group: true,
+      provider: 'whatsapp',
+      provider_phone: providerId,
+      whatsapp_provider_id: providerId,
+      group_name: groupName,
+      owner_phone_e164: ownerPhoneE164,
+      participants_count: participants.length,
+      participants,
+    } as const;
+
+    cacheSet(cacheKey, Date.now(), cacheTtlMs, body as unknown as Record<string, unknown>);
+
     const totalMs = Date.now() - requestStartedAt;
     const upstreamMs = Date.now() - upstreamStartedAt;
     console.log('validate-whatsapp-group timing', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: upstreamMs, cached: false }));
     if (totalMs > slowThresholdMs) {
       console.warn('SLOW_VALIDATE_WHATSAPP_GROUP', JSON.stringify({ correlation_id: correlationId, ms_total: totalMs, ms_upstream: upstreamMs, cached: false }));
     }
-    return json(
-      {
-        success: false,
-        code: 'UNKNOWN_VALIDATION_RESPONSE',
-        message: 'Unknown response format from validation service',
-        is_valid: false,
-        is_boris_in_group: false,
-        provider: 'whatsapp',
-        whatsapp_provider_id: '',
-        group_name: '',
-        participants_count: 0,
-        participants: [],
-      },
-      502
-    );
+
+    return json(body as unknown as Record<string, unknown>);
 
   } catch (error: unknown) {
     console.error('Error in validate-whatsapp-group', JSON.stringify({

@@ -15,7 +15,6 @@ function getTestBaseUrl() {
 }
 
 const testBaseUrl = getTestBaseUrl();
-const testWebhookUrl = (process.env.TEST_WEBHOOK_URL || "http://127.0.0.1:9999/webhook").trim();
 const testInboundApiKey = "test-provision-key";
 
 function assertEquals(actual: any, expected: any) {
@@ -42,6 +41,9 @@ function createMockSupabase(args?: { membersFirstInsertDuplicate?: boolean }) {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     assistant_id: null,
+    assistant_prompt: null,
+    assistant_model: null,
+    assistant_runtime: null,
     has_assistant: false,
     metadata: null,
     raw_provider: null,
@@ -215,7 +217,6 @@ DenoRef.test("provision-onboarding retorna erro quando participants está vazio"
         if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
@@ -230,8 +231,7 @@ DenoRef.test("provision-onboarding retorna erro quando participants está vazio"
 });
 
 DenoRef.test("provision-onboarding cria org+grupo, insere members e marca SUPERADMIN como admin", async () => {
-  const { supabase, membersInserted } = createMockSupabase();
-  const fetchCalls: Array<{ url: string; init: any }> = [];
+  const { supabase, membersInserted, calls } = createMockSupabase();
 
   const handler = createProvisionOnboardingHandler({
     env: {
@@ -239,17 +239,9 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e marca SUPERA
         if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
-    fetch: (async (input: any, init: any) => {
-      fetchCalls.push({ url: String(input), init });
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }) as any,
     createClient: (() => supabase) as any,
   });
 
@@ -283,11 +275,16 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e marca SUPERA
   assertEquals(membersInserted[0]?.is_admin, true);
   assertEquals(membersInserted[0]?.is_super_admin, true);
 
-  assertEquals(fetchCalls.length, 1);
-  assertEquals(fetchCalls[0].url, testWebhookUrl);
-  const webhookBody = JSON.parse(fetchCalls[0].init?.body || "{}");
-  assertEquals(webhookBody.id, "group-1");
-  assertEquals(webhookBody.organization_id, "org-1");
+  const groupUpdate = calls.find((call) => call.table === "groups" && call.action === "update");
+  assertEquals(Boolean(groupUpdate), true);
+  assertEquals(groupUpdate?.values?.assistant_id, null);
+  assertEquals(groupUpdate?.values?.has_assistant, true);
+  assertEquals(groupUpdate?.values?.assistant_model, "gpt-4o-mini");
+  assertEquals(groupUpdate?.values?.assistant_runtime, "responses");
+  assertEquals(
+    groupUpdate?.values?.assistant_prompt,
+    "Você é o Bóris, um assistente que acompanha este grupo de WhatsApp. Seu papel é ajudar a resumir conversas, identificar temas e tornar a informação clara, sem inventar nada."
+  );
 });
 
 DenoRef.test("provision-onboarding ignora duplicidade ao inserir Members", async () => {
@@ -299,16 +296,9 @@ DenoRef.test("provision-onboarding ignora duplicidade ao inserir Members", async
         if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },
-    fetch: (async () => {
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }) as any,
     createClient: (() => supabase) as any,
   });
 
@@ -347,7 +337,6 @@ DenoRef.test("provision-onboarding rejeita chamada sem x-api-key válida", async
         if (k === "SUPABASE_URL") return testBaseUrl;
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
-        if (k === "N8N_WEBHOOK_CREATE_ASSISTANT_URL") return testWebhookUrl;
         return undefined;
       },
     },

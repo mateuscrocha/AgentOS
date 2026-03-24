@@ -3,18 +3,17 @@
 ## Contexto
 - O Bóris atua em grupos de WhatsApp.
 - Coleta mensagens e participantes via Z-API.
-- Encaminha eventos para n8n.
-- n8n persiste dados no Supabase.
+- Processa eventos externos por Edge Functions próprias e persiste dados no Supabase.
 - O Admin é painel web de leitura estratégica e configuração.
 - Foco: visualização de dados, métricas, padrões de conversa, administração de organizações e grupos.
-- Sem envio de mensagens. Sem alterações diretas em grupos.
+- Pode disparar algumas ações operacionais internas, sem depender do n8n.
 
 ## O que este documento define
 - Escopo de produto do Admin v2.
 - Objetivos do produto.
 - Usuários e uso típico por papéis.
 - Fluxos principais de navegação e leitura.
-- Fronteiras com Z-API, n8n e Supabase.
+- Fronteiras com Z-API, webhooks externos e Supabase.
 - Áreas do produto mapeadas para páginas existentes.
 
 ## Regras que NÃO podem ser quebradas
@@ -24,13 +23,13 @@
 - Não existem membros fora de grupo.
 - Admin é leitura estratégica + configuração.
 - Sem interação direta com WhatsApp.
-- Decisões de stack estão fechadas: Supabase, RLS, n8n, Z-API.
+- Decisões de stack estão fechadas: Supabase, RLS e Z-API.
 - Onboarding público substitui signup clássico.
 
 ## Decisões já tomadas
-- Pipeline de dados: Z-API → n8n → Supabase.
+- Pipeline de dados: Z-API/webhooks → Edge Functions → Supabase.
 - Persistência e segurança: Supabase com RLS.
-- Orquestração: n8n como integração central.
+- Orquestração: Edge Functions como backend principal.
 - Provedor de WhatsApp: Z-API (atual).
 - Papéis de acesso:
   - `SYSTEM_ADMIN`: visão do sistema, todas as organizações e grupos.
@@ -51,7 +50,7 @@
 - Alterações diretas em grupos pelo Admin.
 - Propor mudanças de arquitetura.
 - Desenhar UI, temas ou microinterações.
-- Implementar automações no n8n.
+- Implementar automações externas fora do fluxo principal do backend.
 
 ## Referências no código (paths quando fizer sentido)
 - Navegação e layout:
