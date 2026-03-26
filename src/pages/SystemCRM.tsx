@@ -6,31 +6,37 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BorisTable } from "@/components/ui/boris-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { notify } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
-import { getStripeFrontendConfig } from "@/lib/stripe-config";
+import { getBillingStatusMeta, getRelationshipTypeMeta } from "@/lib/crm-tag-meta";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import {
   CRM_ACCOUNT_STATUS_META,
+  CRM_PIPELINE_STAGES,
   CRM_STAGE_META,
   CRM_TASK_TYPE_META,
   getAccountFinanceSummary,
+  getAccountMonthlyValue,
   getAccountStripeSyncState,
   getContactFullName,
+  hasStripeBillingLink,
+  isBillableRelationshipType,
+  isNonPayingCustomerAccount,
+  isNonPayingRelationshipType,
+  isPayingCustomerAccount,
   type CRMAccount,
   type CRMContact,
-  type CRMOpportunity,
+  type CRMContactFormValues,
   type CRMTimelineItem,
   useCRM,
 } from "@/hooks/use-crm";
-import { CRMAccountDialog, CRMContactDialog, CRMOpportunityDialog, CRMTimelineItemDialog } from "@/components/crm/CRMDialogs";
+import { CRMAccountDialog, CRMContactDialog, CRMTimelineItemDialog } from "@/components/crm/CRMDialogs";
 import { CRMEntityDrawer } from "@/components/crm/CRMEntityDrawer";
 import AccessDenied from "./AccessDenied";
 import {
@@ -39,12 +45,13 @@ import {
   Building2,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   CircleDollarSign,
   Coins,
   ContactRound,
   FileText,
   GripVertical,
-  Info,
   ListTodo,
   Pencil,
   Plus,
@@ -55,10 +62,7 @@ import {
 } from "lucide-react";
 
 type Section = "pipeline" | "companies" | "contacts" | "tasks";
-type DrawerTarget =
-  | { type: "account"; account: CRMAccount }
-  | { type: "opportunity"; opportunity: CRMOpportunity; account: CRMAccount | null }
-  | null;
+type DrawerTarget = { type: "account"; account: CRMAccount } | null;
 
 const sectionMeta: Array<{ id: Section; label: string; href: string }> = [
   { id: "pipeline", label: "Pipeline", href: "/system/crm/pipeline" },
@@ -68,14 +72,18 @@ const sectionMeta: Array<{ id: Section; label: string; href: string }> = [
 ];
 
 const crmKpiCardClassName =
-  "border-sky-200/70 bg-gradient-to-br from-sky-50 via-white to-cyan-50/70 shadow-[0_16px_40px_-24px_rgba(14,165,233,0.45)]";
+  "border-sky-200/80 bg-gradient-to-b from-white to-sky-50/50 shadow-sm";
 const crmKpiTitleClassName = "text-sky-700/80";
 const crmKpiValueClassName = "text-sky-950";
-const crmKpiIconContainerClassName = "border-sky-200 bg-sky-100 shadow-[0_12px_24px_-18px_rgba(14,165,233,0.9)]";
+const crmKpiIconContainerClassName = "border-sky-200 bg-sky-50/80 shadow-sm";
 const crmKpiIconClassName = "text-sky-700";
 const crmIconButtonClassName =
   "text-sky-700 hover:bg-sky-50 hover:text-sky-900 disabled:text-slate-400 disabled:hover:bg-transparent";
 const crmIconClassName = "h-4 w-4 text-sky-700";
+const crmTableBadgeClassName =
+  "inline-flex min-h-6 items-center rounded-full px-2.5 py-1 text-[10.5px] font-semibold leading-none tracking-[-0.01em] whitespace-nowrap shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]";
+const crmMiniBadgeClassName =
+  "inline-flex min-h-5 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none tracking-[-0.01em] whitespace-nowrap shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]";
 
 function formatCurrency(value?: number | null) {
   if (value == null) return "Sem valor";
@@ -95,84 +103,70 @@ function formatDate(value?: string | null) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
 }
 
-function getAccountLifecycleMeta(account: CRMAccount) {
+function getAccountTypeMeta(account: CRMAccount) {
   if (!account.organization_id) {
     return {
-      label: "Lead",
+      label: "Lead do CRM",
+      shortLabel: "Lead",
       description: "Lead do CRM",
-      className: "border-slate-200 bg-slate-50 text-slate-700",
+      className: "border-slate-200/80 bg-slate-50/90 text-slate-700",
+    };
+  }
+  const meta = getRelationshipTypeMeta(account.relationship_type);
+  return {
+    label: meta.label === "Cliente pagante" ? "Cliente pagante" : "Sem pagamento",
+    shortLabel: meta.shortLabel,
+    description: meta.label,
+    className: meta.className,
+  };
+}
+
+function getAccountBillingMeta(account: CRMAccount) {
+  if (!account.organization_id) {
+    return {
+      label: "Sem pagamento",
+      shortLabel: "Sem cobrança",
+      className: "border-slate-200/80 bg-slate-50/90 text-slate-700",
     };
   }
 
-  if (account.relationship_type === "partner") {
+  if (isNonPayingRelationshipType(account.relationship_type)) {
     return {
-      label: "Parceiro",
-      description: "Cliente real",
-      className: "border-violet-200 bg-violet-50 text-violet-700",
+      label: "Sem pagamento",
+      shortLabel: "Sem cobrança",
+      className: "border-zinc-200/80 bg-zinc-100/90 text-zinc-700",
     };
   }
 
-  if (account.relationship_type === "courtesy") {
+  if (!hasStripeBillingLink(account)) {
     return {
-      label: "Cortesia",
-      description: "Cliente real",
-      className: "border-cyan-200 bg-cyan-50 text-cyan-700",
+      label: "Sem vinculo Stripe",
+      shortLabel: "Sem Stripe",
+      className: "border-orange-200/80 bg-orange-50/90 text-orange-700",
     };
   }
 
-  if (account.relationship_type === "internal") {
+  if (account.stripe_is_delinquent || ["past_due", "unpaid", "incomplete_expired"].includes(account.stripe_subscription_status || "")) {
     return {
-      label: "Interno",
-      description: "Cliente real",
-      className: "border-zinc-200 bg-zinc-100 text-zinc-700",
-    };
-  }
-
-  if (account.relationship_type === "demo") {
-    return {
-      label: "Demo",
-      description: "Cliente real",
-      className: "border-sky-200 bg-sky-50 text-sky-700",
-    };
-  }
-
-  if (account.relationship_type === "trial") {
-    return {
-      label: "Teste / trial",
-      description: "Cliente real",
-      className: "border-amber-200 bg-amber-50 text-amber-700",
+      label: "Inadimplente",
+      shortLabel: "Inadimplente",
+      className: "border-rose-200/80 bg-rose-50/90 text-rose-700",
     };
   }
 
   if (account.stripe_subscription_status === "active" || account.stripe_subscription_status === "trialing") {
-    return {
-      label: "Cliente ativo",
-      description: "Cliente real",
-      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    };
-  }
-
-  if (account.stripe_subscription_status === "past_due" || account.stripe_subscription_status === "unpaid") {
-    return {
-      label: "Inadimplente",
-      description: "Cliente real",
-      className: "border-rose-200 bg-rose-50 text-rose-700",
-    };
+    return getBillingStatusMeta(account.stripe_subscription_status);
   }
 
   if (account.stripe_subscription_status === "canceled" || account.status === "inactive") {
-    return {
-      label: "Ex-cliente",
-      description: "Cliente real",
-      className: "border-amber-200 bg-amber-50 text-amber-700",
-    };
+    return getBillingStatusMeta("canceled");
   }
 
-  return {
-    label: "Cliente",
-    description: "Cliente real",
-    className: "border-sky-200 bg-sky-50 text-sky-700",
-  };
+  return null;
+}
+
+function shouldShowFinancialContext(account: CRMAccount) {
+  return Boolean(account.organization_id) && isPayingCustomerAccount(account);
 }
 
 function getSectionFromPath(pathname: string): Section {
@@ -208,23 +202,26 @@ export default function SystemCRM() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
   const crm = useCRM(isAuthenticated && isSystemAdmin);
-  const stripeFrontend = getStripeFrontendConfig();
 
   const [search, setSearch] = useState("");
-  const [draggedOpportunityId, setDraggedOpportunityId] = useState<string | null>(null);
+  const [billingFilter, setBillingFilter] = useState<
+    "all" | "paying" | "nonpaying" | "attention"
+  >("all");
+  const [draggedAccountId, setDraggedAccountId] = useState<string | null>(null);
 
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
-  const [opportunityDialogOpen, setOpportunityDialogOpen] = useState(false);
   const [timelineDialogOpen, setTimelineDialogOpen] = useState(false);
 
   const [editingAccount, setEditingAccount] = useState<CRMAccount | null>(null);
   const [editingContact, setEditingContact] = useState<CRMContact | null>(null);
-  const [editingOpportunity, setEditingOpportunity] = useState<CRMOpportunity | null>(null);
   const [editingTimelineItem, setEditingTimelineItem] = useState<CRMTimelineItem | null>(null);
+  const [contactDefaults, setContactDefaults] = useState<Partial<CRMContactFormValues>>({});
   const [timelineDefaults, setTimelineDefaults] = useState<Partial<CRMTimelineItem>>({});
 
   const [drawerTarget, setDrawerTarget] = useState<DrawerTarget>(null);
+  const [bulkStripeSyncPending, setBulkStripeSyncPending] = useState(false);
+  const [expandedPipelineAccountId, setExpandedPipelineAccountId] = useState<string | null>(null);
 
   const accountOptions = useMemo(
     () => crm.accounts.map((account) => ({ id: account.id, label: account.name })),
@@ -236,23 +233,17 @@ export default function SystemCRM() {
   );
   const filteredContactsForDrawer = drawerTarget?.type === "account"
     ? crm.contacts.filter((contact) => contact.account_id === drawerTarget.account.id)
-    : drawerTarget?.type === "opportunity"
-      ? crm.contacts.filter((contact) => contact.account_id === drawerTarget.opportunity.account_id)
-      : [];
+    : [];
   const filteredOpportunitiesForDrawer = drawerTarget?.type === "account"
     ? crm.opportunities.filter((opportunity) => opportunity.account_id === drawerTarget.account.id)
-    : drawerTarget?.type === "opportunity"
-      ? crm.opportunities.filter((item) => item.account_id === drawerTarget.opportunity.account_id)
-      : [];
+    : [];
   const timelineItemsForDrawer = drawerTarget?.type === "account"
     ? crm.timelineByEntity.accountMap.get(drawerTarget.account.id) ?? []
-    : drawerTarget?.type === "opportunity"
-      ? crm.timelineByEntity.opportunityMap.get(drawerTarget.opportunity.id) ?? []
-      : [];
+    : [];
 
   const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
 
-  const filteredAccounts = useMemo(() => {
+  const searchedAccounts = useMemo(() => {
     if (!normalizedSearch) return crm.accounts;
     return crm.accounts.filter((account) => {
       const contacts = crm.contactsByAccountId.get(account.id) ?? [];
@@ -262,6 +253,9 @@ export default function SystemCRM() {
         account.email,
         account.phone,
         account.source,
+        account.need,
+        account.next_step,
+        account.quick_notes,
         ...contacts.flatMap((contact) => [
           contact.first_name,
           contact.last_name,
@@ -273,6 +267,31 @@ export default function SystemCRM() {
         .some((value) => String(value).toLocaleLowerCase("pt-BR").includes(normalizedSearch));
     });
   }, [crm.accounts, crm.contactsByAccountId, normalizedSearch]);
+
+  const filteredAccounts = useMemo(() => {
+    return searchedAccounts.filter((account) => {
+      const finance = getAccountFinanceSummary(account);
+
+      if (billingFilter === "paying") {
+        return isPayingCustomerAccount(account);
+      }
+
+      if (billingFilter === "nonpaying") {
+        return isNonPayingCustomerAccount(account);
+      }
+
+      if (billingFilter === "attention") {
+        return (
+          crm.metrics.accountsWithoutContacts > 0 && !(crm.contactsByAccountId.get(account.id) ?? []).length
+        ) || (
+          isBillableRelationshipType(account.relationship_type) &&
+          (!hasStripeBillingLink(account) || Boolean(finance?.isDelinquent))
+        );
+      }
+
+      return true;
+    });
+  }, [billingFilter, searchedAccounts]);
 
   const filteredContacts = useMemo(() => {
     if (!normalizedSearch) return crm.contacts;
@@ -292,25 +311,6 @@ export default function SystemCRM() {
     });
   }, [crm.accountById, crm.contacts, normalizedSearch]);
 
-  const filteredOpportunities = useMemo(() => {
-    if (!normalizedSearch) return crm.opportunities;
-    return crm.opportunities.filter((opportunity) => {
-      const account = crm.accountById.get(opportunity.account_id);
-      const contact = opportunity.contact_id ? crm.contactById.get(opportunity.contact_id) : null;
-      return [
-        opportunity.name,
-        opportunity.source,
-        opportunity.need,
-        opportunity.next_step,
-        opportunity.notes,
-        account?.name,
-        contact ? getContactFullName(contact) : null,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLocaleLowerCase("pt-BR").includes(normalizedSearch));
-    });
-  }, [crm.accountById, crm.contactById, crm.opportunities, normalizedSearch]);
-
   const filteredTasks = useMemo(() => {
     if (!normalizedSearch) return crm.tasks;
     return crm.tasks.filter((task) => {
@@ -329,21 +329,44 @@ export default function SystemCRM() {
 
   const pipelineColumns = useMemo(
     () =>
-      (Object.keys(CRM_STAGE_META) as Array<keyof typeof CRM_STAGE_META>).map((stage) => ({
+      CRM_PIPELINE_STAGES.map((stage) => ({
         stage,
-        items: filteredOpportunities
+        items: filteredAccounts
           .filter((item) => item.stage === stage)
           .sort((left, right) => left.stage_position - right.stage_position || left.updated_at.localeCompare(right.updated_at)),
       })),
-    [filteredOpportunities],
+    [filteredAccounts],
   );
-  const stripeOverview = useMemo(() => {
-    const states = crm.accounts.map(getAccountStripeSyncState);
-    return {
-      missingCount: states.filter((item) => !item.canSync).length,
-      linkedByOrganizationCount: states.filter((item) => !item.hasDirectIds && item.hasOrganizationIds).length,
-    };
-  }, [crm.accounts]);
+  const billableWithoutStripeCount = useMemo(
+    () => crm.accounts.filter((account) => isBillableRelationshipType(account.relationship_type) && !hasStripeBillingLink(account)).length,
+    [crm.accounts],
+  );
+  const billingSegments = useMemo(
+    () => ({
+      all: crm.accounts.length,
+      paying: crm.accounts.filter(isPayingCustomerAccount).length,
+      nonpaying: crm.accounts.filter(isNonPayingCustomerAccount).length,
+      delinquent: crm.accounts.filter(
+        (account) =>
+          isBillableRelationshipType(account.relationship_type) &&
+          hasStripeBillingLink(account) &&
+          account.stripe_subscription_status !== "canceled" &&
+          Boolean(getAccountFinanceSummary(account)?.isDelinquent),
+      ).length,
+      canceled: crm.accounts.filter(
+        (account) => isBillableRelationshipType(account.relationship_type) && hasStripeBillingLink(account) && (
+          account.stripe_subscription_status === "canceled" || account.status === "inactive"
+        ),
+      ).length,
+      active: crm.accounts.filter(
+        (account) => isBillableRelationshipType(account.relationship_type) && hasStripeBillingLink(account) && (
+          account.stripe_subscription_status === "active" || account.stripe_subscription_status === "trialing"
+        ),
+      ).length,
+    }),
+    [crm.accounts],
+  );
+  const isPipelineSection = section === "pipeline";
 
   if (authLoading || rolesLoading) {
     return (
@@ -367,48 +390,100 @@ export default function SystemCRM() {
   };
 
   const openAccountDrawer = (account: CRMAccount) => setDrawerTarget({ type: "account", account });
-  const openOpportunityDrawer = (opportunity: CRMOpportunity) =>
-    setDrawerTarget({
-      type: "opportunity",
-      opportunity,
-      account: crm.accountById.get(opportunity.account_id) ?? null,
-    });
 
   const openTimelineDialogForCurrentEntity = (itemType: "note" | "task" | "next_step" = "note") => {
     if (!drawerTarget) return;
     setEditingTimelineItem(null);
-    setTimelineDefaults(
-      drawerTarget.type === "account"
-        ? { account_id: drawerTarget.account.id, item_type: itemType }
-        : { opportunity_id: drawerTarget.opportunity.id, account_id: drawerTarget.opportunity.account_id, item_type: itemType },
-    );
+    setTimelineDefaults({ account_id: drawerTarget.account.id, item_type: itemType });
     setTimelineDialogOpen(true);
+  };
+
+  const openContactDialogForAccount = (account: CRMAccount) => {
+    setEditingContact(null);
+    setContactDefaults({ account_id: account.id, is_primary: (crm.contactsByAccountId.get(account.id) ?? []).length === 0 });
+    setContactDialogOpen(true);
+  };
+
+  const handleBulkStripeSync = async () => {
+    const syncableAccounts = filteredAccounts.filter((account) => getAccountStripeSyncState(account).canSync);
+    if (syncableAccounts.length === 0) {
+      notify.warning("Nada para sincronizar", "Nenhuma conta filtrada possui vínculo Stripe configurado.");
+      return;
+    }
+
+    setBulkStripeSyncPending(true);
+    let successCount = 0;
+
+    try {
+      for (const account of syncableAccounts) {
+        try {
+          await crm.syncAccountMutation.mutateAsync(account.id);
+          successCount += 1;
+        } catch (error) {
+          console.error("Falha ao sincronizar conta CRM", account.id, error);
+        }
+      }
+
+      if (successCount === 0) {
+        notify.error("Sync Stripe não concluída", "Nenhuma conta conseguiu atualizar a mensalidade.");
+        return;
+      }
+
+      notify.success(
+        "Mensalidades atualizadas",
+        `${successCount} conta(s) tiveram o contexto Stripe sincronizado.`,
+      );
+    } finally {
+      setBulkStripeSyncPending(false);
+    }
   };
 
   const pageActions = (
     <div className="flex flex-wrap gap-2">
       {section === "pipeline" ? (
-        <Button
-          className="border border-sky-600 bg-sky-600 text-white shadow-[0_14px_30px_-18px_rgba(2,132,199,0.85)] hover:bg-sky-700"
-          onClick={() => { setEditingOpportunity(null); setOpportunityDialogOpen(true); }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Nova oportunidade
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            className="border-sky-200 bg-white/90 text-sky-900 hover:border-sky-400 hover:bg-sky-50"
+            onClick={() => void handleBulkStripeSync()}
+            disabled={bulkStripeSyncPending}
+          >
+            <RefreshCw className={cn("mr-2 h-4 w-4", bulkStripeSyncPending && "animate-spin")} />
+            Atualizar mensalidades
+          </Button>
+          <Button
+            className="border border-sky-600 bg-sky-600 text-white shadow-none hover:bg-sky-700"
+            onClick={() => { setEditingAccount(null); setAccountDialogOpen(true); }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Nova conta
+          </Button>
+        </>
       ) : null}
       {section === "companies" ? (
-        <Button
-          className="border border-sky-600 bg-sky-600 text-white shadow-[0_14px_30px_-18px_rgba(2,132,199,0.85)] hover:bg-sky-700"
-          onClick={() => { setEditingAccount(null); setAccountDialogOpen(true); }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Nova conta
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            className="border-sky-200 bg-white/90 text-sky-900 hover:border-sky-400 hover:bg-sky-50"
+            onClick={() => void handleBulkStripeSync()}
+            disabled={bulkStripeSyncPending}
+          >
+            <RefreshCw className={cn("mr-2 h-4 w-4", bulkStripeSyncPending && "animate-spin")} />
+            Atualizar mensalidades
+          </Button>
+          <Button
+            className="border border-sky-600 bg-sky-600 text-white shadow-none hover:bg-sky-700"
+            onClick={() => { setEditingAccount(null); setAccountDialogOpen(true); }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Nova conta
+          </Button>
+        </>
       ) : null}
       {section === "contacts" ? (
         <Button
-          className="border border-sky-600 bg-sky-600 text-white shadow-[0_14px_30px_-18px_rgba(2,132,199,0.85)] hover:bg-sky-700"
-          onClick={() => { setEditingContact(null); setContactDialogOpen(true); }}
+          className="border border-sky-600 bg-sky-600 text-white shadow-none hover:bg-sky-700"
+          onClick={() => { setEditingContact(null); setContactDefaults({}); setContactDialogOpen(true); }}
         >
           <Plus className="mr-2 h-4 w-4" />
           Novo contato
@@ -416,7 +491,7 @@ export default function SystemCRM() {
       ) : null}
       {section === "tasks" ? (
         <Button
-          className="border border-sky-600 bg-sky-600 text-white shadow-[0_14px_30px_-18px_rgba(2,132,199,0.85)] hover:bg-sky-700"
+          className="border border-sky-600 bg-sky-600 text-white shadow-none hover:bg-sky-700"
           onClick={() => {
             setEditingTimelineItem(null);
             setTimelineDefaults({ item_type: "task" });
@@ -447,12 +522,7 @@ export default function SystemCRM() {
       render: (account: CRMAccount) => (
         <div className="min-w-0">
           <p className="truncate font-semibold text-card-foreground">{account.name}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <p className="truncate text-xs text-muted-foreground">{account.domain || account.email || "Sem domínio"}</p>
-            <Badge variant="outline" className={cn("border", getAccountLifecycleMeta(account).className)}>
-              {getAccountLifecycleMeta(account).description}
-            </Badge>
-          </div>
+          <p className="mt-1 truncate text-xs text-muted-foreground">{account.domain || account.email || "Sem domínio"}</p>
         </div>
       ),
     },
@@ -460,11 +530,25 @@ export default function SystemCRM() {
       key: "type",
       header: "Tipo",
       render: (account: CRMAccount) => {
-        const meta = getAccountLifecycleMeta(account);
+        const type = getAccountTypeMeta(account);
         return (
-          <Badge variant="outline" className={cn("border", meta.className)}>
-            {meta.label}
+          <Badge variant="outline" className={cn("border", crmTableBadgeClassName, type.className)}>
+            {type.shortLabel}
           </Badge>
+        );
+      },
+    },
+    {
+      key: "billing",
+      header: "Cobrança",
+      render: (account: CRMAccount) => {
+        const billing = getAccountBillingMeta(account);
+        return billing ? (
+          <Badge variant="outline" className={cn("border", crmTableBadgeClassName, billing.className)}>
+            {billing.shortLabel}
+          </Badge>
+        ) : (
+          <span className="text-sm text-muted-foreground">Sem cobrança</span>
         );
       },
     },
@@ -483,30 +567,41 @@ export default function SystemCRM() {
     },
     {
       key: "status",
-      header: "Status",
+      header: "Etapa",
       render: (account: CRMAccount) => (
-        <Badge variant="outline" className={cn("border", CRM_ACCOUNT_STATUS_META[account.status].tone)}>
-          {CRM_ACCOUNT_STATUS_META[account.status].label}
+        <Badge variant="outline" className={cn("border", crmTableBadgeClassName, CRM_STAGE_META[account.stage].tone)}>
+          {CRM_STAGE_META[account.stage].shortLabel}
         </Badge>
       ),
     },
     {
-      key: "source",
-      header: "Origem",
+      key: "next_action",
+      header: "Próxima ação",
       hideOn: "md" as const,
-      render: (account: CRMAccount) => <span className="text-sm text-muted-foreground">{account.source || "Sem origem"}</span>,
+      render: (account: CRMAccount) => <span className="text-sm text-muted-foreground">{formatDateTime(account.next_action_at)}</span>,
     },
     {
       key: "financial",
-      header: "Financeiro",
+      header: "Mensalidade",
       hideOn: "lg" as const,
       render: (account: CRMAccount) => {
+        const shouldShowFinancial = shouldShowFinancialContext(account);
         const finance = getAccountFinanceSummary(account);
-        const syncState = getAccountStripeSyncState(account);
+        const monthlyValue = getAccountMonthlyValue(account);
+
+        if (!shouldShowFinancial) {
+          return (
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-400">--</p>
+              <p className="truncate text-xs text-muted-foreground">Sem cobranca</p>
+            </div>
+          );
+        }
+
         return (
           <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">{finance?.label || "Sem sync"}</p>
-            <p className="truncate text-xs text-muted-foreground">{syncState.sourceLabel}</p>
+            <p className="text-sm font-medium text-card-foreground">{formatCurrency(monthlyValue)}</p>
+            <p className="truncate text-xs text-muted-foreground">{finance?.label || "Sem contexto financeiro"}</p>
           </div>
         );
       },
@@ -575,7 +670,27 @@ export default function SystemCRM() {
     {
       key: "company",
       header: "Conta",
-      render: (contact: CRMContact) => <span className="text-sm text-card-foreground">{crm.accountById.get(contact.account_id)?.name || "Conta removida"}</span>,
+      render: (contact: CRMContact) => {
+        const account = crm.accountById.get(contact.account_id);
+        if (!account) return <span className="text-sm text-card-foreground">Conta removida</span>;
+        const type = getAccountTypeMeta(account);
+        const billing = getAccountBillingMeta(account);
+        return (
+          <div className="min-w-0">
+            <p className="truncate text-sm text-card-foreground">{account.name}</p>
+            <div className="mt-1 flex flex-wrap gap-1">
+              <Badge variant="outline" className={cn("border", crmMiniBadgeClassName, type.className)}>
+                {type.shortLabel}
+              </Badge>
+              {billing ? (
+                <Badge variant="outline" className={cn("border", crmMiniBadgeClassName, billing.className)}>
+                  {billing.shortLabel}
+                </Badge>
+              ) : null}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "email",
@@ -682,11 +797,6 @@ export default function SystemCRM() {
             size="icon"
             className={crmIconButtonClassName}
             onClick={() => {
-              const opportunity = item.opportunity_id ? crm.opportunities.find((candidate) => candidate.id === item.opportunity_id) ?? null : null;
-              if (opportunity) {
-                openOpportunityDrawer(opportunity);
-                return;
-              }
               const account = item.account_id ? crm.accountById.get(item.account_id) ?? null : null;
               if (account) openAccountDrawer(account);
             }}
@@ -728,10 +838,10 @@ export default function SystemCRM() {
         generalKpis={
           <>
             <StatsCard
-              title="Oportunidades abertas"
+              title="Contas em negociação"
               value={crm.metrics.openOpportunities}
               icon={BriefcaseBusiness}
-              variant="kpi"
+              variant={isPipelineSection ? "compact" : "kpi"}
               className={crmKpiCardClassName}
               titleClassName={crmKpiTitleClassName}
               valueClassName={crmKpiValueClassName}
@@ -739,10 +849,21 @@ export default function SystemCRM() {
               iconClassName={crmKpiIconClassName}
             />
             <StatsCard
-              title="Pipeline potencial"
-              value={formatCurrency(crm.metrics.totalPipelineValue)}
+              title="Clientes pagos"
+              value={billingSegments.active}
+              icon={Coins}
+              variant={isPipelineSection ? "compact" : "kpi"}
+              className={crmKpiCardClassName}
+              titleClassName={crmKpiTitleClassName}
+              valueClassName={crmKpiValueClassName}
+              iconContainerClassName={crmKpiIconContainerClassName}
+              iconClassName={crmKpiIconClassName}
+            />
+            <StatsCard
+              title="Sem vínculo Stripe"
+              value={billableWithoutStripeCount}
               icon={CircleDollarSign}
-              variant="kpi"
+              variant={isPipelineSection ? "compact" : "kpi"}
               className={crmKpiCardClassName}
               titleClassName={crmKpiTitleClassName}
               valueClassName={crmKpiValueClassName}
@@ -753,18 +874,7 @@ export default function SystemCRM() {
               title="Tarefas abertas"
               value={crm.metrics.openTasks}
               icon={ListTodo}
-              variant="kpi"
-              className={crmKpiCardClassName}
-              titleClassName={crmKpiTitleClassName}
-              valueClassName={crmKpiValueClassName}
-              iconContainerClassName={crmKpiIconContainerClassName}
-              iconClassName={crmKpiIconClassName}
-            />
-            <StatsCard
-              title="Clientes na carteira"
-              value={crm.metrics.customers}
-              icon={Building2}
-              variant="kpi"
+              variant={isPipelineSection ? "compact" : "kpi"}
               className={crmKpiCardClassName}
               titleClassName={crmKpiTitleClassName}
               valueClassName={crmKpiValueClassName}
@@ -781,53 +891,58 @@ export default function SystemCRM() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar por conta, contato, email, domínio, telefone..."
-                className="border-sky-200 bg-white/90 pl-9 shadow-[0_10px_24px_-20px_rgba(14,165,233,0.7)] placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:ring-sky-400/30"
+                className="border-sky-200 bg-white/95 pl-9 shadow-sm placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:ring-sky-400/30"
               />
+            </div>
+            <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "all", label: "Todas", count: billingSegments.all },
+                  { value: "paying", label: "Pagantes", count: billingSegments.paying },
+                  { value: "nonpaying", label: "Sem pagamento", count: billingSegments.nonpaying },
+                  {
+                    value: "attention",
+                    label: "Pendências",
+                    count: billableWithoutStripeCount + billingSegments.delinquent + crm.metrics.accountsWithoutContacts,
+                  },
+              ].map((option) => (
+                <Button
+                  key={option.value}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "h-9 border-sky-200 bg-white/90 text-sky-800 hover:border-sky-400 hover:bg-sky-50",
+                    billingFilter === option.value &&
+                      "border-sky-600 bg-sky-600 text-white hover:border-sky-700 hover:bg-sky-700",
+                  )}
+                  onClick={() => setBillingFilter(option.value as typeof billingFilter)}
+                >
+                  {option.label}
+                  <span className="ml-2 rounded-full bg-black/5 px-1.5 py-0.5 text-[11px] leading-none">
+                    {option.count}
+                  </span>
+                </Button>
+              ))}
             </div>
           </>
         }
       />
 
-      <div className="mb-4 rounded-[var(--radius-lg)] border border-sky-200/80 bg-gradient-to-r from-sky-50 via-cyan-50/80 to-white px-4 py-3 text-sm text-sky-900 shadow-[0_18px_40px_-28px_rgba(14,165,233,0.55)]">
-        O CRM agora separa claramente duas coisas: leads que vivem só no CRM e clientes reais que nascem em `organizations` e carregam seu contexto Stripe junto.
-      </div>
-
-      <div className="mb-4 space-y-3">
-        <Alert className={cn(
-          "text-sky-950",
-          stripeFrontend.isConfigured
-            ? "border-emerald-200/80 bg-emerald-50/80"
-            : "border-amber-200/80 bg-amber-50/80 text-amber-950",
-        )}>
-          <Info className="h-4 w-4" />
-          <AlertTitle>
-            {stripeFrontend.isConfigured ? "Stripe de frontend configurada" : "Stripe de frontend pendente"}
-          </AlertTitle>
-          <AlertDescription>
-            {stripeFrontend.isConfigured
-              ? `O painel já reconhece \`VITE_STRIPE_PUBLISHABLE_KEY\` (${stripeFrontend.maskedKey}, modo ${stripeFrontend.mode}).`
-              : "Defina `VITE_STRIPE_PUBLISHABLE_KEY` para habilitar fluxos de frontend que dependem da Stripe neste ambiente."}
-          </AlertDescription>
-        </Alert>
-        {stripeOverview.missingCount > 0 ? (
-          <Alert className="border-amber-200/80 bg-amber-50/80 text-amber-950">
-            <Info className="h-4 w-4" />
-            <AlertTitle>Contas sem vínculo Stripe</AlertTitle>
-            <AlertDescription>
-              {stripeOverview.missingCount} conta(s) ainda precisam de `stripe_customer_id`, `stripe_subscription_id` ou vínculo com organização que já tenha billing preenchido.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {stripeOverview.linkedByOrganizationCount > 0 ? (
-          <Alert className="border-sky-200/80 bg-sky-50/70 text-sky-950">
-            <Info className="h-4 w-4" />
-            <AlertTitle>Sync herdado da organização</AlertTitle>
-            <AlertDescription>
-              {stripeOverview.linkedByOrganizationCount} conta(s) estão usando os IDs Stripe da organização vinculada.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-      </div>
+      {(billableWithoutStripeCount > 0 || crm.metrics.accountsWithoutContacts > 0) ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-slate-200 bg-white px-4 py-3 text-xs shadow-sm">
+          <span className="font-medium text-slate-500">Atenção:</span>
+          {billableWithoutStripeCount > 0 ? (
+            <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-900">
+              {billableWithoutStripeCount} sem vínculo Stripe
+            </Badge>
+          ) : null}
+          {crm.metrics.accountsWithoutContacts > 0 ? (
+            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-900">
+              {crm.metrics.accountsWithoutContacts} sem contato
+            </Badge>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mb-6 flex flex-wrap gap-2">
         {sectionMeta.map((item) => (
@@ -838,8 +953,8 @@ export default function SystemCRM() {
               cn(
                 "inline-flex items-center rounded-full border px-4 py-2 text-sm font-medium transition-all",
                 isActive
-                  ? "border-sky-600 bg-sky-600 text-white shadow-[0_14px_30px_-18px_rgba(2,132,199,0.9)]"
-                  : "border-sky-200 bg-white/90 text-sky-800 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-900",
+                  ? "border-sky-600 bg-sky-600 text-white shadow-sm"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
               )
             }
           >
@@ -859,127 +974,184 @@ export default function SystemCRM() {
       ) : (
         <>
           {section === "pipeline" ? (
-            <div className="grid gap-4 xl:grid-cols-6">
-              {pipelineColumns.map((column) => (
-                <section
-                  key={column.stage}
-                  className="flex min-h-[420px] flex-col rounded-[var(--radius-lg)] border border-sky-200/70 bg-gradient-to-b from-sky-50/95 via-white to-cyan-50/35 shadow-[0_20px_45px_-30px_rgba(14,165,233,0.45)]"
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => {
-                    if (!draggedOpportunityId) return;
-                    const nextPosition = (crm.opportunities.filter((item) => item.stage === column.stage).length + 1) * 1000;
-                    void handleMutation(
-                      () => crm.moveOpportunityMutation.mutateAsync({ id: draggedOpportunityId, stage: column.stage, stagePosition: nextPosition }),
-                      "Etapa atualizada",
-                      `Oportunidade movida para ${CRM_STAGE_META[column.stage].label}.`,
-                    );
-                    setDraggedOpportunityId(null);
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-3 border-b border-sky-100 px-4 py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-sky-950">{CRM_STAGE_META[column.stage].label}</p>
-                      <p className="text-xs text-sky-700/70">{column.items.length} oportunidade(s)</p>
-                    </div>
-                    <Badge variant="outline" className={cn("border", CRM_STAGE_META[column.stage].tone)}>
-                      {CRM_STAGE_META[column.stage].shortLabel}
-                    </Badge>
-                  </div>
-
-                  <div className="flex flex-1 flex-col gap-3 p-3">
-                    {column.items.length === 0 ? (
-                      <div className="flex flex-1 items-center justify-center rounded-[var(--radius-md)] border border-dashed border-sky-200 bg-sky-50/60 p-4 text-center text-sm text-sky-800/75">
-                        Solte aqui ou crie uma nova oportunidade nesta etapa.
-                      </div>
-                    ) : (
-                      column.items.map((opportunity) => {
-                        const account = crm.accountById.get(opportunity.account_id) ?? null;
-                        const contact = opportunity.contact_id ? crm.contactById.get(opportunity.contact_id) ?? null : null;
-                        const finance = account ? getAccountFinanceSummary(account) : null;
-                        return (
-                          <article
-                            key={opportunity.id}
-                            draggable
-                            onDragStart={() => setDraggedOpportunityId(opportunity.id)}
-                            onDragEnd={() => setDraggedOpportunityId(null)}
-                            className="rounded-[var(--radius-lg)] border border-sky-100 bg-white/95 p-3 shadow-[0_16px_30px_-24px_rgba(14,165,233,0.5)] transition-all hover:border-sky-300 hover:shadow-[0_18px_38px_-24px_rgba(14,165,233,0.55)]"
-                          >
-                            <div className="mb-2 flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-slate-950">{opportunity.name}</p>
-                                <p className="truncate text-xs text-muted-foreground">{account?.name || "Sem conta vinculada"}</p>
-                              </div>
-                              <GripVertical className="h-4 w-4 shrink-0 text-sky-400" />
-                            </div>
-
-                            <div className="space-y-2 text-sm">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-muted-foreground">Contato</span>
-                                <span className="truncate font-medium text-foreground">{contact ? getContactFullName(contact) : "Sem contato"}</span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-muted-foreground">Status</span>
-                                <Badge variant="outline" className={cn("border", CRM_STAGE_META[opportunity.stage].tone)}>
-                                  {CRM_STAGE_META[opportunity.stage].shortLabel}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-muted-foreground">Valor</span>
-                                <span className="font-medium text-foreground">{formatCurrency(opportunity.potential_value)}</span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-muted-foreground">Próxima ação</span>
-                                <span className="text-right font-medium text-foreground">{formatDateTime(opportunity.next_action_at || opportunity.last_contact_at)}</span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-muted-foreground">Financeiro</span>
-                                <span className="text-right font-medium text-foreground">{finance?.label || "Sem sync"}</span>
-                              </div>
-                            </div>
-
-                            <Separator className="my-3 bg-sky-100" />
-
-                            <div className="flex justify-between gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 hover:text-sky-950"
-                                onClick={() => openOpportunityDrawer(opportunity)}
-                              >
-                                Contexto
-                              </Button>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={crmIconButtonClassName}
-                                  onClick={() => { setEditingOpportunity(opportunity); setOpportunityDialogOpen(true); }}
-                                >
-                                  <Pencil className={crmIconClassName} />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    if (!window.confirm(`Excluir ${opportunity.name}?`)) return;
-                                    void handleMutation(
-                                      () => crm.deleteOpportunityMutation.mutateAsync(opportunity.id),
-                                      "Oportunidade excluída",
-                                      "A oportunidade foi removida do pipeline.",
-                                    );
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            </div>
-                          </article>
+            <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                <div>
+                  <p className="text-sm font-semibold text-sky-950">Pipeline</p>
+                  <p className="text-xs text-sky-700/70">Leitura rápida por etapa.</p>
+                </div>
+                {billingFilter !== "all" ? (
+                  <Badge variant="outline" className="border-sky-200 bg-white/90 text-sky-900">
+                    Filtro ativo
+                  </Badge>
+                ) : null}
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+                  {pipelineColumns.map((column) => (
+                    <section
+                      key={column.stage}
+                      className="flex min-w-0 h-[calc(100vh-24rem)] min-h-[26rem] max-h-[44rem] flex-col rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50/60 shadow-sm"
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={() => {
+                        if (!draggedAccountId) return;
+                        const nextPosition = (crm.accounts.filter((item) => item.stage === column.stage).length + 1) * 1000;
+                        void handleMutation(
+                          () => crm.moveAccountStageMutation.mutateAsync({ id: draggedAccountId, stage: column.stage, stagePosition: nextPosition }),
+                          "Etapa atualizada",
+                          `Conta movida para ${CRM_STAGE_META[column.stage].label}.`,
                         );
-                      })
-                    )}
-                  </div>
-                </section>
-              ))}
+                        setDraggedAccountId(null);
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3.5 py-2.5">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{CRM_STAGE_META[column.stage].label}</p>
+                          <p className="text-[11px] text-slate-500">{column.items.length} contas</p>
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-400">{CRM_STAGE_META[column.stage].shortLabel}</span>
+                      </div>
+
+                      <ScrollArea className="min-w-0 flex-1">
+                        <div className="flex min-w-0 flex-col gap-2.5 p-2.5">
+                          {column.items.length === 0 ? (
+                            <div className="flex min-h-[160px] items-center justify-center rounded-[var(--radius-md)] border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
+                              Nenhuma conta nesta etapa.
+                            </div>
+                          ) : (
+                            column.items.map((account) => {
+                              const contact = (crm.contactsByAccountId.get(account.id) ?? []).find((item) => item.is_primary) ?? (crm.contactsByAccountId.get(account.id) ?? [])[0] ?? null;
+                              const finance = getAccountFinanceSummary(account);
+                              const monthlyValue = getAccountMonthlyValue(account);
+                              const type = getAccountTypeMeta(account);
+                              const billing = getAccountBillingMeta(account);
+                              const shouldShowFinancial = shouldShowFinancialContext(account);
+                              const isExpanded = expandedPipelineAccountId === account.id;
+                              return (
+                                <article
+                                  key={account.id}
+                                  draggable
+                                  onDragStart={() => setDraggedAccountId(account.id)}
+                                  onDragEnd={() => setDraggedAccountId(null)}
+                                  onClick={() =>
+                                    setExpandedPipelineAccountId((current) => (current === account.id ? null : account.id))
+                                  }
+                                  className="w-full min-w-0 max-w-full overflow-hidden rounded-[18px] border border-slate-200 bg-white p-2.5 shadow-sm transition-all hover:border-sky-300 hover:shadow-md"
+                                >
+                                  <div className="mb-2.5 flex items-start justify-between gap-2.5">
+                                    <div className="min-w-0 flex-1 basis-0">
+                                      <div className="flex min-w-0 items-start justify-between gap-3">
+                                        <div className="min-w-0 w-0 max-w-full flex-1">
+                                          <p className="truncate text-[14px] font-semibold leading-5 text-slate-950">
+                                            {account.name}
+                                          </p>
+                                          <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                                            {contact ? getContactFullName(contact) : "Sem contato"}
+                                          </p>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-1">
+                                          <div className="rounded-full bg-slate-100 p-1 text-slate-400">
+                                            <GripVertical className="h-3.5 w-3.5 shrink-0" />
+                                          </div>
+                                          <div className="rounded-full bg-slate-100 p-1 text-slate-500">
+                                            {isExpanded ? (
+                                              <ChevronUp className="h-3.5 w-3.5 shrink-0" />
+                                            ) : (
+                                              <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1">
+                                        <Badge variant="outline" className={cn("border", crmMiniBadgeClassName, type.className)}>
+                                          {type.shortLabel}
+                                        </Badge>
+                                        {billing ? (
+                                          <Badge variant="outline" className={cn("border", crmMiniBadgeClassName, billing.className)}>
+                                            {billing.shortLabel}
+                                          </Badge>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {isExpanded ? (
+                                    <>
+                                      <div className="grid min-w-0 gap-1.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-2">
+                                        {shouldShowFinancial ? (
+                                          <div className="flex min-w-0 items-center justify-between gap-2 text-[11px]">
+                                            <span className="text-slate-500">Financeiro</span>
+                                            <span className="min-w-0 truncate font-medium text-slate-900">{finance?.label || "Sem cobrança"}</span>
+                                          </div>
+                                        ) : null}
+                                        <div className={cn("grid min-w-0 gap-1.5", shouldShowFinancial ? "grid-cols-2" : "grid-cols-1")}>
+                                          {shouldShowFinancial ? (
+                                            <div className="min-w-0 rounded-2xl bg-white px-2.5 py-1.5">
+                                              <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">Mensalidade</p>
+                                              <p className="mt-1 truncate text-sm font-semibold text-slate-950">{formatCurrency(monthlyValue)}</p>
+                                            </div>
+                                          ) : null}
+                                          <div className="min-w-0 rounded-2xl bg-white px-2.5 py-1.5">
+                                            <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">Próxima ação</p>
+                                            <p className="mt-1 truncate text-sm font-semibold text-slate-950">{formatDateTime(account.next_action_at)}</p>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="mt-2.5 flex min-w-0 items-center justify-between gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-8 rounded-full border-sky-200 bg-white px-3 text-xs font-medium text-sky-900 hover:bg-sky-50 hover:text-sky-950"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            openAccountDrawer(account);
+                                          }}
+                                        >
+                                          Contexto
+                                        </Button>
+                                        <div className="flex shrink-0 gap-1">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className={cn(crmIconButtonClassName, "h-8 w-8 rounded-full bg-white hover:bg-sky-50")}
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              setEditingAccount(account);
+                                              setAccountDialogOpen(true);
+                                            }}
+                                          >
+                                            <Pencil className={crmIconClassName} />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 rounded-full bg-white hover:bg-rose-50"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              if (!window.confirm(`Excluir ${account.name}?`)) return;
+                                              void handleMutation(
+                                                () => crm.deleteAccountMutation.mutateAsync(account.id),
+                                                "Conta excluída",
+                                                "A conta foi removida do CRM.",
+                                              );
+                                            }}
+                                          >
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </>
+                                  ) : null}
+                                </article>
+                              );
+                            })
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </section>
+                  ))}
+              </div>
             </div>
           ) : null}
 
@@ -1053,6 +1225,7 @@ export default function SystemCRM() {
         contact={editingContact}
         accountOptions={accountOptions}
         pending={crm.saveContactMutation.isPending}
+        defaultValues={contactDefaults}
         onSubmit={async (values) => {
           await handleMutation(
             () => crm.saveContactMutation.mutateAsync(values),
@@ -1061,28 +1234,7 @@ export default function SystemCRM() {
           );
           setContactDialogOpen(false);
           setEditingContact(null);
-        }}
-      />
-
-      <CRMOpportunityDialog
-        open={opportunityDialogOpen}
-        onOpenChange={setOpportunityDialogOpen}
-        opportunity={editingOpportunity}
-        accountOptions={accountOptions}
-        contactOptions={crm.contacts.map((contact) => ({
-          id: contact.id,
-          label: `${getContactFullName(contact)} • ${crm.accountById.get(contact.account_id)?.name || "Sem conta"}`,
-        }))}
-        profiles={crm.profiles}
-        pending={crm.saveOpportunityMutation.isPending}
-        onSubmit={async (values) => {
-          await handleMutation(
-            () => crm.saveOpportunityMutation.mutateAsync(values),
-            editingOpportunity ? "Oportunidade atualizada" : "Oportunidade criada",
-            editingOpportunity ? "A oportunidade foi atualizada." : "A nova oportunidade entrou no pipeline.",
-          );
-          setOpportunityDialogOpen(false);
-          setEditingOpportunity(null);
+          setContactDefaults({});
         }}
       />
 
@@ -1113,41 +1265,34 @@ export default function SystemCRM() {
         onOpenChange={(open) => {
           if (!open) setDrawerTarget(null);
         }}
-        entity={drawerTarget ? (
-          drawerTarget.type === "account"
-            ? { type: "account", account: drawerTarget.account }
-            : { type: "opportunity", opportunity: drawerTarget.opportunity, account: drawerTarget.account }
-        ) : null}
+        entity={drawerTarget ? { type: "account", account: drawerTarget.account } : null}
         contacts={filteredContactsForDrawer}
         opportunities={filteredOpportunitiesForDrawer}
         timelineItems={timelineItemsForDrawer}
         profiles={crm.profiles}
         onEditEntity={() => {
           if (!drawerTarget) return;
-          if (drawerTarget.type === "account") {
-            setEditingAccount(drawerTarget.account);
-            setAccountDialogOpen(true);
-            return;
-          }
-          setEditingOpportunity(drawerTarget.opportunity);
-          setOpportunityDialogOpen(true);
+          setEditingAccount(drawerTarget.account);
+          setAccountDialogOpen(true);
         }}
         onSyncStripe={() => {
           if (!drawerTarget) return;
-          const account = drawerTarget.type === "account" ? drawerTarget.account : drawerTarget.account;
-          const syncState = account ? getAccountStripeSyncState(account) : null;
+          const syncState = getAccountStripeSyncState(drawerTarget.account);
           if (!syncState?.canSync) {
             notify.warning("Vínculo Stripe ausente", syncState?.missingReason || "Configure os IDs Stripe antes de sincronizar.");
             return;
           }
-          const crmAccountId = drawerTarget.type === "account" ? drawerTarget.account.id : drawerTarget.opportunity.account_id;
           void handleMutation(
-            () => crm.syncAccountMutation.mutateAsync(crmAccountId),
+            () => crm.syncAccountMutation.mutateAsync(drawerTarget.account.id),
             "Stripe sincronizada",
             "O contexto financeiro da conta foi atualizado.",
           );
         }}
         onAddTimelineItem={openTimelineDialogForCurrentEntity}
+        onAddContact={() => {
+          if (!drawerTarget) return;
+          openContactDialogForAccount(drawerTarget.account);
+        }}
         onEditTimelineItem={(item) => {
           setEditingTimelineItem(item);
           setTimelineDefaults({});

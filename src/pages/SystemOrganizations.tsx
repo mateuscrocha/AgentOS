@@ -40,7 +40,7 @@ import { FilterTriggerButton } from "@/components/ui/filter-trigger-button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSystemOrganizations, type OrganizationListItem } from "@/hooks/use-system-organizations";
-import { notifyActionError } from "@/lib/notify-action-error";
+import { getBillingStatusMeta, getRelationshipTypeMeta } from "@/lib/crm-tag-meta";
 
 const PAGE_SIZE = 10;
 
@@ -73,63 +73,6 @@ async function parseInvokeError(err: any): Promise<{ message: string; code?: str
   return { message, code, counts };
 }
 
-function parseDbError(err: any): { title: string; message: string } {
-  const raw = String(err?.message || "");
-  const code = String(err?.code || "");
-
-  if (code === "42501" || /policy|permission|forbidden/i.test(raw)) {
-    return { title: "Sem permissão", message: "Você não tem permissão para concluir esta ação." };
-  }
-
-  if (/foreign key|violates foreign key/i.test(raw)) {
-    return { title: "Dependências existentes", message: "Existem registros vinculados a esta organização." };
-  }
-
-  return { title: "Não foi possível concluir", message: raw || "Algo deu errado. Tente novamente." };
-}
-
-function getRelationshipTypeMeta(value?: string | null) {
-  switch (value) {
-    case "partner":
-      return { label: "Parceiro", className: "bg-violet-50 text-violet-700 border-violet-200" };
-    case "courtesy":
-      return { label: "Cortesia", className: "bg-cyan-50 text-cyan-700 border-cyan-200" };
-    case "internal":
-      return { label: "Interno", className: "bg-zinc-100 text-zinc-700 border-zinc-200" };
-    case "trial":
-      return { label: "Teste / trial", className: "bg-amber-50 text-amber-700 border-amber-200" };
-    case "demo":
-      return { label: "Demo", className: "bg-sky-50 text-sky-700 border-sky-200" };
-    default:
-      return { label: "Cliente pagante", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
-  }
-}
-
-function getBillingStatusMeta(value?: string | null) {
-  switch (value) {
-    case "active":
-      return { label: "Ativo", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
-    case "trialing":
-      return { label: "Trial", className: "bg-amber-50 text-amber-700 border-amber-200" };
-    case "past_due":
-      return { label: "Em atraso", className: "bg-orange-50 text-orange-700 border-orange-200" };
-    case "unpaid":
-      return { label: "Inadimplente", className: "bg-rose-50 text-rose-700 border-rose-200" };
-    case "canceled":
-      return { label: "Cancelado", className: "bg-zinc-100 text-zinc-700 border-zinc-200" };
-    case "incomplete":
-      return { label: "Incompleto", className: "bg-slate-100 text-slate-700 border-slate-200" };
-    case "incomplete_expired":
-      return { label: "Expirado", className: "bg-zinc-100 text-zinc-700 border-zinc-200" };
-    case "paused":
-      return { label: "Pausado", className: "bg-sky-50 text-sky-700 border-sky-200" };
-    case "inactive":
-      return { label: "Sem assinatura", className: "bg-muted text-muted-foreground border-border" };
-    default:
-      return { label: "Sem billing", className: "bg-muted text-muted-foreground border-border" };
-  }
-}
-
 export default function SystemOrganizations() {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -137,7 +80,6 @@ export default function SystemOrganizations() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "suspended">("all");
   const [orderBy, setOrderBy] = useState<"name" | "created_at">("name");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
@@ -153,12 +95,12 @@ export default function SystemOrganizations() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { orgsQuery, overviewQuery, orgGroupCountsQuery, updateStatusMutation, refreshAll } = useSystemOrganizations({
+  const { orgsQuery, overviewQuery, orgGroupCountsQuery, refreshAll } = useSystemOrganizations({
     isAuthenticated,
     page,
     pageSize: PAGE_SIZE,
     search: debouncedSearch,
-    statusFilter,
+    statusFilter: "all",
     orderBy,
     orderDir,
   });
@@ -186,34 +128,9 @@ export default function SystemOrganizations() {
     return <AccessDenied />;
   }
 
-  const getStatusLabel = (status: OrganizationListItem["status"]) => {
-    if (!status) return "Indefinida";
-    if (status === "active") return "Ativa";
-    if (status === "inactive") return "Inativa";
-    if (status === "suspended") return "Suspensa";
-    return status;
-  };
-
-  const renderStatusChip = (status: OrganizationListItem["status"]) => (
-    <span
-      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-        status === "active"
-          ? "bg-success/10 text-success"
-          : status === "inactive"
-            ? "bg-muted text-muted-foreground"
-            : "bg-destructive/10 text-destructive"
-      }`}
-    >
-      {getStatusLabel(status)}
-    </span>
-  );
-
-  const pendingStatusOrgId = (updateStatusMutation.isPending ? (updateStatusMutation.variables as any)?.id : null) as string | null;
-
   const renderOrgActions = (org: OrganizationListItem) => {
-    const isStatusPending = pendingStatusOrgId === org.id;
     const isCascadePending = deletingCascadeOrgId === org.id;
-    const actionsDisabled = isStatusPending || isCascadePending;
+    const actionsDisabled = isCascadePending;
 
     return (
       <RowActions>
@@ -234,25 +151,6 @@ export default function SystemOrganizations() {
           disabled={actionsDisabled}
         >
           Editar
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={async (e) => {
-            e.stopPropagation();
-            try {
-              await updateStatusMutation.mutateAsync({
-                id: org.id,
-                status: org.status === "active" ? "inactive" : "active",
-              });
-              notify.success("Status atualizado", "Dados salvos com sucesso.");
-              await refreshOrganizationsData();
-            } catch (err: any) {
-              const parsed = parseDbError(err);
-              notifyActionError(parsed.title, parsed, "Tente novamente.");
-            }
-          }}
-          disabled={actionsDisabled}
-        >
-          {isStatusPending ? "Salvando..." : org.status === "active" ? "Desativar" : "Reativar"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="px-2 py-1 text-xs font-medium text-muted-foreground">
@@ -289,11 +187,6 @@ export default function SystemOrganizations() {
           </Link>
         </div>
       ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (org: OrganizationListItem) => renderStatusChip(org.status),
     },
     {
       key: "relationship_type",
@@ -346,8 +239,8 @@ export default function SystemOrganizations() {
     },
   ];
 
-  const hasActiveFilters = !!search || statusFilter !== "all" || orderBy !== "name" || orderDir !== "asc";
-  const activeFiltersCount = Number(!!search) + Number(statusFilter !== "all") + Number(orderBy !== "name" || orderDir !== "asc");
+  const hasActiveFilters = !!search || orderBy !== "name" || orderDir !== "asc";
+  const activeFiltersCount = Number(!!search) + Number(orderBy !== "name" || orderDir !== "asc");
   const sortValue = `${orderBy}:${orderDir}`;
   const sortLabel = (() => {
     if (orderBy === "name" && orderDir === "asc") return "";
@@ -359,7 +252,6 @@ export default function SystemOrganizations() {
 
   const clearFilters = () => {
     setSearch("");
-    setStatusFilter("all");
     setOrderBy("name");
     setOrderDir("asc");
     setPage(1);
@@ -386,23 +278,6 @@ export default function SystemOrganizations() {
           />
         )}
       </div>
-      <Select
-        value={statusFilter}
-        onValueChange={(v) => {
-          setStatusFilter(v as any);
-          setPage(1);
-        }}
-      >
-        <SelectTrigger className="h-9 w-full sm:w-auto min-w-[12rem] bg-background/60" aria-label="Status">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Status: todos</SelectItem>
-          <SelectItem value="active">Status: ativos</SelectItem>
-          <SelectItem value="inactive">Status: inativos</SelectItem>
-          <SelectItem value="suspended">Status: suspensos</SelectItem>
-        </SelectContent>
-      </Select>
       <Select
         value={sortValue}
         onValueChange={(v) => {
@@ -431,7 +306,7 @@ export default function SystemOrganizations() {
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Organizações" }]}
           title="Organizações"
-          description="Cadastros, status e estrutura de grupos das organizações que usam o Bóris."
+          description="Cadastros, relacionamento e estrutura de grupos das organizações que usam o Bóris."
           actions={(
             <Button onClick={() => setCreateOrgOpen(true)} size="lg" className="w-full sm:w-auto">
               <Plus className="h-4 w-4" />
@@ -522,17 +397,6 @@ export default function SystemOrganizations() {
                       ariaLabel: "Remover filtro de busca",
                     }]
                   : []),
-                ...(statusFilter !== "all"
-                  ? [{
-                      key: "status",
-                      label: `Status: ${statusFilter === "active" ? "ativas" : statusFilter === "inactive" ? "inativas" : "suspensas"}`,
-                      onRemove: () => {
-                        setStatusFilter("all");
-                        setPage(1);
-                      },
-                      ariaLabel: "Remover filtro de status",
-                    }]
-                  : []),
                 ...(sortLabel
                   ? [{
                       key: "sort",
@@ -562,7 +426,7 @@ export default function SystemOrganizations() {
           <DrawerContent className="border-border bg-card">
             <DrawerHeader className="text-left">
               <DrawerTitle>Filtrar organizações</DrawerTitle>
-              <DrawerDescription>Encontre mais rápido usando busca, status e ordenação.</DrawerDescription>
+              <DrawerDescription>Encontre mais rápido usando busca e ordenação.</DrawerDescription>
             </DrawerHeader>
             <div className="px-4 pb-2">
               <div className="grid gap-3">{filtersForm}</div>
@@ -638,7 +502,6 @@ export default function SystemOrganizations() {
                           aria-label={`Abrir organização ${org.name}`}
                         >
                           <div className="truncate text-base font-semibold tracking-[-0.02em] text-card-foreground hover:underline">{org.name}</div>
-                          <div className="mt-1">{renderStatusChip(org.status)}</div>
                           <div className="mt-2">
                             <Badge variant="outline" className={getRelationshipTypeMeta(org.relationship_type).className}>
                               {getRelationshipTypeMeta(org.relationship_type).label}
