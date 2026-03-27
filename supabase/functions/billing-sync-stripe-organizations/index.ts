@@ -1,9 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { resolveBillingCreditState } from "../../../src/lib/billing-credit.ts";
+
+const DenoRef = (globalThis as any).Deno;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -47,6 +50,17 @@ type StripeSubscription = {
   } | null;
 };
 
+type StripeInvoice = {
+  id: string;
+  status: string | null;
+  amount_paid: number | null;
+  total: number | null;
+  paid: boolean | null;
+  status_transitions?: {
+    paid_at?: number | null;
+  } | null;
+};
+
 type OrganizationRow = {
   id: string;
   name: string;
@@ -63,6 +77,10 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json", "Connection": "keep-alive" },
   });
+}
+
+function readEnv(env: { get: (key: string) => string | undefined }, key: string): string {
+  return String(env.get(key) || "").trim();
 }
 
 function isUuid(value: string | null | undefined) {
@@ -158,6 +176,20 @@ async function stripeRequest<T>(path: string, stripeSecretKey: string, params?: 
   return payload as T;
 }
 
+async function fetchLatestPaidInvoiceForSubscription(subscriptionId: string, stripeSecretKey: string) {
+  const invoices = await stripeRequest<StripeListResponse<StripeInvoice>>(
+    "invoices",
+    stripeSecretKey,
+    new URLSearchParams({
+      subscription: subscriptionId,
+      status: "paid",
+      limit: "1",
+    }),
+  );
+
+  return invoices.data?.[0] ?? null;
+}
+
 async function findOrganizationBySimilarName(
   supabaseAdmin: ReturnType<typeof createClient>,
   customerName: string,
@@ -196,44 +228,59 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const url = Deno.env.get("SUPABASE_URL")!;
-    const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const stripeSecretKey = (Deno.env.get("STRIPE_SECRET_KEY") || "").trim();
+    const url = readEnv(DenoRef.env, "SUPABASE_URL");
+    const anon = readEnv(DenoRef.env, "SUPABASE_ANON_KEY");
+    const service = readEnv(DenoRef.env, "SUPABASE_SERVICE_ROLE_KEY");
+    const stripeSecretKey = readEnv(DenoRef.env, "STRIPE_SECRET_KEY");
 
     if (!stripeSecretKey) {
       return json({ success: false, message: "Configuração ausente: STRIPE_SECRET_KEY", code: "STRIPE_NOT_CONFIGURED" }, 500);
     }
 
-    const authHeader = req.headers.get("Authorization") || "";
-    if (!authHeader.startsWith("Bearer ")) {
-      return json({ success: false, message: "Unauthorized", code: "UNAUTHORIZED" }, 401);
-    }
-
-    const supabaseUser = createClient(url, anon, {
-      global: { headers: { Authorization: authHeader } },
+    const supabaseAdmin = createClient(url, service, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: userData, error: userErr } = await supabaseUser.auth.getUser();
-    if (userErr || !userData?.user?.id) {
-      return json({ success: false, message: "Unauthorized", code: "UNAUTHORIZED" }, 401);
+    const providedApiKey = readEnv({ get: (key: string) => req.headers.get(key) ?? undefined }, "x-api-key");
+    let isCronInvocation = false;
+
+    if (providedApiKey) {
+      const { data: cronAuthorized, error: cronAuthError } = await supabaseAdmin.rpc("verify_billing_sync_cron_api_key", {
+        provided_key: providedApiKey,
+      });
+      if (cronAuthError) {
+        return json({ success: false, message: cronAuthError.message, code: "SERVER_ERROR" }, 500);
+      }
+      isCronInvocation = Boolean(cronAuthorized);
     }
 
-    const { data: isAdmin, error: isAdminErr } = await supabaseUser.rpc("is_system_admin", { _user_id: userData.user.id });
-    if (isAdminErr) {
-      return json({ success: false, message: "Falha ao validar permissões", code: "SERVER_ERROR" }, 500);
-    }
-    if (!isAdmin) {
-      return json({ success: false, message: "Forbidden", code: "FORBIDDEN" }, 403);
+    if (!isCronInvocation) {
+      const authHeader = req.headers.get("Authorization") || "";
+      if (!authHeader.startsWith("Bearer ")) {
+        return json({ success: false, message: "Unauthorized", code: "UNAUTHORIZED" }, 401);
+      }
+
+      const supabaseUser = createClient(url, anon, {
+        global: { headers: { Authorization: authHeader } },
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+
+      const { data: userData, error: userErr } = await supabaseUser.auth.getUser();
+      if (userErr || !userData?.user?.id) {
+        return json({ success: false, message: "Unauthorized", code: "UNAUTHORIZED" }, 401);
+      }
+
+      const { data: isAdmin, error: isAdminErr } = await supabaseUser.rpc("is_system_admin", { _user_id: userData.user.id });
+      if (isAdminErr) {
+        return json({ success: false, message: "Falha ao validar permissões", code: "SERVER_ERROR" }, 500);
+      }
+      if (!isAdmin) {
+        return json({ success: false, message: "Forbidden", code: "FORBIDDEN" }, 403);
+      }
     }
 
     const payload = (await req.json().catch(() => null)) as Payload | null;
     const limit = Math.max(1, Math.min(200, Number(payload?.limit) || 100));
-
-    const supabaseAdmin = createClient(url, service, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
 
     const customers = await stripeRequest<StripeListResponse<StripeCustomer>>(
       "customers",
@@ -321,10 +368,16 @@ Deno.serve(async (req) => {
       );
 
       const relevantSubscription = pickRelevantSubscription(subscriptions.data ?? []);
-      const billingStatus = normalizeNullable(relevantSubscription?.status || null) || "inactive";
-      const currentPeriodEnd = relevantSubscription?.current_period_end
-        ? new Date(relevantSubscription.current_period_end * 1000).toISOString()
+      const latestPaidInvoice = relevantSubscription
+        ? await fetchLatestPaidInvoiceForSubscription(relevantSubscription.id, stripeSecretKey)
         : null;
+      const billingCreditState = resolveBillingCreditState({
+        subscriptionStatus: relevantSubscription?.status || null,
+        currentPeriodEnd: relevantSubscription?.current_period_end ?? null,
+        lastPaidAt: latestPaidInvoice?.status_transitions?.paid_at ?? null,
+      });
+      const billingStatus = normalizeNullable(billingCreditState.effectiveStatus) || "inactive";
+      const currentPeriodEnd = billingCreditState.accessEndsAt;
       const billingPlan = inferBillingPlan(relevantSubscription);
       const organizationStatus = inferOrganizationStatus(billingStatus);
 
@@ -369,6 +422,7 @@ Deno.serve(async (req) => {
 
     return json({
       success: true,
+      mode: isCronInvocation ? "cron" : "manual",
       counts: {
         customers_seen: customers.data?.length ?? 0,
         created,

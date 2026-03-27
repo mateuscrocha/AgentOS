@@ -90,17 +90,32 @@ DenoRef.test("crm-sync-stripe atualiza crm_account e organization vinculada", as
           id: "sub_123",
           customer: "cus_123",
           status: "active",
-          current_period_end: 1767225600,
-          items: { data: [{ price: { nickname: "Growth", recurring: { interval: "month", interval_count: 1 } } }] },
+          current_period_end: 1896048000,
+          items: { data: [{ price: { nickname: "Growth", unit_amount: 129900, recurring: { interval: "month", interval_count: 1 } } }] },
           latest_invoice: {
             id: "in_123",
-            created: 1764547200,
+            created: 1893456000,
             status: "paid",
             amount_paid: 129900,
             amount_due: 129900,
             total: 129900,
             paid: true,
           },
+        }), { status: 200 });
+      }
+      if (url.includes("/v1/invoices?subscription=sub_123&status=paid&limit=1")) {
+        return new Response(JSON.stringify({
+          data: [{
+            id: "in_paid_123",
+            created: 1893456000,
+            status: "paid",
+            amount_paid: 129900,
+            total: 129900,
+            paid: true,
+            status_transitions: {
+              paid_at: 1893456000,
+            },
+          }],
         }), { status: 200 });
       }
       return new Response(JSON.stringify({ error: { message: "not found" } }), { status: 404 });
@@ -115,8 +130,15 @@ DenoRef.test("crm-sync-stripe atualiza crm_account e organization vinculada", as
   assertEquals(updates.length, 2);
   assertEquals(updates[0].table, "crm_accounts");
   assertEquals(updates[1].table, "organizations");
+  assertEquals(updates[0].values.status, "customer");
+  assertEquals(updates[0].values.stage, "customer");
+  assertEquals(updates[0].values.stripe_subscription_status, "active");
+  assertEquals(updates[0].values.stripe_next_billing_at, "2030-01-31T00:00:00.000Z");
+  assertEquals(updates[0].values.stripe_is_delinquent, false);
+  assertEquals(updates[0].values.stripe_monthly_amount_cents, 129900);
   assertEquals(updates[1].values.billing_status, "active");
   assertEquals(updates[1].values.billing_plan, "Growth");
+  assertEquals(updates[1].values.current_period_end, "2030-01-31T00:00:00.000Z");
 });
 
 DenoRef.test("crm-sync-stripe retorna erro claro quando ids Stripe não existem", async () => {

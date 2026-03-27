@@ -2,8 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
+  ArrowRight,
   Building2,
+  Clock3,
   MousePointerClick,
+  ShieldAlert,
+  Sparkles,
+  TrendingUp,
   UserX,
   Users,
 } from "lucide-react";
@@ -13,8 +18,6 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { Button } from "@/components/ui/button";
@@ -32,9 +35,10 @@ import AccessDenied from "./AccessDenied";
 
 type UserActivityStatus = "all" | "active" | "inactive" | "never_logged_in";
 type UserPrimaryRole = "all" | "SYSTEM_ADMIN" | "ORG_ADMIN" | "GROUP_MANAGER" | "USER";
+type OrgStatus = "all" | "engajada" | "ativa" | "morna" | "em_risco" | "abandonada";
 type TabKey = "orgs" | "users";
 
-type OrgOrderBy = "last_login_at" | "last_activity_at" | "org_name" | "logins" | "page_views";
+type OrgOrderBy = "last_login_at" | "last_activity_at" | "org_name" | "status" | "logins" | "page_views";
 type UserOrderBy = "last_seen_at" | "last_login_at" | "user_name" | "page_views";
 
 type KpiRow = {
@@ -99,14 +103,21 @@ function toCount(value: unknown) {
   return Number(value ?? 0);
 }
 
+function toPercent(numerator: number, denominator: number) {
+  if (!denominator) return 0;
+  return Math.round((numerator / denominator) * 100);
+}
+
 function getPageLabel(page: string | null) {
   if (page === "dashboard") return "Dashboard geral";
   if (page === "organizacoes") return "Organizações";
   if (page === "grupos") return "Grupos";
+  if (page === "membros") return "Membros";
   if (page === "mensagens") return "Mensagens";
   if (page === "suporte") return "Suporte";
   if (page === "eventos") return "Eventos";
   if (page === "enquetes") return "Enquetes";
+  if (page === "crm") return "CRM";
   if (page === "configuracoes") return "Configurações";
   if (page === "usuarios") return "Usuários";
   if (page === "relatorios" || page === "resumos") return "Resumos";
@@ -137,6 +148,24 @@ function getUserActivityStatusVariant(status: string): "success" | "warning" | "
   return "neutral";
 }
 
+function getOrgStatusLabel(status: string) {
+  if (status === "engajada") return "Engajada";
+  if (status === "ativa") return "Ativa";
+  if (status === "morna") return "Morna";
+  if (status === "em_risco") return "Em risco";
+  if (status === "abandonada") return "Abandonada";
+  return "Todos";
+}
+
+function getOrgStatusVariant(status: string): "success" | "warning" | "neutral" | "error" {
+  if (status === "engajada") return "success";
+  if (status === "ativa") return "success";
+  if (status === "morna") return "warning";
+  if (status === "em_risco") return "warning";
+  if (status === "abandonada") return "error";
+  return "neutral";
+}
+
 function getPeriodLabel(period: PeriodType, customRange?: DateRange) {
   if (period === "7d") return "Ultimos 7 dias";
   if (period === "30d") return "Ultimos 30 dias";
@@ -159,6 +188,7 @@ export default function SystemActivity() {
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [orgStatus, setOrgStatus] = useState<OrgStatus>("all");
   const [userStatus, setUserStatus] = useState<UserActivityStatus>("all");
   const [userRole, setUserRole] = useState<UserPrimaryRole>("all");
 
@@ -167,7 +197,8 @@ export default function SystemActivity() {
 
   const [orderByOrgs, setOrderByOrgs] = useState<OrgOrderBy>("last_activity_at");
   const [orderByUsers, setOrderByUsers] = useState<UserOrderBy>("last_seen_at");
-  const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
+  const [orgOrderDir, setOrgOrderDir] = useState<"asc" | "desc">("desc");
+  const [userOrderDir, setUserOrderDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 250);
@@ -203,8 +234,9 @@ export default function SystemActivity() {
       startISO,
       endISO,
       debouncedSearch,
+      orgStatus,
       orderByOrgs,
-      orderDir,
+      orgOrderDir,
       orgsPage,
     ],
     queryFn: async () => {
@@ -212,7 +244,7 @@ export default function SystemActivity() {
         _start: startISO,
         _end: endISO,
         _search: debouncedSearch || null,
-        _status: null,
+        _status: orgStatus === "all" ? null : orgStatus,
         _days_since_login_min: null,
         _days_since_login_max: null,
         _days_since_activity_min: null,
@@ -220,7 +252,7 @@ export default function SystemActivity() {
         _score_min: null,
         _score_max: null,
         _order_by: orderByOrgs,
-        _order_dir: orderDir,
+        _order_dir: orgOrderDir,
         _limit: PAGE_SIZE,
         _offset: (orgsPage - 1) * PAGE_SIZE,
       });
@@ -240,7 +272,7 @@ export default function SystemActivity() {
       userStatus,
       userRole,
       orderByUsers,
-      orderDir,
+      userOrderDir,
       usersPage,
     ],
     queryFn: async () => {
@@ -252,7 +284,7 @@ export default function SystemActivity() {
         _status: userStatus === "all" ? null : userStatus,
         _role: userRole === "all" ? null : userRole,
         _order_by: orderByUsers,
-        _order_dir: orderDir,
+        _order_dir: userOrderDir,
         _limit: PAGE_SIZE,
         _offset: (usersPage - 1) * PAGE_SIZE,
       });
@@ -335,7 +367,58 @@ export default function SystemActivity() {
         title: "Sem primeiro login",
         value: toCount(kpis.never_logged_in_users),
         icon: UserX,
-        description: "Usuários criados que ainda não entraram",
+        description: "Usuários cadastrados que ainda não entraram",
+      },
+    ];
+  }, [kpis]);
+
+  const heroMetrics = useMemo(() => {
+    if (!kpis) return null;
+
+    const activeOrgs = toCount(kpis.organizations_with_activity);
+    const totalOrgs = toCount(kpis.organizations_total);
+    const atRiskOrgs = toCount(kpis.orgs_at_risk);
+
+    return {
+      activeOrgs,
+      totalOrgs,
+      atRiskOrgs,
+      adoptionRate: toPercent(activeOrgs, totalOrgs),
+      riskRate: toPercent(atRiskOrgs, totalOrgs),
+    };
+  }, [kpis]);
+
+  const journeySteps = useMemo(() => {
+    if (!kpis) return [];
+
+    return [
+      {
+        key: "first_access_pending",
+        title: "Pendentes do 1o acesso",
+        value: toCount(kpis.never_logged_in_users),
+        tone: "warning" as const,
+        description: "Usuários cadastrados que ainda não cruzaram a barreira inicial.",
+      },
+      {
+        key: "active_week",
+        title: "Operação ativa 7d",
+        value: toCount(kpis.admins_active_7d),
+        tone: "success" as const,
+        description: "Pessoas operacionais com presença real na última semana.",
+      },
+      {
+        key: "inactive_30d",
+        title: "Usuários inativos 30d",
+        value: toCount(kpis.users_inactive_30d),
+        tone: "neutral" as const,
+        description: "Quem já entrou, mas perdeu ritmo de uso.",
+      },
+      {
+        key: "orgs_risk",
+        title: "Organizações em risco",
+        value: toCount(kpis.orgs_at_risk),
+        tone: "error" as const,
+        description: "Contas com sinal fraco de retorno ou abandono.",
       },
     ];
   }, [kpis]);
@@ -344,9 +427,24 @@ export default function SystemActivity() {
     const pages = topPagesQuery.data ?? [];
     return {
       mostUsed: pages.slice(0, 5),
-      leastUsed: [...pages].reverse().slice(0, 5),
+      leastUsed: [...pages]
+        .sort((a, b) => a.page_views - b.page_views || a.admins - b.admins || a.page.localeCompare(b.page, "pt-BR"))
+        .slice(0, 5),
     };
   }, [topPagesQuery.data]);
+
+  const orgListStatusLabel = useMemo(() => {
+    if (search) return "Busca refinada para contas";
+    if (orgStatus !== "all") return `Status: ${getOrgStatusLabel(orgStatus)}`;
+    return "Base observada no período";
+  }, [orgStatus, search]);
+
+  const userListStatusLabel = useMemo(() => {
+    if (search) return "Busca refinada para usuários";
+    if (userStatus !== "all") return `Status: ${getUserActivityStatusLabel(userStatus)}`;
+    if (userRole !== "all") return `Papel: ${getRoleLabel(userRole)}`;
+    return "Base observada no período";
+  }, [search, userRole, userStatus]);
 
   const activeFilterChips = useMemo(() => {
     const items: Array<{ key: string; label: string; onRemove?: () => void }> = [];
@@ -361,10 +459,11 @@ export default function SystemActivity() {
       });
     }
     if (search) items.push({ key: "search", label: `Busca: ${search}`, onRemove: () => setSearch("") });
+    if (orgStatus !== "all") items.push({ key: "orgStatus", label: `Orgs: ${getOrgStatusLabel(orgStatus)}`, onRemove: () => setOrgStatus("all") });
     if (userStatus !== "all") items.push({ key: "userStatus", label: `Usuarios: ${getUserActivityStatusLabel(userStatus)}`, onRemove: () => setUserStatus("all") });
     if (userRole !== "all") items.push({ key: "userRole", label: `Papel: ${getRoleLabel(userRole)}`, onRemove: () => setUserRole("all") });
     return items;
-  }, [customRange, search, selectedPeriod, userRole, userStatus]);
+  }, [customRange, orgStatus, search, selectedPeriod, userRole, userStatus]);
 
   if (authLoading || rolesLoading) {
     return (
@@ -384,6 +483,12 @@ export default function SystemActivity() {
     setUsersPage(1);
   };
 
+  const focusRiskOrgs = () => {
+    setTab("orgs");
+    setOrgStatus("em_risco");
+    setOrgsPage(1);
+  };
+
   const orgColumns = [
     {
       key: "org_name",
@@ -393,7 +498,23 @@ export default function SystemActivity() {
         <div className="min-w-0">
           <div className="font-semibold text-card-foreground truncate">{org.org_name}</div>
           <div className="text-xs text-muted-foreground truncate">{org.org_id}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 md:hidden">
+            <StatusTag variant={getOrgStatusVariant(org.status)}>{getOrgStatusLabel(org.status)}</StatusTag>
+            <span className="text-[11px] text-muted-foreground">{org.logins.toLocaleString("pt-BR")} logins</span>
+            <span className="text-[11px] text-muted-foreground">{org.page_views.toLocaleString("pt-BR")} páginas</span>
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground md:hidden">
+            {org.last_activity_at ? `Última atividade em ${formatDateTimeBR(org.last_activity_at)}` : "Sem atividade recente"}
+          </div>
         </div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      sortable: true,
+      render: (org: OrgIntelligenceRow) => (
+        <StatusTag variant={getOrgStatusVariant(org.status)}>{getOrgStatusLabel(org.status)}</StatusTag>
       ),
     },
     {
@@ -448,6 +569,13 @@ export default function SystemActivity() {
         <div className="min-w-0">
           <div className="font-semibold text-card-foreground truncate">{userRow.user_name}</div>
           <div className="text-xs text-muted-foreground truncate">{userRow.user_id}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 md:hidden">
+            <StatusTag variant={getUserActivityStatusVariant(userRow.activity_status)}>{getUserActivityStatusLabel(userRow.activity_status)}</StatusTag>
+            {userRow.organization_name ? <span className="text-[11px] text-muted-foreground truncate">{userRow.organization_name}</span> : null}
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground md:hidden">
+            {userRow.last_seen_at ? `Última atividade em ${formatDateTimeBR(userRow.last_seen_at)}` : "Sem atividade recente"}
+          </div>
         </div>
       ),
     },
@@ -507,11 +635,13 @@ export default function SystemActivity() {
     selectedPeriod !== "30d" ||
     !!customRange ||
     !!search ||
+    orgStatus !== "all" ||
     userStatus !== "all" ||
     userRole !== "all" ||
     orderByOrgs !== "last_activity_at" ||
     orderByUsers !== "last_seen_at" ||
-    orderDir !== "desc";
+    orgOrderDir !== "desc" ||
+    userOrderDir !== "desc";
 
   return (
     <AdminLayout title="Atividade" subtitle="Central de Comando › Atividade">
@@ -519,7 +649,18 @@ export default function SystemActivity() {
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Atividade" }]}
           title="Comportamento de usuários"
-          description="Leitura direta de quem entrou no sistema, quais organizações e usuários usaram o produto e quais páginas concentram mais e menos uso."
+          description="Acompanhe adoção, retorno e risco de uso com foco no que realmente pede ação dentro da administração."
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" onClick={focusRiskOrgs}>
+                Ver organizações em risco
+              </Button>
+              <Button onClick={focusNeverLoggedUsers} className="gap-2">
+                Ver quem ainda não entrou
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          }
           filters={
             <div className="flex flex-wrap items-center gap-2">
               <PeriodFilter
@@ -546,52 +687,139 @@ export default function SystemActivity() {
             setSelectedPeriod("30d");
             setCustomRange(undefined);
             setSearch("");
+            setOrgStatus("all");
             setUserStatus("all");
             setUserRole("all");
             setOrderByOrgs("last_activity_at");
             setOrderByUsers("last_seen_at");
-            setOrderDir("desc");
+            setOrgOrderDir("desc");
+            setUserOrderDir("desc");
             setOrgsPage(1);
             setUsersPage(1);
           }}
-          generalKpis={
-            primaryCards.length ? (
-              <>
-                {primaryCards.map((card) => {
-                  return (
-                    <StatsCard
-                      key={card.title}
-                      title={card.title}
-                      value={card.value.toLocaleString("pt-BR")}
-                      description={card.description}
-                      icon={card.icon}
-                      variant="kpi"
-                      numericValue
-                      help={{
-                        whatIs: card.description,
-                        howToInterpret: "Ajuda a entender adoção, frequência e risco do uso do produto.",
-                        whatToObserve: "Use junto com as tabelas de organizações, usuários e ranking de páginas.",
-                      }}
-                      valueClassName="font-mono"
-                      titleClassName="max-w-[13ch]"
-                      onClick={card.title === "Sem primeiro login" ? focusNeverLoggedUsers : undefined}
-                    />
-                  );
-                })}
-              </>
-            ) : null
-          }
         />
+
+        {heroMetrics ? (
+          <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(135deg,rgba(255,247,237,0.96)_0%,rgba(255,255,255,0.98)_42%,rgba(255,250,245,0.96)_100%)] p-5 shadow-subtle">
+            <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_top_right,rgba(251,146,60,0.18),transparent_58%)]" />
+            <div className="relative grid gap-5 xl:grid-cols-[1.45fr_1fr]">
+              <div className="space-y-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusTag variant={heroMetrics.riskRate >= 40 ? "error" : heroMetrics.riskRate >= 20 ? "warning" : "success"}>
+                    {heroMetrics.riskRate >= 40 ? "Risco alto no portfólio" : heroMetrics.riskRate >= 20 ? "Atenção moderada" : "Base com retorno saudável"}
+                  </StatusTag>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs text-muted-foreground">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    Leitura orientada por recorrência e risco
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Leitura do período</div>
+                  <h3 className="max-w-3xl text-2xl font-semibold tracking-[-0.03em] text-card-foreground sm:text-[2rem] sm:leading-[1.1]">
+                    {heroMetrics.activeOrgs.toLocaleString("pt-BR")} de {heroMetrics.totalOrgs.toLocaleString("pt-BR")} organizações deram sinal real de uso no recorte.
+                  </h3>
+                  <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                    Esta visão ajuda a separar presença ocasional de uso recorrente, localizar contas em retração e entender quais superfícies realmente puxam a rotina operacional.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-[20px] border border-border/70 bg-background/80 p-4">
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                      <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                      Cobertura ativa
+                    </div>
+                    <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{heroMetrics.adoptionRate}%</div>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Percentual da base organizacional com login ou navegação no período.</p>
+                  </div>
+                  <div className="rounded-[20px] border border-border/70 bg-background/80 p-4">
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                      <ShieldAlert className="h-3.5 w-3.5 text-warning" />
+                      Exposição a risco
+                    </div>
+                    <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{heroMetrics.riskRate}%</div>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Participação de contas em risco ou abandonadas dentro da base total.</p>
+                  </div>
+                  <div className="rounded-[20px] border border-border/70 bg-background/80 p-4">
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                      <Clock3 className="h-3.5 w-3.5 text-primary" />
+                      Próxima prioridade
+                    </div>
+                    <div className="mt-2 text-base font-semibold text-card-foreground">
+                      {toCount(kpis.never_logged_in_users) > 0 ? "Ativação inicial" : "Retenção operacional"}
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {toCount(kpis.never_logged_in_users) > 0
+                        ? "Existem usuários criados que ainda não completaram o primeiro acesso."
+                        : "O foco principal agora é recuperar frequência e aprofundar o uso."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
+                {primaryCards.map((card) => (
+                  <div key={card.title} className="rounded-[22px] border border-border/70 bg-background/82 p-4 shadow-[0_1px_0_rgba(255,255,255,0.75)_inset]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{card.title}</div>
+                        <div className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-card-foreground">{card.value.toLocaleString("pt-BR")}</div>
+                      </div>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-primary/15 bg-primary/[0.08]">
+                        <card.icon className="h-4 w-4 text-primary" />
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{card.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {journeySteps.length ? (
+          <section className="rounded-[24px] border border-border/70 bg-card/95 p-4 shadow-subtle">
+            <div className="flex flex-col gap-2 border-b border-border/70 pb-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Jornada operacional</div>
+                <h3 className="mt-1 text-base font-semibold tracking-[-0.02em] text-card-foreground sm:text-lg">Da ativação inicial ao risco de retorno</h3>
+              </div>
+              <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                Um resumo rápido para entender onde a base trava: entrada, frequência e sinais de abandono.
+              </p>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {journeySteps.map((step) => (
+                <div key={step.key} className="rounded-[20px] border border-border/70 bg-background/70 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{step.title}</div>
+                      <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-card-foreground">{step.value.toLocaleString("pt-BR")}</div>
+                    </div>
+                    <StatusTag variant={step.tone}>
+                      {step.tone === "success" ? "Saudável" : step.tone === "warning" ? "Atenção" : step.tone === "error" ? "Crítico" : "Monitorar"}
+                    </StatusTag>
+                  </div>
+                  <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{step.description}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <FilterChips items={activeFilterChips} onClearAll={showClearFilters ? () => {
           setSelectedPeriod("30d");
           setCustomRange(undefined);
           setSearch("");
+          setOrgStatus("all");
           setUserStatus("all");
           setUserRole("all");
           setOrderByOrgs("last_activity_at");
           setOrderByUsers("last_seen_at");
-          setOrderDir("desc");
+          setOrgOrderDir("desc");
+          setUserOrderDir("desc");
           setOrgsPage(1);
           setUsersPage(1);
         } : undefined} className="-mt-2" />
@@ -603,23 +831,19 @@ export default function SystemActivity() {
         </div>
       ) : null}
 
-        <section className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <section className="space-y-4">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Resumo do uso</div>
-              <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-card-foreground">Quem entrou e onde navegou</h3>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                A leitura abaixo prioriza presença real no sistema: organizações com acesso, usuários que entraram e as páginas que concentram mais e menos uso.
-              </p>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Superfícies de navegação</div>
+              <h3 className="mt-1 text-xl font-semibold tracking-[-0.02em] text-card-foreground">Onde a atenção se concentra e onde ela some</h3>
             </div>
-            <Button variant="outline" onClick={focusNeverLoggedUsers}>
-              Ver quem ainda não entrou
-            </Button>
+            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Páginas muito usadas revelam rotina operacional. Páginas pouco acessadas ajudam a localizar áreas escondidas, pouco validadas ou com baixo valor percebido.
+            </p>
           </div>
-        </section>
 
-        <section className="grid gap-4 xl:grid-cols-2">
-          <div className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
+          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-[24px] border border-border/70 bg-card/95 p-5 shadow-subtle">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Páginas</div>
@@ -629,11 +853,14 @@ export default function SystemActivity() {
             </div>
             <div className="space-y-3">
               {pageHighlights.mostUsed.map((page, index) => (
-                <div key={`${page.page}:${index}`} className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4">
+                <div key={`${page.page}:${index}`} className="rounded-[20px] border border-border/70 bg-secondary/20 p-4 transition-colors hover:bg-secondary/30">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-card-foreground">{getPageLabel(page.page)}</div>
-                      <div className="text-xs text-muted-foreground">{page.admins.toLocaleString("pt-BR")} usuários navegaram por aqui</div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/[0.08] text-[11px] font-semibold text-primary">{index + 1}</div>
+                        <div className="text-sm font-semibold text-card-foreground">{getPageLabel(page.page)}</div>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">{page.admins.toLocaleString("pt-BR")} usuários passaram por aqui</div>
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-semibold text-card-foreground">{page.page_views.toLocaleString("pt-BR")}</div>
@@ -650,7 +877,7 @@ export default function SystemActivity() {
             </div>
           </div>
 
-          <div className="rounded-[var(--radius-xl)] border border-border/70 bg-card/95 p-5 shadow-subtle">
+          <div className="rounded-[24px] border border-border/70 bg-card/95 p-5 shadow-subtle">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Páginas</div>
@@ -660,11 +887,14 @@ export default function SystemActivity() {
             </div>
             <div className="space-y-3">
               {pageHighlights.leastUsed.map((page, index) => (
-                <div key={`${page.page}:least:${index}`} className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4">
+                <div key={`${page.page}:least:${index}`} className="rounded-[20px] border border-border/70 bg-secondary/20 p-4 transition-colors hover:bg-secondary/30">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-card-foreground">{getPageLabel(page.page)}</div>
-                      <div className="text-xs text-muted-foreground">{page.admins.toLocaleString("pt-BR")} usuários navegaram por aqui</div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">{index + 1}</div>
+                        <div className="text-sm font-semibold text-card-foreground">{getPageLabel(page.page)}</div>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">{page.admins.toLocaleString("pt-BR")} usuários passaram por aqui</div>
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-semibold text-card-foreground">{page.page_views.toLocaleString("pt-BR")}</div>
@@ -680,6 +910,7 @@ export default function SystemActivity() {
               ) : null}
             </div>
           </div>
+          </div>
         </section>
 
         <Tabs value={tab} onValueChange={(value) => setTab(value as TabKey)} className="space-y-3">
@@ -689,7 +920,35 @@ export default function SystemActivity() {
           </TabsList>
 
           <TabsContent value="orgs" className="mt-0 space-y-0">
+            <div className="mb-2 flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Leitura por organização</div>
+                <h3 className="mt-1 text-base font-semibold tracking-[-0.02em] text-card-foreground sm:text-lg">Quem voltou, quem esfriou e quem já pede intervenção</h3>
+              </div>
+              <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                Use status, último sinal e navegação para separar conta saudável de conta sem recorrência.
+              </p>
+            </div>
             <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-3 shadow-subtle">
+              <Select
+                value={orgStatus}
+                onValueChange={(value) => {
+                  setOrgStatus(value as OrgStatus);
+                  setOrgsPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[190px]" aria-label="Status das organizações">
+                  <SelectValue placeholder="Todos os status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="engajada">Engajadas</SelectItem>
+                  <SelectItem value="ativa">Ativas</SelectItem>
+                  <SelectItem value="morna">Mornas</SelectItem>
+                  <SelectItem value="em_risco">Em risco</SelectItem>
+                  <SelectItem value="abandonada">Abandonadas</SelectItem>
+                </SelectContent>
+              </Select>
               <Select
                 value={orderByOrgs}
                 onValueChange={(value) => setOrderByOrgs(value as OrgOrderBy)}
@@ -706,8 +965,8 @@ export default function SystemActivity() {
                 </SelectContent>
               </Select>
               <Select
-                value={orderDir}
-                onValueChange={(value) => setOrderDir(value as "asc" | "desc")}
+                value={orgOrderDir}
+                onValueChange={(value) => setOrgOrderDir(value as "asc" | "desc")}
               >
                 <SelectTrigger className="w-[150px]" aria-label="Direção da ordenação">
                   <SelectValue placeholder="Direção" />
@@ -720,9 +979,9 @@ export default function SystemActivity() {
             </div>
             <ListSectionHeader
               className="mb-3"
-              title="Organizações que acessaram o sistema"
+              title="Contas com sinal de uso"
               count={typeof orgsQuery.data?.total === "number" ? orgsQuery.data.total.toLocaleString("pt-BR") : "—"}
-              statusLabel={search ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.periodRecords}
+              statusLabel={orgListStatusLabel}
               isLoading={orgsQuery.isLoading}
             />
             <BorisTable
@@ -736,11 +995,11 @@ export default function SystemActivity() {
               loading={orgsQuery.isLoading}
               error={!!orgsQuery.error}
               sortMode="manual"
-              sortState={{ key: orderByOrgs, direction: orderDir }}
+              sortState={{ key: orderByOrgs, direction: orgOrderDir }}
               onSortChange={(sort) => {
-                if (!sort || !["org_name", "logins", "page_views", "last_login_at", "last_activity_at"].includes(sort.key)) return;
+                if (!sort || !["org_name", "status", "logins", "page_views", "last_login_at", "last_activity_at"].includes(sort.key)) return;
                 setOrderByOrgs(sort.key as OrgOrderBy);
-                setOrderDir(sort.direction);
+                setOrgOrderDir(sort.direction);
                 setOrgsPage(1);
               }}
               emptyIcon={Building2}
@@ -749,6 +1008,15 @@ export default function SystemActivity() {
           </TabsContent>
 
           <TabsContent value="users" className="mt-0 space-y-0">
+            <div className="mb-2 flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Leitura por usuário</div>
+                <h3 className="mt-1 text-base font-semibold tracking-[-0.02em] text-card-foreground sm:text-lg">Quem está ativo, quem nunca entrou e quem perdeu tração</h3>
+              </div>
+              <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                Priorize reativação de inativos e remova atrito de quem ainda não completou o primeiro acesso.
+              </p>
+            </div>
             <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-3 shadow-subtle">
               <Select
                 value={userStatus}
@@ -800,8 +1068,8 @@ export default function SystemActivity() {
                 </SelectContent>
               </Select>
               <Select
-                value={orderDir}
-                onValueChange={(value) => setOrderDir(value as "asc" | "desc")}
+                value={userOrderDir}
+                onValueChange={(value) => setUserOrderDir(value as "asc" | "desc")}
               >
                 <SelectTrigger className="w-[150px]" aria-label="Direção da ordenação">
                   <SelectValue placeholder="Direção" />
@@ -814,9 +1082,9 @@ export default function SystemActivity() {
             </div>
             <ListSectionHeader
               className="mb-3"
-              title="Usuários e páginas utilizadas"
+              title="Usuários e tração de uso"
               count={typeof usersQuery.data?.total === "number" ? usersQuery.data.total.toLocaleString("pt-BR") : "—"}
-              statusLabel={search ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.periodRecords}
+              statusLabel={userListStatusLabel}
               isLoading={usersQuery.isLoading}
             />
             <BorisTable
@@ -830,11 +1098,11 @@ export default function SystemActivity() {
               loading={usersQuery.isLoading}
               error={!!usersQuery.error}
               sortMode="manual"
-              sortState={{ key: orderByUsers, direction: orderDir }}
+              sortState={{ key: orderByUsers, direction: userOrderDir }}
               onSortChange={(sort) => {
                 if (!sort || !["user_name", "page_views", "last_login_at", "last_seen_at"].includes(sort.key)) return;
                 setOrderByUsers(sort.key as UserOrderBy);
-                setOrderDir(sort.direction);
+                setUserOrderDir(sort.direction);
                 setUsersPage(1);
               }}
               emptyIcon={Users}

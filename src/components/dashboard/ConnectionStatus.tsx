@@ -1,13 +1,23 @@
-import { CheckCircle, XCircle, AlertCircle, Database, Shield, Zap } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { AlertCircle, CheckCircle, Database, RefreshCcw, TriangleAlert, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface StatusItem {
   label: string;
   status: "connected" | "disconnected" | "warning";
   icon: React.ElementType;
+  detail: string;
 }
+
+type SyncOverview = {
+  dbStatus: "connected" | "disconnected" | "warning";
+  totalGroups: number;
+  activeGroups: number;
+  pendingGroups: number;
+  errorGroups: number;
+  synced24h: number;
+};
 
 const statusConfig = {
   connected: {
@@ -30,38 +40,135 @@ const statusConfig = {
   },
 };
 
-export function ConnectionStatus() {
-  const [dbStatus, setDbStatus] = useState<"connected" | "disconnected" | "warning">("disconnected");
-  const [checking, setChecking] = useState(true);
+const FALLBACK_OVERVIEW: SyncOverview = {
+  dbStatus: "disconnected",
+  totalGroups: 0,
+  activeGroups: 0,
+  pendingGroups: 0,
+  errorGroups: 0,
+  synced24h: 0,
+};
 
-  useEffect(() => {
-    async function checkConnection() {
+export function ConnectionStatus() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["connection-status-overview"],
+    queryFn: async (): Promise<SyncOverview> => {
       try {
-        // Simple health check - try to access auth
-        const { error } = await supabase.auth.getSession();
-        if (error) {
-          setDbStatus("warning");
-        } else {
-          setDbStatus("connected");
-        }
+        const { error: sessionError } = await supabase.auth.getSession();
+        const dbStatus = sessionError ? "warning" : "connected";
+
+        const { data: groups, error: groupsError } = await supabase
+          .from("groups")
+          .select("id, sync_status, last_sync_at, sync_error")
+          .is("deleted_at", null);
+
+        if (groupsError) throw groupsError;
+
+        const rows = groups ?? [];
+        const now = Date.now();
+        const dayMs = 24 * 60 * 60 * 1000;
+
+        const synced24h = rows.filter((row) => {
+          if (!row.last_sync_at) return false;
+          const lastSyncMs = new Date(row.last_sync_at).getTime();
+          return Number.isFinite(lastSyncMs) && now - lastSyncMs <= dayMs;
+        }).length;
+
+        const activeGroups = rows.filter((row) => row.sync_status === "active").length;
+        const errorGroups = rows.filter((row) => row.sync_status === "error" || !!String(row.sync_error ?? "").trim()).length;
+        const pendingGroups = rows.length - activeGroups - errorGroups;
+
+        return {
+          dbStatus,
+          totalGroups: rows.length,
+          activeGroups,
+          pendingGroups,
+          errorGroups,
+          synced24h,
+        };
       } catch {
-        setDbStatus("disconnected");
-      } finally {
-        setChecking(false);
+        return FALLBACK_OVERVIEW;
       }
-    }
-    checkConnection();
-  }, []);
+    },
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const overview = data ?? FALLBACK_OVERVIEW;
+  const checking = isLoading && !data;
+
+  const ingestionStatus: StatusItem["status"] =
+    overview.dbStatus === "disconnected"
+      ? "disconnected"
+      : overview.errorGroups > 0
+        ? "disconnected"
+        : overview.synced24h > 0
+          ? "connected"
+          : "warning";
+
+  const coverageStatus: StatusItem["status"] =
+    overview.dbStatus === "disconnected"
+      ? "disconnected"
+      : overview.pendingGroups > 0
+        ? "warning"
+        : "connected";
+
+  const failuresStatus: StatusItem["status"] =
+    overview.dbStatus === "disconnected"
+      ? "disconnected"
+      : overview.errorGroups > 0
+        ? "disconnected"
+        : "connected";
 
   const statusItems: StatusItem[] = [
-    { label: "Supabase Database", status: dbStatus, icon: Database },
-    { label: "Row Level Security", status: dbStatus === "connected" ? "warning" : "disconnected", icon: Shield },
-    { label: "Realtime", status: dbStatus, icon: Zap },
+    {
+      label: "Supabase",
+      status: overview.dbStatus,
+      icon: Database,
+      detail: overview.dbStatus === "connected" ? "Base acessível" : "Verificar conexão",
+    },
+    {
+      label: "Ingestão 24h",
+      status: ingestionStatus,
+      icon: RefreshCcw,
+      detail: `${overview.synced24h} grupo(s) tocaram sync nas últimas 24h`,
+    },
+    {
+      label: "Cobertura de Sync",
+      status: coverageStatus,
+      icon: TriangleAlert,
+      detail: `${overview.activeGroups}/${overview.totalGroups} grupo(s) com status ativo`,
+    },
+    {
+      label: "Falhas Registradas",
+      status: failuresStatus,
+      icon: XCircle,
+      detail: overview.errorGroups > 0 ? `${overview.errorGroups} grupo(s) com erro` : "Nenhum erro salvo",
+    },
   ];
+
+  const summaryClassName =
+    overview.dbStatus === "disconnected"
+      ? "border-warning/30 bg-warning/5 text-warning"
+      : overview.errorGroups > 0 || overview.pendingGroups > 0
+        ? "border-warning/30 bg-warning/5 text-warning"
+        : "border-success/30 bg-success/5 text-success";
+
+  const summaryText =
+    overview.dbStatus === "disconnected"
+      ? "Nao foi possivel validar a saude da sincronizacao agora."
+      : overview.errorGroups > 0
+        ? `${overview.errorGroups} grupo(s) com falha registrada e ${overview.pendingGroups} pendente(s).`
+        : overview.pendingGroups > 0
+          ? `${overview.pendingGroups} grupo(s) ainda pendente(s) de sincronizacao.`
+          : "Todos os grupos monitorados estao com sync ativo.";
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-card animate-fade-in">
-      <h3 className="text-sm font-semibold text-card-foreground mb-4">Status da Conexão</h3>
+      <h3 className="mb-1 text-sm font-semibold text-card-foreground">Status da Sincronizacao</h3>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Saude operacional da ingestao e do status de sync dos grupos.
+      </p>
       <div className="space-y-3">
         {statusItems.map((item) => {
           const config = statusConfig[item.status];
@@ -73,9 +180,12 @@ export function ConnectionStatus() {
             >
               <div className="flex items-center gap-3">
                 <item.icon className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm font-medium text-card-foreground">
-                  {item.label}
-                </span>
+                <div>
+                  <span className="text-sm font-medium text-card-foreground">
+                    {item.label}
+                  </span>
+                  <p className="text-xs text-muted-foreground">{item.detail}</p>
+                </div>
               </div>
               <div className={cn("flex items-center gap-2 rounded-full px-2.5 py-1", config.bg)}>
                 {checking ? (
@@ -93,20 +203,9 @@ export function ConnectionStatus() {
           );
         })}
       </div>
-      {dbStatus === "connected" && !checking && (
-        <div className="mt-4 rounded-lg border border-success/30 bg-success/5 p-3">
-          <p className="text-xs text-success">
-            ✓ Projeto Supabase conectado: Central de Comando
-          </p>
-        </div>
-      )}
-      {dbStatus !== "connected" && !checking && (
-        <div className="mt-4 rounded-lg border border-warning/30 bg-warning/5 p-3">
-          <p className="text-xs text-warning">
-            ⚠️ Verifique a conexão com o Supabase.
-          </p>
-        </div>
-      )}
+      <div className={cn("mt-4 rounded-lg border p-3", summaryClassName)}>
+        <p className="text-xs">{summaryText}</p>
+      </div>
     </div>
   );
 }

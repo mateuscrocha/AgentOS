@@ -54,6 +54,11 @@ function extractHour(value: string | null | undefined) {
   return match ? match[1] : "";
 }
 
+function isGroupPaused(group: { is_active?: boolean | null; status?: string | null }) {
+  if (group.is_active === false) return true;
+  return String(group.status || "").trim().toLowerCase() === "inactive";
+}
+
 type Deps = {
   createClientImpl?: typeof createClient;
   env?: { get: (key: string) => string | undefined };
@@ -109,9 +114,8 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
 
       const { data, error } = await (supabase as any)
         .from("groups")
-        .select("id, name, is_active, group_settings!inner(daily_summary_enabled,daily_summary_time,daily_topics_enabled)")
-        .eq("is_active", true)
-        .eq("group_settings.daily_summary_enabled", true);
+        .select("id, name, is_active, status, group_settings!inner(daily_summary_enabled,daily_summary_time,daily_topics_enabled)")
+        .eq("is_active", true);
 
       if (error) {
         return json({ success: false, code: "GROUPS_LOOKUP_FAILED", message: error.message }, 500);
@@ -120,12 +124,13 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
       const groups = Array.isArray(data) ? data : [];
       const dueGroups = groups.filter((group) => {
         const settings = Array.isArray(group.group_settings) ? group.group_settings[0] : group.group_settings;
-        return extractHour(settings?.daily_summary_time) === currentHour;
+        return !isGroupPaused(group) && extractHour(settings?.daily_summary_time) === currentHour;
       });
 
       const results: Array<Record<string, unknown>> = [];
 
       for (const group of dueGroups) {
+        const settings = Array.isArray(group.group_settings) ? group.group_settings[0] : group.group_settings;
         const internalReq = new Request("http://internal/functions/v1/generate-group-summary", {
           method: "POST",
           headers: {
@@ -135,7 +140,7 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
           body: JSON.stringify({
             groupId: group.id,
             summaryDate,
-            sendToGroup: true,
+            sendToGroup: Boolean(settings?.daily_summary_enabled),
           }),
         });
 
@@ -152,28 +157,25 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
           },
         });
 
-        const settings = Array.isArray(group.group_settings) ? group.group_settings[0] : group.group_settings;
-        if (settings?.daily_topics_enabled) {
-          const topicsReq = new Request("http://internal/functions/v1/generate-group-topics-keywords", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": inboundApiKey,
-            },
-            body: JSON.stringify({
-              groupId: group.id,
-              targetDate: summaryDate,
-            }),
-          });
+        const topicsReq = new Request("http://internal/functions/v1/generate-group-topics-keywords", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": inboundApiKey,
+          },
+          body: JSON.stringify({
+            groupId: group.id,
+            targetDate: summaryDate,
+          }),
+        });
 
-          const topicsRes = await topicsKeywordsHandler(topicsReq);
-          const topicsPayload = await topicsRes.json().catch(() => null);
-          results[results.length - 1].topicsKeywords = {
-            ok: topicsRes.ok,
-            status: topicsRes.status,
-            payload: topicsPayload,
-          };
-        }
+        const topicsRes = await topicsKeywordsHandler(topicsReq);
+        const topicsPayload = await topicsRes.json().catch(() => null);
+        results[results.length - 1].topicsKeywords = {
+          ok: topicsRes.ok,
+          status: topicsRes.status,
+          payload: topicsPayload,
+        };
       }
 
       return json({

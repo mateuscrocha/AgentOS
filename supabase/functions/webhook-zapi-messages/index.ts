@@ -273,10 +273,13 @@ export function createWebhookZapiMessagesHandler(deps?: {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let supabase: any = null;
+  let syncedGroupId: string | null = null;
+
   try {
     const supabaseUrl = env.get('SUPABASE_URL')!;
     const serviceKey = env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClientImpl(supabaseUrl, serviceKey, {
+    supabase = createClientImpl(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
@@ -352,6 +355,7 @@ export function createWebhookZapiMessagesHandler(deps?: {
 
     const group = await getGroup();
     const groupId = group?.id || null;
+    syncedGroupId = groupId;
     if (!groupId) {
       return new Response(
         JSON.stringify({
@@ -1312,6 +1316,21 @@ export function createWebhookZapiMessagesHandler(deps?: {
   } catch (err) {
     console.error('webhook-zapi-messages error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';
+
+    if (supabase && syncedGroupId) {
+      try {
+        await supabase
+          .from('groups')
+          .update({
+            sync_status: 'error',
+            sync_error: message.slice(0, 1000),
+          })
+          .eq('id', syncedGroupId);
+      } catch (syncUpdateError) {
+        console.error('webhook-zapi-messages failed to persist sync error:', syncUpdateError);
+      }
+    }
+
     return new Response(
       JSON.stringify({ success: false, error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

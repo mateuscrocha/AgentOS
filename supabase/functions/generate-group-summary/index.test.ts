@@ -139,6 +139,7 @@ DenoRef.test("generate-group-summary gera SHORT, salva no banco e envia ao grupo
         if (key === "SUPABASE_URL") return "http://localhost:8000";
         if (key === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         if (key === "GROUP_AI_CRON_API_KEY") return "cron-key";
+        if (key === "GROUP_AI_SEND_ENABLED") return "true";
         if (key === "OPENAI_API_KEY") return "sk-test";
         if (key === "ZAPI_INSTANCE") return "instance-1";
         if (key === "ZAPI_TOKEN") return "token-1";
@@ -193,6 +194,9 @@ DenoRef.test("generate-group-summary gera SHORT, salva no banco e envia ao grupo
   assertEquals(openAiPrompt.includes("Grupo Teste"), true);
   assertEquals(openAiPrompt.includes("Falamos de onboarding"), true);
   assertEquals(sentMessage, "*Resumo curto* da conversa");
+  assertEquals(body.sendRequested, true);
+  assertEquals(body.deliveryEnabled, true);
+  assertEquals(body.sentToGroup, true);
 });
 
 DenoRef.test("generate-group-summary usa MARGED quando os dois últimos resumos são SHORT", async () => {
@@ -204,6 +208,7 @@ DenoRef.test("generate-group-summary usa MARGED quando os dois últimos resumos 
         if (key === "SUPABASE_URL") return "http://localhost:8000";
         if (key === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         if (key === "GROUP_AI_CRON_API_KEY") return "cron-key";
+        if (key === "GROUP_AI_SEND_ENABLED") return "true";
         if (key === "OPENAI_API_KEY") return "sk-test";
         return undefined;
       },
@@ -257,4 +262,109 @@ DenoRef.test("generate-group-summary usa MARGED quando os dois últimos resumos 
   assertEquals(body.summaryType, "MARGED");
   assertEquals(summaryUpserts[0].metadata.summary_type, "MARGED");
   assertEquals(summaryUpserts[0].metadata.prompt_key, GROUP_AI_PROMPT_KEYS.summaryMarged);
+});
+
+DenoRef.test("generate-group-summary salva resumo mas bloqueia envio quando entrega global está desligada", async () => {
+  const summaryUpserts: any[] = [];
+  let sendAttempts = 0;
+
+  const handler = createGenerateGroupSummaryHandler({
+    env: {
+      get: (key: string) => {
+        if (key === "SUPABASE_URL") return "http://localhost:8000";
+        if (key === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (key === "GROUP_AI_CRON_API_KEY") return "cron-key";
+        if (key === "OPENAI_API_KEY") return "sk-test";
+        if (key === "ZAPI_INSTANCE") return "instance-1";
+        if (key === "ZAPI_TOKEN") return "token-1";
+        if (key === "ZAPI_CLIENT_TOKEN") return "client-token-1";
+        return undefined;
+      },
+    },
+    now: () => new Date("2026-03-24T18:00:00.000Z"),
+    createClientImpl: makeCreateClientStub({
+      group: {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Grupo Teste",
+        description: "Comunidade de produto",
+        provider_phone: "5511999990000-group",
+      },
+      last24Messages: [
+        { message_created_at: "2026-03-24T14:00:00.000Z", text: "Falamos de onboarding", display_name: "Ana" },
+        { message_created_at: "2026-03-24T13:00:00.000Z", text: "Também teve tema de automação", display_name: "Bruno" },
+      ],
+      recentMessages: [
+        { message_created_at: "2026-03-24T14:00:00.000Z", text: "Falamos de onboarding", display_name: "Ana" },
+      ],
+      previousSummaries: [],
+      summaryUpserts,
+      promptUpserts: [],
+    }) as any,
+    fetchImpl: (async (input: string | URL) => {
+      const url = String(input);
+      if (url.includes("/v1/responses")) {
+        return new Response(JSON.stringify({ output_text: "## *Resumo curto* da conversa" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      sendAttempts += 1;
+      return new Response(JSON.stringify({ sent: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as any,
+  });
+
+  const res = await handler(makeReq({ groupId: "11111111-1111-4111-8111-111111111111" }));
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals(summaryUpserts.length, 1);
+  assertEquals(body.sendRequested, true);
+  assertEquals(body.deliveryEnabled, false);
+  assertEquals(body.sentToGroup, false);
+  assertEquals(sendAttempts, 0);
+});
+
+DenoRef.test("generate-group-summary ignora grupo pausado", async () => {
+  const summaryUpserts: any[] = [];
+
+  const handler = createGenerateGroupSummaryHandler({
+    env: {
+      get: (key: string) => {
+        if (key === "SUPABASE_URL") return "http://localhost:8000";
+        if (key === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (key === "GROUP_AI_CRON_API_KEY") return "cron-key";
+        if (key === "OPENAI_API_KEY") return "sk-test";
+        return undefined;
+      },
+    },
+    now: () => new Date("2026-03-24T18:00:00.000Z"),
+    createClientImpl: makeCreateClientStub({
+      group: {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Grupo Pausado",
+        description: "Comunidade de produto",
+        provider_phone: "5511999990000-group",
+        is_active: false,
+        status: "inactive",
+      },
+      last24Messages: [],
+      recentMessages: [],
+      previousSummaries: [],
+      summaryUpserts,
+      promptUpserts: [],
+    }) as any,
+    fetchImpl: (async () => {
+      throw new Error("nao deveria chamar fetch");
+    }) as any,
+  });
+
+  const res = await handler(makeReq({ groupId: "11111111-1111-4111-8111-111111111111" }));
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals(body.skipped, true);
+  assertEquals(body.code, "GROUP_PAUSED");
+  assertEquals(summaryUpserts.length, 0);
 });

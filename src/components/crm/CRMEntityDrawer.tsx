@@ -8,20 +8,18 @@ import {
   CRM_STAGE_META,
   CRM_TASK_TYPE_META,
   getAccountFinanceSummary,
+  getAccountMonthlyValue,
   getAccountStripeSyncState,
   getContactFullName,
   type CRMAccount,
   type CRMContact,
-  type CRMOpportunity,
   type CRMProfileOption,
   type CRMTimelineItem,
 } from "@/hooks/use-crm";
 import { cn } from "@/lib/utils";
 import { Building2, CalendarClock, CheckCircle2, Circle, Coins, FileText, ListTodo, Pencil, Plus, RefreshCw, Trash2, UserCircle2 } from "lucide-react";
 
-type EntityTarget =
-  | { type: "account"; account: CRMAccount }
-  | { type: "opportunity"; opportunity: CRMOpportunity; account: CRMAccount | null };
+type EntityTarget = { type: "account"; account: CRMAccount };
 
 function formatDateTime(value?: string | null) {
   if (!value) return "Sem data";
@@ -46,6 +44,7 @@ export function CRMEntityDrawer({
   profiles,
   onEditEntity,
   onSyncStripe,
+  onAddContact,
   onAddTimelineItem,
   onEditTimelineItem,
   onDeleteTimelineItem,
@@ -60,6 +59,7 @@ export function CRMEntityDrawer({
   profiles: CRMProfileOption[];
   onEditEntity: () => void;
   onSyncStripe: () => void;
+  onAddContact: () => void;
   onAddTimelineItem: (itemType?: "note" | "task" | "next_step") => void;
   onEditTimelineItem: (item: CRMTimelineItem) => void;
   onDeleteTimelineItem: (item: CRMTimelineItem) => void;
@@ -67,9 +67,9 @@ export function CRMEntityDrawer({
 }) {
   const profileNameById = new Map(profiles.map((profile) => [profile.id, profile.name || "Sem nome"]));
 
-  const account = entity?.type === "account" ? entity.account : entity?.account ?? null;
-  const opportunity = entity?.type === "opportunity" ? entity.opportunity : null;
+  const account = entity?.account ?? null;
   const finance = account ? getAccountFinanceSummary(account) : null;
+  const monthlyValue = account ? getAccountMonthlyValue(account) : null;
   const stripeSync = account ? getAccountStripeSyncState(account) : null;
 
   return (
@@ -81,12 +81,10 @@ export function CRMEntityDrawer({
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                   <SheetTitle className="text-xl">
-                    {entity.type === "account" ? entity.account.name : entity.opportunity.name}
+                    {entity.account.name}
                   </SheetTitle>
                   <SheetDescription>
-                    {entity.type === "account"
-                      ? "Contexto comercial da conta, com histórico, pessoas e leitura operacional do cliente."
-                      : "Detalhe da oportunidade com resumo comercial e linha do tempo do follow-up."}
+                    {"Contexto comercial da conta, com histórico, pessoas e leitura operacional do cliente."}
                   </SheetDescription>
                 </div>
                 <div className="flex gap-2">
@@ -117,6 +115,9 @@ export function CRMEntityDrawer({
                       <p>{account?.phone || "Sem telefone"}</p>
                       {account ? (
                         <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className={cn("mt-1 border", CRM_STAGE_META[account.stage].tone)}>
+                            {CRM_STAGE_META[account.stage].label}
+                          </Badge>
                           <Badge variant="outline" className={cn("mt-1 border", CRM_ACCOUNT_STATUS_META[account.status].tone)}>
                             {CRM_ACCOUNT_STATUS_META[account.status].label}
                           </Badge>
@@ -146,6 +147,7 @@ export function CRMEntityDrawer({
                           >
                             {finance.label}
                           </Badge>
+                          <p>Mensalidade: {formatCurrency(monthlyValue)}</p>
                           <p>Última cobrança: {finance.lastChargeAt ? formatDateTime(finance.lastChargeAt) : "Sem sync ainda"}</p>
                           <p>Valor: {finance.amountCents != null ? formatCurrency(finance.amountCents / 100) : "Sem sync ainda"}</p>
                           <p>Vencimento: {finance.nextBillingAt ? formatDateTime(finance.nextBillingAt) : "Sem data"}</p>
@@ -163,47 +165,57 @@ export function CRMEntityDrawer({
                     </div>
                   </div>
 
-                  {opportunity ? (
+                  {account ? (
                     <div className="rounded-[var(--radius-lg)] border border-border/80 bg-card p-4 shadow-subtle sm:col-span-2">
                       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
                         <FileText className="h-4 w-4 text-primary" />
-                        Resumo da oportunidade
+                        Contexto comercial
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <div>
                           <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Etapa</p>
-                          <Badge variant="outline" className={cn("mt-1 border", CRM_STAGE_META[opportunity.stage].tone)}>
-                            {CRM_STAGE_META[opportunity.stage].label}
+                          <Badge variant="outline" className={cn("mt-1 border", CRM_STAGE_META[account.stage].tone)}>
+                            {CRM_STAGE_META[account.stage].label}
                           </Badge>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Valor</p>
-                          <p className="mt-1 text-sm font-medium text-foreground">{formatCurrency(opportunity.potential_value)}</p>
+                          <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Mensalidade</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">{formatCurrency(monthlyValue)}</p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Data alvo</p>
-                          <p className="mt-1 text-sm font-medium text-foreground">{opportunity.target_date || "Sem data"}</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">{account.target_date || "Sem data"}</p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Responsável</p>
-                          <p className="mt-1 text-sm font-medium text-foreground">{opportunity.owner_user_id ? profileNameById.get(opportunity.owner_user_id) : "Sem responsável"}</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">{account.assigned_user_id ? profileNameById.get(account.assigned_user_id) : "Sem responsável"}</p>
                         </div>
                       </div>
-                      {(opportunity.need || opportunity.next_step || opportunity.notes) ? (
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Último contato</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">{formatDateTime(account.last_contact_at)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Próxima ação</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">{formatDateTime(account.next_action_at)}</p>
+                        </div>
+                      </div>
+                      {(account.need || account.next_step || account.quick_notes) ? (
                         <>
                           <Separator className="my-4" />
                           <div className="grid gap-4 sm:grid-cols-3">
                             <div className="space-y-1">
                               <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Necessidade</p>
-                              <p className="text-sm text-foreground">{opportunity.need || "Sem contexto"}</p>
+                              <p className="text-sm text-foreground">{account.need || "Sem contexto"}</p>
                             </div>
                             <div className="space-y-1">
                               <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Próximo passo</p>
-                              <p className="text-sm text-foreground">{opportunity.next_step || "Sem próximo passo"}</p>
+                              <p className="text-sm text-foreground">{account.next_step || "Sem próximo passo"}</p>
                             </div>
                             <div className="space-y-1">
                               <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Observações</p>
-                              <p className="text-sm text-foreground">{opportunity.notes || "Sem observações"}</p>
+                              <p className="text-sm text-foreground">{account.quick_notes || "Sem observações"}</p>
                             </div>
                           </div>
                         </>
@@ -216,10 +228,20 @@ export function CRMEntityDrawer({
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">Pessoas e carteira</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {entity.type === "account" ? "Contatos e oportunidades vinculadas." : "Relacionamentos úteis para mover a negociação."}
-                      </p>
+                      <p className="text-sm text-muted-foreground">Contatos e contexto comercial vinculados.</p>
                     </div>
+                    {entity ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={onAddContact}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Contato
+                        </Button>
+                        <Button size="sm" onClick={onEditEntity}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Atualizar conta
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2">

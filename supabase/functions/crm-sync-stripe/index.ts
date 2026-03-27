@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { resolveBillingCreditState } from "../../../src/lib/billing-credit.ts";
 
 const DenoRef = (globalThis as any).Deno;
 
@@ -19,6 +20,7 @@ type StripeSubscription = {
       price?: {
         id?: string;
         nickname?: string | null;
+        unit_amount?: number | null;
         recurring?: { interval?: string | null; interval_count?: number | null } | null;
       } | null;
     }>;
@@ -34,6 +36,9 @@ type StripeInvoice = {
   amount_due: number | null;
   total: number | null;
   paid: boolean | null;
+  status_transitions?: {
+    paid_at?: number | null;
+  } | null;
 };
 
 type CRMAccountRow = {
@@ -88,6 +93,25 @@ function buildBillingPlan(subscription: StripeSubscription) {
   return interval;
 }
 
+function buildMonthlyAmountCents(subscription: StripeSubscription, fallbackAmountCents: number | null) {
+  const price = subscription.items?.data?.[0]?.price;
+  const unitAmount = price?.unit_amount ?? null;
+  const interval = price?.recurring?.interval;
+  const intervalCount = price?.recurring?.interval_count ?? 1;
+
+  if (unitAmount == null || !interval) return fallbackAmountCents;
+
+  if (interval === "month") {
+    return Math.round(unitAmount / Math.max(intervalCount, 1));
+  }
+
+  if (interval === "year") {
+    return Math.round(unitAmount / Math.max(intervalCount * 12, 1));
+  }
+
+  return fallbackAmountCents;
+}
+
 function isDelinquent(subscriptionStatus: string | null, invoiceStatus: string | null, invoicePaid: boolean | null) {
   if (subscriptionStatus && ["past_due", "unpaid", "incomplete_expired", "canceled"].includes(subscriptionStatus)) {
     return true;
@@ -96,6 +120,20 @@ function isDelinquent(subscriptionStatus: string | null, invoiceStatus: string |
     return true;
   }
   return false;
+}
+
+async function fetchLatestPaidInvoiceForSubscription(
+  subscriptionId: string,
+  stripeSecretKey: string,
+  fetchImpl: typeof fetch,
+) {
+  const invoices = await stripeFetch<{ data?: StripeInvoice[] }>(
+    `/v1/invoices?subscription=${encodeURIComponent(subscriptionId)}&status=paid&limit=1`,
+    stripeSecretKey,
+    fetchImpl,
+  );
+
+  return invoices.data?.[0] ?? null;
 }
 
 async function stripeFetch<T>(path: string, stripeSecretKey: string, fetchImpl: typeof fetch) {
@@ -237,20 +275,45 @@ export function createCrmSyncStripeHandler(args?: {
         );
       }
 
+      const latestPaidInvoice = await fetchLatestPaidInvoiceForSubscription(
+        subscription.id,
+        stripeSecretKey,
+        fetchImpl,
+      );
+
       const resolvedCustomerId = stripeCustomerId || getStripeId(subscription.customer);
       const resolvedBillingPlan = buildBillingPlan(subscription);
-      const resolvedStatus = subscription.status || null;
-      const resolvedCurrentPeriodEnd = toIso(subscription.current_period_end);
-      const resolvedAmountCents = latestInvoice?.amount_paid ?? latestInvoice?.total ?? latestInvoice?.amount_due ?? null;
-      const resolvedLastInvoiceAt = toIso(latestInvoice?.created);
-      const resolvedDelinquent = isDelinquent(resolvedStatus, latestInvoice?.status ?? null, latestInvoice?.paid ?? null);
+      const billingCreditState = resolveBillingCreditState({
+        subscriptionStatus: subscription.status || null,
+        currentPeriodEnd: subscription.current_period_end,
+        lastPaidAt: latestPaidInvoice?.status_transitions?.paid_at ?? null,
+      });
+      const resolvedStatus = billingCreditState.effectiveStatus;
+      const resolvedCurrentPeriodEnd = billingCreditState.accessEndsAt;
+      const resolvedAmountCents =
+        latestPaidInvoice?.amount_paid ??
+        latestPaidInvoice?.total ??
+        latestInvoice?.amount_paid ??
+        latestInvoice?.total ??
+        latestInvoice?.amount_due ??
+        null;
+      const resolvedMonthlyAmountCents = buildMonthlyAmountCents(subscription, resolvedAmountCents);
+      const resolvedLastInvoiceAt =
+        billingCreditState.lastPaidAt ??
+        toIso(latestInvoice?.created);
+      const resolvedDelinquent =
+        billingCreditState.isDelinquent ||
+        isDelinquent(subscription.status || null, latestInvoice?.status ?? null, latestInvoice?.paid ?? null);
 
       const { error: updateCrmErr } = await supabaseAdmin
         .from("crm_accounts")
         .update({
+          status: "customer",
+          stage: "customer",
           stripe_customer_id: resolvedCustomerId,
           stripe_subscription_id: subscription.id,
           stripe_subscription_status: resolvedStatus,
+          stripe_monthly_amount_cents: resolvedMonthlyAmountCents,
           stripe_last_invoice_at: resolvedLastInvoiceAt,
           stripe_last_invoice_amount_cents: resolvedAmountCents,
           stripe_next_billing_at: resolvedCurrentPeriodEnd,

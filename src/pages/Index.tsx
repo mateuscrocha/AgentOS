@@ -5,6 +5,7 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
+import { ConnectionStatus } from "@/components/dashboard/ConnectionStatus";
 import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
@@ -961,6 +962,10 @@ const Index = () => {
               Alguns indicadores podem estar incompletos no momento. Tente atualizar a página em instantes.
             </p>
           ) : null}
+        </section>
+
+        <section className="scroll-mt-32" id="sync-status">
+          <ConnectionStatus />
         </section>
 
         <section className="scroll-mt-32 rounded-[var(--radius-xl)] border border-primary/10 bg-card/95 p-5 shadow-subtle sm:p-6" id="executive-summary" aria-busy={newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading ? "true" : undefined}>

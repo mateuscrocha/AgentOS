@@ -67,6 +67,11 @@ function parseJsonArray(text: string) {
   }
 }
 
+function isGroupPaused(group: { is_active?: boolean | null; status?: string | null }) {
+  if (group.is_active === false) return true;
+  return String(group.status || "").trim().toLowerCase() === "inactive";
+}
+
 async function resolveAuth(args: {
   req: Request;
   env: { get: (key: string) => string | undefined };
@@ -154,12 +159,24 @@ export function createGenerateGroupTopicsKeywordsHandler(deps: Deps = {}) {
       const supabase = createClientImpl(supabaseUrl, serviceRoleKey);
       const { data: group, error: groupError } = await supabase
         .from("groups")
-        .select("id, name, description")
+        .select("id, name, description, is_active, status")
         .eq("id", groupId)
         .maybeSingle();
 
       if (groupError) return json({ success: false, code: "GROUP_LOOKUP_FAILED", message: groupError.message }, 500);
       if (!group?.id) return json({ success: false, code: "GROUP_NOT_FOUND", message: "Grupo não encontrado" }, 404);
+      if (isGroupPaused(group)) {
+        return json({
+          success: true,
+          skipped: true,
+          code: "GROUP_PAUSED",
+          message: "Grupo pausado. Tópicos e keywords não gerados.",
+          groupId,
+          targetDate,
+          topics: [],
+          keywords: [],
+        });
+      }
 
       const currentNow = now();
       const currentDateKey = getSaoPauloDateKey(currentNow);

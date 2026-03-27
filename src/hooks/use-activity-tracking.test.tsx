@@ -463,6 +463,213 @@ describe("useActivityTracking", () => {
     container.remove();
   });
 
+  it("registra membros de grupo como categoria dedicada", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    vi.doMock("react-router-dom", async () => {
+      const actual = await vi.importActual<any>("react-router-dom");
+      return { ...actual, useLocation: () => ({ pathname: "/groups/group-1/members" }) };
+    });
+
+    vi.doMock("@/hooks/use-auth", () => {
+      return {
+        useAuth: () => ({
+          user: { id: "group-members-1" },
+          session: { access_token: "group-members-token-112233" },
+          isAuthenticated: true,
+        }),
+      };
+    });
+
+    vi.doMock("@/hooks/use-user-roles", () => {
+      return {
+        useUserRoles: () => ({
+          roles: [{ role: "GROUP_MANAGER", organization_id: "org-1", group_id: "group-1" }],
+          isLoading: false,
+          isSystemAdmin: false,
+        }),
+      };
+    });
+
+    vi.doMock("@/integrations/supabase/client", () => {
+      return {
+        supabase: {
+          auth: {
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: vi.fn() } } }),
+          },
+          rpc: (...args: any[]) => rpcMock(...args),
+        },
+      };
+    });
+
+    const { useActivityTracking } = await import("@/hooks/use-activity-tracking");
+
+    function TestApp() {
+      useActivityTracking();
+      return null;
+    }
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<TestApp />);
+      await flushPromises();
+    });
+
+    expect(rpcMock).toHaveBeenNthCalledWith(2, "record_user_activity", {
+      _event_type: "page_view",
+      _page: "membros",
+      _route: "/groups/group-1/members",
+      _session_id: "group-members-1:token-112233",
+      _metadata: { pathname: "/groups/group-1/members" },
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("registra CRM do sistema como categoria propria", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    vi.doMock("react-router-dom", async () => {
+      const actual = await vi.importActual<any>("react-router-dom");
+      return { ...actual, useLocation: () => ({ pathname: "/system/crm/pipeline" }) };
+    });
+
+    vi.doMock("@/hooks/use-auth", () => {
+      return {
+        useAuth: () => ({
+          user: { id: "sys-crm-1" },
+          session: { access_token: "system-crm-token-445566" },
+          isAuthenticated: true,
+        }),
+      };
+    });
+
+    vi.doMock("@/hooks/use-user-roles", () => {
+      return {
+        useUserRoles: () => ({
+          roles: [{ role: "SYSTEM_ADMIN", organization_id: null }],
+          isLoading: false,
+          isSystemAdmin: true,
+        }),
+      };
+    });
+
+    vi.doMock("@/integrations/supabase/client", () => {
+      return {
+        supabase: {
+          auth: {
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: vi.fn() } } }),
+          },
+          rpc: (...args: any[]) => rpcMock(...args),
+        },
+      };
+    });
+
+    const { useActivityTracking } = await import("@/hooks/use-activity-tracking");
+
+    function TestApp() {
+      useActivityTracking();
+      return null;
+    }
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<TestApp />);
+      await flushPromises();
+    });
+
+    expect(rpcMock).toHaveBeenNthCalledWith(2, "record_user_activity", {
+      _event_type: "page_view",
+      _page: "crm",
+      _route: "/system/crm/pipeline",
+      _session_id: "sys-crm-1:token-445566",
+      _metadata: { pathname: "/system/crm/pipeline" },
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("mantem system events separado de insights", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    vi.doMock("react-router-dom", async () => {
+      const actual = await vi.importActual<any>("react-router-dom");
+      return { ...actual, useLocation: () => ({ pathname: "/system/events" }) };
+    });
+
+    vi.doMock("@/hooks/use-auth", () => {
+      return {
+        useAuth: () => ({
+          user: { id: "sys-events-1" },
+          session: { access_token: "system-events-token-778899" },
+          isAuthenticated: true,
+        }),
+      };
+    });
+
+    vi.doMock("@/hooks/use-user-roles", () => {
+      return {
+        useUserRoles: () => ({
+          roles: [{ role: "SYSTEM_ADMIN", organization_id: null }],
+          isLoading: false,
+          isSystemAdmin: true,
+        }),
+      };
+    });
+
+    vi.doMock("@/integrations/supabase/client", () => {
+      return {
+        supabase: {
+          auth: {
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: vi.fn() } } }),
+          },
+          rpc: (...args: any[]) => rpcMock(...args),
+        },
+      };
+    });
+
+    const { useActivityTracking } = await import("@/hooks/use-activity-tracking");
+
+    function TestApp() {
+      useActivityTracking();
+      return null;
+    }
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<TestApp />);
+      await flushPromises();
+    });
+
+    expect(rpcMock).toHaveBeenNthCalledWith(2, "record_user_activity", {
+      _event_type: "page_view",
+      _page: "eventos",
+      _route: "/system/events",
+      _session_id: "sys-events-1:token-778899",
+      _metadata: { pathname: "/system/events" },
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
   it("registra login para gestor de grupo com escopo de organizacao", async () => {
     const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
 

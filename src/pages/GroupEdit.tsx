@@ -97,8 +97,8 @@ const AUTOMATION_LABELS: Record<AutomationKey, { name: string; description: stri
     availability: "prepared",
   },
   daily_summary_enabled: {
-    name: "Resumo diário",
-    description: "Gera e envia o resumo diário do grupo no horário configurado.",
+    name: "Enviar resumo no grupo",
+    description: "Define se o resumo diário, gerado para todos os grupos, também será enviado no grupo no horário configurado.",
     availability: "live",
   },
   daily_topics_enabled: {
@@ -117,6 +117,14 @@ const AUTOMATION_LABELS: Record<AutomationKey, { name: string; description: stri
     availability: "prepared",
   },
 };
+
+const AUTOMATION_PANEL_KEYS: AutomationKey[] = [
+  "welcome_message_enabled",
+  "audio_transcription_enabled",
+  "daily_summary_enabled",
+  "peak_moment_enabled",
+  "polls_enabled",
+];
 
 type SpecialMember = {
   id: string;
@@ -729,7 +737,7 @@ export default function GroupEdit() {
 
   const hasValidationErrors = !!timezoneError || !!summaryTimeError;
   const activeAutomationsCount = useMemo(
-    () => Object.values(automationsEnabled).filter(Boolean).length,
+    () => AUTOMATION_PANEL_KEYS.filter((key) => Boolean(automationsEnabled[key])).length,
     [automationsEnabled]
   );
 
@@ -755,8 +763,8 @@ export default function GroupEdit() {
   }, [group?.sync_status, lastActivityAt]);
 
   const statusTag = useMemo(() => {
-    if (status === "active") return { variant: "success" as const, label: "Ativo" };
-    return { variant: "neutral" as const, label: "Inativo" };
+    if (status === "active") return { variant: "success" as const, label: "Ligado" };
+    return { variant: "neutral" as const, label: "Pausado" };
   }, [status]);
 
   if (authLoading || rolesLoading) {
@@ -883,7 +891,7 @@ export default function GroupEdit() {
           <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
             <div className="space-y-1">
               <h2 className="text-lg sm:text-xl font-semibold">Estado do grupo</h2>
-              <p className="text-sm text-muted-foreground">Ligue ou pause o grupo. Isso não apaga nenhum dado.</p>
+              <p className="text-sm text-muted-foreground">Quando estiver ligado, o Bóris gera os dados do grupo. Quando estiver pausado, ele só registra as mensagens.</p>
             </div>
 
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -901,7 +909,7 @@ export default function GroupEdit() {
                     <SelectItem value="inactive">Pausado</SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="text-[11px] text-muted-foreground">Use "Pausado" se quiser interromper temporariamente o funcionamento.</div>
+                <div className="text-[11px] text-muted-foreground">Em "Pausado", o grupo continua recebendo mensagens, mas não gera resumo, tópicos nem palavras-chave.</div>
               </div>
 
               <div className="space-y-2">
@@ -1136,7 +1144,7 @@ export default function GroupEdit() {
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-3">
-                  {(Object.keys(AUTOMATION_LABELS) as AutomationKey[]).map((key) => {
+                  {AUTOMATION_PANEL_KEYS.map((key) => {
                     const info = AUTOMATION_LABELS[key];
                     const enabled = !!automationsEnabled[key];
                     const isPreparedOnly = info.availability === "prepared";
@@ -1187,7 +1195,7 @@ export default function GroupEdit() {
                                     aria-invalid={!!summaryTimeError}
                                     aria-describedby={summaryTimeError ? "group-summary-time-error" : undefined}
                                   />
-                                  <div className="text-[11px] text-muted-foreground">Define o horário aproximado de envio do resumo diário.</div>
+                                  <div className="text-[11px] text-muted-foreground">Define o horário aproximado da geração diária. Se esta opção estiver ligada, o resumo também será enviado no grupo.</div>
                                   {summaryTimeError ? <div id="group-summary-time-error" className="text-[11px] text-destructive">{summaryTimeError}</div> : null}
                                 </div>
                               </div>

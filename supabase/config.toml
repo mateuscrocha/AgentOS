@@ -14,3 +14,9 @@ verify_jwt = true
 
 [functions.crm-sync-stripe]
 verify_jwt = true
+
+[functions.billing-sync-stripe-organizations]
+verify_jwt = false
+
+[functions.run-group-ai-daily-jobs]
+verify_jwt = false

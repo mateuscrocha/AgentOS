@@ -8,10 +8,12 @@ type TrackedPage =
   | "dashboard"
   | "organizacoes"
   | "grupos"
+  | "membros"
   | "mensagens"
   | "suporte"
   | "eventos"
   | "enquetes"
+  | "crm"
   | "configuracoes"
   | "usuarios"
   | "relatorios"
@@ -34,15 +36,19 @@ function mapPathToPage(pathname: string): TrackedPage | null {
   if (/^\/(?:group|groups)\/[^/]+\/support(?:\/|$)/.test(pathname)) return "suporte";
   if (/^\/(?:group|groups)\/[^/]+\/events(?:\/|$)/.test(pathname)) return "eventos";
   if (/^\/(?:group|groups)\/[^/]+\/polls(?:\/|$)/.test(pathname)) return "enquetes";
+  if (/^\/(?:group|groups)\/[^/]+\/members(?:\/|$)/.test(pathname)) return "membros";
+  if (/^\/(?:group|groups)\/[^/]+\/edit(?:\/|$)/.test(pathname)) return "configuracoes";
   if (/^\/system\/groups(?:\/|$)/.test(pathname)) return "grupos";
   if (/^\/(?:org|organization)\/[^/]+\/groups(?:\/|$)/.test(pathname)) return "grupos";
   if (/^\/(?:group|groups)\/[^/]+(?:\/|$)/.test(pathname)) return "grupos";
 
   if (/^\/system\/users(?:\/|$)/.test(pathname)) return "usuarios";
   if (/^\/(?:system\/)?alerts(?:\/|$)/.test(pathname) || /^\/(?:system\/)?alert-definitions(?:\/|$)/.test(pathname)) return "alertas";
+  if (/^\/system\/crm(?:\/|$)/.test(pathname)) return "crm";
   if (/^\/system\/settings(?:\/|$)/.test(pathname)) return "configuracoes";
   if (/^\/settings(?:\/|$)/.test(pathname) || /^\/account(?:\/|$)/.test(pathname)) return "configuracoes";
-  if (/^\/system\/activity(?:\/|$)/.test(pathname) || /^\/system\/events(?:\/|$)/.test(pathname) || /^\/system\/trends(?:\/|$)/.test(pathname)) return "insights";
+  if (/^\/system\/events(?:\/|$)/.test(pathname)) return "eventos";
+  if (/^\/system\/activity(?:\/|$)/.test(pathname) || /^\/system\/trends(?:\/|$)/.test(pathname)) return "insights";
 
   return null;
 }

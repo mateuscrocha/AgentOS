@@ -11,21 +11,21 @@ interface StatusTagProps {
 export function StatusTag({ variant, children, className }: StatusTagProps) {
   const colors =
     variant === "success"
-      ? "bg-success/10 text-success"
+      ? "bg-success/12 text-success"
       : variant === "warning"
-      ? "bg-warning/10 text-warning"
+      ? "bg-warning/12 text-warning"
       : variant === "error"
-      ? "bg-destructive/10 text-destructive"
-      : "bg-muted text-muted-foreground";
+      ? "bg-destructive/12 text-destructive"
+      : "bg-muted/80 text-muted-foreground";
 
   return (
     <span
       className={cn(
-        "inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-medium tracking-[0.01em]",
+        "inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold tracking-[0.01em] shadow-[0_1px_0_rgba(255,255,255,0.6)_inset]",
         colors,
-        variant === "success" && "border-success/15",
-        variant === "warning" && "border-warning/15",
-        variant === "error" && "border-destructive/15",
+        variant === "success" && "border-success/20",
+        variant === "warning" && "border-warning/20",
+        variant === "error" && "border-destructive/20",
         variant === "neutral" && "border-border/70",
         className,
       )}

@@ -180,8 +180,8 @@ function describeStripeSubscriptionState(subscription: StripeSubscriptionLookup 
       };
     case "unpaid":
       return {
-        title: "Assinatura não paga",
-        message: "A assinatura está em `unpaid`. Isso sugere inadimplência, não apenas ausência de assinatura.",
+        title: "Crédito vencido",
+        message: "O crédito da organização venceu e não houve um novo pagamento dentro da janela de uso.",
       };
     case "canceled":
       return {
@@ -2240,7 +2240,7 @@ const Org = () => {
                   className={`font-medium capitalize ${
                     org.billing_status === "active"
                       ? "text-success"
-                      : org.billing_status === "past_due" || org.billing_status === "overdue"
+                      : org.billing_status === "past_due" || org.billing_status === "overdue" || org.billing_status === "unpaid"
                         ? "text-destructive"
                         : "text-muted-foreground"
                   }`}

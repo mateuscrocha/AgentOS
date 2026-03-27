@@ -38,10 +38,19 @@ export type CRMAccount = {
   email: string | null;
   source: string | null;
   status: CRMAccountStatus;
+  stage: CRMOpportunityStage;
+  potential_value: number | null;
+  target_date: string | null;
+  need: string | null;
+  next_step: string | null;
+  last_contact_at: string | null;
+  next_action_at: string | null;
+  stage_position: number;
   quick_notes: string | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   stripe_subscription_status: string | null;
+  stripe_monthly_amount_cents: number | null;
   stripe_last_invoice_at: string | null;
   stripe_last_invoice_amount_cents: number | null;
   stripe_next_billing_at: string | null;
@@ -125,6 +134,14 @@ export type CRMAccountFormValues = {
   email?: string | null;
   source?: string | null;
   status: CRMAccountStatus;
+  stage: CRMOpportunityStage;
+  potential_value?: number | null;
+  target_date?: string | null;
+  need?: string | null;
+  next_step?: string | null;
+  last_contact_at?: string | null;
+  next_action_at?: string | null;
+  stage_position?: number;
   quick_notes?: string | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
@@ -176,6 +193,7 @@ export type CRMFinanceSummary = {
   label: string;
   tone: "success" | "warning" | "destructive" | "muted";
   status: string | null;
+  monthlyAmountCents: number | null;
   amountCents: number | null;
   lastChargeAt: string | null;
   nextBillingAt: string | null;
@@ -191,17 +209,58 @@ export type CRMStripeSyncState = {
   lastSyncedAt: string | null;
 };
 
+const NON_PAYING_RELATIONSHIP_TYPES = new Set(["partner", "courtesy", "internal", "trial", "demo"]);
+
 export const CRM_STAGE_META: Record<
   CRMOpportunityStage,
   { label: string; shortLabel: string; tone: string }
 > = {
   new_lead: { label: "Novo lead", shortLabel: "Lead", tone: "bg-slate-100 text-slate-700 border-slate-200" },
-  qualification: { label: "Qualificação", shortLabel: "Qualificação", tone: "bg-sky-50 text-sky-700 border-sky-200" },
-  meeting: { label: "Reunião", shortLabel: "Reunião", tone: "bg-violet-50 text-violet-700 border-violet-200" },
-  proposal: { label: "Proposta", shortLabel: "Proposta", tone: "bg-amber-50 text-amber-700 border-amber-200" },
+  qualification: { label: "Em negociação", shortLabel: "Negociação", tone: "bg-sky-50 text-sky-700 border-sky-200" },
+  meeting: { label: "Em negociação", shortLabel: "Negociação", tone: "bg-sky-50 text-sky-700 border-sky-200" },
+  proposal: { label: "Em negociação", shortLabel: "Negociação", tone: "bg-sky-50 text-sky-700 border-sky-200" },
   customer: { label: "Cliente", shortLabel: "Cliente", tone: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   lost: { label: "Perdido", shortLabel: "Perdido", tone: "bg-rose-50 text-rose-700 border-rose-200" },
 };
+
+export const CRM_PIPELINE_STAGES: CRMOpportunityStage[] = [
+  "new_lead",
+  "meeting",
+  "customer",
+  "lost",
+];
+
+export function normalizePipelineStage(stage: CRMOpportunityStage): CRMOpportunityStage {
+  if (stage === "qualification" || stage === "proposal") return "meeting";
+  return stage;
+}
+
+function deriveAccountCommercialClassification(input: {
+  status: CRMAccountStatus;
+  stage: CRMOpportunityStage;
+  hasStripeLink: boolean;
+}) {
+  const normalizedStage = normalizePipelineStage(input.stage);
+
+  if (input.hasStripeLink) {
+    return {
+      status: "customer" as CRMAccountStatus,
+      stage: "customer" as CRMOpportunityStage,
+    };
+  }
+
+  if (input.status === "customer") {
+    return {
+      status: "prospect" as CRMAccountStatus,
+      stage: normalizedStage === "customer" ? "meeting" as CRMOpportunityStage : normalizedStage,
+    };
+  }
+
+  return {
+    status: input.status,
+    stage: normalizedStage,
+  };
+}
 
 export const CRM_ACCOUNT_STATUS_META: Record<CRMAccountStatus, { label: string; tone: string }> = {
   lead: { label: "Lead", tone: "bg-slate-100 text-slate-700 border-slate-200" },
@@ -217,6 +276,7 @@ export const CRM_TASK_TYPE_META: Record<CRMTimelineItemType, { label: string; to
 };
 
 export function getOpportunityStatusFromStage(stage: CRMOpportunityStage): CRMOpportunityStatus {
+  stage = normalizePipelineStage(stage);
   if (stage === "customer") return "won";
   if (stage === "lost") return "lost";
   return "open";
@@ -232,24 +292,37 @@ export function getAccountFinanceSummary(account: CRMAccount): CRMFinanceSummary
   const status = account.stripe_subscription_status || org?.billing_status || null;
   const nextBillingAt = account.stripe_next_billing_at || org?.current_period_end || null;
   const amountCents = account.stripe_last_invoice_amount_cents ?? null;
+  const monthlyAmountCents = account.stripe_monthly_amount_cents ?? amountCents;
   const lastChargeAt = account.stripe_last_invoice_at ?? null;
+  const isCanceled = status === "canceled";
   const isDelinquent =
-    Boolean(account.stripe_is_delinquent) ||
-    status === "past_due";
+    !isCanceled &&
+    (Boolean(account.stripe_is_delinquent) ||
+      status === "past_due" ||
+      status === "unpaid" ||
+      status === "incomplete_expired");
+  const isActiveLike = status === "active" || status === "trialing";
 
   if (!status && !nextBillingAt && !amountCents && !lastChargeAt && !org?.stripe_customer_id && !account.stripe_customer_id) {
     return null;
   }
 
   return {
-    label: isDelinquent ? "Financeiro em risco" : status ? status.replace(/_/g, " ") : "Stripe",
-    tone: isDelinquent ? "destructive" : status === "active" ? "success" : status === "trialing" ? "warning" : "muted",
+    label: isCanceled ? "Cancelado" : isDelinquent ? "Crédito vencido" : isActiveLike ? "Crédito ativo" : status ? status.replace(/_/g, " ") : "Stripe",
+    tone: isCanceled ? "muted" : isDelinquent ? "destructive" : status === "active" ? "success" : status === "trialing" ? "warning" : "muted",
     status,
+    monthlyAmountCents,
     amountCents,
     lastChargeAt,
     nextBillingAt,
     isDelinquent,
   };
+}
+
+export function getAccountMonthlyValue(account: CRMAccount): number | null {
+  const finance = getAccountFinanceSummary(account);
+  if (finance?.monthlyAmountCents != null) return finance.monthlyAmountCents / 100;
+  return account.potential_value ?? null;
 }
 
 export function getAccountStripeSyncState(account: CRMAccount): CRMStripeSyncState {
@@ -272,6 +345,31 @@ export function getAccountStripeSyncState(account: CRMAccount): CRMStripeSyncSta
       : "Defina `stripe_customer_id`, `stripe_subscription_id` ou vincule a conta a uma organização com billing preenchido.",
     lastSyncedAt: account.financial_context_updated_at,
   };
+}
+
+export function isNonPayingRelationshipType(relationshipType: string | null | undefined) {
+  return NON_PAYING_RELATIONSHIP_TYPES.has((relationshipType || "").trim());
+}
+
+export function isBillableRelationshipType(relationshipType: string | null | undefined) {
+  return (relationshipType || "").trim() === "paying_customer";
+}
+
+export function hasStripeBillingLink(account: CRMAccount) {
+  return Boolean(
+    account.stripe_customer_id ||
+    account.stripe_subscription_id ||
+    account.organization?.stripe_customer_id ||
+    account.organization?.stripe_subscription_id,
+  );
+}
+
+export function isPayingCustomerAccount(account: CRMAccount) {
+  return isBillableRelationshipType(account.relationship_type);
+}
+
+export function isNonPayingCustomerAccount(account: CRMAccount) {
+  return !isBillableRelationshipType(account.relationship_type);
 }
 
 function normalizeNullable(value?: string | null) {
@@ -385,6 +483,18 @@ export function useCRM(enabled: boolean) {
 
   const saveAccountMutation = useMutation({
     mutationFn: async (values: CRMAccountFormValues) => {
+      const linkedOrganization = organizations.find((organization) => organization.id === (values.organization_id ?? null)) ?? null;
+      const hasStripeLink = Boolean(
+        normalizeNullable(values.stripe_customer_id) ||
+        normalizeNullable(values.stripe_subscription_id) ||
+        linkedOrganization?.stripe_customer_id ||
+        linkedOrganization?.stripe_subscription_id,
+      );
+      const commercialClassification = deriveAccountCommercialClassification({
+        status: values.status,
+        stage: values.stage,
+        hasStripeLink,
+      });
       const payload = {
         organization_id: values.organization_id ?? null,
         assigned_user_id: values.assigned_user_id ?? null,
@@ -393,7 +503,15 @@ export function useCRM(enabled: boolean) {
         phone: normalizeNullable(values.phone),
         email: normalizeNullable(values.email),
         source: normalizeNullable(values.source),
-        status: values.status,
+        status: commercialClassification.status,
+        stage: commercialClassification.stage,
+        potential_value: values.potential_value ?? null,
+        target_date: values.target_date || null,
+        need: normalizeNullable(values.need),
+        next_step: normalizeNullable(values.next_step),
+        last_contact_at: values.last_contact_at || null,
+        next_action_at: values.next_action_at || null,
+        stage_position: values.stage_position ?? 0,
         quick_notes: normalizeNullable(values.quick_notes),
         stripe_customer_id: normalizeNullable(values.stripe_customer_id),
         stripe_subscription_id: normalizeNullable(values.stripe_subscription_id),
@@ -420,6 +538,30 @@ export function useCRM(enabled: boolean) {
   const deleteAccountMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("crm_accounts" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: refreshAll,
+  });
+
+  const moveAccountStageMutation = useMutation({
+    mutationFn: async ({
+      id,
+      stage,
+      stagePosition,
+    }: {
+      id: string;
+      stage: CRMOpportunityStage;
+      stagePosition: number;
+    }) => {
+      const { error } = await supabase
+        .from("crm_accounts" as any)
+        .update({
+          stage: normalizePipelineStage(stage),
+          stage_position: stagePosition,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+
       if (error) throw error;
     },
     onSuccess: refreshAll,
@@ -491,7 +633,7 @@ export function useCRM(enabled: boolean) {
         contact_id: values.contact_id ?? null,
         owner_user_id: values.owner_user_id ?? null,
         name: values.name.trim(),
-        stage: values.stage,
+        stage: normalizePipelineStage(values.stage),
         status: getOpportunityStatusFromStage(values.stage),
         potential_value: values.potential_value ?? null,
         target_date: values.target_date || null,
@@ -673,18 +815,26 @@ export function useCRM(enabled: boolean) {
   );
 
   const metrics = useMemo(() => {
-    const openOpportunities = opportunities.filter((item) => !["customer", "lost"].includes(item.stage));
-    const totalPipelineValue = openOpportunities.reduce((sum, item) => sum + Number(item.potential_value ?? 0), 0);
+    const activeAccounts = accounts.filter((item) => !["customer", "lost"].includes(item.stage));
+    const totalPipelineValue = activeAccounts.reduce((sum, item) => sum + Number(item.potential_value ?? 0), 0);
     const openTasks = tasks.filter((item) => !item.completed_at).length;
     const customers = accounts.filter((item) => item.status === "customer").length;
+    const payingCustomers = accounts.filter(isPayingCustomerAccount).length;
+    const nonPayingRelationships = accounts.filter(isNonPayingCustomerAccount).length;
+    const accountsWithContacts = accounts.filter((item) => (contactsByAccountId.get(item.id) ?? []).length > 0).length;
+    const accountsWithoutContacts = accounts.length - accountsWithContacts;
 
     return {
-      openOpportunities: openOpportunities.length,
+      openOpportunities: activeAccounts.length,
       totalPipelineValue,
       openTasks,
       customers,
+      payingCustomers,
+      nonPayingRelationships,
+      accountsWithContacts,
+      accountsWithoutContacts,
     };
-  }, [accounts, opportunities, tasks]);
+  }, [accounts, contactsByAccountId, tasks]);
 
   return {
     accounts,
@@ -723,6 +873,7 @@ export function useCRM(enabled: boolean) {
       organizationsQuery.error,
     saveAccountMutation,
     deleteAccountMutation,
+    moveAccountStageMutation,
     syncAccountMutation,
     saveContactMutation,
     deleteContactMutation,

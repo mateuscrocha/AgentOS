@@ -37,6 +37,15 @@ function readEnv(env: { get: (key: string) => string | undefined }, key: string)
   return String(env.get(key) || "").trim();
 }
 
+function isTruthyEnv(value: string | null | undefined) {
+  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
+function isGroupPaused(group: { is_active?: boolean | null; status?: string | null }) {
+  if (group.is_active === false) return true;
+  return String(group.status || "").trim().toLowerCase() === "inactive";
+}
+
 function toSaoPauloShifted(date: Date) {
   return new Date(date.getTime() - SAO_PAULO_OFFSET_MS);
 }
@@ -206,7 +215,7 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
 
       const { data: group, error: groupError } = await supabase
         .from("groups")
-        .select("id, name, description, provider_phone")
+        .select("id, name, description, provider_phone, is_active, status")
         .eq("id", groupId)
         .maybeSingle();
 
@@ -215,6 +224,17 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
       }
       if (!group?.id) {
         return json({ success: false, code: "GROUP_NOT_FOUND", message: "Grupo não encontrado" }, 404);
+      }
+      if (isGroupPaused(group)) {
+        return json({
+          success: true,
+          skipped: true,
+          code: "GROUP_PAUSED",
+          message: "Grupo pausado. Resumo não gerado.",
+          groupId,
+          summaryDate,
+          sentToGroup: false,
+        });
       }
 
       const currentNow = now();
@@ -356,8 +376,11 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
         return json({ success: false, code: "SUMMARY_SAVE_FAILED", message: upsertError.message }, 500);
       }
 
+      const deliveryEnabled = isTruthyEnv(readEnv(env, "GROUP_AI_SEND_ENABLED"));
+      const shouldSendToGroup = sendToGroup && deliveryEnabled;
+
       let providerResponse: any = null;
-      if (sendToGroup) {
+      if (shouldSendToGroup) {
         const providerPhone = String(group.provider_phone || "").trim();
         if (!providerPhone) {
           return json(
@@ -386,7 +409,9 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
         summaryType,
         promptKey,
         summary: savedSummary,
-        sentToGroup: sendToGroup,
+        sendRequested: sendToGroup,
+        deliveryEnabled,
+        sentToGroup: shouldSendToGroup,
         providerResponse,
       });
     } catch (error: unknown) {

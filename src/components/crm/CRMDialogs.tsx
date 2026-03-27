@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  CRM_PIPELINE_STAGES,
   CRM_ACCOUNT_STATUS_META,
   CRM_STAGE_META,
   type CRMAccount,
@@ -26,6 +27,7 @@ import {
 type Option = {
   id: string;
   label: string;
+  accountId?: string;
 };
 
 const NONE = "__none__";
@@ -52,10 +54,11 @@ export function CRMAccountDialog({
   onSubmit: (values: CRMAccountFormValues) => Promise<void> | void;
   pending?: boolean;
 }) {
-  const [form, setForm] = useState<CRMAccountFormValues>({
-    name: "",
-    status: "lead",
-  });
+      const [form, setForm] = useState<CRMAccountFormValues>({
+        name: "",
+        status: "lead",
+        stage: "new_lead",
+      });
 
   useEffect(() => {
     if (!open) return;
@@ -71,6 +74,14 @@ export function CRMAccountDialog({
             email: account.email,
             source: account.source,
             status: account.status,
+            stage: account.stage,
+            potential_value: account.potential_value,
+            target_date: account.target_date,
+            need: account.need,
+            next_step: account.next_step,
+            last_contact_at: isoLocalDateTime(account.last_contact_at),
+            next_action_at: isoLocalDateTime(account.next_action_at),
+            stage_position: account.stage_position,
             quick_notes: account.quick_notes,
             stripe_customer_id: account.stripe_customer_id,
             stripe_subscription_id: account.stripe_subscription_id,
@@ -85,6 +96,14 @@ export function CRMAccountDialog({
             email: "",
             source: "",
             quick_notes: "",
+            stage: "new_lead",
+            potential_value: null,
+            target_date: "",
+            need: "",
+            next_step: "",
+            last_contact_at: "",
+            next_action_at: "",
+            stage_position: 0,
             stripe_customer_id: "",
             stripe_subscription_id: "",
           },
@@ -138,6 +157,25 @@ export function CRMAccountDialog({
                 Como esta conta está vinculada a uma `organization`, o status comercial é derivado automaticamente do cliente real e do billing Stripe.
               </p>
             ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Etapa comercial</Label>
+            <Select
+              value={form.stage}
+              onValueChange={(value) => setForm((current) => ({ ...current, stage: value as CRMOpportunityStage }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CRM_PIPELINE_STAGES.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {CRM_STAGE_META[value].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -197,6 +235,32 @@ export function CRMAccountDialog({
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label>Valor potencial</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.potential_value ?? ""}
+              onChange={(event) => setForm((current) => ({ ...current, potential_value: event.target.value ? Number(event.target.value) : null }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Data alvo</Label>
+            <Input type="date" value={form.target_date ?? ""} onChange={(event) => setForm((current) => ({ ...current, target_date: event.target.value }))} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Último contato</Label>
+            <Input type="datetime-local" value={form.last_contact_at ?? ""} onChange={(event) => setForm((current) => ({ ...current, last_contact_at: event.target.value }))} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Próxima ação</Label>
+            <Input type="datetime-local" value={form.next_action_at ?? ""} onChange={(event) => setForm((current) => ({ ...current, next_action_at: event.target.value }))} />
+          </div>
+
           <div className="space-y-2 sm:col-span-2">
             <Label>Organização do painel</Label>
             <Select
@@ -218,6 +282,26 @@ export function CRMAccountDialog({
             <p className="text-xs text-muted-foreground">
               Use vínculo com `organization` quando esta conta já for cliente real do Bóris. Leads e prospects que ainda não viraram cliente podem continuar sem vínculo.
             </p>
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Necessidade</Label>
+            <Textarea
+              rows={3}
+              value={form.need ?? ""}
+              onChange={(event) => setForm((current) => ({ ...current, need: event.target.value }))}
+              placeholder="Qual o problema principal ou o contexto de compra?"
+            />
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Próximo passo</Label>
+            <Textarea
+              rows={3}
+              value={form.next_step ?? ""}
+              onChange={(event) => setForm((current) => ({ ...current, next_step: event.target.value }))}
+              placeholder="Qual a próxima ação combinada ou planejada?"
+            />
           </div>
 
           <div className="space-y-2 sm:col-span-2">
@@ -270,6 +354,7 @@ export function CRMContactDialog({
   onOpenChange,
   contact,
   accountOptions,
+  defaultValues,
   onSubmit,
   pending,
 }: {
@@ -277,6 +362,7 @@ export function CRMContactDialog({
   onOpenChange: (open: boolean) => void;
   contact: CRMContact | null;
   accountOptions: Option[];
+  defaultValues?: Partial<CRMContactFormValues>;
   onSubmit: (values: CRMContactFormValues) => Promise<void> | void;
   pending?: boolean;
 }) {
@@ -301,17 +387,17 @@ export function CRMContactDialog({
             is_primary: contact.is_primary,
           }
         : {
-            account_id: accountOptions[0]?.id ?? "",
-            first_name: "",
-            last_name: "",
-            email: "",
-            phone: "",
-            title: "",
-            city: "",
-            is_primary: false,
+            account_id: defaultValues?.account_id ?? accountOptions[0]?.id ?? "",
+            first_name: defaultValues?.first_name ?? "",
+            last_name: defaultValues?.last_name ?? "",
+            email: defaultValues?.email ?? "",
+            phone: defaultValues?.phone ?? "",
+            title: defaultValues?.title ?? "",
+            city: defaultValues?.city ?? "",
+            is_primary: defaultValues?.is_primary ?? false,
           },
     );
-  }, [accountOptions, contact, open]);
+  }, [accountOptions, contact, defaultValues, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -394,6 +480,7 @@ export function CRMOpportunityDialog({
   opportunity,
   accountOptions,
   contactOptions,
+  defaultValues,
   profiles,
   onSubmit,
   pending,
@@ -403,6 +490,7 @@ export function CRMOpportunityDialog({
   opportunity: CRMOpportunity | null;
   accountOptions: Option[];
   contactOptions: Option[];
+  defaultValues?: Partial<CRMOpportunityFormValues>;
   profiles: CRMProfileOption[];
   onSubmit: (values: CRMOpportunityFormValues) => Promise<void> | void;
   pending?: boolean;
@@ -435,26 +523,30 @@ export function CRMOpportunityDialog({
             stage_position: opportunity.stage_position,
           }
         : {
-            account_id: accountOptions[0]?.id ?? "",
-            name: "",
-            stage: "new_lead",
-            contact_id: null,
-            owner_user_id: null,
-            potential_value: null,
-            target_date: "",
-            source: "",
-            need: "",
-            next_step: "",
-            notes: "",
-            last_contact_at: "",
-            next_action_at: "",
+            account_id: defaultValues?.account_id ?? accountOptions[0]?.id ?? "",
+            name: defaultValues?.name ?? "",
+            stage: defaultValues?.stage ?? "new_lead",
+            contact_id: defaultValues?.contact_id ?? null,
+            owner_user_id: defaultValues?.owner_user_id ?? null,
+            potential_value: defaultValues?.potential_value ?? null,
+            target_date: defaultValues?.target_date ?? "",
+            source: defaultValues?.source ?? "",
+            need: defaultValues?.need ?? "",
+            next_step: defaultValues?.next_step ?? "",
+            notes: defaultValues?.notes ?? "",
+            last_contact_at: defaultValues?.last_contact_at ?? "",
+            next_action_at: defaultValues?.next_action_at ?? "",
           },
     );
-  }, [accountOptions, opportunity, open]);
+  }, [accountOptions, defaultValues, opportunity, open]);
 
   const profileOptions = useMemo(
     () => profiles.map((profile) => ({ id: profile.id, label: profile.name || "Usuário sem nome" })),
     [profiles],
+  );
+  const filteredContactOptions = useMemo(
+    () => contactOptions.filter((option) => !option.accountId || option.accountId === form.account_id),
+    [contactOptions, form.account_id],
   );
 
   return (
@@ -495,7 +587,7 @@ export function CRMOpportunityDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE}>Sem contato</SelectItem>
-                {contactOptions.map((option) => (
+                {filteredContactOptions.map((option) => (
                   <SelectItem key={option.id} value={option.id}>
                     {option.label}
                   </SelectItem>

@@ -112,7 +112,7 @@ function makeCreateClientStub(state: {
   };
 }
 
-DenoRef.test("run-group-ai-daily-jobs processa apenas grupos no horário atual", async () => {
+DenoRef.test("run-group-ai-daily-jobs gera resumo e topicos para todo grupo no horario e so envia quando configurado", async () => {
   const openAiCalls: any[] = [];
   const zapiCalls: any[] = [];
 
@@ -155,6 +155,7 @@ DenoRef.test("run-group-ai-daily-jobs processa apenas grupos no horário atual",
     env: {
       get: (key: string) => {
         if (key === "GROUP_AI_CRON_API_KEY") return "cron-key";
+        if (key === "GROUP_AI_SEND_ENABLED") return "true";
         if (key === "SUPABASE_URL") return "http://localhost:8000";
         if (key === "SUPABASE_SERVICE_ROLE_KEY") return "service";
         if (key === "OPENAI_API_KEY") return "sk-test";
@@ -169,13 +170,24 @@ DenoRef.test("run-group-ai-daily-jobs processa apenas grupos no horário atual",
       groups: [
         {
           id: "11111111-1111-4111-8111-111111111111",
-          name: "Grupo 19h",
+          name: "Grupo com envio",
           description: "Desc",
           provider_phone: "5511999990000-group",
           group_settings: {
             daily_summary_enabled: true,
             daily_summary_time: "13:00:00",
-            daily_topics_enabled: true,
+            daily_topics_enabled: false,
+          },
+        },
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          name: "Grupo sem envio",
+          description: "Desc",
+          provider_phone: "5511777770000-group",
+          group_settings: {
+            daily_summary_enabled: false,
+            daily_summary_time: "13:00:00",
+            daily_topics_enabled: false,
           },
         },
         {
@@ -189,6 +201,18 @@ DenoRef.test("run-group-ai-daily-jobs processa apenas grupos no horário atual",
             daily_topics_enabled: true,
           },
         },
+        {
+          id: "44444444-4444-4444-8444-444444444444",
+          name: "Grupo pausado",
+          description: "Desc",
+          provider_phone: "5511666660000-group",
+          status: "inactive",
+          group_settings: {
+            daily_summary_enabled: true,
+            daily_summary_time: "13:00:00",
+            daily_topics_enabled: true,
+          },
+        },
       ],
       openAiCalls,
       zapiCalls,
@@ -199,8 +223,11 @@ DenoRef.test("run-group-ai-daily-jobs processa apenas grupos no horário atual",
   const res = await runtimeHandler(makeReq());
   const body = await res.json();
   assertEquals(res.status, 200);
-  assertEquals(body.matchedGroups, 1);
-  assertEquals(openAiCalls.length, 3);
+  assertEquals(body.matchedGroups, 2);
+  assertEquals(openAiCalls.length, 6);
   assertEquals(zapiCalls.length, 1);
   assertEquals(body.results[0].topicsKeywords.ok, true);
+  assertEquals(body.results[0].summary.payload.sentToGroup, true);
+  assertEquals(body.results[1].topicsKeywords.ok, true);
+  assertEquals(body.results[1].summary.payload.sentToGroup, false);
 });

@@ -115,3 +115,47 @@ DenoRef.test("generate-group-topics-keywords gera e salva tópicos e keywords do
   assertEquals(prompts[0].includes("Grupo sobre vendas e marketing"), true);
   assertEquals(prompts[1].includes("objeção de preço"), true);
 });
+
+DenoRef.test("generate-group-topics-keywords ignora grupo pausado", async () => {
+  const insertedTopics: any[] = [];
+  const insertedKeywords: any[] = [];
+  let fetchCalls = 0;
+
+  const handler = createGenerateGroupTopicsKeywordsHandler({
+    env: {
+      get: (key: string) => {
+        if (key === "GROUP_AI_CRON_API_KEY") return "cron-key";
+        if (key === "SUPABASE_URL") return "http://localhost:8000";
+        if (key === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (key === "OPENAI_API_KEY") return "sk-test";
+        return undefined;
+      },
+    },
+    now: () => new Date("2026-03-24T18:00:00.000Z"),
+    createClientImpl: makeCreateClientStub({
+      group: {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Grupo Pausado",
+        description: "Grupo sobre vendas e marketing",
+        is_active: false,
+        status: "inactive",
+      },
+      messages: [],
+      insertedTopics,
+      insertedKeywords,
+    }) as any,
+    fetchImpl: (async () => {
+      fetchCalls += 1;
+      throw new Error("nao deveria chamar openai");
+    }) as any,
+  });
+
+  const res = await handler(makeReq({ groupId: "11111111-1111-4111-8111-111111111111" }));
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals(body.skipped, true);
+  assertEquals(body.code, "GROUP_PAUSED");
+  assertEquals(fetchCalls, 0);
+  assertEquals(insertedTopics.length, 0);
+  assertEquals(insertedKeywords.length, 0);
+});
