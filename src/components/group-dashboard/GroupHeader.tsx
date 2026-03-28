@@ -83,62 +83,74 @@ export function GroupHeader({
   ];
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-xl)] border border-border/70 bg-card/95 shadow-subtle">
-      <div className="flex flex-col gap-5 border-b border-border/60 p-5 sm:p-6">
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-start gap-3 min-w-0">
-            <h2 className="min-w-0 max-w-full truncate text-2xl font-semibold tracking-[-0.03em] text-card-foreground sm:text-[2rem]">{name}</h2>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className={cn(
-                    "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] leading-none shrink-0",
-                    groupStatus.color === 'success' && "bg-success/10 text-success",
-                    groupStatus.color === 'warning' && "bg-warning/10 text-warning",
-                    groupStatus.color === 'destructive' && "bg-destructive/10 text-destructive",
-                    groupStatus.color === 'muted' && "bg-muted text-muted-foreground",
-                  )}
-                >
-                  <groupStatus.icon className="h-3.5 w-3.5" />
-                  {groupStatus.label}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="start">
-                <div className="text-sm">{totalMembers} membros</div>
-                {lastMessageAt ? (
-                  <div className="text-xs text-muted-foreground mt-1">Última atividade: {formatDateTime(lastMessageAt)}</div>
+    <div className="overflow-hidden rounded-[28px] border border-slate-200/90 bg-white shadow-[0_22px_60px_-42px_rgba(15,23,42,0.35)]">
+      <div className="border-b border-slate-200/80 bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.16),transparent_38%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.98))] p-5 sm:p-6">
+        <div className="flex flex-col gap-6">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-start gap-3 min-w-0">
+              <div className="min-w-0 space-y-2">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Base do grupo
+                </div>
+                <h2 className="min-w-0 max-w-full truncate text-[1.9rem] font-semibold tracking-[-0.04em] text-slate-950 sm:text-[2.35rem]">
+                  {name}
+                </h2>
+              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.08em] leading-none shrink-0",
+                      groupStatus.color === "success" && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                      groupStatus.color === "warning" && "border-amber-200 bg-amber-50 text-amber-700",
+                      groupStatus.color === "destructive" && "border-rose-200 bg-rose-50 text-rose-700",
+                      groupStatus.color === "muted" && "border-slate-200 bg-slate-100 text-slate-600",
+                    )}
+                  >
+                    <groupStatus.icon className="h-3.5 w-3.5" />
+                    {groupStatus.label}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="start">
+                  <div className="text-sm">{totalMembers} membros</div>
+                  {lastMessageAt ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Última atividade: {formatDateTime(lastMessageAt)}
+                    </div>
+                  ) : null}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {metaItems.map(({ key, label, value, hint, Icon }) => (
+              <div
+                key={key}
+                className="rounded-[22px] border border-white/80 bg-white/90 px-4 py-4 shadow-[0_18px_35px_-28px_rgba(15,23,42,0.35)] backdrop-blur"
+              >
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{label}</span>
+                </div>
+                <div className="mt-2 truncate text-base font-semibold text-slate-950" title={hint || value}>
+                  {value}
+                </div>
+                {hint && hint !== value ? (
+                  <div className="truncate text-[11px] text-slate-500" title={hint}>
+                    {hint}
+                  </div>
                 ) : null}
-              </TooltipContent>
-            </Tooltip>
+              </div>
+            ))}
           </div>
         </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {metaItems.map(({ key, label, value, hint, Icon }) => (
-            <div key={key} className="rounded-[var(--radius-lg)] border border-border/50 bg-background/70 px-3 py-3 shadow-subtle">
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                <Icon className="h-3.5 w-3.5" />
-                <span>{label}</span>
-              </div>
-              <div className="mt-2 truncate text-sm font-semibold text-card-foreground" title={hint || value}>
-                {value}
-              </div>
-              {hint && hint !== value ? (
-                <div className="truncate text-[11px] text-muted-foreground" title={hint}>
-                  {hint}
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
       </div>
-      {bottomSlot && (
-        <div className="bg-muted/20 px-5 py-4 sm:px-6">
+      {bottomSlot ? (
+        <div className="border-t border-slate-200/80 bg-slate-50/70 px-5 py-4 sm:px-6">
           {bottomSlot}
         </div>
-      )}
-      
-      
+      ) : null}
     </div>
   );
 }

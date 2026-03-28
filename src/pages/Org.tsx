@@ -2113,17 +2113,21 @@ const Org = () => {
   const headerDescription = `${formatDateSimpleBR(org.created_at)} • ${headerSummaryParts.join(" • ")} • Atualizada em ${formatDateSimpleBR(org.updated_at)}`;
 
   const adminSummarySection = (isDashboardRoute || isDefaultOrgHome) ? (
-    <Card className="border-0 shadow-none">
+    <Card className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
       <CardContent className="p-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="text-sm font-semibold text-card-foreground">Resumo administrativo</div>
-            <div className="text-xs text-muted-foreground">Contato principal e situação de billing</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Visão executiva</div>
+            <div className="mt-1 text-lg font-semibold tracking-[-0.02em] text-card-foreground">Contato principal e situação comercial</div>
+            <div className="mt-1 text-sm text-muted-foreground">Mantenha relacionamento, billing e responsável oficial no mesmo plano de leitura.</div>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium text-muted-foreground">
+            Dados da organização e da Stripe sincronizados aqui
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-xl bg-secondary/20 p-4 space-y-4">
+          <div className="rounded-[28px] border border-border/70 bg-[linear-gradient(180deg,hsl(var(--secondary)/0.32),transparent)] p-5 space-y-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-medium text-card-foreground flex items-center gap-2">
                 <Mail className="h-4 w-4 text-muted-foreground" />
@@ -2197,7 +2201,7 @@ const Org = () => {
           </div>
 
           {isSystemAdmin ? (
-          <div className="rounded-xl bg-secondary/20 p-4 space-y-4">
+          <div className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_38%),linear-gradient(180deg,hsl(var(--secondary)/0.22),transparent)] p-5 space-y-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-medium text-card-foreground flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -2221,7 +2225,7 @@ const Org = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <div>
                 <span className="text-muted-foreground">Relacionamento</span>
                 <div className="mt-1">
@@ -2304,26 +2308,31 @@ const Org = () => {
           generalKpis={
             (isDashboardRoute || isDefaultOrgHome) ? (
               <>
-                <div className="rounded-xl border border-border bg-card p-3">
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Grupos</div>
-                  <div className="mt-1 text-lg font-semibold tabular-nums text-card-foreground">{formatNumberBR(totalGroupsCount)}</div>
+                <div className="rounded-2xl border border-border/80 bg-card/95 p-4 shadow-subtle">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Grupos</div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] tabular-nums text-card-foreground">{formatNumberBR(totalGroupsCount)}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Base conectada nesta organização</div>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-3">
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Membros</div>
-                  <div className="mt-1 text-lg font-semibold tabular-nums text-card-foreground">
+                <div className="rounded-2xl border border-border/80 bg-card/95 p-4 shadow-subtle">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Membros</div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] tabular-nums text-card-foreground">
                     {formatNumberBR(totalMembersCount ?? 0)}
                   </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Pessoas alcançadas pelos grupos vinculados</div>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-3">
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Alertas</div>
-                  <div className={`mt-1 text-lg font-semibold tabular-nums ${(alertGroupsCount ?? 0) > 0 ? "text-warning" : "text-success"}`}>
+                <div className="rounded-2xl border border-border/80 bg-card/95 p-4 shadow-subtle">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Alertas</div>
+                  <div className={`mt-2 text-2xl font-semibold tracking-[-0.03em] tabular-nums ${(alertGroupsCount ?? 0) > 0 ? "text-warning" : "text-success"}`}>
                     {formatNumberBR(alertGroupsCount ?? 0)}
                   </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {(alertGroupsCount ?? 0) > 0 ? "Grupos pedindo atenção agora" : "Operação sem sinais críticos"}
+                  </div>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-3">
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Cobrança</div>
+                <div className="rounded-2xl border border-border/80 bg-card/95 p-4 shadow-subtle">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Cobrança</div>
                   <div
-                    className={`mt-1 text-lg font-semibold capitalize ${
+                    className={`mt-2 text-2xl font-semibold tracking-[-0.03em] capitalize ${
                       org.billing_status === "active"
                         ? "text-success"
                         : org.billing_status === "past_due" || org.billing_status === "overdue"
@@ -2333,6 +2342,7 @@ const Org = () => {
                   >
                     {org.billing_status || "-"}
                   </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Leitura rápida do billing sincronizado</div>
                 </div>
               </>
             ) : null
@@ -2384,7 +2394,7 @@ const Org = () => {
               const cover = md.cover_url || "/org-cover-placeholder.jpg";
               const logo = md.logo_url || "/org-logo-placeholder.png";
               return (
-                <section className="overflow-hidden rounded-[var(--radius-xl)] border border-border/80 bg-card/95 shadow-subtle">
+                <section className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
                   <div className="h-32 sm:h-44 w-full bg-center bg-cover" style={{ backgroundImage: `url(${cover})` }} />
                   <div className="p-4 sm:p-6 flex items-start gap-4">
                     <img src={logo} alt="Logo" className="h-16 w-16 rounded-[var(--radius-md)] border border-border bg-background object-cover shadow-subtle" />
@@ -2401,8 +2411,11 @@ const Org = () => {
             })()}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <section className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-6 shadow-subtle space-y-4">
-                <h4 className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground">Dados da Organização</h4>
+              <section className="rounded-[32px] border border-border/80 bg-card/95 p-6 shadow-subtle space-y-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground">Dados da Organização</h4>
+                  <p className="text-sm text-muted-foreground">Contexto institucional e sinais rápidos para qualificar essa conta.</p>
+                </div>
                 {(() => {
                   const md = (org?.metadata || {}) as OrgProfileMetadata;
                   const stats = [
@@ -2442,9 +2455,9 @@ const Org = () => {
                           <p className="font-medium text-card-foreground">{md?.founded_at ? formatDateSimpleBR(md.founded_at) : "-"}</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         {stats.map((s) => (
-                          <div key={s.label} className="rounded-[var(--radius-lg)] border border-border/60 bg-background/80 p-4 shadow-subtle">
+                          <div key={s.label} className="rounded-[24px] border border-border/60 bg-background/80 p-4 shadow-subtle">
                             <div className="text-xl font-semibold tracking-[-0.03em] tabular-nums text-card-foreground">
                               {typeof s.value === "number" ? s.value.toLocaleString("pt-BR") : "-"}
                             </div>
@@ -2469,9 +2482,12 @@ const Org = () => {
                 })()}
               </section>
 
-              <section className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-6 shadow-subtle space-y-4">
+              <section className="rounded-[32px] border border-border/80 bg-card/95 p-6 shadow-subtle space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground">Contato</h4>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground">Contato</h4>
+                    <p className="text-sm text-muted-foreground">Canal principal de relacionamento com esta organização.</p>
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
@@ -2512,7 +2528,7 @@ const Org = () => {
                         )}
                       </div>
                       <div>
-                        <a href={contactEmail ? `mailto:${contactEmail}` : undefined} className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-primary px-3 py-2 text-sm text-primary-foreground shadow-subtle disabled:opacity-50" aria-disabled={!contactEmail}>
+                        <a href={contactEmail ? `mailto:${contactEmail}` : undefined} className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-subtle disabled:opacity-50" aria-disabled={!contactEmail}>
                           Enviar mensagem
                         </a>
                       </div>

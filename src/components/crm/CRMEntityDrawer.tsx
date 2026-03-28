@@ -5,6 +5,8 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   CRM_ACCOUNT_STATUS_META,
+  CRM_DEAL_CONTACT_ROLE_META,
+  CRM_LEAD_SOURCE_CATEGORY_META,
   CRM_STAGE_META,
   CRM_TASK_TYPE_META,
   getAccountFinanceSummary,
@@ -113,6 +115,7 @@ export function CRMEntityDrawer({
                       <p>{account?.domain || "Sem domínio"}</p>
                       <p>{account?.email || "Sem email"}</p>
                       <p>{account?.phone || "Sem telefone"}</p>
+                      <p>{account?.lead_source_detail || account?.source || "Sem origem detalhada"}</p>
                       {account ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className={cn("mt-1 border", CRM_STAGE_META[account.stage].tone)}>
@@ -121,6 +124,11 @@ export function CRMEntityDrawer({
                           <Badge variant="outline" className={cn("mt-1 border", CRM_ACCOUNT_STATUS_META[account.status].tone)}>
                             {CRM_ACCOUNT_STATUS_META[account.status].label}
                           </Badge>
+                          {account.lead_source_category ? (
+                            <Badge variant="outline">
+                              {CRM_LEAD_SOURCE_CATEGORY_META[account.lead_source_category].label}
+                            </Badge>
+                          ) : null}
                           {account.organization_id ? <Badge variant="outline">Cliente real</Badge> : <Badge variant="outline">Lead do CRM</Badge>}
                         </div>
                       ) : null}
@@ -190,6 +198,10 @@ export function CRMEntityDrawer({
                           <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Responsável</p>
                           <p className="mt-1 text-sm font-medium text-foreground">{account.assigned_user_id ? profileNameById.get(account.assigned_user_id) : "Sem responsável"}</p>
                         </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Canal de entrada</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">{account.inbound_channel || "Sem canal"}</p>
+                        </div>
                       </div>
                       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <div>
@@ -217,6 +229,15 @@ export function CRMEntityDrawer({
                               <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Observações</p>
                               <p className="text-sm text-foreground">{account.quick_notes || "Sem observações"}</p>
                             </div>
+                          </div>
+                        </>
+                      ) : null}
+                      {account.handoff_summary ? (
+                        <>
+                          <Separator className="my-4" />
+                          <div className="space-y-1">
+                            <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Handoff</p>
+                            <p className="text-sm text-foreground">{account.handoff_summary}</p>
                           </div>
                         </>
                       ) : null}

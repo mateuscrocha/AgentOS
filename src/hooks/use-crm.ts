@@ -9,12 +9,15 @@ export type CRMOpportunityStage =
   | "qualification"
   | "meeting"
   | "proposal"
+  | "approval_pending"
   | "customer"
   | "lost";
 
 export type CRMOpportunityStatus = "open" | "won" | "lost" | "stalled";
 export type CRMAccountStatus = "lead" | "prospect" | "customer" | "inactive";
 export type CRMTimelineItemType = "note" | "task" | "next_step";
+export type CRMLeadSourceCategory = "site" | "whatsapp" | "instagram" | "referral" | "outbound" | "other";
+export type CRMDealContactRole = "decision_maker" | "operator" | "champion" | "financial_buyer" | "influencer" | "unknown";
 
 export type CRMOrganizationBilling = {
   id: string;
@@ -37,6 +40,10 @@ export type CRMAccount = {
   phone: string | null;
   email: string | null;
   source: string | null;
+  lead_source_category: CRMLeadSourceCategory | null;
+  lead_source_detail: string | null;
+  inbound_channel: string | null;
+  handoff_summary: string | null;
   status: CRMAccountStatus;
   stage: CRMOpportunityStage;
   potential_value: number | null;
@@ -73,6 +80,7 @@ export type CRMContact = {
   phone: string | null;
   title: string | null;
   city: string | null;
+  role_in_deal: CRMDealContactRole | null;
   is_primary: boolean;
   created_by: string | null;
   updated_by: string | null;
@@ -129,10 +137,15 @@ export type CRMAccountFormValues = {
   organization_id?: string | null;
   assigned_user_id?: string | null;
   name: string;
+  primary_contact_name?: string | null;
   domain?: string | null;
   phone?: string | null;
   email?: string | null;
   source?: string | null;
+  lead_source_category?: CRMLeadSourceCategory | null;
+  lead_source_detail?: string | null;
+  inbound_channel?: string | null;
+  handoff_summary?: string | null;
   status: CRMAccountStatus;
   stage: CRMOpportunityStage;
   potential_value?: number | null;
@@ -156,6 +169,7 @@ export type CRMContactFormValues = {
   phone?: string | null;
   title?: string | null;
   city?: string | null;
+  role_in_deal?: CRMDealContactRole | null;
   is_primary?: boolean;
 };
 
@@ -216,9 +230,10 @@ export const CRM_STAGE_META: Record<
   { label: string; shortLabel: string; tone: string }
 > = {
   new_lead: { label: "Novo lead", shortLabel: "Lead", tone: "bg-slate-100 text-slate-700 border-slate-200" },
-  qualification: { label: "Em negociação", shortLabel: "Negociação", tone: "bg-sky-50 text-sky-700 border-sky-200" },
-  meeting: { label: "Em negociação", shortLabel: "Negociação", tone: "bg-sky-50 text-sky-700 border-sky-200" },
-  proposal: { label: "Em negociação", shortLabel: "Negociação", tone: "bg-sky-50 text-sky-700 border-sky-200" },
+  qualification: { label: "Qualificação", shortLabel: "Qualificação", tone: "bg-sky-50 text-sky-700 border-sky-200" },
+  meeting: { label: "Reunião", shortLabel: "Reunião", tone: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+  proposal: { label: "Proposta", shortLabel: "Proposta", tone: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  approval_pending: { label: "Aguardando aprovação", shortLabel: "Aprovação", tone: "bg-amber-50 text-amber-800 border-amber-200" },
   customer: { label: "Cliente", shortLabel: "Cliente", tone: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   lost: { label: "Perdido", shortLabel: "Perdido", tone: "bg-rose-50 text-rose-700 border-rose-200" },
 };
@@ -226,12 +241,14 @@ export const CRM_STAGE_META: Record<
 export const CRM_PIPELINE_STAGES: CRMOpportunityStage[] = [
   "new_lead",
   "meeting",
+  "proposal",
+  "approval_pending",
   "customer",
   "lost",
 ];
 
 export function normalizePipelineStage(stage: CRMOpportunityStage): CRMOpportunityStage {
-  if (stage === "qualification" || stage === "proposal") return "meeting";
+  if (stage === "qualification") return "meeting";
   return stage;
 }
 
@@ -273,6 +290,24 @@ export const CRM_TASK_TYPE_META: Record<CRMTimelineItemType, { label: string; to
   note: { label: "Nota", tone: "bg-slate-100 text-slate-700 border-slate-200" },
   task: { label: "Tarefa", tone: "bg-orange-50 text-orange-700 border-orange-200" },
   next_step: { label: "Próximo passo", tone: "bg-blue-50 text-blue-700 border-blue-200" },
+};
+
+export const CRM_LEAD_SOURCE_CATEGORY_META: Record<CRMLeadSourceCategory, { label: string }> = {
+  site: { label: "Site" },
+  whatsapp: { label: "WhatsApp" },
+  instagram: { label: "Instagram" },
+  referral: { label: "Indicação" },
+  outbound: { label: "Outbound" },
+  other: { label: "Outro" },
+};
+
+export const CRM_DEAL_CONTACT_ROLE_META: Record<CRMDealContactRole, { label: string; tone: string }> = {
+  decision_maker: { label: "Decisor", tone: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  operator: { label: "Operacional", tone: "bg-sky-50 text-sky-700 border-sky-200" },
+  champion: { label: "Sponsor", tone: "bg-violet-50 text-violet-700 border-violet-200" },
+  financial_buyer: { label: "Financeiro", tone: "bg-amber-50 text-amber-700 border-amber-200" },
+  influencer: { label: "Influenciador", tone: "bg-slate-100 text-slate-700 border-slate-200" },
+  unknown: { label: "Sem papel", tone: "bg-zinc-100 text-zinc-700 border-zinc-200" },
 };
 
 export function getOpportunityStatusFromStage(stage: CRMOpportunityStage): CRMOpportunityStatus {
@@ -375,6 +410,62 @@ export function isNonPayingCustomerAccount(account: CRMAccount) {
 function normalizeNullable(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+const AUTO_NEXT_STEP_TASK_TITLE = "Próximo passo";
+
+async function syncAutoNextStepTask(params: {
+  accountId: string;
+  opportunityId?: string | null;
+  nextStep?: string | null;
+  nextActionAt?: string | null;
+}) {
+  const nextStep = normalizeNullable(params.nextStep);
+  const nextActionAt = params.nextActionAt || null;
+
+  let query = supabase
+    .from("crm_timeline_items" as any)
+    .select("id")
+    .eq("account_id", params.accountId)
+    .eq("item_type", "task")
+    .eq("title", AUTO_NEXT_STEP_TASK_TITLE)
+    .is("completed_at", null);
+
+  query = params.opportunityId
+    ? query.eq("opportunity_id", params.opportunityId)
+    : query.is("opportunity_id", null);
+
+  const { data: existingTask, error: existingTaskError } = await query.maybeSingle();
+  if (existingTaskError) throw existingTaskError;
+
+  if (!nextStep) {
+    if (existingTask?.id) {
+      const { error } = await supabase.from("crm_timeline_items" as any).delete().eq("id", existingTask.id);
+      if (error) throw error;
+    }
+    return;
+  }
+
+  const payload = {
+    account_id: params.accountId,
+    opportunity_id: params.opportunityId ?? null,
+    item_type: "task" as const,
+    title: AUTO_NEXT_STEP_TASK_TITLE,
+    content: nextStep,
+    due_at: nextActionAt,
+    follow_up_at: nextActionAt,
+    completed_at: null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (existingTask?.id) {
+    const { error } = await supabase.from("crm_timeline_items" as any).update(payload).eq("id", existingTask.id);
+    if (error) throw error;
+    return;
+  }
+
+  const { error } = await supabase.from("crm_timeline_items" as any).insert(payload);
+  if (error) throw error;
 }
 
 export function useCRM(enabled: boolean) {
@@ -503,6 +594,10 @@ export function useCRM(enabled: boolean) {
         phone: normalizeNullable(values.phone),
         email: normalizeNullable(values.email),
         source: normalizeNullable(values.source),
+        lead_source_category: values.lead_source_category ?? null,
+        lead_source_detail: normalizeNullable(values.lead_source_detail),
+        inbound_channel: normalizeNullable(values.inbound_channel),
+        handoff_summary: normalizeNullable(values.handoff_summary),
         status: commercialClassification.status,
         stage: commercialClassification.stage,
         potential_value: values.potential_value ?? null,
@@ -521,6 +616,11 @@ export function useCRM(enabled: boolean) {
       if (values.id) {
         const { error } = await supabase.from("crm_accounts" as any).update(payload).eq("id", values.id);
         if (error) throw error;
+        await syncAutoNextStepTask({
+          accountId: values.id,
+          nextStep: payload.next_step,
+          nextActionAt: payload.next_action_at,
+        });
         return values.id;
       }
 
@@ -530,6 +630,11 @@ export function useCRM(enabled: boolean) {
         .select("id")
         .single();
       if (error) throw error;
+      await syncAutoNextStepTask({
+        accountId: data.id as string,
+        nextStep: payload.next_step,
+        nextActionAt: payload.next_action_at,
+      });
       return data.id as string;
     },
     onSuccess: refreshAll,
@@ -597,6 +702,7 @@ export function useCRM(enabled: boolean) {
         phone: normalizeNullable(values.phone),
         title: normalizeNullable(values.title),
         city: normalizeNullable(values.city),
+        role_in_deal: values.role_in_deal ?? null,
         is_primary: Boolean(values.is_primary),
         updated_at: new Date().toISOString(),
       };
@@ -650,6 +756,12 @@ export function useCRM(enabled: boolean) {
       if (values.id) {
         const { error } = await supabase.from("crm_opportunities" as any).update(payload).eq("id", values.id);
         if (error) throw error;
+        await syncAutoNextStepTask({
+          accountId: values.account_id,
+          opportunityId: values.id,
+          nextStep: payload.next_step,
+          nextActionAt: payload.next_action_at,
+        });
         return values.id;
       }
 
@@ -659,6 +771,12 @@ export function useCRM(enabled: boolean) {
         .select("id")
         .single();
       if (error) throw error;
+      await syncAutoNextStepTask({
+        accountId: values.account_id,
+        opportunityId: data.id as string,
+        nextStep: payload.next_step,
+        nextActionAt: payload.next_action_at,
+      });
       return data.id as string;
     },
     onSuccess: refreshAll,
@@ -738,6 +856,14 @@ export function useCRM(enabled: boolean) {
 
   const completeTaskMutation = useMutation({
     mutationFn: async ({ id, completed }: { id: string; completed: boolean }) => {
+      const { data: task, error: taskError } = await supabase
+        .from("crm_timeline_items" as any)
+        .select("id, account_id, opportunity_id, title")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (taskError) throw taskError;
+
       const { error } = await supabase
         .from("crm_timeline_items" as any)
         .update({
@@ -747,6 +873,34 @@ export function useCRM(enabled: boolean) {
         .eq("id", id);
 
       if (error) throw error;
+
+      if (!completed || task?.title !== AUTO_NEXT_STEP_TASK_TITLE) return;
+
+      if (task.opportunity_id) {
+        const { error: clearOpportunityError } = await supabase
+          .from("crm_opportunities" as any)
+          .update({
+            next_step: null,
+            next_action_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", task.opportunity_id);
+
+        if (clearOpportunityError) throw clearOpportunityError;
+      }
+
+      if (task.account_id) {
+        const { error: clearAccountError } = await supabase
+          .from("crm_accounts" as any)
+          .update({
+            next_step: null,
+            next_action_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", task.account_id);
+
+        if (clearAccountError) throw clearAccountError;
+      }
     },
     onSuccess: refreshAll,
   });

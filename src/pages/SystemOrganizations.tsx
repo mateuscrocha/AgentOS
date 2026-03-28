@@ -41,6 +41,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSystemOrganizations, type OrganizationListItem } from "@/hooks/use-system-organizations";
 import { getBillingStatusMeta, getRelationshipTypeMeta } from "@/lib/crm-tag-meta";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
 
@@ -80,8 +81,8 @@ export default function SystemOrganizations() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [orderBy, setOrderBy] = useState<"name" | "created_at">("name");
-  const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
+  const [orderBy, setOrderBy] = useState<"activity_24h" | "name" | "created_at">("activity_24h");
+  const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<OrganizationListItem | null>(null);
   const [cascadeOrg, setCascadeOrg] = useState<OrganizationListItem | null>(null);
@@ -213,6 +214,19 @@ export default function SystemOrganizations() {
       },
     },
     {
+      key: "activity_24h",
+      header: "Atividade (24h)",
+      sortable: true,
+      render: (org: OrganizationListItem) => {
+        const count = org.activity_24h ?? 0;
+        return (
+          <span className={count > 0 ? "text-sm font-semibold text-foreground" : "text-sm text-muted-foreground"}>
+            {count.toLocaleString("pt-BR")} msg{count === 1 ? "" : "s"}
+          </span>
+        );
+      },
+    },
+    {
       key: "groups_count",
       header: "Grupos",
       hideOn: "sm",
@@ -239,10 +253,19 @@ export default function SystemOrganizations() {
     },
   ];
 
-  const hasActiveFilters = !!search || orderBy !== "name" || orderDir !== "asc";
-  const activeFiltersCount = Number(!!search) + Number(orderBy !== "name" || orderDir !== "asc");
+  const hasActiveFilters = !!search || orderBy !== "activity_24h" || orderDir !== "desc";
+  const activeFiltersCount = Number(!!search) + Number(orderBy !== "activity_24h" || orderDir !== "desc");
   const sortValue = `${orderBy}:${orderDir}`;
+  const visibleItems = orgsData?.items ?? [];
+  const topActiveOrg = visibleItems.reduce<OrganizationListItem | null>((best, org) => {
+    if (!best) return org;
+    return (org.activity_24h ?? 0) > (best.activity_24h ?? 0) ? org : best;
+  }, null);
+  const visibleActivity24h = visibleItems.reduce((sum, org) => sum + (org.activity_24h ?? 0), 0);
+  const averageGroupsPerOrg = overview?.orgsTotal ? (overview.groupsTotal ?? 0) / Math.max(overview.orgsTotal, 1) : 0;
   const sortLabel = (() => {
+    if (orderBy === "activity_24h" && orderDir === "desc") return "";
+    if (orderBy === "activity_24h" && orderDir === "asc") return "Ordenação: menos atividade nas últimas 24h";
     if (orderBy === "name" && orderDir === "asc") return "";
     if (orderBy === "name" && orderDir === "desc") return "Ordenação: nome (Z-A)";
     if (orderBy === "created_at" && orderDir === "desc") return "Ordenação: mais recentes";
@@ -252,8 +275,8 @@ export default function SystemOrganizations() {
 
   const clearFilters = () => {
     setSearch("");
-    setOrderBy("name");
-    setOrderDir("asc");
+    setOrderBy("activity_24h");
+    setOrderDir("desc");
     setPage(1);
   };
 
@@ -281,7 +304,7 @@ export default function SystemOrganizations() {
       <Select
         value={sortValue}
         onValueChange={(v) => {
-          const [nextOrderBy, nextOrderDir] = v.split(":") as ["name" | "created_at", "asc" | "desc"];
+          const [nextOrderBy, nextOrderDir] = v.split(":") as ["activity_24h" | "name" | "created_at", "asc" | "desc"];
           setOrderBy(nextOrderBy);
           setOrderDir(nextOrderDir);
           setPage(1);
@@ -291,6 +314,8 @@ export default function SystemOrganizations() {
           <SelectValue placeholder="Ordenação" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="activity_24h:desc">Ordenar: mais ativas (24h)</SelectItem>
+          <SelectItem value="activity_24h:asc">Ordenar: menos ativas (24h)</SelectItem>
           <SelectItem value="name:asc">Ordenar: nome (A-Z)</SelectItem>
           <SelectItem value="name:desc">Ordenar: nome (Z-A)</SelectItem>
           <SelectItem value="created_at:desc">Ordenar: mais recentes</SelectItem>
@@ -359,7 +384,54 @@ export default function SystemOrganizations() {
           )}
         />
 
-        <div className="rounded-[var(--radius-lg)] border border-border/80 bg-card/95 p-3 shadow-subtle sm:p-4">
+        <section className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
+          <div className="bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.18),transparent_34%),linear-gradient(135deg,hsl(var(--secondary)/0.55),transparent_72%)] px-5 py-6 sm:px-6 lg:px-7">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+              <div className="max-w-3xl space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  <Building2 className="h-3.5 w-3.5" />
+                  Mapa operacional
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-3xl">
+                    Priorize as organizações com mais movimento agora
+                  </h3>
+                  <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+                    A lista já abre ordenada por atividade das últimas 24 horas para ajudar comercial, suporte e operação
+                    a encontrar primeiro onde o uso está concentrado.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[560px]">
+                <div className="rounded-2xl border border-border/70 bg-background/85 p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Atividade visível</div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">
+                    {visibleActivity24h.toLocaleString("pt-BR")}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Mensagens somadas nos registros desta página</div>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/85 p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Mais ativa</div>
+                  <div className="mt-2 truncate text-base font-semibold text-foreground">
+                    {topActiveOrg?.name || "Sem destaque"}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {(topActiveOrg?.activity_24h ?? 0).toLocaleString("pt-BR")} msg nas últimas 24h
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/85 p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Densidade da base</div>
+                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">
+                    {averageGroupsPerOrg.toFixed(1).replace(".", ",")}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Grupos por organização na base atual</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="rounded-[28px] border border-border/80 bg-card/95 p-3 shadow-subtle sm:p-4">
           <FilterBarRow
             desktopFilters={filtersForm}
             mobileTrigger={(
@@ -402,8 +474,8 @@ export default function SystemOrganizations() {
                       key: "sort",
                       label: sortLabel,
                       onRemove: () => {
-                        setOrderBy("name");
-                        setOrderDir("asc");
+                        setOrderBy("activity_24h");
+                        setOrderDir("desc");
                         setPage(1);
                       },
                       ariaLabel: "Remover ordenação personalizada",
@@ -493,27 +565,42 @@ export default function SystemOrganizations() {
               <ul className="space-y-3" role="list">
                 {(orgsData?.items ?? []).map((org) => {
                   const groupsCount = orgGroupCounts?.[org.id] ?? 0;
+                  const activity24h = org.activity_24h ?? 0;
+                  const relationshipMeta = getRelationshipTypeMeta(org.relationship_type);
+                  const billingMeta = getBillingStatusMeta(org.billing_status);
                   return (
-                    <li key={org.id} className="rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-4 shadow-subtle transition-colors hover:bg-secondary/20">
+                    <li key={org.id} className="rounded-[24px] border border-border/70 bg-card/95 p-4 shadow-subtle transition-colors hover:bg-secondary/20">
                       <div className="flex items-start justify-between gap-3">
                         <Link
                           to={`/org/${org.id}`}
                           className="min-w-0 flex-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                           aria-label={`Abrir organização ${org.name}`}
                         >
-                          <div className="truncate text-base font-semibold tracking-[-0.02em] text-card-foreground hover:underline">{org.name}</div>
-                          <div className="mt-2">
-                            <Badge variant="outline" className={getRelationshipTypeMeta(org.relationship_type).className}>
-                              {getRelationshipTypeMeta(org.relationship_type).label}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="truncate text-base font-semibold tracking-[-0.02em] text-card-foreground hover:underline">{org.name}</div>
+                            {activity24h > 0 ? (
+                              <span className="inline-flex h-6 items-center rounded-full bg-emerald-500/10 px-2.5 text-[11px] font-semibold text-emerald-700">
+                                {activity24h.toLocaleString("pt-BR")} msg / 24h
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className={relationshipMeta.className}>
+                              {relationshipMeta.label}
+                            </Badge>
+                            <Badge variant="outline" className={billingMeta.className}>
+                              {billingMeta.label}
                             </Badge>
                           </div>
-                          <div className="mt-2">
-                            <Badge variant="outline" className={getBillingStatusMeta(org.billing_status).className}>
-                              {getBillingStatusMeta(org.billing_status).label}
-                            </Badge>
-                          </div>
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            {groupsCount} grupos · Criada em {formatDateSimpleBR(org.created_at)}
+                          <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-border/60 bg-background/70 p-3">
+                            <div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grupos</div>
+                              <div className="mt-1 text-sm font-semibold text-card-foreground">{groupsCount.toLocaleString("pt-BR")}</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Criada em</div>
+                              <div className="mt-1 text-sm font-semibold text-card-foreground">{formatDateSimpleBR(org.created_at)}</div>
+                            </div>
                           </div>
                         </Link>
 
@@ -558,33 +645,48 @@ export default function SystemOrganizations() {
         </div>
 
         <div className="hidden md:block">
-          <BorisTable
-            columns={columns as any}
-            data={orgsData?.items ?? []}
-            keyExtractor={(org) => org.id}
-            onRowClick={(org) => navigate(`/org/${org.id}`)}
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalCount={orgsData?.count}
-            onPageChange={setPage}
-            loading={orgsLoading}
-            error={!!orgsError}
-            onRetry={() => refetchOrgs()}
-            sortMode="manual"
-            sortState={{ key: orderBy, direction: orderDir }}
-            onSortChange={(sort) => {
-              if (!sort || (sort.key !== "name" && sort.key !== "created_at")) return;
-              setOrderBy(sort.key);
-              setOrderDir(sort.direction);
-              setPage(1);
-            }}
-            emptyIcon={Building2}
-            emptyMessage={
-              hasActiveFilters
-                ? "Nenhuma organização encontrada com os filtros atuais."
-                : "Ainda não há organizações por aqui."
-            }
-          />
+          <div className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
+            <div className="flex items-center justify-between border-b border-border/70 px-5 py-4 sm:px-6">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Fila operacional</div>
+                <div className="mt-1 text-sm text-card-foreground">
+                  Organizações ordenadas por atividade recente, com leitura rápida de relacionamento e billing.
+                </div>
+              </div>
+              <div className="hidden rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium text-muted-foreground lg:inline-flex">
+                Clique na linha para abrir a visão da organização
+              </div>
+            </div>
+            <div className={cn(orgsFetching && !orgsLoading ? "opacity-80 transition-opacity" : undefined)}>
+              <BorisTable
+                columns={columns as any}
+                data={orgsData?.items ?? []}
+                keyExtractor={(org) => org.id}
+                onRowClick={(org) => navigate(`/org/${org.id}`)}
+                page={page}
+                pageSize={PAGE_SIZE}
+                totalCount={orgsData?.count}
+                onPageChange={setPage}
+                loading={orgsLoading}
+                error={!!orgsError}
+                onRetry={() => refetchOrgs()}
+                sortMode="manual"
+                sortState={{ key: orderBy, direction: orderDir }}
+                onSortChange={(sort) => {
+                  if (!sort || (sort.key !== "activity_24h" && sort.key !== "name" && sort.key !== "created_at")) return;
+                  setOrderBy(sort.key as "activity_24h" | "name" | "created_at");
+                  setOrderDir(sort.direction);
+                  setPage(1);
+                }}
+                emptyIcon={Building2}
+                emptyMessage={
+                  hasActiveFilters
+                    ? "Nenhuma organização encontrada com os filtros atuais."
+                    : "Ainda não há organizações por aqui."
+                }
+              />
+            </div>
+          </div>
         </div>
 
         <AlertDialog open={!!cascadeOrg} onOpenChange={(open) => !open && setCascadeOrg(null)}>

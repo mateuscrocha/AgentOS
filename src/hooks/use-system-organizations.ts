@@ -10,10 +10,11 @@ export type OrganizationListItem = {
   billing_status: string | null;
   created_at: string;
   settings?: Record<string, any> | null;
+  activity_24h?: number;
 };
 
 type StatusFilter = "all" | "active" | "inactive" | "suspended";
-type OrderBy = "name" | "created_at";
+type OrderBy = "activity_24h" | "name" | "created_at";
 type OrderDir = "asc" | "desc";
 
 type UseSystemOrganizationsArgs = {
@@ -95,9 +96,6 @@ export function useSystemOrganizations({
   const orgsQuery = useQuery({
     queryKey: systemOrganizationsQueryKeys.list({ page, pageSize, search, statusFilter, orderBy, orderDir }),
     queryFn: async () => {
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-
       let query = supabase
         .from("organizations")
         .select("id, name, status, relationship_type, billing_status, created_at, settings", { count: "exact" });
@@ -105,11 +103,74 @@ export function useSystemOrganizations({
       if (search) query = query.ilike("name", `%${search}%`);
       if (statusFilter !== "all") query = query.eq("status", statusFilter);
 
-      query = query.order(orderBy, { ascending: orderDir === "asc" });
+      if (orderBy !== "activity_24h") {
+        query = query.order(orderBy, { ascending: orderDir === "asc" });
+      }
 
-      const { data, error, count } = await query.range(from, to);
+      const { data, error, count } = await (
+        orderBy === "activity_24h"
+          ? query
+          : query.range((page - 1) * pageSize, page * pageSize - 1)
+      );
       if (error) throw error;
-      return { items: (data ?? []) as OrganizationListItem[], count: count ?? 0 };
+
+      const items = (data ?? []) as OrganizationListItem[];
+
+      if (orderBy !== "activity_24h" || items.length === 0) {
+        return { items, count: count ?? 0 };
+      }
+
+      const orgIds = items.map((org) => org.id);
+      const { data: groupsData, error: groupsError } = await supabase
+        .from("groups")
+        .select("id, organization_id")
+        .in("organization_id", orgIds)
+        .is("deleted_at", null)
+        .neq("is_archived", true);
+      if (groupsError) throw groupsError;
+
+      const groupRows = (groupsData ?? []) as Array<{ id: string; organization_id: string | null }>;
+      const groupIds = groupRows.map((group) => group.id).filter(Boolean);
+      const activityByOrgId = new Map<string, number>();
+
+      if (groupIds.length > 0) {
+        const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: messagesData, error: messagesError } = await supabase
+          .from("messages")
+          .select("group_id")
+          .in("group_id", groupIds)
+          .is("deleted_at", null)
+          .gte("created_at", sinceIso);
+        if (messagesError) throw messagesError;
+
+        const orgByGroupId = new Map<string, string>();
+        groupRows.forEach((group) => {
+          if (group.id && group.organization_id) {
+            orgByGroupId.set(group.id, group.organization_id);
+          }
+        });
+
+        (messagesData ?? []).forEach((row: any) => {
+          const orgId = orgByGroupId.get(String(row?.group_id ?? ""));
+          if (!orgId) return;
+          activityByOrgId.set(orgId, (activityByOrgId.get(orgId) ?? 0) + 1);
+        });
+      }
+
+      items.forEach((org) => {
+        org.activity_24h = activityByOrgId.get(org.id) ?? 0;
+      });
+
+      const directionFactor = orderDir === "asc" ? 1 : -1;
+      items.sort((a, b) => {
+        const diff = (a.activity_24h ?? 0) - (b.activity_24h ?? 0);
+        if (diff !== 0) return diff * directionFactor;
+        return a.name.localeCompare(b.name, "pt-BR") * directionFactor;
+      });
+
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize;
+      return { items: items.slice(from, to), count: items.length };
     },
     enabled: isAuthenticated,
   });

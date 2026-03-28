@@ -469,11 +469,47 @@ export function EditOrganizationModal({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 py-4">
+              <div className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.14),transparent_34%),linear-gradient(180deg,hsl(var(--secondary)/0.28),transparent)] p-5">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      {organization ? "Edição operacional" : "Novo cadastro"}
+                    </div>
+                    <div className="text-lg font-semibold tracking-[-0.02em] text-card-foreground">
+                      {organization ? "Ajuste identidade, enquadramento comercial e vínculo de billing" : "Crie a organização e deixe o vínculo comercial pronto para crescer"}
+                    </div>
+                    <p className="max-w-2xl text-sm text-muted-foreground">
+                      Organize primeiro o essencial. O restante pode ser refinado depois sem travar a operação.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-border/60 bg-background/85 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Nome</div>
+                      <div className="mt-1 text-sm font-semibold text-card-foreground">{organization?.name || "Nova organização"}</div>
+                    </div>
+                    <div className="rounded-2xl border border-border/60 bg-background/85 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Relacionamento</div>
+                      <div className="mt-1 text-sm font-semibold text-card-foreground">
+                        {organization?.relationship_type ? organization.relationship_type.replaceAll("_", " ") : "Cliente pagante"}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border/60 bg-background/85 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Billing</div>
+                      <div className="mt-1 text-sm font-semibold text-card-foreground">{organization?.billing_status || "Ainda não sincronizado"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
-                <div className="space-y-4">
-                  <p className="text-xs text-muted-foreground">
-                    Essas informações ajudam a organizar melhor sua organização. Você pode preencher agora ou ajustar tudo depois, sem impacto no funcionamento.
-                  </p>
+                <div className="space-y-5">
+                  <section className="rounded-[24px] border border-border/70 bg-card/70 p-5">
+                    <div className="mb-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Essencial</div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Identidade principal e enquadramento comercial da organização.
+                      </p>
+                    </div>
 
                   <FormField
                     control={form.control}
@@ -490,79 +526,92 @@ export function EditOrganizationModal({
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Descrição / propósito</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Explique o foco da organização." {...field} />
-                        </FormControl>
-                        <FormDescription>Ajuda membros e gestores a entenderem o foco da organização.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Status da organização</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="active">Ativo</SelectItem>
+                                <SelectItem value="inactive">Inativo</SelectItem>
+                                <SelectItem value="suspended">Suspenso</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status da organização</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="active">Ativo</SelectItem>
-                            <SelectItem value="inactive">Inativo</SelectItem>
-                            <SelectItem value="suspended">Suspenso</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      <FormField
+                        control={form.control}
+                        name="relationship_type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tipo de relacionamento</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="paying_customer">Cliente pagante</SelectItem>
+                                <SelectItem value="partner">Parceiro</SelectItem>
+                                <SelectItem value="courtesy">Cortesia</SelectItem>
+                                <SelectItem value="internal">Interno</SelectItem>
+                                <SelectItem value="trial">Teste / trial</SelectItem>
+                                <SelectItem value="demo">Demo</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Define o enquadramento comercial do cliente sem depender só do billing da Stripe.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </section>
 
-                  <FormField
-                    control={form.control}
-                    name="relationship_type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de relacionamento</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                  <section className="rounded-[24px] border border-border/70 bg-card/70 p-5">
+                    <div className="mb-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Contexto</div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Um resumo curto para orientar equipe comercial, suporte e operação.
+                      </p>
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Descrição / propósito</FormLabel>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
+                            <Textarea placeholder="Explique o foco da organização." {...field} />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="paying_customer">Cliente pagante</SelectItem>
-                            <SelectItem value="partner">Parceiro</SelectItem>
-                            <SelectItem value="courtesy">Cortesia</SelectItem>
-                            <SelectItem value="internal">Interno</SelectItem>
-                            <SelectItem value="trial">Teste / trial</SelectItem>
-                            <SelectItem value="demo">Demo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Define o enquadramento comercial do cliente sem depender só do billing da Stripe.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          <FormDescription>Ajuda membros e gestores a entenderem o foco da organização.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </section>
                 </div>
 
                 {canManageStripe ? (
-                <div className="rounded-2xl border border-border/70 bg-secondary/20 p-4">
+                <div className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_36%),linear-gradient(180deg,hsl(var(--secondary)/0.26),transparent)] p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="flex items-center gap-2 text-sm font-semibold text-card-foreground">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Billing e Stripe</div>
+                      <h3 className="mt-2 flex items-center gap-2 text-sm font-semibold text-card-foreground">
                         <CreditCard className="h-4 w-4 text-muted-foreground" />
                         Vincular Stripe
                       </h3>
@@ -594,11 +643,11 @@ export function EditOrganizationModal({
                         />
                       </div>
 
-                      <div className="rounded-xl border border-border bg-background/80">
+                      <div className="rounded-2xl border border-border bg-background/80">
                         <ScrollArea className="h-56">
                           <div className="p-2">
                             {filteredCustomers.length === 0 ? (
-                              <div className="rounded-lg px-3 py-6 text-center text-sm text-muted-foreground">
+                            <div className="rounded-xl px-3 py-6 text-center text-sm text-muted-foreground">
                                 {customersLoading ? "Carregando clientes da Stripe..." : "Nenhum cliente encontrado nesta lista."}
                               </div>
                             ) : (
@@ -669,15 +718,15 @@ export function EditOrganizationModal({
 
                         <div className="space-y-2">
                           {subscriptionsLoading ? (
-                            <div className="rounded-xl border border-border bg-background/70 px-4 py-6 text-sm text-muted-foreground">
+                            <div className="rounded-2xl border border-border bg-background/70 px-4 py-6 text-sm text-muted-foreground">
                               Carregando assinaturas...
                             </div>
                           ) : !selectedCustomer ? (
-                            <div className="rounded-xl border border-dashed border-border bg-background/70 px-4 py-6 text-sm text-muted-foreground">
+                            <div className="rounded-2xl border border-dashed border-border bg-background/70 px-4 py-6 text-sm text-muted-foreground">
                               Nenhum cliente selecionado.
                             </div>
                           ) : subscriptions.length === 0 ? (
-                            <div className="rounded-xl border border-dashed border-border bg-background/70 px-4 py-6 text-sm text-muted-foreground">
+                            <div className="rounded-2xl border border-dashed border-border bg-background/70 px-4 py-6 text-sm text-muted-foreground">
                               Esse cliente ainda não tem assinaturas encontradas na Stripe.
                             </div>
                           ) : (
@@ -720,7 +769,7 @@ export function EditOrganizationModal({
 
                       <Separator />
 
-                      <div className="rounded-xl border border-border bg-background/70 p-4">
+                      <div className="rounded-2xl border border-border bg-background/70 p-4">
                         <p className="text-sm font-medium text-card-foreground">Resumo do vínculo</p>
                         <div className="mt-3 space-y-2 text-sm">
                           <p>

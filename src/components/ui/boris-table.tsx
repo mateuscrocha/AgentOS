@@ -106,12 +106,12 @@ export function BorisTable<T>({
   const showPagination = totalCount && totalCount > pageSize;
 
   const headerCls = cn(
-    "px-4 text-left text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground",
-    density === "comfortable" ? "py-3.5" : "py-3",
+    "px-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500",
+    density === "comfortable" ? "py-4" : "py-3.5",
   );
   const cellBaseCls = cn(
-    "px-4 text-[13px] font-normal text-card-foreground",
-    density === "comfortable" ? "py-3" : "py-2",
+    "px-4 text-[13px] font-normal text-card-foreground align-top",
+    density === "comfortable" ? "py-4" : "py-3",
   );
   const sortedData = useMemo(() => {
     if (sortMode === "manual" || !activeSortState) return data;
@@ -193,11 +193,11 @@ export function BorisTable<T>({
   }
 
   return (
-    <div className={cn("overflow-hidden rounded-[var(--radius-lg)] border border-border/80 bg-card/95 shadow-subtle", className)}>
+    <div className={cn("overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm", className)}>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border bg-muted/35">
+            <tr className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-white">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -237,8 +237,8 @@ export function BorisTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
-            {sortedData.map((item) => (
+          <tbody className="divide-y divide-slate-100">
+            {sortedData.map((item, index) => (
               <tr
                 key={keyExtractor(item)}
                 onClick={() => onRowClick?.(item)}
@@ -254,7 +254,8 @@ export function BorisTable<T>({
                 className={cn(
                   "transition-colors",
                   density === "comfortable" ? "min-h-[72px]" : "h-11",
-                  onRowClick && "cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                  index % 2 === 0 ? "bg-white" : "bg-slate-50/35",
+                  onRowClick && "cursor-pointer hover:bg-sky-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                   rowClassName?.(item),
                 )}
               >

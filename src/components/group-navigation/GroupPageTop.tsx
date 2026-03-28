@@ -261,9 +261,11 @@ export function GroupPageTop({
   }, [adminsModalOpen, orderedSpecialMembers]);
 
   return (
-    <section className={cn("mb-6 space-y-5", className)}>
-      <div className="static z-20 -mx-4 border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur sm:sticky sm:top-16 sm:-mx-6 sm:px-6">
-        <Breadcrumbs items={breadcrumbItems} />
+    <section className={cn("mb-7 space-y-5", className)}>
+      <div className="static z-20 -mx-4 px-4 py-3 backdrop-blur sm:sticky sm:top-16 sm:-mx-6 sm:px-6">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 shadow-[0_16px_30px_-26px_rgba(15,23,42,0.35)]">
+          <Breadcrumbs items={breadcrumbItems} />
+        </div>
       </div>
       <div className="space-y-0">
         <GroupHeader
@@ -278,10 +280,17 @@ export function GroupPageTop({
       </div>
 
       {filters && (
-        <div className="rounded-[var(--radius-lg)] border border-border/80 bg-card/95 p-3 shadow-subtle">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">{filters}</div>
-            <div className="flex items-center gap-2">
+        <div className="rounded-[28px] border border-slate-200/90 bg-white p-4 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.32)] sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Explorar grupo
+              </div>
+              <div className="text-sm text-slate-600">
+                Ajuste período, filtros e atalhos operacionais sem perder o contexto do grupo.
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               {_showClearFilters && _onClearFilters ? (
                 <Button type="button" variant="ghost" size="sm" onClick={_onClearFilters}>
                   Limpar filtros
@@ -290,6 +299,7 @@ export function GroupPageTop({
               {rightActions}
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">{filters}</div>
         </div>
       )}
     </section>

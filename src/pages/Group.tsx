@@ -152,7 +152,11 @@ const Group = () => {
     setCustomRange(period === 'custom' ? range : undefined);
   };
 
-  const canSendMessage = !!group && canEditGroup(group.id, group.organization_id);
+  const canSendMessage = !!group && (
+    typeof canEditGroup === "function"
+      ? canEditGroup(group.id, group.organization_id)
+      : Boolean(isSystemAdmin)
+  );
   const totalMessages = Number((stats as any)?.totalMessages ?? (stats as any)?.totalMessages7d ?? 0);
   const hasGroupActivity = totalMessages > 0 || Boolean(stats.lastMessageAt);
   const welcomeDismissed = isGroupWelcomeDismissed(groupId ?? null);

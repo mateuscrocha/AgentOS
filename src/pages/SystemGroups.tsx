@@ -59,8 +59,9 @@ interface GroupRow {
   organizations?: { name: string } | null;
   invite_link?: string | null;
   created_at?: string;
-  last_access_at?: string | null;
+  last_message_at?: string | null;
   members_count?: number;
+  activity_24h?: number;
 }
 
 interface OrganizationOption { id: string; name: string; }
@@ -129,7 +130,7 @@ export default function SystemGroups() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [orgFilter, setOrgFilter] = useState<string>("");
-  const [orderBy, setOrderBy] = useState<"created_at" | "name">("created_at");
+  const [orderBy, setOrderBy] = useState<"activity_24h" | "created_at" | "name">("activity_24h");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
   const [removeGroup, setRemoveGroup] = useState<GroupRow | null>(null);
   const [removingGroup, setRemovingGroup] = useState(false);
@@ -184,9 +185,6 @@ export default function SystemGroups() {
   const { data: groupsData, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["system-groups", page, debouncedSearch, statusFilter, orgFilter, orderBy, orderDir],
     queryFn: async () => {
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
       let query = supabase
         .from("groups")
         .select("id, name, provider, status, organization_id, invite_link, created_at, organizations(name)", { count: "exact" })
@@ -202,9 +200,15 @@ export default function SystemGroups() {
         query = query.eq("status", statusFilter);
       }
 
-      query = query.order(orderBy, { ascending: orderDir === "asc" });
+      if (orderBy !== "activity_24h") {
+        query = query.order(orderBy, { ascending: orderDir === "asc" });
+      }
 
-      const { data, error, count } = await query.range(from, to);
+      const { data, error, count } = await (
+        orderBy === "activity_24h"
+          ? query
+          : query.range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
+      );
       if (error) throw error;
 
       const items = (data ?? []) as GroupRow[];
@@ -212,7 +216,7 @@ export default function SystemGroups() {
       if (groupIds.length) {
         const { data: overviewData, error: overviewErr } = await supabase
           .from("v_group_overview")
-          .select("group_id, last_access_at, members_count")
+          .select("group_id, last_message_at, members_count")
           .in("group_id", groupIds);
         if (!overviewErr && Array.isArray(overviewData)) {
           const byId = new Map<string, any>();
@@ -222,10 +226,47 @@ export default function SystemGroups() {
           items.forEach((g) => {
             const o = byId.get(g.id);
             if (!o) return;
-            g.last_access_at = o.last_access_at;
+            g.last_message_at = o.last_message_at;
             g.members_count = typeof o.members_count === "number" ? o.members_count : Number(o.members_count ?? 0);
           });
         }
+
+        const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: recentMessages, error: recentMessagesErr } = await supabase
+          .from("messages")
+          .select("group_id")
+          .in("group_id", groupIds)
+          .is("deleted_at", null)
+          .gte("created_at", sinceIso);
+
+        if (!recentMessagesErr && Array.isArray(recentMessages)) {
+          const activityByGroupId = new Map<string, number>();
+          recentMessages.forEach((row: any) => {
+            const groupId = String(row?.group_id ?? "");
+            if (!groupId) return;
+            activityByGroupId.set(groupId, (activityByGroupId.get(groupId) ?? 0) + 1);
+          });
+          items.forEach((g) => {
+            g.activity_24h = activityByGroupId.get(g.id) ?? 0;
+          });
+        } else {
+          items.forEach((g) => {
+            g.activity_24h = 0;
+          });
+        }
+      }
+
+      if (orderBy === "activity_24h") {
+        const directionFactor = orderDir === "asc" ? 1 : -1;
+        items.sort((a, b) => {
+          const diff = (a.activity_24h ?? 0) - (b.activity_24h ?? 0);
+          if (diff !== 0) return diff * directionFactor;
+          return (a.name || "").localeCompare(b.name || "", "pt-BR") * directionFactor;
+        });
+
+        const from = (page - 1) * PAGE_SIZE;
+        const to = from + PAGE_SIZE;
+        return { items: items.slice(from, to), count: items.length };
       }
 
       return { items, count: count ?? 0 };
@@ -368,18 +409,18 @@ export default function SystemGroups() {
     return <AccessDenied />;
   }
 
-  const hasActiveFilters = !!search || !!orgFilter || statusFilter !== "all" || orderBy !== "created_at" || orderDir !== "desc";
+  const hasActiveFilters = !!search || !!orgFilter || statusFilter !== "all" || orderBy !== "activity_24h" || orderDir !== "desc";
   const activeFiltersCount =
     Number(!!search.trim()) +
     Number(!!orgFilter) +
     Number(statusFilter !== "all") +
-    Number(orderBy !== "created_at" || orderDir !== "desc");
+    Number(orderBy !== "activity_24h" || orderDir !== "desc");
 
   const handleClearFilters = () => {
     setSearch("");
     setOrgFilter("");
     setStatusFilter("all");
-    setOrderBy("created_at");
+    setOrderBy("activity_24h");
     setOrderDir("desc");
     setPage(1);
   };
@@ -518,15 +559,15 @@ export default function SystemGroups() {
       ),
     },
     {
-      key: "last_access_at",
-      header: "Última atividade",
+      key: "activity_24h",
+      header: "Atividade (24h)",
       hideOn: "lg",
+      sortable: true,
       render: (g: GroupRow) => {
-        const tone = getLastActivityTone(g.last_access_at);
-        const label = g.last_access_at ? formatDateSimpleBR(g.last_access_at) : "Sem atividade";
+        const count = g.activity_24h ?? 0;
         return (
-          <span className={tone === "attention" ? "text-sm font-medium text-warning" : "text-sm text-muted-foreground"}>
-            {label}
+          <span className={count > 0 ? "text-sm font-semibold text-foreground" : "text-sm text-muted-foreground"}>
+            {count.toLocaleString("pt-BR")} msg{count === 1 ? "" : "s"}
           </span>
         );
       },
@@ -542,15 +583,16 @@ export default function SystemGroups() {
   const sortValue = `${orderBy}:${orderDir}`;
   const setSortValue = (value: string) => {
     const [by, dir] = value.split(":");
-    if ((by === "created_at" || by === "name") && (dir === "asc" || dir === "desc")) {
-      setOrderBy(by);
+    if ((by === "activity_24h" || by === "created_at" || by === "name") && (dir === "asc" || dir === "desc")) {
+      setOrderBy(by as "activity_24h" | "created_at" | "name");
       setOrderDir(dir);
       setPage(1);
     }
   };
 
   const sortLabel = (() => {
-    if (sortValue === "created_at:desc") return "";
+    if (sortValue === "activity_24h:desc") return "";
+    if (sortValue === "activity_24h:asc") return "Ordenação: menos atividade nas últimas 24h";
     if (sortValue === "created_at:asc") return "Ordenação: mais antigas";
     if (sortValue === "name:asc") return "Ordenação: nome (A-Z)";
     if (sortValue === "name:desc") return "Ordenação: nome (Z-A)";
@@ -618,6 +660,8 @@ export default function SystemGroups() {
           <SelectValue placeholder="Ordenação" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="activity_24h:desc">Ordenar: mais ativos (24h)</SelectItem>
+          <SelectItem value="activity_24h:asc">Ordenar: menos ativos (24h)</SelectItem>
           <SelectItem value="created_at:desc">Ordenar: mais recentes</SelectItem>
           <SelectItem value="created_at:asc">Ordenar: mais antigas</SelectItem>
           <SelectItem value="name:asc">Ordenar: nome (A-Z)</SelectItem>
@@ -665,7 +709,7 @@ export default function SystemGroups() {
         key: "sort",
         label: sortLabel,
         onClear: () => {
-          setOrderBy("created_at");
+          setOrderBy("activity_24h");
           setOrderDir("desc");
           setPage(1);
         },
@@ -739,7 +783,7 @@ export default function SystemGroups() {
           )}
         />
 
-        <div className="rounded-[var(--radius-lg)] border border-border/80 bg-card/95 p-3 shadow-subtle sm:p-4">
+        <div className="rounded-[28px] border border-slate-200/90 bg-white p-3 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.3)] sm:p-4">
           <FilterBarRow
             desktopFilters={filtersForm}
             mobileTrigger={(
@@ -774,14 +818,6 @@ export default function SystemGroups() {
           )}
         </div>
 
-        <ListSectionHeader
-          title="Lista de grupos"
-          count={typeof groupsData?.count === "number" ? groupsData.count.toLocaleString("pt-BR") : "—"}
-          statusLabel={hasActiveFilters ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.allRecords}
-          isLoading={isFetching}
-          loadingIndicator={<Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />}
-        />
-
         <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
           <DrawerContent className="border-border bg-card">
             <DrawerHeader className="text-left">
@@ -813,7 +849,16 @@ export default function SystemGroups() {
           </DrawerContent>
         </Drawer>
 
-        <div className="md:hidden">
+        <div className="rounded-[28px] border border-slate-200/90 bg-white p-4 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.3)] sm:p-5">
+          <ListSectionHeader
+            title="Lista de grupos"
+            count={typeof groupsData?.count === "number" ? groupsData.count.toLocaleString("pt-BR") : "—"}
+            statusLabel={hasActiveFilters ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.allRecords}
+            isLoading={isFetching}
+            loadingIndicator={<Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />}
+          />
+
+        <div className="mt-4 md:hidden">
           {isLoading ? (
             <div className="space-y-3">
               {[...Array(4)].map((_, idx) => (
@@ -844,8 +889,8 @@ export default function SystemGroups() {
             <div className="space-y-3">
               {(groupsData?.items ?? []).map((g) => {
                 const membersLabel = typeof g.members_count === "number" ? g.members_count.toLocaleString("pt-BR") : "—";
-                const lastActivityTone = getLastActivityTone(g.last_access_at);
-                const lastActivityLabel = g.last_access_at ? `Última atividade em ${formatDateTickBR(g.last_access_at)}` : "Sem atividade registrada";
+                const activity24h = g.activity_24h ?? 0;
+                const activity24hLabel = `${activity24h.toLocaleString("pt-BR")} msg${activity24h === 1 ? "" : "s"} nas últimas 24h`;
 
                 return (
                   <div
@@ -880,8 +925,8 @@ export default function SystemGroups() {
                       <div className="text-sm text-muted-foreground">
                         <span className="font-semibold tabular-nums text-foreground">{membersLabel}</span>
                         <span> membros · </span>
-                        <span className={lastActivityTone === "attention" ? "font-medium text-warning" : undefined}>
-                          {lastActivityLabel}
+                        <span className={activity24h > 0 ? "font-medium text-foreground" : undefined}>
+                          {activity24hLabel}
                         </span>
                       </div>
 
@@ -896,7 +941,7 @@ export default function SystemGroups() {
           )}
         </div>
 
-        <div className="hidden md:block">
+        <div className="mt-4 hidden md:block">
           <BorisTable
             columns={columns as any}
             data={groupsData?.items ?? []}
@@ -912,14 +957,15 @@ export default function SystemGroups() {
             sortMode="manual"
             sortState={{ key: orderBy, direction: orderDir }}
             onSortChange={(sort) => {
-              if (!sort || (sort.key !== "name" && sort.key !== "created_at")) return;
-              setOrderBy(sort.key);
+              if (!sort || (sort.key !== "name" && sort.key !== "created_at" && sort.key !== "activity_24h")) return;
+              setOrderBy(sort.key as "activity_24h" | "created_at" | "name");
               setOrderDir(sort.direction);
               setPage(1);
             }}
             emptyIcon={Users}
             emptyMessage={hasActiveFilters ? "Nenhum grupo com esses filtros." : "Ainda não há grupos cadastrados."}
           />
+        </div>
         </div>
 
         <AlertDialog open={!!removeGroup} onOpenChange={(open) => !open && setRemoveGroup(null)}>

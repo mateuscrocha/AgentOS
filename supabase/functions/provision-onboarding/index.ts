@@ -26,10 +26,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const getInboundProvisionApiKey = (env: Env): string => {
-  return (env.get('PROVISION_ONBOARDING_API_KEY') || '').trim();
-};
-
 interface ProvisionPayload {
   lead: {
     name: string;
@@ -129,19 +125,6 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
       });
 
     try {
-      const expectedApiKey = getInboundProvisionApiKey(env);
-      const providedApiKey = (req.headers.get('x-api-key') || '').trim();
-      if (!expectedApiKey) {
-        console.error('PROVISION_ONBOARDING_API_KEY not configured', JSON.stringify({ correlation_id: correlationId }));
-        return json(
-          { success: false, code: 'INBOUND_API_KEY_NOT_CONFIGURED', message: 'Inbound API key not configured' },
-          500
-        );
-      }
-      if (!providedApiKey || providedApiKey !== expectedApiKey) {
-        return json({ success: false, code: 'UNAUTHORIZED', message: 'Unauthorized' }, 401);
-      }
-
       const payload: ProvisionPayload = await req.json();
 
     console.log('Provisioning onboarding', JSON.stringify({
@@ -177,6 +160,8 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
     // Create Supabase client with service role for admin operations
     const supabaseUrl = env.get('SUPABASE_URL');
     const serviceRoleKey = env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseAnonKey = env.get('SUPABASE_ANON_KEY');
+    const authHeader = req.headers.get('Authorization') || '';
 
     if (!supabaseUrl) {
       return json(
@@ -197,6 +182,45 @@ export const createProvisionOnboardingHandler = (deps: Deps = {}) => {
           message: 'SUPABASE_SERVICE_ROLE_KEY não configurada no ambiente da função',
         },
         500
+      );
+    }
+
+    if (!supabaseAnonKey) {
+      return json(
+        {
+          success: false,
+          code: 'SUPABASE_ANON_KEY_NOT_CONFIGURED',
+          message: 'SUPABASE_ANON_KEY não configurada no ambiente da função',
+        },
+        500
+      );
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      return json({ success: false, code: 'UNAUTHORIZED', message: 'Unauthorized' }, 401);
+    }
+
+    const supabaseUser = createClientImpl(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser();
+    if (getUserErr || !userData?.user?.id) {
+      return json({ success: false, code: 'UNAUTHORIZED', message: 'Unauthorized' }, 401);
+    }
+
+    if (payload.lead.user_id !== userData.user.id) {
+      return json(
+        {
+          success: false,
+          code: 'FORBIDDEN',
+          message: 'lead.user_id must match the authenticated user',
+        },
+        403
       );
     }
     

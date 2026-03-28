@@ -93,6 +93,8 @@ type TopPageRow = {
   admins: number;
 };
 
+type ToneVariant = "success" | "warning" | "neutral" | "error";
+
 const PAGE_SIZE = 20;
 
 function rpc<T>(name: string, params: Record<string, unknown>) {
@@ -342,6 +344,38 @@ export default function SystemActivity() {
 
   const kpis = kpiQuery.data;
 
+  const focusNeverLoggedUsers = () => {
+    setTab("users");
+    setUserStatus("never_logged_in");
+    setUsersPage(1);
+  };
+
+  const focusActiveUsers = () => {
+    setTab("users");
+    setUserStatus("active");
+    setUsersPage(1);
+  };
+
+  const focusInactiveUsers = () => {
+    setTab("users");
+    setUserStatus("inactive");
+    setUsersPage(1);
+  };
+
+  const focusRiskOrgs = () => {
+    setTab("orgs");
+    setOrgStatus("em_risco");
+    setOrgsPage(1);
+  };
+
+  const focusActiveOrgs = () => {
+    setTab("orgs");
+    setOrgStatus("all");
+    setOrderByOrgs("last_activity_at");
+    setOrgOrderDir("desc");
+    setOrgsPage(1);
+  };
+
   const primaryCards = useMemo(() => {
     if (!kpis) return [];
     return [
@@ -350,6 +384,8 @@ export default function SystemActivity() {
         value: toCount(kpis.organizations_with_activity),
         icon: Building2,
         description: "Organizações que tiveram login ou navegação no período",
+        onClick: focusActiveOrgs,
+        cta: "Abrir base ativa",
       },
       {
         title: "Logins registrados",
@@ -368,6 +404,8 @@ export default function SystemActivity() {
         value: toCount(kpis.never_logged_in_users),
         icon: UserX,
         description: "Usuários cadastrados que ainda não entraram",
+        onClick: focusNeverLoggedUsers,
+        cta: "Ver pendentes",
       },
     ];
   }, [kpis]);
@@ -394,31 +432,43 @@ export default function SystemActivity() {
     return [
       {
         key: "first_access_pending",
-        title: "Pendentes do 1o acesso",
+        eyebrow: "Ativação inicial",
+        title: "Pendentes do primeiro acesso",
         value: toCount(kpis.never_logged_in_users),
-        tone: "warning" as const,
-        description: "Usuários cadastrados que ainda não cruzaram a barreira inicial.",
+        tone: "warning" as ToneVariant,
+        description: "Usuários criados que ainda não atravessaram a barreira de entrada.",
+        onClick: focusNeverLoggedUsers,
+        cta: "Ver usuários pendentes",
       },
       {
         key: "active_week",
-        title: "Operação ativa 7d",
+        eyebrow: "Recorrência",
+        title: "Operação ativa em 7 dias",
         value: toCount(kpis.admins_active_7d),
-        tone: "success" as const,
-        description: "Pessoas operacionais com presença real na última semana.",
+        tone: "success" as ToneVariant,
+        description: "Pessoas com presença operacional recente e chance maior de retenção.",
+        onClick: focusActiveUsers,
+        cta: "Abrir usuários ativos",
       },
       {
         key: "inactive_30d",
-        title: "Usuários inativos 30d",
+        eyebrow: "Retração",
+        title: "Usuários inativos em 30 dias",
         value: toCount(kpis.users_inactive_30d),
-        tone: "neutral" as const,
-        description: "Quem já entrou, mas perdeu ritmo de uso.",
+        tone: "neutral" as ToneVariant,
+        description: "Quem já entrou, mas perdeu frequência e merece atenção de retorno.",
+        onClick: focusInactiveUsers,
+        cta: "Ver usuários inativos",
       },
       {
         key: "orgs_risk",
+        eyebrow: "Carteira",
         title: "Organizações em risco",
         value: toCount(kpis.orgs_at_risk),
-        tone: "error" as const,
-        description: "Contas com sinal fraco de retorno ou abandono.",
+        tone: "error" as ToneVariant,
+        description: "Contas com sinal fraco de retorno, queda de frequência ou abandono.",
+        onClick: focusRiskOrgs,
+        cta: "Abrir contas em risco",
       },
     ];
   }, [kpis]);
@@ -476,18 +526,6 @@ export default function SystemActivity() {
   if (!isSystemAdmin) {
     return <AccessDenied />;
   }
-
-  const focusNeverLoggedUsers = () => {
-    setTab("users");
-    setUserStatus("never_logged_in");
-    setUsersPage(1);
-  };
-
-  const focusRiskOrgs = () => {
-    setTab("orgs");
-    setOrgStatus("em_risco");
-    setOrgsPage(1);
-  };
 
   const orgColumns = [
     {
@@ -760,7 +798,14 @@ export default function SystemActivity() {
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
                 {primaryCards.map((card) => (
-                  <div key={card.title} className="rounded-[22px] border border-border/70 bg-background/82 p-4 shadow-[0_1px_0_rgba(255,255,255,0.75)_inset]">
+                  <button
+                    key={card.title}
+                    type="button"
+                    onClick={card.onClick}
+                    className={`rounded-[22px] border border-border/70 bg-background/82 p-4 text-left shadow-[0_1px_0_rgba(255,255,255,0.75)_inset] transition-all ${
+                      card.onClick ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/25 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : ""
+                    }`}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{card.title}</div>
@@ -771,7 +816,13 @@ export default function SystemActivity() {
                       </div>
                     </div>
                     <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{card.description}</p>
-                  </div>
+                    {card.onClick ? (
+                      <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
+                        {card.cta}
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </div>
+                    ) : null}
+                  </button>
                 ))}
               </div>
             </div>
@@ -792,10 +843,18 @@ export default function SystemActivity() {
 
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {journeySteps.map((step) => (
-                <div key={step.key} className="rounded-[20px] border border-border/70 bg-background/70 p-4">
+                <button
+                  key={step.key}
+                  type="button"
+                  onClick={step.onClick}
+                  className={`rounded-[20px] border border-border/70 bg-background/70 p-4 text-left transition-all ${
+                    step.onClick ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/25 hover:bg-background/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : ""
+                  }`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{step.title}</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{step.eyebrow}</div>
+                      <div className="mt-1 text-sm font-semibold text-card-foreground">{step.title}</div>
                       <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-card-foreground">{step.value.toLocaleString("pt-BR")}</div>
                     </div>
                     <StatusTag variant={step.tone}>
@@ -803,7 +862,13 @@ export default function SystemActivity() {
                     </StatusTag>
                   </div>
                   <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{step.description}</p>
-                </div>
+                  {step.onClick ? (
+                    <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
+                      {step.cta}
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </div>
+                  ) : null}
+                </button>
               ))}
             </div>
           </section>

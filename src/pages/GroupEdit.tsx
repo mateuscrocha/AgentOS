@@ -829,7 +829,7 @@ export default function GroupEdit() {
         />
 
         <div className="w-full space-y-8">
-          <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
+          <div className="rounded-[30px] border border-slate-200/90 bg-white p-4 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.35)] sm:p-6">
             <div className="space-y-1">
               <h2 className="text-lg sm:text-xl font-semibold">Identidade do grupo</h2>
               <p className="text-sm text-muted-foreground">Informações básicas do grupo. As mudanças só valem depois de salvar.</p>
@@ -847,7 +847,7 @@ export default function GroupEdit() {
                 <div className="text-[11px] text-muted-foreground">Ajuda a contextualizar análises e relatórios.</div>
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-secondary/15 p-3">
+              <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-medium text-card-foreground">Configurações para equipe técnica</div>
@@ -888,7 +888,7 @@ export default function GroupEdit() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
+          <div className="rounded-[30px] border border-slate-200/90 bg-white p-4 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.35)] sm:p-6">
             <div className="space-y-1">
               <h2 className="text-lg sm:text-xl font-semibold">Estado do grupo</h2>
               <p className="text-sm text-muted-foreground">Quando estiver ligado, o Bóris gera os dados do grupo. Quando estiver pausado, ele só registra as mensagens.</p>
@@ -917,7 +917,7 @@ export default function GroupEdit() {
                   <label className="text-xs font-medium text-muted-foreground">Arquivamento</label>
                   <StatusTag variant={archived ? "warning" : "neutral"}>{archived ? "Arquivado" : "Não arquivado"}</StatusTag>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-secondary/15 px-4 py-3">
+                <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-3">
                     <div className="text-sm text-card-foreground">Arquivamento é uma ação com confirmação</div>
                   <div className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
                     Use a seção "Ações sensíveis" para arquivar com confirmação. O grupo deixa de aparecer nas listas.
@@ -927,7 +927,7 @@ export default function GroupEdit() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
+          <div className="rounded-[30px] border border-slate-200/90 bg-white p-4 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.35)] sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <h2 className="text-lg sm:text-xl font-semibold">WhatsApp</h2>
@@ -999,7 +999,7 @@ export default function GroupEdit() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-secondary/15 p-4">
+              <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold text-card-foreground">Administradores do grupo</div>
@@ -1050,7 +1050,7 @@ export default function GroupEdit() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
+          <div className="rounded-[30px] border border-slate-200/90 bg-white p-4 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.35)] sm:p-6">
             <div className="space-y-1">
               <h2 className="text-lg sm:text-xl font-semibold">Automações do grupo</h2>
               <p className="text-sm text-muted-foreground">Escolha quais rotinas automáticas do Bóris ficam ativas neste grupo.</p>
@@ -1058,7 +1058,7 @@ export default function GroupEdit() {
 
             <div className="mt-5 space-y-4">
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                <div className="rounded-xl border border-border/70 bg-card/80 p-4">
+                <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/60 p-4">
                   <div className="text-sm font-semibold text-card-foreground">Último resumo</div>
                   {latestSummary?.summary_text ? (
                     <>
@@ -1074,7 +1074,7 @@ export default function GroupEdit() {
                   )}
                 </div>
 
-                <div className="rounded-xl border border-border/70 bg-card/80 p-4">
+                <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/60 p-4">
                   <div className="text-sm font-semibold text-card-foreground">Última execução analítica</div>
                   <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="rounded-lg border border-border/60 bg-secondary/20 p-3">
@@ -1093,7 +1093,7 @@ export default function GroupEdit() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-card/80 p-4">
+              <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/60 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-sm font-semibold text-card-foreground">Ações manuais</div>
@@ -1131,7 +1131,7 @@ export default function GroupEdit() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-secondary/15 p-4">
+              <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold text-card-foreground">Central de automações</div>
@@ -1216,7 +1216,7 @@ export default function GroupEdit() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/80 bg-card/90 p-4 sm:p-6 shadow-sm">
+          <div className="rounded-[30px] border border-slate-200/90 bg-white p-4 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.35)] sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <h2 className="text-lg sm:text-xl font-semibold">Mais opções</h2>
@@ -1233,7 +1233,7 @@ export default function GroupEdit() {
             </div>
 
             {showSensitiveActions ? (
-              <div className="mt-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+              <div className="mt-5 rounded-[24px] border border-destructive/30 bg-destructive/5 p-4">
                 <div className="space-y-1">
                   <h3 className="text-base font-semibold text-destructive">Ações sensíveis</h3>
                   <p className="text-sm text-muted-foreground">Use somente quando tiver certeza. Será pedido uma confirmação.</p>
@@ -1262,7 +1262,7 @@ export default function GroupEdit() {
 
         <div className="sm:mt-6 sm:static sticky bottom-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-6 pt-3 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
           <div className="w-full">
-            <div className="rounded-2xl border border-border/80 bg-card/90 backdrop-blur px-4 py-3 shadow-sm">
+            <div className="rounded-[24px] border border-slate-200/90 bg-white/95 backdrop-blur px-4 py-3 shadow-[0_18px_45px_-36px_rgba(15,23,42,0.34)]">
               <div className={cn("text-[11px]", hasValidationErrors ? "text-destructive" : "text-muted-foreground")}>
                 {hasValidationErrors
                   ? "Corrija os campos inválidos antes de salvar."

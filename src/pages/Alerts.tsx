@@ -9,6 +9,7 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { BorisTable, RowActions, type BorisColumn } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { notify } from "@/components/ui/sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { FilterChips } from "@/components/ui/filter-chips";
 import { AlertTriangle, Bell, Filter, Plus, Search, Settings } from "lucide-react";
 import { formatDateTimeBR, formatDateSimpleBR } from "@/lib/date";
 import {
@@ -80,6 +82,12 @@ type AlertTerm = {
 };
 
 type DefinitionScopeType = "system" | "org" | "group";
+
+const alertsKpiCardClassName = "border-amber-200/80 bg-gradient-to-b from-white to-amber-50/50 shadow-sm";
+const alertsKpiTitleClassName = "text-amber-700/85";
+const alertsKpiValueClassName = "text-amber-950";
+const alertsKpiIconContainerClassName = "border-amber-200 bg-amber-50/80 shadow-sm";
+const alertsKpiIconClassName = "text-amber-700";
 
 const EVENTS_PAGE_SIZE = 50;
 const DEFINITIONS_PAGE_SIZE = 25;
@@ -735,10 +743,10 @@ export default function Alerts() {
         <span
           className={
             ev.status === "unread"
-              ? "inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary"
+              ? "inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700"
               : ev.status === "archived"
-                ? "inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
-                : "inline-flex items-center rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground"
+                ? "inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500"
+                : "inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700"
           }
         >
           {ev.status === "unread" ? "Novo" : ev.status === "read" ? "Lido" : "Arquivado"}
@@ -889,8 +897,8 @@ export default function Alerts() {
         <span
           className={
             definition.status === "active"
-              ? "inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary"
-              : "inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
+              ? "inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700"
+              : "inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500"
           }
         >
           {definition.status === "active" ? "Ativa" : "Inativa"}
@@ -921,10 +929,10 @@ export default function Alerts() {
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();
-              setTab("events");
               setStatusFilter("unread");
               setDefinitionFilter(definition.id);
               setEventsPage(1);
+              navigate(canonicalAlertsPath);
               notify.success("Filtro aplicado", "Mostrando os alertas dessa regra.");
             }}
           >
@@ -949,6 +957,9 @@ export default function Alerts() {
   const totalDefinitions = definitionsQuery.data?.total ?? 0;
   const totalTerms = allTermsQuery.data?.length ?? 0;
   const activeDefinitionsCount = definitionsQuery.data?.items.filter((definition) => definition.status === "active").length ?? 0;
+  const totalEvents = eventsQuery.data?.total ?? 0;
+  const archivedEventsCount = eventsQuery.data?.items.filter((event) => event.status === "archived").length ?? 0;
+  const readEventsCount = eventsQuery.data?.items.filter((event) => event.status === "read").length ?? 0;
   const activeFilterChips = [
     statusFilter !== "unread"
       ? { key: "status", label: `Status: ${statusFilter === "all" ? "Todos" : statusFilter === "read" ? "Lidos" : statusFilter === "archived" ? "Arquivados" : "Não lidos"}`, clear: () => setStatusFilter("unread") }
@@ -1079,19 +1090,110 @@ export default function Alerts() {
           }}
         />
 
+        <section className="grid gap-3 lg:grid-cols-4">
+          <StatsCard
+            title={isDefinitionsPage ? "Definições ativas" : "Não lidos"}
+            value={isDefinitionsPage ? activeDefinitionsCount : currentUnread}
+            icon={Bell}
+            description={
+              isDefinitionsPage
+                ? "Regras ativas monitorando termos no sistema."
+                : "Alertas ainda pendentes de triagem."
+            }
+            variant="kpi"
+            className={alertsKpiCardClassName}
+            titleClassName={alertsKpiTitleClassName}
+            valueClassName={alertsKpiValueClassName}
+            iconContainerClassName={alertsKpiIconContainerClassName}
+            iconClassName={alertsKpiIconClassName}
+          />
+          <StatsCard
+            title={isDefinitionsPage ? "Definições totais" : "Lidos no recorte"}
+            value={isDefinitionsPage ? totalDefinitions : readEventsCount}
+            icon={Settings}
+            description={
+              isDefinitionsPage
+                ? "Regras cadastradas para gerar alerta."
+                : "Itens já triados na lista atual."
+            }
+            variant="kpi"
+            className={alertsKpiCardClassName}
+            titleClassName={alertsKpiTitleClassName}
+            valueClassName={alertsKpiValueClassName}
+            iconContainerClassName={alertsKpiIconContainerClassName}
+            iconClassName={alertsKpiIconClassName}
+          />
+          <StatsCard
+            title={isDefinitionsPage ? "Termos monitorados" : "Arquivados no recorte"}
+            value={isDefinitionsPage ? totalTerms : archivedEventsCount}
+            icon={Filter}
+            description={
+              isDefinitionsPage
+                ? "Vocabulário ativo usado pelo motor de regras."
+                : "Alertas removidos da fila operacional."
+            }
+            variant="kpi"
+            className={alertsKpiCardClassName}
+            titleClassName={alertsKpiTitleClassName}
+            valueClassName={alertsKpiValueClassName}
+            iconContainerClassName={alertsKpiIconContainerClassName}
+            iconClassName={alertsKpiIconClassName}
+          />
+          <StatsCard
+            title={isDefinitionsPage ? "Alertas não lidos" : "Eventos encontrados"}
+            value={isDefinitionsPage ? currentUnread : totalEvents}
+            icon={AlertTriangle}
+            description={
+              isDefinitionsPage
+                ? "Volume atual pendente no centro de alertas."
+                : "Ocorrências retornadas com os filtros atuais."
+            }
+            variant="kpi"
+            className={alertsKpiCardClassName}
+            titleClassName={alertsKpiTitleClassName}
+            valueClassName={alertsKpiValueClassName}
+            iconContainerClassName={alertsKpiIconContainerClassName}
+            iconClassName={alertsKpiIconClassName}
+          />
+        </section>
+
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "events", label: "Alertas", href: canonicalAlertsPath },
+            { id: "definitions", label: "Definições", href: canonicalAlertDefinitionsPath },
+          ].map((item) => {
+            const active = isDefinitionsPage ? item.id === "definitions" : item.id === "events";
+            return (
+              <Button
+                key={item.id}
+                type="button"
+                variant="outline"
+                className={
+                  active
+                    ? "border-amber-500 bg-amber-500 text-white hover:border-amber-600 hover:bg-amber-600"
+                    : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+                }
+                onClick={() => navigate(item.href)}
+              >
+                {item.label}
+              </Button>
+            );
+          })}
+        </div>
+
         {!isDefinitionsPage ? (
         <section className="space-y-4">
-          <Card className="border-border/80 shadow-subtle">
+          <Card className="border-amber-100 bg-gradient-to-r from-amber-50 via-white to-white shadow-sm">
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-1">
-                  <div className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground">Centro de alertas</div>
-                  <p className="text-xs text-muted-foreground">
-                    {eventsQuery.data?.total ?? 0} alerta(s) encontrados.
+                  <div className="text-sm font-semibold uppercase tracking-[0.08em] text-amber-700">Centro de alertas</div>
+                  <p className="text-sm text-slate-600">
+                    Triagem operacional das ocorrências que merecem atenção agora.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="border-primary/20 bg-primary/10 text-primary">
+                  <Badge className="border-amber-200 bg-amber-50 text-amber-700">
                     {statusFilter === "all"
                       ? "Todos os status"
                       : statusFilter === "unread"
@@ -1101,7 +1203,7 @@ export default function Alerts() {
                           : "Somente arquivados"}
                   </Badge>
                   {currentUnread > 0 ? (
-                    <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
                       {currentUnread} não lido(s)
                     </span>
                   ) : null}
@@ -1121,19 +1223,30 @@ export default function Alerts() {
                   }))}
                 />
               ) : (
-                <div className="mt-3 text-xs text-muted-foreground">
+                <div className="mt-3 text-xs text-slate-500">
                   Nenhum filtro extra ativo. A lista abaixo mostra os alertas conforme o status escolhido.
                 </div>
               )}
             </CardContent>
           </Card>
 
+          <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Fila de alertas</p>
+                <p className="text-sm text-slate-600">Abra mensagens, marque leitura e esvazie a fila sem perder contexto.</p>
+              </div>
+              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+                {totalEvents} ocorrência(s)
+              </Badge>
+            </div>
+
           <BorisTable
             columns={eventColumns as any}
             data={eventsQuery.data?.items ?? []}
             keyExtractor={(e) => e.id}
             density="comfortable"
-            rowClassName={(e) => (e.status === "unread" ? "bg-primary/5" : undefined)}
+            rowClassName={(e) => (e.status === "unread" ? "bg-amber-50/50" : undefined)}
             page={eventsPage}
             pageSize={EVENTS_PAGE_SIZE}
             totalCount={eventsQuery.data?.total}
@@ -1151,36 +1264,50 @@ export default function Alerts() {
               );
             }}
           />
+          </div>
         </section>
         ) : null}
 
         {isDefinitionsPage ? (
         <section className="space-y-4">
-          <div className="flex flex-col gap-2 rounded-[var(--radius-lg)] border border-border/80 bg-card/95 px-4 py-3 shadow-subtle sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 rounded-[24px] border border-amber-100 bg-gradient-to-r from-amber-50 via-white to-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-sm font-semibold uppercase tracking-[0.08em] text-foreground">Definições</div>
-              <p className="text-xs text-muted-foreground">
-                Escolha o que realmente deve gerar alerta.
+              <div className="text-sm font-semibold uppercase tracking-[0.08em] text-amber-700">Motor de regras</div>
+              <p className="text-sm text-slate-600">
+                Escolha o que realmente deve gerar alerta e em qual escopo isso vale.
               </p>
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-slate-500">
               {activeDefinitionsCount} ativa(s) • {totalTerms} termos
             </div>
           </div>
 
-          <BorisTable
-            columns={definitionColumns as any}
-            data={definitionsQuery.data?.items ?? []}
-            keyExtractor={(definition) => definition.id}
-            page={definitionsPage}
-            pageSize={DEFINITIONS_PAGE_SIZE}
-            totalCount={definitionsQuery.data?.total}
-            onPageChange={setDefinitionsPage}
-            loading={definitionsQuery.isLoading}
-            error={!!definitionsQuery.error}
-            emptyIcon={Settings}
-            emptyMessage="Você ainda não tem regras cadastradas."
-          />
+          <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Definições</p>
+                <p className="text-sm text-slate-600">Regras, cobertura e quantidade de termos monitorados por definição.</p>
+              </div>
+              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+                {totalDefinitions} definição(ões)
+              </Badge>
+            </div>
+
+            <BorisTable
+              columns={definitionColumns as any}
+              data={definitionsQuery.data?.items ?? []}
+              keyExtractor={(definition) => definition.id}
+              page={definitionsPage}
+              pageSize={DEFINITIONS_PAGE_SIZE}
+              totalCount={definitionsQuery.data?.total}
+              onPageChange={setDefinitionsPage}
+              loading={definitionsQuery.isLoading}
+              error={!!definitionsQuery.error}
+              emptyIcon={Settings}
+              emptyMessage="Você ainda não tem regras cadastradas."
+              density="comfortable"
+            />
+          </div>
         </section>
         ) : null}
       </div>

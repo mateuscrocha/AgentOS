@@ -9,7 +9,7 @@ interface AuthGuardProps {
 }
 
 // Public routes that don't require authentication
-const PUBLIC_ROUTES = ['/auth', '/login', '/signup'];
+const PUBLIC_ROUTES = ['/auth', '/login', '/signup', '/onboarding', '/dev/crm-sandbox'];
 
 function isPublicPath(pathname: string): boolean {
   // Normalize trailing slash

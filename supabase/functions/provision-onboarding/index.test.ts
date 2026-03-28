@@ -15,8 +15,6 @@ function getTestBaseUrl() {
 }
 
 const testBaseUrl = getTestBaseUrl();
-const testInboundApiKey = "test-provision-key";
-
 function assertEquals(actual: any, expected: any) {
   if (actual !== expected) {
     throw new Error(`assertEquals falhou: esperado=${String(expected)} atual=${String(actual)}`);
@@ -170,6 +168,9 @@ function createMockSupabase(args?: { membersFirstInsertDuplicate?: boolean }) {
 
   return {
     supabase: {
+      auth: {
+        getUser: () => Promise.resolve({ data: { user: { id: "u-1" } }, error: null }),
+      },
       from: (table: string) => makeBuilder(table),
     } as any,
     calls,
@@ -178,12 +179,12 @@ function createMockSupabase(args?: { membersFirstInsertDuplicate?: boolean }) {
   };
 }
 
-function makeReq(body: any, opts?: { apiKey?: string }) {
+function makeReq(body: any, opts?: { authHeader?: string }) {
   return new Request(new URL("/functions/v1/provision-onboarding", testBaseUrl).toString(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": opts?.apiKey ?? testInboundApiKey,
+      Authorization: opts?.authHeader ?? "Bearer token",
     },
     body: JSON.stringify(body),
   });
@@ -215,8 +216,8 @@ DenoRef.test("provision-onboarding retorna erro quando participants está vazio"
     env: {
       get: (k: string) => {
         if (k === "SUPABASE_URL") return testBaseUrl;
+        if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
         return undefined;
       },
     },
@@ -237,8 +238,8 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e marca SUPERA
     env: {
       get: (k: string) => {
         if (k === "SUPABASE_URL") return testBaseUrl;
+        if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
         return undefined;
       },
     },
@@ -294,8 +295,8 @@ DenoRef.test("provision-onboarding ignora duplicidade ao inserir Members", async
     env: {
       get: (k: string) => {
         if (k === "SUPABASE_URL") return testBaseUrl;
+        if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
         return undefined;
       },
     },
@@ -328,15 +329,15 @@ DenoRef.test("provision-onboarding ignora duplicidade ao inserir Members", async
   assertEquals(membersInserted[0]?.whatsapp_provider_id, "lid-2");
 });
 
-DenoRef.test("provision-onboarding rejeita chamada sem x-api-key válida", async () => {
+DenoRef.test("provision-onboarding rejeita chamada sem Authorization válida", async () => {
   const { supabase } = createMockSupabase();
 
   const handler = createProvisionOnboardingHandler({
     env: {
       get: (k: string) => {
         if (k === "SUPABASE_URL") return testBaseUrl;
+        if (k === "SUPABASE_ANON_KEY") return "anon";
         if (k === "SUPABASE_SERVICE_ROLE_KEY") return "service";
-        if (k === "PROVISION_ONBOARDING_API_KEY") return testInboundApiKey;
         return undefined;
       },
     },
@@ -348,7 +349,15 @@ DenoRef.test("provision-onboarding rejeita chamada sem x-api-key válida", async
     { phone: "11999990000", name: "A", is_admin: true, is_super_admin: false, whatsapp_provider_id: "lid-1" },
   ];
 
-  const res = await handler(makeReq(payload, { apiKey: "wrong-key" }));
+  const req = new Request(new URL("/functions/v1/provision-onboarding", testBaseUrl).toString(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const res = await handler(req);
   assertEquals(res.status, 401);
   const body = await res.json();
   assertEquals(body.success, false);

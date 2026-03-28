@@ -42,6 +42,27 @@ Em desenvolvimento local, variáveis podem ficar no `.env`. Em produção, elas 
 
 O arquivo `.env` já está no `.gitignore`.
 
+## Screenshots e testes E2E
+
+O projeto já usa `Playwright` para automação de navegador. Para screenshots de páginas e testes end-to-end, prefira essa stack em vez de adicionar `Puppeteer` ou `Selenium`.
+
+Fluxo recomendado:
+
+```sh
+# instalar navegadores do Playwright (uma vez)
+npx playwright install chromium
+
+# rodar o teste-exemplo que abre a tela pública de login e salva screenshot
+npm run test:screenshot
+
+# rodar toda a suíte E2E
+npm run test:e2e
+```
+
+Por padrão, a suíte sobe o frontend em `http://127.0.0.1:4173`. Se você quiser apontar para outro ambiente já rodando, defina `PLAYWRIGHT_BASE_URL`.
+
+Os artefatos ficam em `test-results/` e o relatório HTML em `playwright-report/`.
+
 ### VITE_APP_URL
 
 `VITE_APP_URL` define a URL base usada no frontend para construir URLs absolutas (por exemplo, redirecionamentos de autenticação). Se não estiver definida, o sistema usa `window.location.origin`. Se isso não estiver disponível, o sistema lança erro.
@@ -74,6 +95,12 @@ Exemplo (produção):
 VITE_SUPABASE_URL="https://<project-ref>.supabase.co"
 ```
 
+### SUPABASE_ANON_KEY
+
+`SUPABASE_ANON_KEY` é usada nas Edge Functions que precisam validar a sessão autenticada recebida pelo header `Authorization`.
+
+No onboarding público, `provision-onboarding` agora aceita apenas chamadas autenticadas. O frontend cria o usuário com `signUp` e a conclusão do provisionamento acontece com a própria sessão do Supabase.
+
 ### ZAPI_BASE_URL
 
 `ZAPI_BASE_URL` permite sobrescrever a URL base da Z-API usada pelas Edge Functions. Quando ausente, o backend usa `https://api.z-api.io`.
@@ -99,6 +126,25 @@ Se não estiver definida, os testes tentam usar `SUPABASE_URL`, `VITE_SUPABASE_U
 ### TEST_WEBHOOK_URL
 
 `TEST_WEBHOOK_URL` permite sobrescrever, nos testes, a URL de um webhook HTTP auxiliar. Se não estiver definida, os testes usam `http://127.0.0.1:9999/webhook` como valor padrão.
+
+## Checklist do onboarding público
+
+Para o cadastro público funcionar de ponta a ponta, confirme estes itens no ambiente:
+
+- `VITE_APP_URL` aponta para a URL pública correta do frontend.
+- `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` ou `VITE_SUPABASE_ANON_KEY` estão presentes no build.
+- `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` estão definidos na Edge Function `provision-onboarding`.
+- `ZAPI_INSTANCE`, `ZAPI_TOKEN` e `ZAPI_CLIENT_TOKEN` estão configurados para a validação do grupo.
+- As Redirect URLs do Supabase incluem a URL usada em `VITE_APP_URL` para retorno pós-signup e recuperação de senha.
+
+Fluxo esperado:
+
+1. Usuário acessa `/signup`.
+2. O frontend valida o grupo via `validate-whatsapp-group`.
+3. O frontend cria a conta via `supabase.auth.signUp`.
+4. Se houver sessão imediata, o frontend chama `provision-onboarding`.
+5. Se o projeto exigir confirmação de email, o frontend guarda um rascunho local do onboarding e redireciona para `/auth`.
+6. No primeiro login válido, o app conclui automaticamente `provision-onboarding` e redireciona para `/groups/:groupId`.
 
 **Edit a file directly in GitHub**
 

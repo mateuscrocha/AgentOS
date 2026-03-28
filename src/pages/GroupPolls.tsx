@@ -283,7 +283,7 @@ export default function GroupPolls() {
             syncStatus: groupInfo?.syncStatus || null,
           }}
           filters={(
-            <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-lg)] border border-border/80 bg-card/95 p-3 shadow-subtle">
+            <div className="flex w-full flex-wrap items-center gap-3">
               <Input
                 value={search}
                 onChange={(e) => {
@@ -423,7 +423,7 @@ export default function GroupPolls() {
                 return (
                   <section
                     key={p.id}
-                    className="h-full overflow-hidden rounded-[var(--radius-xl)] border border-border/80 bg-card/95 shadow-subtle"
+                    className="h-full overflow-hidden rounded-[28px] border border-slate-200/90 bg-white shadow-[0_22px_55px_-42px_rgba(15,23,42,0.34)]"
                     role="article"
                     aria-labelledby={`poll-${p.id}-title`}
                   >

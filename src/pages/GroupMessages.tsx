@@ -255,15 +255,20 @@ const GroupMessages = () => {
             retry={() => refetchMessages()}
           />
         ) : messagesData?.items.length === 0 ? (
-          <EmptyState
-            icon={MessageSquare}
-            title={typeFilter || search.trim() ? "Nenhum resultado" : "Nenhuma mensagem"}
-            message={
-              typeFilter || search.trim()
-                ? `Nenhuma mensagem${typeFilter ? ` do tipo "${translateMessageType(typeFilter)}"` : ""}${search.trim() ? ` contendo "${search.trim()}"` : ""} encontrada.`
-                : "Este grupo ainda não possui mensagens."
-            }
-          />
+          <div className="rounded-[28px] border border-dashed border-emerald-200 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/60 p-4 shadow-subtle sm:p-6">
+            <EmptyState
+              icon={MessageSquare}
+              title={typeFilter || search.trim() ? "Nenhum resultado" : "Nenhuma mensagem"}
+              message={
+                typeFilter || search.trim()
+                  ? `Nenhuma mensagem${typeFilter ? ` do tipo "${translateMessageType(typeFilter)}"` : ""}${search.trim() ? ` contendo "${search.trim()}"` : ""} encontrada.`
+                  : "Este grupo ainda não possui mensagens. Quando elas chegarem, você poderá revisar conteúdo, detalhes e filtros de conversa aqui."
+              }
+              action={canEditGroup(groupId as string, groupInfo?.orgId)
+                ? { label: "Importar mensagens", onClick: () => setImportOpen(true) }
+                : undefined}
+            />
+          </div>
         ) : (
           <div className="space-y-4">
             <div className="rounded-[var(--radius-xl)] border border-border/60 bg-gradient-to-br from-emerald-50/60 via-background to-teal-50/40 p-3 shadow-subtle sm:p-4 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/10">

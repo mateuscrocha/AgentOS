@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -18,6 +18,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import {
   CRM_ACCOUNT_STATUS_META,
+  CRM_DEAL_CONTACT_ROLE_META,
+  CRM_LEAD_SOURCE_CATEGORY_META,
   CRM_PIPELINE_STAGES,
   CRM_STAGE_META,
   CRM_TASK_TYPE_META,
@@ -101,6 +103,43 @@ function formatDateTime(value?: string | null) {
 function formatDate(value?: string | null) {
   if (!value) return "Sem data";
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
+}
+
+function getNextActionMeta(value?: string | null) {
+  if (!value) {
+    return {
+      label: "Sem próxima ação",
+      shortLabel: "Sem ação",
+      className: "border-slate-200 bg-slate-50 text-slate-600",
+    };
+  }
+
+  const actionAt = new Date(value).getTime();
+  const now = Date.now();
+  const diff = actionAt - now;
+  const twoDaysMs = 48 * 60 * 60 * 1000;
+
+  if (diff < 0) {
+    return {
+      label: "Próxima ação atrasada",
+      shortLabel: "Atrasada",
+      className: "border-rose-200 bg-rose-50 text-rose-700",
+    };
+  }
+
+  if (diff <= twoDaysMs) {
+    return {
+      label: "Próxima ação em breve",
+      shortLabel: "Em breve",
+      className: "border-amber-200 bg-amber-50 text-amber-700",
+    };
+  }
+
+  return {
+    label: "Próxima ação agendada",
+    shortLabel: "Agendada",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  };
 }
 
 function getAccountTypeMeta(account: CRMAccount) {
@@ -195,6 +234,19 @@ function getStripeSyncErrorDetails(error: unknown) {
   return getErrorMessage(error);
 }
 
+function splitFullName(name?: string | null) {
+  const normalized = (name || "").trim();
+  if (!normalized) {
+    return { firstName: "Contato principal", lastName: null as string | null };
+  }
+
+  const [firstName, ...rest] = normalized.split(/\s+/);
+  return {
+    firstName,
+    lastName: rest.length ? rest.join(" ") : null,
+  };
+}
+
 export default function SystemCRM() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -222,6 +274,17 @@ export default function SystemCRM() {
   const [drawerTarget, setDrawerTarget] = useState<DrawerTarget>(null);
   const [bulkStripeSyncPending, setBulkStripeSyncPending] = useState(false);
   const [expandedPipelineAccountId, setExpandedPipelineAccountId] = useState<string | null>(null);
+  const pipelineScrollRef = useRef<HTMLDivElement | null>(null);
+  const pipelineScrollDragRef = useRef({
+    active: false,
+    moved: false,
+    startX: 0,
+    startScrollLeft: 0,
+  });
+  const profileNameById = useMemo(
+    () => new Map(crm.profiles.map((profile) => [profile.id, profile.name || "Sem responsável"])),
+    [crm.profiles],
+  );
 
   const accountOptions = useMemo(
     () => crm.accounts.map((account) => ({ id: account.id, label: account.name })),
@@ -253,6 +316,9 @@ export default function SystemCRM() {
         account.email,
         account.phone,
         account.source,
+        account.lead_source_detail,
+        account.inbound_channel,
+        account.handoff_summary,
         account.need,
         account.next_step,
         account.quick_notes,
@@ -304,6 +370,7 @@ export default function SystemCRM() {
         contact.phone,
         contact.title,
         contact.city,
+        contact.role_in_deal,
         account?.name,
       ]
         .filter(Boolean)
@@ -454,9 +521,10 @@ export default function SystemCRM() {
           <Button
             className="border border-sky-600 bg-sky-600 text-white shadow-none hover:bg-sky-700"
             onClick={() => { setEditingAccount(null); setAccountDialogOpen(true); }}
+            data-testid="crm-new-lead-button"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Nova conta
+            Novo lead
           </Button>
         </>
       ) : null}
@@ -474,9 +542,10 @@ export default function SystemCRM() {
           <Button
             className="border border-sky-600 bg-sky-600 text-white shadow-none hover:bg-sky-700"
             onClick={() => { setEditingAccount(null); setAccountDialogOpen(true); }}
+            data-testid="crm-new-lead-button"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Nova conta
+            Novo lead
           </Button>
         </>
       ) : null}
@@ -663,8 +732,15 @@ export default function SystemCRM() {
       render: (contact: CRMContact) => (
         <div className="min-w-0">
           <p className="truncate font-semibold text-card-foreground">{getContactFullName(contact)}</p>
-          <p className="truncate text-xs text-muted-foreground">{contact.title || "Sem cargo"}</p>
-        </div>
+            <p className="truncate text-xs text-muted-foreground">{contact.title || "Sem cargo"}</p>
+            {contact.role_in_deal ? (
+              <div className="mt-1">
+                <Badge variant="outline" className={cn("border", crmMiniBadgeClassName, CRM_DEAL_CONTACT_ROLE_META[contact.role_in_deal].tone)}>
+                  {CRM_DEAL_CONTACT_ROLE_META[contact.role_in_deal].label}
+                </Badge>
+              </div>
+            ) : null}
+          </div>
       ),
     },
     {
@@ -823,6 +899,52 @@ export default function SystemCRM() {
     },
   ];
 
+  const shouldStartPipelineGrabScroll = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return true;
+
+    return !target.closest(
+      'button, a, input, textarea, select, [role="button"], [data-testid="crm-pipeline-card"]',
+    );
+  };
+
+  const handlePipelineMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!shouldStartPipelineGrabScroll(event.target) || !pipelineScrollRef.current) return;
+
+    pipelineScrollDragRef.current = {
+      active: true,
+      moved: false,
+      startX: event.clientX,
+      startScrollLeft: pipelineScrollRef.current.scrollLeft,
+    };
+  };
+
+  const handlePipelineMouseMove = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!pipelineScrollDragRef.current.active || !pipelineScrollRef.current) return;
+
+    const deltaX = event.clientX - pipelineScrollDragRef.current.startX;
+
+    if (!pipelineScrollDragRef.current.moved && Math.abs(deltaX) > 6) {
+      pipelineScrollDragRef.current.moved = true;
+    }
+
+    if (!pipelineScrollDragRef.current.moved) return;
+
+    pipelineScrollRef.current.scrollLeft = pipelineScrollDragRef.current.startScrollLeft - deltaX;
+    event.preventDefault();
+  };
+
+  const stopPipelineGrabScroll = () => {
+    pipelineScrollDragRef.current.active = false;
+  };
+
+  const handlePipelineClickCapture = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!pipelineScrollDragRef.current.moved) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    pipelineScrollDragRef.current.moved = false;
+  };
+
   return (
     <AdminLayout title="CRM" subtitle="Operação comercial interna do Bóris">
       <AdminPageHeader
@@ -841,6 +963,7 @@ export default function SystemCRM() {
               title="Contas em negociação"
               value={crm.metrics.openOpportunities}
               icon={BriefcaseBusiness}
+              description="Contas abertas nas etapas ativas do CRM."
               variant={isPipelineSection ? "compact" : "kpi"}
               className={crmKpiCardClassName}
               titleClassName={crmKpiTitleClassName}
@@ -852,6 +975,7 @@ export default function SystemCRM() {
               title="Clientes pagos"
               value={billingSegments.active}
               icon={Coins}
+              description="Clientes com cobrança ativa refletida no CRM."
               variant={isPipelineSection ? "compact" : "kpi"}
               className={crmKpiCardClassName}
               titleClassName={crmKpiTitleClassName}
@@ -863,6 +987,7 @@ export default function SystemCRM() {
               title="Sem vínculo Stripe"
               value={billableWithoutStripeCount}
               icon={CircleDollarSign}
+              description="Contas faturáveis ainda sem contexto Stripe."
               variant={isPipelineSection ? "compact" : "kpi"}
               className={crmKpiCardClassName}
               titleClassName={crmKpiTitleClassName}
@@ -874,6 +999,7 @@ export default function SystemCRM() {
               title="Tarefas abertas"
               value={crm.metrics.openTasks}
               icon={ListTodo}
+              description="Follow-ups pendentes para o time comercial."
               variant={isPipelineSection ? "compact" : "kpi"}
               className={crmKpiCardClassName}
               titleClassName={crmKpiTitleClassName}
@@ -929,8 +1055,8 @@ export default function SystemCRM() {
       />
 
       {(billableWithoutStripeCount > 0 || crm.metrics.accountsWithoutContacts > 0) ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-slate-200 bg-white px-4 py-3 text-xs shadow-sm">
-          <span className="font-medium text-slate-500">Atenção:</span>
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-sky-100 bg-gradient-to-r from-sky-50 via-white to-white px-4 py-3 text-xs shadow-sm">
+          <span className="font-medium uppercase tracking-[0.12em] text-sky-700">Radar operacional</span>
           {billableWithoutStripeCount > 0 ? (
             <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-900">
               {billableWithoutStripeCount} sem vínculo Stripe
@@ -944,25 +1070,6 @@ export default function SystemCRM() {
         </div>
       ) : null}
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {sectionMeta.map((item) => (
-          <NavLink
-            key={item.id}
-            to={item.href}
-            className={({ isActive }) =>
-              cn(
-                "inline-flex items-center rounded-full border px-4 py-2 text-sm font-medium transition-all",
-                isActive
-                  ? "border-sky-600 bg-sky-600 text-white shadow-sm"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
-              )
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </div>
-
       {crm.isLoading ? (
         <LoadingState message="Carregando dados do CRM..." />
       ) : crm.error ? (
@@ -975,10 +1082,10 @@ export default function SystemCRM() {
         <>
           {section === "pipeline" ? (
             <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-3 shadow-sm">
-              <div className="mb-3 flex items-center justify-between gap-3 px-1">
+              <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-gradient-to-r from-sky-50 via-white to-white px-3 py-3">
                 <div>
                   <p className="text-sm font-semibold text-sky-950">Pipeline</p>
-                  <p className="text-xs text-sky-700/70">Leitura rápida por etapa.</p>
+                  <p className="text-xs text-sky-700/70">Priorize a próxima ação e as pendências que travam avanço.</p>
                 </div>
                 {billingFilter !== "all" ? (
                   <Badge variant="outline" className="border-sky-200 bg-white/90 text-sky-900">
@@ -986,14 +1093,32 @@ export default function SystemCRM() {
                   </Badge>
                 ) : null}
               </div>
-              <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+              <div
+                ref={pipelineScrollRef}
+                className="-mx-1 overflow-x-auto px-1 pb-2 cursor-grab active:cursor-grabbing"
+                onMouseDown={handlePipelineMouseDown}
+                onMouseMove={handlePipelineMouseMove}
+                onMouseUp={stopPipelineGrabScroll}
+                onMouseLeave={stopPipelineGrabScroll}
+                onClickCapture={handlePipelineClickCapture}
+              >
+                <div className="flex min-w-max gap-3">
                   {pipelineColumns.map((column) => (
                     <section
                       key={column.stage}
-                      className="flex min-w-0 h-[calc(100vh-24rem)] min-h-[26rem] max-h-[44rem] flex-col rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50/60 shadow-sm"
+                      className="flex h-[calc(100vh-24rem)] min-h-[26rem] max-h-[44rem] w-[20rem] min-w-[20rem] flex-col rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50/60 shadow-sm"
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={() => {
                         if (!draggedAccountId) return;
+                        const draggedAccount = crm.accountById.get(draggedAccountId) ?? null;
+                        if (!draggedAccount) {
+                          setDraggedAccountId(null);
+                          return;
+                        }
+                        if (draggedAccount.stage === column.stage) {
+                          setDraggedAccountId(null);
+                          return;
+                        }
                         const nextPosition = (crm.accounts.filter((item) => item.stage === column.stage).length + 1) * 1000;
                         void handleMutation(
                           () => crm.moveAccountStageMutation.mutateAsync({ id: draggedAccountId, stage: column.stage, stagePosition: nextPosition }),
@@ -1024,31 +1149,45 @@ export default function SystemCRM() {
                               const monthlyValue = getAccountMonthlyValue(account);
                               const type = getAccountTypeMeta(account);
                               const billing = getAccountBillingMeta(account);
+                              const nextAction = getNextActionMeta(account.next_action_at);
+                              const ownerName = account.assigned_user_id ? profileNameById.get(account.assigned_user_id) ?? "Sem responsável" : "Sem responsável";
                               const shouldShowFinancial = shouldShowFinancialContext(account);
                               const isExpanded = expandedPipelineAccountId === account.id;
                               return (
                                 <article
                                   key={account.id}
                                   draggable
+                                  data-testid="crm-pipeline-card"
                                   onDragStart={() => setDraggedAccountId(account.id)}
                                   onDragEnd={() => setDraggedAccountId(null)}
                                   onClick={() =>
                                     setExpandedPipelineAccountId((current) => (current === account.id ? null : account.id))
                                   }
-                                  className="w-full min-w-0 max-w-full overflow-hidden rounded-[18px] border border-slate-200 bg-white p-2.5 shadow-sm transition-all hover:border-sky-300 hover:shadow-md"
+                                  className={cn(
+                                    "w-full min-w-0 max-w-full overflow-hidden rounded-[18px] border bg-white p-3 shadow-sm transition-all hover:shadow-md",
+                                    isExpanded ? "border-sky-300 shadow-md ring-1 ring-sky-100" : "border-slate-200 hover:border-sky-300",
+                                  )}
                                 >
-                                  <div className="mb-2.5 flex items-start justify-between gap-2.5">
+                                  <div className="mb-3 flex items-start justify-between gap-2.5">
                                     <div className="min-w-0 flex-1 basis-0">
                                       <div className="flex min-w-0 items-start justify-between gap-3">
                                         <div className="min-w-0 w-0 max-w-full flex-1">
-                                          <p className="truncate text-[14px] font-semibold leading-5 text-slate-950">
+                                          <p className="truncate text-[15px] font-semibold leading-5 text-slate-950">
                                             {account.name}
                                           </p>
-                                          <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                                          <p className="mt-0.5 truncate text-[11px] font-medium text-slate-600">
                                             {contact ? getContactFullName(contact) : "Sem contato"}
                                           </p>
+                                          {(account.lead_source_detail || account.inbound_channel || account.source) ? (
+                                            <p className="mt-1 truncate text-[11px] text-slate-500">
+                                              {account.lead_source_detail || account.inbound_channel || account.source}
+                                            </p>
+                                          ) : null}
                                         </div>
                                         <div className="flex shrink-0 items-center gap-1">
+                                          <Badge variant="outline" className={cn("hidden sm:inline-flex border", crmMiniBadgeClassName, nextAction.className)}>
+                                            {nextAction.shortLabel}
+                                          </Badge>
                                           <div className="rounded-full bg-slate-100 p-1 text-slate-400">
                                             <GripVertical className="h-3.5 w-3.5 shrink-0" />
                                           </div>
@@ -1066,24 +1205,53 @@ export default function SystemCRM() {
                                         <Badge variant="outline" className={cn("border", crmMiniBadgeClassName, type.className)}>
                                           {type.shortLabel}
                                         </Badge>
+                                        {account.lead_source_category ? (
+                                          <Badge variant="outline" className={cn("border", crmMiniBadgeClassName, "border-slate-200 bg-slate-50 text-slate-700")}>
+                                            {CRM_LEAD_SOURCE_CATEGORY_META[account.lead_source_category].label}
+                                          </Badge>
+                                        ) : null}
                                         {billing ? (
                                           <Badge variant="outline" className={cn("border", crmMiniBadgeClassName, billing.className)}>
                                             {billing.shortLabel}
                                           </Badge>
                                         ) : null}
                                       </div>
+
                                     </div>
                                   </div>
 
                                   {isExpanded ? (
                                     <>
-                                      <div className="grid min-w-0 gap-1.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-2">
+                                      <div className="grid min-w-0 gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                                        <div className={cn("rounded-2xl border px-3 py-2", nextAction.className)}>
+                                          <div className="flex items-center justify-between gap-3">
+                                            <div className="min-w-0">
+                                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] opacity-70">
+                                                Próxima ação
+                                              </p>
+                                              <p className="mt-1 truncate text-sm font-semibold">
+                                                {formatDateTime(account.next_action_at)}
+                                              </p>
+                                            </div>
+                                            <CalendarClock className="h-4 w-4 shrink-0 opacity-70" />
+                                          </div>
+                                        </div>
                                         {shouldShowFinancial ? (
                                           <div className="flex min-w-0 items-center justify-between gap-2 text-[11px]">
                                             <span className="text-slate-500">Financeiro</span>
                                             <span className="min-w-0 truncate font-medium text-slate-900">{finance?.label || "Sem cobrança"}</span>
                                           </div>
                                         ) : null}
+                                        <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                                          <div className="rounded-2xl bg-white px-2.5 py-1.5">
+                                            <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">Responsável</p>
+                                            <p className="mt-1 truncate text-sm font-semibold text-slate-950">{ownerName}</p>
+                                          </div>
+                                          <div className="rounded-2xl bg-white px-2.5 py-1.5">
+                                            <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">Último contato</p>
+                                            <p className="mt-1 truncate text-sm font-semibold text-slate-950">{formatDateTime(account.last_contact_at)}</p>
+                                          </div>
+                                        </div>
                                         <div className={cn("grid min-w-0 gap-1.5", shouldShowFinancial ? "grid-cols-2" : "grid-cols-1")}>
                                           {shouldShowFinancial ? (
                                             <div className="min-w-0 rounded-2xl bg-white px-2.5 py-1.5">
@@ -1098,22 +1266,41 @@ export default function SystemCRM() {
                                         </div>
                                       </div>
 
+                                      {(account.need || account.next_step || account.quick_notes) ? (
+                                        <div className="mt-2.5 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                                          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Leitura rápida</p>
+                                          <div className="mt-2 space-y-2 text-[12px] text-slate-600">
+                                            {account.need ? (
+                                              <p><span className="font-medium text-slate-800">Necessidade:</span> {account.need}</p>
+                                            ) : null}
+                                            {account.next_step ? (
+                                              <p><span className="font-medium text-slate-800">Próximo passo:</span> {account.next_step}</p>
+                                            ) : null}
+                                            {account.quick_notes ? (
+                                              <p><span className="font-medium text-slate-800">Observação:</span> {account.quick_notes}</p>
+                                            ) : null}
+                                          </div>
+                                        </div>
+                                      ) : null}
+
                                       <div className="mt-2.5 flex min-w-0 items-center justify-between gap-2">
                                         <Button
-                                          variant="outline"
+                                          variant="default"
                                           size="sm"
-                                          className="h-8 rounded-full border-sky-200 bg-white px-3 text-xs font-medium text-sky-900 hover:bg-sky-50 hover:text-sky-950"
+                                          aria-label={`Abrir contexto de ${account.name}`}
+                                          className="h-8 rounded-full bg-sky-600 px-3 text-xs font-medium text-white hover:bg-sky-700"
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             openAccountDrawer(account);
                                           }}
                                         >
-                                          Contexto
+                                          Abrir contexto
                                         </Button>
                                         <div className="flex shrink-0 gap-1">
                                           <Button
                                             variant="ghost"
                                             size="icon"
+                                            aria-label={`Editar ${account.name}`}
                                             className={cn(crmIconButtonClassName, "h-8 w-8 rounded-full bg-white hover:bg-sky-50")}
                                             onClick={(event) => {
                                               event.stopPropagation();
@@ -1151,51 +1338,142 @@ export default function SystemCRM() {
                       </ScrollArea>
                     </section>
                   ))}
+                </div>
               </div>
             </div>
           ) : null}
 
           {section === "companies" ? (
             filteredAccounts.length === 0 ? (
-              <EmptyState icon={Building2} title="Nenhuma conta encontrada" message="Cadastre um lead ou vincule um cliente real para começar a operar o CRM." />
-            ) : (
-              <BorisTable
-                columns={companiesColumns}
-                data={filteredAccounts}
-                keyExtractor={(item) => item.id}
-                onRowClick={openAccountDrawer}
-                pageSize={filteredAccounts.length || 10}
+              <EmptyState
+                icon={Building2}
+                title="Nenhuma conta encontrada"
+                message="Cadastre um lead ou vincule um cliente real para começar a operar o CRM."
+                action={{
+                  label: "Criar lead",
+                  onClick: () => {
+                    setEditingAccount(null);
+                    setAccountDialogOpen(true);
+                  },
+                }}
+                className="rounded-[24px] border-slate-200 bg-white py-16 shadow-sm"
               />
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-[24px] border border-slate-200 bg-gradient-to-r from-sky-50 via-white to-white px-4 py-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-sky-950">Carteira comercial</p>
+                      <p className="text-sm text-slate-600">Uma visão unificada de leads e clientes já convertidos.</p>
+                    </div>
+                    <Badge variant="outline" className="border-sky-200 bg-white text-sky-900">
+                      {filteredAccounts.length} contas visíveis
+                    </Badge>
+                  </div>
+                </div>
+                <BorisTable
+                  columns={companiesColumns}
+                  data={filteredAccounts}
+                  keyExtractor={(item) => item.id}
+                  onRowClick={openAccountDrawer}
+                  pageSize={filteredAccounts.length || 10}
+                  density="comfortable"
+                />
+              </div>
             )
           ) : null}
 
           {section === "contacts" ? (
             filteredContacts.length === 0 ? (
-              <EmptyState icon={ContactRound} title="Nenhum contato encontrado" message="Cadastre contatos vinculados às contas para registrar relacionamento real." />
-            ) : (
-              <BorisTable
-                columns={contactsColumns}
-                data={filteredContacts}
-                keyExtractor={(item) => item.id}
-                onRowClick={(contact) => {
-                  const account = crm.accountById.get(contact.account_id);
-                  if (account) openAccountDrawer(account);
+              <EmptyState
+                icon={ContactRound}
+                title="Nenhum contato encontrado"
+                message="Cadastre contatos vinculados às contas para registrar relacionamento real."
+                action={{
+                  label: "Novo contato",
+                  onClick: () => {
+                    setEditingContact(null);
+                    setContactDefaults({});
+                    setContactDialogOpen(true);
+                  },
                 }}
-                pageSize={filteredContacts.length || 10}
+                className="rounded-[24px] border-slate-200 bg-white py-16 shadow-sm"
               />
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-[24px] border border-slate-200 bg-gradient-to-r from-sky-50 via-white to-white px-4 py-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-sky-950">Mapa de relacionamentos</p>
+                      <p className="text-sm text-slate-600">Quem é quem em cada conta e onde está o melhor ponto de avanço.</p>
+                    </div>
+                    <Badge variant="outline" className="border-sky-200 bg-white text-sky-900">
+                      {filteredContacts.length} contatos
+                    </Badge>
+                  </div>
+                </div>
+                <BorisTable
+                  columns={contactsColumns}
+                  data={filteredContacts}
+                  keyExtractor={(item) => item.id}
+                  onRowClick={(contact) => {
+                    const account = crm.accountById.get(contact.account_id);
+                    if (account) openAccountDrawer(account);
+                  }}
+                  pageSize={filteredContacts.length || 10}
+                  density="comfortable"
+                />
+              </div>
             )
           ) : null}
 
           {section === "tasks" ? (
             filteredTasks.length === 0 ? (
-              <EmptyState icon={ListTodo} title="Nenhuma tarefa encontrada" message="Registre follow-ups e tarefas para acompanhar o comercial pelo próprio painel." />
+              <div className="space-y-4">
+                <div className="rounded-[24px] border border-slate-200 bg-gradient-to-r from-sky-50 via-white to-white px-4 py-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-sky-950">Fila de execução</p>
+                      <p className="text-sm text-slate-600">Use tarefas para transformar contexto comercial em ação operacional.</p>
+                    </div>
+                  </div>
+                </div>
+                <EmptyState
+                  icon={ListTodo}
+                  title="Nenhuma tarefa encontrada"
+                  message="Registre follow-ups e tarefas para acompanhar o comercial pelo próprio painel."
+                  action={{
+                    label: "Nova tarefa",
+                    onClick: () => {
+                      setEditingTimelineItem(null);
+                      setTimelineDefaults({ item_type: "task" });
+                      setTimelineDialogOpen(true);
+                    },
+                  }}
+                  className="rounded-[24px] border-slate-200 bg-white py-20 shadow-sm"
+                />
+              </div>
             ) : (
-              <BorisTable
-                columns={tasksColumns}
-                data={filteredTasks}
-                keyExtractor={(item) => item.id}
-                pageSize={filteredTasks.length || 10}
-              />
+              <div className="space-y-4">
+                <div className="rounded-[24px] border border-slate-200 bg-gradient-to-r from-sky-50 via-white to-white px-4 py-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-sky-950">Fila de execução</p>
+                      <p className="text-sm text-slate-600">Follow-ups e pendências com foco em continuidade comercial.</p>
+                    </div>
+                    <Badge variant="outline" className="border-sky-200 bg-white text-sky-900">
+                      {filteredTasks.length} tarefa(s)
+                    </Badge>
+                  </div>
+                </div>
+                <BorisTable
+                  columns={tasksColumns}
+                  data={filteredTasks}
+                  keyExtractor={(item) => item.id}
+                  pageSize={filteredTasks.length || 10}
+                  density="comfortable"
+                />
+              </div>
             )
           ) : null}
         </>
@@ -1209,13 +1487,37 @@ export default function SystemCRM() {
         profiles={crm.profiles}
         pending={crm.saveAccountMutation.isPending}
         onSubmit={async (values) => {
-          await handleMutation(
-            () => crm.saveAccountMutation.mutateAsync(values),
-            editingAccount ? "Conta atualizada" : "Conta criada",
-            editingAccount ? "As alterações da conta foram salvas." : "A conta foi adicionada ao CRM.",
-          );
-          setAccountDialogOpen(false);
-          setEditingAccount(null);
+          try {
+            const accountId = await crm.saveAccountMutation.mutateAsync(values);
+
+            if (!editingAccount) {
+              const contactName = (values.primary_contact_name || values.name || "").trim();
+              const hasDirectContactData = Boolean(contactName || values.phone?.trim() || values.email?.trim());
+
+              if (hasDirectContactData) {
+                const { firstName, lastName } = splitFullName(contactName || values.name);
+                await crm.saveContactMutation.mutateAsync({
+                  account_id: accountId,
+                  first_name: firstName,
+                  last_name: lastName,
+                  email: values.email ?? null,
+                  phone: values.phone ?? null,
+                  is_primary: true,
+                });
+              }
+            }
+
+            notify.success(
+              editingAccount ? "Lead atualizado" : "Lead criado",
+              editingAccount
+                ? "As alterações do lead foram salvas."
+                : "O lead entrou no CRM e o contato principal foi criado automaticamente.",
+            );
+            setAccountDialogOpen(false);
+            setEditingAccount(null);
+          } catch (error) {
+            notify.error("Não foi possível concluir", getStripeSyncErrorDetails(error));
+          }
         }}
       />
 

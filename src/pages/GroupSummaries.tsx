@@ -187,7 +187,7 @@ function DiaryContent({
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-5 shadow-subtle sm:p-6">
+      <Card className="rounded-[28px] border border-slate-200/90 bg-white p-5 shadow-[0_22px_55px_-42px_rgba(15,23,42,0.35)] sm:p-6">
         <div className="flex flex-col gap-5">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -225,7 +225,7 @@ function DiaryContent({
 
       <div className="grid grid-cols-1 gap-7 md:grid-cols-[280px_minmax(0,1fr)]">
         <div className="hidden self-start md:sticky md:top-24 md:block">
-          <Card className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-4 shadow-subtle sm:p-5">
+          <Card className="rounded-[28px] border border-slate-200/90 bg-white p-4 shadow-[0_18px_45px_-36px_rgba(15,23,42,0.32)] sm:p-5">
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Linha do tempo</div>
               <div className="text-xs text-muted-foreground/80">
@@ -298,7 +298,7 @@ function DiaryContent({
             </Select>
           </div>
 
-          <Card className="rounded-[var(--radius-xl)] border border-primary/15 bg-gradient-to-br from-primary/[0.05] via-card/95 to-card/95 px-6 py-6 shadow-subtle sm:px-8 sm:py-8">
+          <Card className="rounded-[30px] border border-primary/15 bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.14),transparent_38%),linear-gradient(180deg,rgba(255,255,255,1),rgba(255,247,237,0.8))] px-6 py-6 shadow-[0_26px_70px_-48px_rgba(251,146,60,0.5)] sm:px-8 sm:py-8">
             <div className="space-y-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 space-y-3">
@@ -417,7 +417,7 @@ function DiaryContent({
           <div className="space-y-2.5">
             <SectionDivider title="Resumo" subtitle={selectedSummary ? "Texto completo do dia" : undefined} />
 
-            <Card className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 p-6 shadow-subtle sm:p-8">
+            <Card className="rounded-[28px] border border-slate-200/90 bg-white p-6 shadow-[0_22px_55px_-42px_rgba(15,23,42,0.35)] sm:p-8">
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="space-y-1">
@@ -492,7 +492,7 @@ function DiaryContent({
             />
 
             <Collapsible defaultOpen={!!selectedKeyword}>
-              <Card className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 shadow-subtle">
+              <Card className="rounded-[28px] border border-slate-200/90 bg-white shadow-[0_18px_45px_-36px_rgba(15,23,42,0.32)]">
                 <CollapsibleTrigger asChild>
                   <button
                     type="button"

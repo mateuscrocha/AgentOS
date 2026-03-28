@@ -6,10 +6,12 @@ import { MemoryRouter } from "react-router-dom";
 const navigateMock = vi.fn();
 const notifySuccessMock = vi.fn();
 const notifyInfoMock = vi.fn();
+const notifyErrorMock = vi.fn();
 
 const signInWithPasswordMock = vi.fn();
 const resetPasswordForEmailMock = vi.fn();
 const updateUserMock = vi.fn();
+const invokeMock = vi.fn();
 let authStateChangeCallback: ((event: string, session?: any) => void) | null = null;
 
 vi.mock("react-router-dom", async () => {
@@ -34,7 +36,7 @@ vi.mock("@/components/ui/sonner", () => {
     notify: {
       success: (...args: any[]) => notifySuccessMock(...args),
       info: (...args: any[]) => notifyInfoMock(...args),
-      error: vi.fn(),
+      error: (...args: any[]) => notifyErrorMock(...args),
     },
   };
 });
@@ -58,6 +60,9 @@ vi.mock("@/integrations/supabase/client", () => {
           authStateChangeCallback = cb;
           return { data: { subscription: { unsubscribe: vi.fn() } } };
         },
+      },
+      functions: {
+        invoke: (...args: any[]) => invokeMock(...args),
       },
     },
   };
@@ -83,7 +88,10 @@ describe("Auth page", () => {
     signInWithPasswordMock.mockReset();
     resetPasswordForEmailMock.mockReset();
     updateUserMock.mockReset();
+    invokeMock.mockReset();
+    notifyErrorMock.mockReset();
     authStateChangeCallback = null;
+    localStorage.clear();
   });
 
   async function renderAuth() {
@@ -104,7 +112,7 @@ describe("Auth page", () => {
   }
 
   it("faz login com email/senha e navega para /", async () => {
-    signInWithPasswordMock.mockResolvedValue({ error: null });
+    signInWithPasswordMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
 
     const { container, root } = await renderAuth();
     const emailInput = container.querySelector('input[type="email"]') as HTMLInputElement;
@@ -132,7 +140,7 @@ describe("Auth page", () => {
   });
 
   it("mostra mensagem amigável para credenciais inválidas", async () => {
-    signInWithPasswordMock.mockResolvedValue({ error: new Error("Invalid login credentials") });
+    signInWithPasswordMock.mockResolvedValue({ data: { user: null }, error: new Error("Invalid login credentials") });
 
     const { container, root } = await renderAuth();
     const emailInput = container.querySelector('input[type="email"]') as HTMLInputElement;
@@ -275,6 +283,102 @@ describe("Auth page", () => {
     expect(container.textContent).toContain("As senhas não coincidem");
     expect(confirmPasswordInput.getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(confirmPasswordInput);
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("conclui onboarding pendente após login e entra no grupo provisionado", async () => {
+    localStorage.setItem(
+      "boris-onboarding:pending-v1",
+      JSON.stringify({
+        fullName: "Ana Souza",
+        organizationName: "Operação Ana",
+        email: "user@example.com",
+        whatsappPhone: "(11) 99999-1111",
+        inviteLink: "https://chat.whatsapp.com/convite",
+        userId: "user-1",
+        validatedGroup: {
+          provider_phone: "120363@g.us",
+          whatsapp_provider_id: "120363@g.us",
+          group_name: "Grupo Alfa",
+          participants: [{ phone: "+5511999991111", name: "Ana", is_admin: true }],
+        },
+      }),
+    );
+
+    signInWithPasswordMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    invokeMock.mockResolvedValue({
+      data: { success: true, group_id: "group-1" },
+      error: null,
+    });
+
+    const { container, root } = await renderAuth();
+    const emailInput = container.querySelector('input[type="email"]') as HTMLInputElement;
+    const passwordInput = container.querySelector('input[autocomplete="current-password"]') as HTMLInputElement;
+    const form = container.querySelector("form") as HTMLFormElement;
+
+    await act(async () => {
+      setInputValue(emailInput, "user@example.com");
+      setInputValue(passwordInput, "123456");
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await flushPromises();
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("provision-onboarding", expect.any(Object));
+    expect(navigateMock).toHaveBeenCalledWith("/groups/group-1", { replace: true });
+    expect(localStorage.getItem("boris-onboarding:pending-v1")).toBeNull();
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("manda o erro de onboarding de volta para a tela de cadastro", async () => {
+    localStorage.setItem(
+      "boris-onboarding:pending-v1",
+      JSON.stringify({
+        fullName: "Ana Souza",
+        organizationName: "Operação Ana",
+        email: "user@example.com",
+        whatsappPhone: "(11) 99999-1111",
+        inviteLink: "https://chat.whatsapp.com/convite",
+        userId: "user-1",
+        validatedGroup: {
+          provider_phone: "120363@g.us",
+          whatsapp_provider_id: "120363@g.us",
+          group_name: "Grupo Alfa",
+          participants: [{ phone: "+5511999991111", name: "Ana", is_admin: true }],
+        },
+      }),
+    );
+
+    signInWithPasswordMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    invokeMock.mockResolvedValue({
+      data: null,
+      error: new Error('Esse grupo já foi cadastrado como "Bóris - Testes". (GROUP_ALREADY_PROVISIONED)'),
+    });
+
+    const { container, root } = await renderAuth();
+    const emailInput = container.querySelector('input[type="email"]') as HTMLInputElement;
+    const passwordInput = container.querySelector('input[autocomplete="current-password"]') as HTMLInputElement;
+    const form = container.querySelector("form") as HTMLFormElement;
+
+    await act(async () => {
+      setInputValue(emailInput, "user@example.com");
+      setInputValue(passwordInput, "123456");
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await flushPromises();
+    });
+
+    expect(navigateMock).toHaveBeenCalledWith(
+      "/signup?onboarding_error=Esse+grupo+j%C3%A1+foi+cadastrado+como+%22B%C3%B3ris+-+Testes%22.+%28GROUP_ALREADY_PROVISIONED%29&email=user%40example.com",
+      { replace: true },
+    );
+    expect(container.textContent).not.toContain("Esse grupo já foi cadastrado");
 
     await act(async () => {
       root.unmount();

@@ -163,28 +163,67 @@ export function ConnectionStatus() {
           ? `${overview.pendingGroups} grupo(s) ainda pendente(s) de sincronizacao.`
           : "Todos os grupos monitorados estao com sync ativo.";
 
+  const overviewTiles = [
+    {
+      label: "Base monitorada",
+      value: overview.totalGroups.toLocaleString("pt-BR"),
+      detail: "grupos conectados",
+    },
+    {
+      label: "Sync ativo",
+      value: overview.activeGroups.toLocaleString("pt-BR"),
+      detail: "com status ativo",
+    },
+    {
+      label: "Pendentes + erros",
+      value: (overview.pendingGroups + overview.errorGroups).toLocaleString("pt-BR"),
+      detail: "pedindo atenção",
+    },
+  ];
+
   return (
-    <div className="rounded-xl border border-border bg-card p-6 shadow-card animate-fade-in">
-      <h3 className="mb-1 text-sm font-semibold text-card-foreground">Status da Sincronizacao</h3>
-      <p className="mb-4 text-xs text-muted-foreground">
-        Saude operacional da ingestao e do status de sync dos grupos.
-      </p>
-      <div className="space-y-3">
+    <div className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-card animate-fade-in">
+      <div className="bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_36%),linear-gradient(135deg,hsl(var(--secondary)/0.3),transparent_72%)] px-6 py-6">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Status de sincronização</p>
+            <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-card-foreground sm:text-2xl">
+              Saúde operacional da ingestão e do sync dos grupos
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Use este bloco para descobrir rápido se o sistema está capturando sinais com cobertura suficiente ou se há filas pedindo intervenção.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[480px]">
+            {overviewTiles.map((tile) => (
+              <div key={tile.label} className="rounded-2xl border border-border/70 bg-background/85 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{tile.label}</div>
+                <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{tile.value}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{tile.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 border-t border-border/70 p-5 sm:p-6 xl:grid-cols-2">
         {statusItems.map((item) => {
           const config = statusConfig[item.status];
           const StatusIcon = config.icon;
           return (
             <div
               key={item.label}
-              className="flex items-center justify-between rounded-lg bg-secondary/50 px-4 py-3"
+              className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/80 px-4 py-4"
             >
-              <div className="flex items-center gap-3">
-                <item.icon className="h-5 w-5 text-muted-foreground" />
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border/70 bg-card shadow-subtle">
+                  <item.icon className="h-4.5 w-4.5 text-muted-foreground" />
+                </div>
                 <div>
-                  <span className="text-sm font-medium text-card-foreground">
+                  <span className="text-sm font-semibold text-card-foreground">
                     {item.label}
                   </span>
-                  <p className="text-xs text-muted-foreground">{item.detail}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
                 </div>
               </div>
               <div className={cn("flex items-center gap-2 rounded-full px-2.5 py-1", config.bg)}>
@@ -203,8 +242,11 @@ export function ConnectionStatus() {
           );
         })}
       </div>
-      <div className={cn("mt-4 rounded-lg border p-3", summaryClassName)}>
-        <p className="text-xs">{summaryText}</p>
+
+      <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+        <div className={cn("rounded-2xl border p-4", summaryClassName)}>
+          <p className="text-sm font-medium">{summaryText}</p>
+        </div>
       </div>
     </div>
   );

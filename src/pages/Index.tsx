@@ -756,6 +756,26 @@ const Index = () => {
       helper: "com atividade",
     },
   ];
+  const topGroupHeadline = pulse24h?.topGroups?.[0] ?? null;
+  const dashboardRadarCards = [
+    {
+      label: "Pulso de 24h",
+      value: pulseSummaryLoading ? "—" : pulseSummaryError ? "Erro" : formatNumberBR(pulseMeta.totalMessages),
+      detail: "mensagens recentes captadas",
+    },
+    {
+      label: "Organizações em 30d",
+      value: kpiOrgsPeriodLoading ? "—" : kpiOrgsPeriodError ? "Erro" : formatNumberBR(kpiOrgsPeriod ?? 0),
+      detail: "com atividade recente no período",
+    },
+    {
+      label: "Grupo dominante",
+      value: pulseSummaryLoading ? "—" : pulseSummaryError ? "Indisponível" : topGroupHeadline?.name || "Sem destaque",
+      detail: pulseSummaryLoading || pulseSummaryError
+        ? "sem leitura comparativa"
+        : `${formatNumberBR(Number(topGroupHeadline?.count ?? 0))} mensagens no topo do ranking`,
+    },
+  ];
   const kpiSignalStrip = [
     {
       label: "Mensagens 30d",
@@ -920,7 +940,39 @@ const Index = () => {
           )}
         />
 
-        <section className="scroll-mt-32 rounded-[var(--radius-xl)] border border-border/60 bg-card/95 p-5 shadow-subtle sm:p-6" id="kpis">
+        <section className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
+          <div className="bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_34%),linear-gradient(135deg,hsl(var(--secondary)/0.42),transparent_72%)] px-5 py-6 sm:px-6 lg:px-7">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+              <div className="max-w-3xl space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  <Activity className="h-3.5 w-3.5" />
+                  Radar do sistema
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-3xl">
+                    Veja o que acelerou, onde a base está ativa e qual grupo merece investigação primeiro
+                  </h3>
+                  <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+                    O painel principal agora combina volume, alcance e concentração operacional para facilitar decisão
+                    executiva sem obrigar leitura de todos os blocos.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[620px]">
+                {dashboardRadarCards.map((card) => (
+                  <div key={card.label} className="rounded-2xl border border-border/70 bg-background/85 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{card.label}</div>
+                    <div className="mt-2 truncate text-2xl font-semibold tracking-[-0.03em] text-foreground">{card.value}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{card.detail}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="scroll-mt-32 overflow-hidden rounded-[32px] border border-border/60 bg-card/95 shadow-subtle" id="kpis">
+          <div className="border-b border-border/70 px-5 py-5 sm:px-6 sm:py-6">
           <ExecutiveSectionHeader
             eyebrow="Base e Tendência"
             title="Indicadores principais (30d)"
@@ -932,7 +984,9 @@ const Index = () => {
               </Badge>
             )}
           />
-          <div className="grid gap-3 rounded-[var(--radius-lg)] border border-border/60 bg-background/80 p-3 md:grid-cols-3">
+          </div>
+          <div className="space-y-4 px-5 py-5 sm:px-6 sm:py-6">
+          <div className="grid gap-3 rounded-[28px] border border-border/60 bg-background/80 p-3 md:grid-cols-3">
             {kpiSignalStrip.map((item) => {
               const toneClassName = item.tone === "positive"
                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
@@ -954,26 +1008,28 @@ const Index = () => {
               );
             })}
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {mainKpis}
           </div>
           {kpiMembersError || kpiMembersPrevBaseError || currentPeriodKpisError || prevPeriodKpisError || systemTotalsError ? (
-            <p className="mt-3 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Alguns indicadores podem estar incompletos no momento. Tente atualizar a página em instantes.
             </p>
           ) : null}
+          </div>
         </section>
 
         <section className="scroll-mt-32" id="sync-status">
           <ConnectionStatus />
         </section>
 
-        <section className="scroll-mt-32 rounded-[var(--radius-xl)] border border-primary/10 bg-card/95 p-5 shadow-subtle sm:p-6" id="executive-summary" aria-busy={newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading ? "true" : undefined}>
+        <section className="scroll-mt-32 overflow-hidden rounded-[32px] border border-primary/10 bg-card/95 shadow-subtle" id="executive-summary" aria-busy={newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading ? "true" : undefined}>
+          <div className="border-b border-border/70 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.1),transparent_34%),linear-gradient(180deg,hsl(var(--secondary)/0.25),transparent)] px-5 py-5 sm:px-6 sm:py-6">
           <ExecutiveSectionHeader
             eyebrow="Operação"
             eyebrowTone="primary"
             title="Resumo das últimas 24h"
-            description="Leitura rápida do movimento recente, sem camadas de priorização."
+            description="Leitura rápida do movimento recente com um ranking claro de onde investigar primeiro."
             icon={Activity}
             badge={(
               <Badge variant="outline" className="h-6 border-primary/20 bg-primary/[0.04] px-2.5 text-[11px] font-medium text-primary/85">
@@ -981,10 +1037,11 @@ const Index = () => {
               </Badge>
             )}
           />
-          <div className="mt-6 space-y-5">
+          </div>
+          <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
             <div className="grid gap-4 sm:grid-cols-3">
               {executiveHighlights.map((item) => (
-                <div key={item.label} className="rounded-[var(--radius-lg)] border border-border/70 bg-background/80 px-4 py-4 shadow-subtle">
+                <div key={item.label} className="rounded-[24px] border border-border/70 bg-background/80 px-4 py-4 shadow-subtle">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                     {item.label}
                   </p>
@@ -998,7 +1055,7 @@ const Index = () => {
               ))}
             </div>
 
-            <div className="rounded-[var(--radius-lg)] border border-border/60 bg-card/95 p-4 shadow-subtle lg:flex lg:max-h-[760px] lg:flex-col">
+            <div className="rounded-[28px] border border-border/60 bg-card/95 p-4 shadow-subtle lg:flex lg:max-h-[760px] lg:flex-col">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grupos mais movimentados</p>
@@ -1032,6 +1089,15 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground">
                     {formatNumberBR(pulseMeta.totalMessages)} mensagens em {formatNumberBR(pulseMeta.activeGroups)} grupos ativos.
                   </p>
+                  {topGroupHeadline ? (
+                    <div className="mt-3 rounded-2xl border border-primary/15 bg-primary/[0.05] px-4 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary/80">Prioridade agora</p>
+                      <p className="mt-1 text-sm font-semibold text-card-foreground">{topGroupHeadline.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Lidera o ranking com {formatNumberBR(Number(topGroupHeadline.count || 0))} mensagens nas últimas 24h.
+                      </p>
+                    </div>
+                  ) : null}
                   <ScrollArea className="mt-3 min-h-0 lg:flex-1">
                     <div className="space-y-3 pr-3">
                       {pulse24h.topGroups.slice(0, TOP_GROUPS_24H_LIMIT).map((g, idx) => {
@@ -1051,7 +1117,7 @@ const Index = () => {
                             key={g.id}
                             to={`/groups/${g.id}`}
                             onClick={() => trackDashboardInteraction("pulse_top_group_click", { groupId: g.id, rank: idx + 1 })}
-                            className="ripple-surface group block rounded-[var(--radius-md)] border border-border/70 bg-background/80 px-3 py-3 transition-colors hover:bg-secondary/20"
+                            className="ripple-surface group block rounded-[20px] border border-border/70 bg-background/80 px-3 py-3 transition-colors hover:bg-secondary/20"
                           >
                             <div className="flex items-start gap-3">
                               <div className="min-w-0 flex-1">

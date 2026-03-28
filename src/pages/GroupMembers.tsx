@@ -24,6 +24,7 @@ import AccessDenied from "./AccessDenied";
 import { MemberDetailsDrawer } from "@/components/members/MemberDetailsDrawer";
 import { Input } from "@/components/ui/input";
 import { notify } from "@/components/ui/sonner";
+import { formatDateSimpleBR } from "@/lib/date";
 
 const PAGE_SIZE = 10;
 const EXPORT_PAGE_SIZE = 500;
@@ -662,7 +663,7 @@ const GroupMembers = () => {
                 return (
                   <article
                     key={m.id}
-                    className="cursor-pointer rounded-[var(--radius-lg)] border border-border/80 bg-card/95 px-4 py-4 shadow-subtle transition-[transform,background-color,box-shadow] hover:bg-card hover:shadow-card hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-5"
+                    className="cursor-pointer rounded-[24px] border border-slate-200/90 bg-white px-4 py-4 shadow-[0_22px_45px_-38px_rgba(15,23,42,0.35)] transition-[transform,background-color,box-shadow,border-color] hover:border-info/30 hover:bg-white hover:shadow-[0_30px_60px_-42px_rgba(14,165,233,0.28)] hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-5"
                     onClick={() => setSelectedMemberId(m.id)}
                     role="button"
                     tabIndex={0}
@@ -696,6 +697,17 @@ const GroupMembers = () => {
                               {formatPhoneE164BR(m.phone_e164) || m.phone_e164}
                             </div>
                           ) : null}
+
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium text-slate-600">
+                              {m.last_seen_message_at ? `Última atividade em ${formatDateSimpleBR(m.last_seen_message_at)}` : "Sem atividade recente"}
+                            </span>
+                            {m.joined_at ? (
+                              <span className="rounded-full border border-info/20 bg-info/10 px-2.5 py-1 font-medium text-info">
+                                Entrou em {formatDateSimpleBR(m.joined_at)}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
 
