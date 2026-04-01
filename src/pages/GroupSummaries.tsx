@@ -78,6 +78,7 @@ function DiaryContent({
   showAllTopicsByDay: _showAllTopicsByDay,
   summariesAll,
   visibleTopics,
+  hasMoreDays,
 }: {
   groupId: string;
   copiedPlainId: string | null;
@@ -103,6 +104,7 @@ function DiaryContent({
   showAllTopicsByDay: UseGroupSummariesReturn["showAllTopicsByDay"];
   summariesAll: UseGroupSummariesReturn["conversationsView"];
   visibleTopics: UseGroupSummariesReturn["visibleTopics"];
+  hasMoreDays: UseGroupSummariesReturn["hasMoreDays"];
 }) {
   const keywordList = useMemo(() => {
     const entries = Array.from(keywordDayCounts.entries());
@@ -272,9 +274,15 @@ function DiaryContent({
             </div>
 
             <div className="mt-4">
-              <Button variant="secondary" className="w-full" onClick={onLoadMore}>
-                Carregar mais (+30)
-              </Button>
+              {hasMoreDays ? (
+                <Button variant="secondary" className="w-full" onClick={onLoadMore}>
+                  Carregar mais (+30)
+                </Button>
+              ) : (
+                <div className="rounded-[var(--radius-lg)] border border-border/70 bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
+                  Todos os dias disponíveis já estão carregados.
+                </div>
+              )}
               <div className="mt-2 text-[11px] text-muted-foreground">
                 Limite atual: {daysLimit} dias
               </div>
@@ -602,6 +610,7 @@ const GroupSummaries = () => {
     kpis,
     visibleTopics,
     selectedExecutive,
+    hasMoreDays,
     isLoading,
     error,
     refetch,
@@ -760,6 +769,7 @@ const GroupSummaries = () => {
             showAllTopicsByDay={showAllTopicsByDay}
             summariesAll={conversationsView}
             visibleTopics={visibleTopics}
+            hasMoreDays={hasMoreDays}
           />
         )}
       </div>

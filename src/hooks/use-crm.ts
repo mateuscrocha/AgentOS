@@ -252,12 +252,31 @@ export function normalizePipelineStage(stage: CRMOpportunityStage): CRMOpportuni
   return stage;
 }
 
-function deriveAccountCommercialClassification(input: {
+export function deriveAccountCommercialClassification(input: {
   status: CRMAccountStatus;
   stage: CRMOpportunityStage;
   hasStripeLink: boolean;
+  relationshipType?: string | null;
 }) {
   const normalizedStage = normalizePipelineStage(input.stage);
+  const isPayingRelationship = isBillableRelationshipType(input.relationshipType);
+
+  // Comercial e billing nao sao a mesma coisa:
+  // contas vinculadas a uma organizacao marcada como paying_customer
+  // precisam continuar como cliente no pipeline mesmo sem IDs Stripe preenchidos.
+  if (isPayingRelationship) {
+    if (input.status === "inactive" || normalizedStage === "lost") {
+      return {
+        status: "inactive" as CRMAccountStatus,
+        stage: "lost" as CRMOpportunityStage,
+      };
+    }
+
+    return {
+      status: "customer" as CRMAccountStatus,
+      stage: "customer" as CRMOpportunityStage,
+    };
+  }
 
   if (input.hasStripeLink) {
     return {
@@ -585,6 +604,7 @@ export function useCRM(enabled: boolean) {
         status: values.status,
         stage: values.stage,
         hasStripeLink,
+        relationshipType: linkedOrganization?.relationship_type ?? null,
       });
       const payload = {
         organization_id: values.organization_id ?? null,

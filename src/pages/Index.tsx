@@ -18,7 +18,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/components/ui/sonner";
-import { Activity, Layers, Users as UsersIcon, MessageSquare, ChevronRight, ArrowUp } from "lucide-react";
+import { Activity, AlertTriangle, Layers, Users as UsersIcon, MessageSquare, ChevronRight, ArrowUp } from "lucide-react";
 import {
   PeriodType,
   getDateRange,
@@ -28,7 +28,7 @@ import { addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { SAO_PAULO_TZ } from "@/lib/date";
 import { getPostLoginRedirectPath } from "@/lib/auth-routing";
-import { buildGroupMomentum, buildParticipationChange } from "./index-dashboard-utils";
+import { buildParticipationChange } from "./index-dashboard-utils";
 
 type RecentGroupRow = {
   id: string;
@@ -74,9 +74,24 @@ type SystemTotalsSummary = {
   messages: number;
 };
 
+type OpenAiBillingAlertEvent = {
+  id: string;
+  created_at: string;
+  event_type: string;
+  entity_type: string;
+  entity_id: string;
+  metadata: {
+    operation?: string | null;
+    group_id?: string | null;
+    group_name?: string | null;
+    target_date?: string | null;
+    status?: number | null;
+    body_excerpt?: string | null;
+  } | null;
+};
+
 const NEW_GROUPS_24H_LIST_LIMIT = 10;
 const TOP_GROUPS_24H_LIMIT = 5;
-const TOP_GROUPS_COMPARISON_LIMIT = 25;
 const LIVE_REFRESH_INTERVAL_MS = 60_000;
 
 const Index = () => {
@@ -247,6 +262,22 @@ const Index = () => {
     };
   };
 
+  const fetchRecentOpenAiBillingAlerts = async (): Promise<OpenAiBillingAlertEvent[]> => {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from("events")
+      .select("id, created_at, event_type, entity_type, entity_id, metadata")
+      .eq("event_type", "OPENAI_BILLING_ALERT")
+      .eq("entity_type", "system")
+      .eq("entity_id", "openai-billing")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (error) throw error;
+    return (data ?? []) as OpenAiBillingAlertEvent[];
+  };
+
   const isMissingRpcFunctionError = (error: unknown) => {
     const code = String((error as { code?: string } | null)?.code ?? "");
     const message = String((error as { message?: string } | null)?.message ?? "");
@@ -406,6 +437,18 @@ const Index = () => {
   });
 
   const {
+    data: openAiBillingAlerts,
+    isLoading: openAiBillingAlertsLoading,
+    error: openAiBillingAlertsError,
+  } = useQuery({
+    queryKey: ["system-openai-billing-alerts"],
+    queryFn: fetchRecentOpenAiBillingAlerts,
+    enabled: isAuthenticated && isSystemAdmin,
+    retry: 1,
+    refetchInterval: 60_000,
+  });
+
+  const {
     data: kpiMembersPrevBase,
     isLoading: kpiMembersPrevBaseLoading,
     error: kpiMembersPrevBaseError,
@@ -482,6 +525,9 @@ const Index = () => {
   const kpiOrgsPeriodError = currentPeriodKpisError;
   const kpiActiveMembersError = currentPeriodKpisError;
   const lastKpiErrorToastKeyRef = useRef<string>("");
+  const latestOpenAiBillingAlert = openAiBillingAlerts?.[0] ?? null;
+  const latestOpenAiBillingMetadata = latestOpenAiBillingAlert?.metadata ?? null;
+  const openAiBillingAlertCount = openAiBillingAlerts?.length ?? 0;
 
   useEffect(() => {
     const key = JSON.stringify({
@@ -490,9 +536,10 @@ const Index = () => {
       currentPeriodKpisError: Boolean(currentPeriodKpisError),
       prevPeriodKpisError: Boolean(prevPeriodKpisError),
       systemTotalsError: Boolean(systemTotalsError),
+      openAiBillingAlertsError: Boolean(openAiBillingAlertsError),
     });
 
-    if (!(kpiMembersError || kpiMembersPrevBaseError || currentPeriodKpisError || prevPeriodKpisError || systemTotalsError)) {
+    if (!(kpiMembersError || kpiMembersPrevBaseError || currentPeriodKpisError || prevPeriodKpisError || systemTotalsError || openAiBillingAlertsError)) {
       lastKpiErrorToastKeyRef.current = "";
       return;
     }
@@ -507,6 +554,7 @@ const Index = () => {
     currentPeriodKpisError,
     prevPeriodKpisError,
     systemTotalsError,
+    openAiBillingAlertsError,
   ]);
 
 
@@ -531,26 +579,6 @@ const Index = () => {
     retry: 1,
   });
 
-  const {
-    data: previousPulse24h,
-    isLoading: previousPulse24hLoading,
-    error: previousPulse24hError,
-    dataUpdatedAt: previousPulse24hUpdatedAt,
-  } = useQuery({
-    queryKey: ["signal-concentration-previous-24h", previous24hStartISO, previous24hEndISO, TOP_GROUPS_COMPARISON_LIMIT],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_system_signal_concentration", {
-        p_start: previous24hStartISO,
-        p_end: previous24hEndISO,
-        p_limit: TOP_GROUPS_COMPARISON_LIMIT,
-      });
-      if (error) throw error;
-      return data as unknown as SignalConcentrationPayload;
-    },
-    enabled: isAuthenticated && isSystemAdmin,
-    retry: 1,
-  });
-
   useEffect(() => {
     if (!isAuthenticated || !isSystemAdmin) return;
     if (typeof (supabase as any).channel !== "function") return;
@@ -563,12 +591,12 @@ const Index = () => {
         void Promise.all([
           queryClient.invalidateQueries({ queryKey: ["kpi-members-total"] }),
           queryClient.invalidateQueries({ queryKey: ["system-totals-summary"] }),
+          queryClient.invalidateQueries({ queryKey: ["system-openai-billing-alerts"] }),
           queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h"] }),
           queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h-count"] }),
           queryClient.invalidateQueries({ queryKey: ["kpi-summary-period"] }),
           queryClient.invalidateQueries({ queryKey: ["kpi-summary-prev-period"] }),
           queryClient.invalidateQueries({ queryKey: ["signal-concentration-24h"] }),
-          queryClient.invalidateQueries({ queryKey: ["signal-concentration-previous-24h"] }),
         ]);
       }, 400);
     };
@@ -579,6 +607,7 @@ const Index = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "groups" }, scheduleSystemRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "members" }, scheduleSystemRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, scheduleSystemRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, scheduleSystemRefresh)
       .subscribe();
 
     return () => {
@@ -599,7 +628,6 @@ const Index = () => {
         queryClient.invalidateQueries({ queryKey: ["kpi-summary-period"] }),
         queryClient.invalidateQueries({ queryKey: ["kpi-summary-prev-period"] }),
         queryClient.invalidateQueries({ queryKey: ["signal-concentration-24h"] }),
-        queryClient.invalidateQueries({ queryKey: ["signal-concentration-previous-24h"] }),
       ]);
     }, LIVE_REFRESH_INTERVAL_MS);
 
@@ -615,22 +643,21 @@ const Index = () => {
     currentPeriodKpisUpdatedAt,
     prevPeriodKpisUpdatedAt,
     pulse24hUpdatedAt,
-    previousPulse24hUpdatedAt,
     0,
   );
   const liveUpdatedAtDate = latestDataUpdateAt > 0 ? new Date(latestDataUpdateAt) : last24hNow;
 
   const describePercentChange = (delta: number, suffix: string) => {
-    if (Math.abs(delta) <= 2) return `Estável em relação ao ${suffix}`;
-    if (delta > 0) return `Subiu ${delta}% em relação ao ${suffix}`;
-    return `Caiu ${Math.abs(delta)}% em relação ao ${suffix}`;
+    if (Math.abs(delta) <= 2) return `Estável em rel. ao ${suffix}`;
+    if (delta > 0) return `+${delta}% em rel. ao ${suffix}`;
+    return `-${Math.abs(delta)}% em rel. ao ${suffix}`;
   };
 
   const describeAbsoluteChange = (abs: number, singular: string, plural: string, suffix: string) => {
-    if (abs === 0) return `Estável em relação ao ${suffix}`;
+    if (abs === 0) return `Estável em rel. ao ${suffix}`;
     const unit = Math.abs(abs) === 1 ? singular : plural;
-    if (abs > 0) return `${abs} ${unit} a mais que o ${suffix}`;
-    return `${Math.abs(abs)} ${unit} a menos que o ${suffix}`;
+    if (abs > 0) return `+${abs} ${unit} em rel. ao ${suffix}`;
+    return `-${Math.abs(abs)} ${unit} em rel. ao ${suffix}`;
   };
 
   const messagesDelta = (() => {
@@ -724,12 +751,7 @@ const Index = () => {
   const newGroupsSummaryError = Boolean(newGroups24hError || newGroups24hCountError);
   const pulseSummaryLoading = pulse24hLoading;
   const pulseSummaryError = Boolean(pulse24hError);
-  const pulseComparisonLoading = previousPulse24hLoading;
-  const pulseComparisonError = Boolean(previousPulse24hError);
   const newGroupsCreated24h = newGroups24hCount ?? newGroups24h?.length ?? 0;
-  const previousTopGroupsById = new Map(
-    (previousPulse24h?.topGroups ?? []).map((group) => [group.id, Number(group.count || 0)]),
-  );
   const retryExecutiveSummary = () => {
     if (newGroupsSummaryError) {
       void queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h"] });
@@ -940,7 +962,117 @@ const Index = () => {
           )}
         />
 
-        <section className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
+        {latestOpenAiBillingAlert && !openAiBillingAlertsLoading ? (
+          <section className="rounded-[24px] border border-destructive/25 bg-destructive/[0.05] p-4 shadow-subtle">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 rounded-full border border-destructive/20 bg-destructive/10 p-2 text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="border-destructive/25 bg-destructive/10 text-destructive">
+                      OpenAI com limite ou cobrança
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      Último sinal às <span className="font-mono text-foreground">{formatTimeBR(new Date(latestOpenAiBillingAlert.created_at))}</span> BRT
+                    </span>
+                    {openAiBillingAlertCount > 1 ? (
+                      <span className="text-xs text-muted-foreground">{openAiBillingAlertCount} ocorrências em 24h</span>
+                    ) : null}
+                  </div>
+                  <h2 className="text-base font-semibold tracking-[-0.02em] text-foreground">
+                    A OpenAI bloqueou uma rotina de IA por quota, limite ou falta de crédito.
+                  </h2>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    {latestOpenAiBillingMetadata?.operation === "generate-group-topics-keywords"
+                      ? "A rotina afetada foi a geração de tópicos e keywords."
+                      : "A rotina afetada foi a geração de resumo."}
+                    {latestOpenAiBillingMetadata?.group_name ? ` Grupo impactado: ${latestOpenAiBillingMetadata.group_name}.` : ""}
+                    {latestOpenAiBillingMetadata?.status ? ` HTTP ${latestOpenAiBillingMetadata.status}.` : ""}
+                  </p>
+                </div>
+              </div>
+              <Button asChild variant="outline" className="border-destructive/25 bg-background">
+                <Link to="/system/events">Ver eventos do sistema</Link>
+              </Button>
+            </div>
+          </section>
+        ) : null}
+
+        <div className="rounded-[24px] border border-border/70 bg-card/90 p-3 shadow-subtle">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Navegação rápida
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Vá direto ao bloco que responde sua dúvida operacional.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href="#radar"
+                className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
+              >
+                Radar
+              </a>
+              <a
+                href="#kpis"
+                className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
+              >
+                KPIs 30d
+              </a>
+              <a
+                href="#sync-status"
+                className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
+              >
+                Sync
+              </a>
+              <a
+                href="#executive-summary"
+                className="inline-flex h-9 items-center rounded-full border border-primary/20 bg-primary/[0.05] px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/[0.09]"
+              >
+                Resumo 24h
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <section className="rounded-[28px] border border-border/70 bg-card/95 p-4 shadow-subtle sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Como ler esta página
+              </p>
+              <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">
+                Faça a leitura em 3 passos para decidir mais rápido
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                O fluxo ideal é identificar o foco do momento, validar se a base está saudável e só então abrir o grupo que merece investigação.
+              </p>
+            </div>
+            <div className="grid gap-3 lg:min-w-[620px] lg:grid-cols-3">
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">1. Radar</div>
+                <p className="mt-2 text-sm font-medium text-foreground">Descubra o recorte que pede atenção agora.</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Leia volume, organizações ativas e grupo dominante antes de entrar nos detalhes.</p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">2. KPIs + Sync</div>
+                <p className="mt-2 text-sm font-medium text-foreground">Confirme se o sinal é confiável.</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Cruze tendência de 30 dias com cobertura de sync para evitar decisões em cima de dados incompletos.</p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">3. Resumo 24h</div>
+                <p className="mt-2 text-sm font-medium text-foreground">Abra o grupo certo e aja.</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Use o ranking final como fila operacional para suporte, operação ou investigação.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="scroll-mt-32 overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle" id="radar">
           <div className="bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_34%),linear-gradient(135deg,hsl(var(--secondary)/0.42),transparent_72%)] px-5 py-6 sm:px-6 lg:px-7">
             <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
               <div className="max-w-3xl space-y-3">
@@ -961,7 +1093,7 @@ const Index = () => {
               <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[620px]">
                 {dashboardRadarCards.map((card) => (
                   <div key={card.label} className="rounded-2xl border border-border/70 bg-background/85 p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{card.label}</div>
+                    <div className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted-foreground">{card.label}</div>
                     <div className="mt-2 truncate text-2xl font-semibold tracking-[-0.03em] text-foreground">{card.value}</div>
                     <div className="mt-1 text-xs text-muted-foreground">{card.detail}</div>
                   </div>
@@ -997,7 +1129,7 @@ const Index = () => {
               return (
                 <div key={item.label} className="rounded-[var(--radius-md)] border border-border/60 bg-card/90 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted-foreground">
                       {item.label}
                     </p>
                     <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${toneClassName}`}>
@@ -1042,7 +1174,7 @@ const Index = () => {
             <div className="grid gap-4 sm:grid-cols-3">
               {executiveHighlights.map((item) => (
                 <div key={item.label} className="rounded-[24px] border border-border/70 bg-background/80 px-4 py-4 shadow-subtle">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted-foreground">
                     {item.label}
                   </p>
                   <p className="mt-2 text-[2rem] font-semibold leading-none tracking-[-0.04em] text-foreground">
@@ -1058,11 +1190,11 @@ const Index = () => {
             <div className="rounded-[28px] border border-border/60 bg-card/95 p-4 shadow-subtle lg:flex lg:max-h-[760px] lg:flex-col">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grupos mais movimentados</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Ranking para abrir, comparar e agir.</p>
+                  <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted-foreground">Grupos mais movimentados</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Ranking para abrir e agir nas conversas com mais volume agora.</p>
                 </div>
                 <Badge variant="outline" className="h-5 border-border/60 bg-background/60 px-2 text-[11px] text-muted-foreground">
-                  {pulseSummaryLoading ? "—" : pulseSummaryError ? "indisponível" : `${pulseMeta.sharePct}%`} top 4
+                  {pulseSummaryLoading ? "—" : pulseSummaryError ? "indisponível" : `${pulseMeta.sharePct}%`} top 4 grupos
                 </Badge>
               </div>
 
@@ -1091,7 +1223,7 @@ const Index = () => {
                   </p>
                   {topGroupHeadline ? (
                     <div className="mt-3 rounded-2xl border border-primary/15 bg-primary/[0.05] px-4 py-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary/80">Prioridade agora</p>
+                      <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-primary/80">Prioridade agora</p>
                       <p className="mt-1 text-sm font-semibold text-card-foreground">{topGroupHeadline.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Lidera o ranking com {formatNumberBR(Number(topGroupHeadline.count || 0))} mensagens nas últimas 24h.
@@ -1103,15 +1235,6 @@ const Index = () => {
                       {pulse24h.topGroups.slice(0, TOP_GROUPS_24H_LIMIT).map((g, idx) => {
                         const count = Number(g.count || 0);
                         const share = pulseMeta.totalMessages ? Math.round((count / pulseMeta.totalMessages) * 100) : 0;
-                        const momentum = buildGroupMomentum(
-                          count,
-                          previousTopGroupsById.has(g.id) ? previousTopGroupsById.get(g.id) ?? 0 : 0,
-                        );
-                        const momentumClassName = momentum.type === "positive"
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-                          : momentum.type === "negative"
-                            ? "border-rose-500/30 bg-rose-500/10 text-rose-700"
-                            : "border-border/70 bg-background/80 text-muted-foreground";
                         return (
                           <Link
                             key={g.id}
@@ -1129,20 +1252,7 @@ const Index = () => {
                                 </div>
                                 <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                                   <span>{formatNumberBR(count)} mensagens</span>
-                                </div>
-                                <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                                  <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${momentumClassName}`}>
-                                    {pulseComparisonLoading ? "Comparando" : pulseComparisonError ? "Sem comparação" : momentum.shortLabel}
-                                  </Badge>
-                                  <p className="text-[11px] text-muted-foreground">
-                                    {pulseComparisonLoading
-                                      ? "Comparando 24h"
-                                      : pulseComparisonError
-                                        ? "Sem tendência"
-                                        : momentum.shortLabel === "Estável"
-                                          ? "Estável vs. 24h"
-                                          : momentum.label}
-                                  </p>
+                                  <span>{share}% do volume captado</span>
                                 </div>
                                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/70">
                                   <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${Math.min(Math.max(share, 6), 100)}%` }} />

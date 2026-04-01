@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -21,6 +21,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { StatusTag } from "@/components/ui/status-tag";
@@ -167,7 +168,7 @@ function messageIdentityKey(message: { member_id: string | null; sender_phone: s
 }
 
 function formatRelativeMinutes(ms: number | null) {
-  if (!ms || !Number.isFinite(ms)) return "N/A";
+  if (!ms || !Number.isFinite(ms)) return "Sem leitura";
   const minutes = Math.round(ms / 60000);
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
@@ -348,6 +349,7 @@ const GroupSupport = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { isLoading: rolesLoading, canEditGroup } = useUserRoles();
   const [search, setSearch] = useState("");
+  const candidateSearchRef = useRef<HTMLInputElement | null>(null);
   const searchQuery = search.trim();
 
   const { data: groupInfo } = useQuery({
@@ -763,6 +765,42 @@ const GroupSupport = () => {
   const kpis = kpisQuery.data;
   const activeSupportRowsCount = supportRows.filter((r) => r.isActive).length;
   const supportCoveragePct = totalMembersCount ? (activeSupportRowsCount / totalMembersCount) * 100 : 0;
+  const supportHealthTone =
+    (kpis?.openPendingSlaBreached ?? 0) > 0
+      ? "critical"
+      : (kpis?.openPendingInteractions ?? 0) > 0
+        ? "warning"
+        : "healthy";
+  const supportHealthLabel =
+    supportHealthTone === "critical"
+      ? "Fila fora do SLA"
+      : supportHealthTone === "warning"
+        ? "Pendências em aberto"
+        : "Operação sob controle";
+  const supportHealthDescription =
+    supportHealthTone === "critical"
+      ? `${(kpis?.openPendingSlaBreached ?? 0).toLocaleString("pt-BR")} pendência(s) já estouraram o SLA útil.`
+      : supportHealthTone === "warning"
+        ? `${(kpis?.openPendingInteractions ?? 0).toLocaleString("pt-BR")} conversa(s) aguardam retorno do time.`
+        : "Nenhuma pendência crítica aberta agora neste grupo.";
+  const supportOverviewCards = [
+    {
+      label: "Prioridade atual",
+      value: supportHealthLabel,
+      detail: supportHealthDescription,
+    },
+    {
+      label: "Cobertura operacional",
+      value: `${supportCoveragePct.toFixed(1).replace(".", ",")}%`,
+      detail: `${activeSupportRowsCount.toLocaleString("pt-BR")} atendente(s) ativo(s) para ${totalMembersCount.toLocaleString("pt-BR")} membros.`,
+    },
+    {
+      label: "Resposta útil",
+      value: formatRelativeMinutes(kpis?.avgResponseMs ?? null),
+      detail: `${(kpis?.answeredInteractions ?? 0).toLocaleString("pt-BR")} interações consideradas na janela de ${KPI_LOOKBACK_DAYS} dias.`,
+    },
+  ];
+  const demandClustersWithVolume = (kpis?.demandClusters ?? []).filter((cluster) => cluster.count > 0);
 
   return (
     <AdminLayout
@@ -880,6 +918,7 @@ const GroupSupport = () => {
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <input
+                          ref={candidateSearchRef}
                           type="text"
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
@@ -958,126 +997,188 @@ const GroupSupport = () => {
           )}
         />
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          <StatsCard
-            title="Atendentes ativos"
-            value={activeSupportRowsCount.toLocaleString("pt-BR")}
-            icon={Headset}
-            variant="kpi"
-            help={GROUP_SUPPORT_KPI_HELP.attendants}
-            className={`${GROUP_SUPPORT_KPI_CARD} border-sky-500/15 bg-gradient-to-br from-sky-500/[0.08] via-card to-card`}
-            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-sky-950 dark:text-sky-100`}
-            description="Pessoas marcadas para contagem de atendimento"
-          />
-          <StatsCard
-            title="Msgs atendentes (30d)"
-            value={(kpis?.supportMessages30d ?? 0).toLocaleString("pt-BR")}
-            icon={MessageSquare}
-            variant="kpi"
-            help={GROUP_SUPPORT_KPI_HELP.supportMessages}
-            className={`${GROUP_SUPPORT_KPI_CARD} border-cyan-500/15 bg-gradient-to-br from-cyan-500/[0.08] via-card to-card`}
-            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-cyan-950 dark:text-cyan-100`}
-            description="Volume total enviado por suportes ativos"
-          />
-          <StatsCard
-            title="Participação (30d)"
-            value={`${(kpis?.supportParticipationPct ?? 0).toFixed(1).replace(".", ",")}%`}
-            icon={Activity}
-            variant="kpi"
-            help={GROUP_SUPPORT_KPI_HELP.participation}
-            className={`${GROUP_SUPPORT_KPI_CARD} border-teal-500/15 bg-gradient-to-br from-teal-500/[0.08] via-card to-card`}
-            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-teal-950 dark:text-teal-100`}
-            description={`${(kpis?.totalMessages30d ?? 0).toLocaleString("pt-BR")} mensagens no grupo`}
-          />
-          <StatsCard
-            title="TMR útil (aprox.)"
-            value={formatRelativeMinutes(kpis?.avgResponseMs ?? null)}
-            icon={Clock3}
-            variant="kpi"
-            help={GROUP_SUPPORT_KPI_HELP.tmr}
-            className={`${GROUP_SUPPORT_KPI_CARD} border-violet-500/15 bg-gradient-to-br from-violet-500/[0.08] via-card to-card`}
-            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-violet-950 dark:text-violet-100`}
-            description={`${(kpis?.answeredInteractions ?? 0).toLocaleString("pt-BR")} interações respondidas • horário comercial`}
-          />
-          <StatsCard
-            title={`SLA ${RESPONSE_SLA_BUSINESS_MINUTES}min (útil)`}
-            value={`${(kpis?.slaPct ?? 0).toFixed(1).replace(".", ",")}%`}
-            icon={CheckCircle2}
-            variant="kpi"
-            help={GROUP_SUPPORT_KPI_HELP.sla}
-            className={`${GROUP_SUPPORT_KPI_CARD} border-emerald-500/15 bg-gradient-to-br from-emerald-500/[0.08] via-card to-card`}
-            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-emerald-950 dark:text-emerald-100`}
-            description={`${(kpis?.answeredWithinSla ?? 0).toLocaleString("pt-BR")} respostas no SLA`}
-          />
-          <StatsCard
-            title="Pendências abertas"
-            value={(kpis?.openPendingInteractions ?? 0).toLocaleString("pt-BR")}
-            icon={MessageSquare}
-            variant="kpi"
-            help={GROUP_SUPPORT_KPI_HELP.pending}
-            className={`${GROUP_SUPPORT_KPI_CARD} border-rose-500/15 bg-gradient-to-br from-rose-500/[0.08] via-card to-card`}
-            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-rose-950 dark:text-rose-100`}
-            description={`${(kpis?.openPendingSlaBreached ?? 0).toLocaleString("pt-BR")} fora do SLA`}
-          />
-          <StatsCard
-            title={`Inatividade (${GROUP_INACTIVITY_DAYS}d)`}
-            value={isGroupInactive ? "Inativo" : "Ativo"}
-            icon={isGroupInactive ? Clock3 : CheckCircle2}
-            variant="kpi"
-            help={GROUP_SUPPORT_KPI_HELP.inactivity}
-            className={`${GROUP_SUPPORT_KPI_CARD} border-amber-500/15 bg-gradient-to-br from-amber-500/[0.10] via-card to-card`}
-            valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-amber-950 dark:text-amber-100`}
-            description={
-              lastMessageAt
-                ? `Última mensagem há ${(inactiveDays ?? 0).toLocaleString("pt-BR")} dia(s)`
-                : "Sem mensagens registradas"
-            }
-          />
-        </div>
+        <section className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
+          <div className="bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_36%),linear-gradient(135deg,hsl(var(--secondary)/0.34),transparent_74%)] px-5 py-6 sm:px-6 lg:px-7">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+              <div className="max-w-3xl space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  <Headset className="h-3.5 w-3.5" />
+                  Sala de operação
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-3xl">
+                    Entenda rápido quem atende, o que está pendente e onde agir primeiro
+                  </h2>
+                  <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+                    Esta visão consolida configuração do time, pressão da fila e qualidade de resposta para que o atendimento
+                    do grupo vire uma operação legível, não uma soma de blocos isolados.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[640px]">
+                {supportOverviewCards.map((card) => (
+                  <div key={card.label} className="rounded-2xl border border-border/70 bg-background/85 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{card.label}</div>
+                    <div className="mt-2 truncate text-xl font-semibold tracking-[-0.03em] text-foreground sm:text-2xl">{card.value}</div>
+                    <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{card.detail}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-[32px] border border-border/70 bg-card/95 shadow-subtle">
+          <div className="border-b border-border/70 px-5 py-5 sm:px-6">
+            <ExecutiveSectionHeader
+              eyebrow="Indicadores"
+              title="Painel operacional do atendimento"
+              description="Carga, velocidade de resposta, aderência ao SLA e sinais de fila em um só plano de leitura."
+              icon={Activity}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 sm:px-6 sm:py-6">
+            <StatsCard
+              title="Atendentes ativos"
+              value={activeSupportRowsCount.toLocaleString("pt-BR")}
+              icon={Headset}
+              variant="kpi"
+              help={GROUP_SUPPORT_KPI_HELP.attendants}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-sky-500/15 bg-gradient-to-br from-sky-500/[0.08] via-card to-card`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-sky-950 dark:text-sky-100`}
+              description="Pessoas marcadas para contagem de atendimento"
+            />
+            <StatsCard
+              title="Msgs atendentes (30d)"
+              value={(kpis?.supportMessages30d ?? 0).toLocaleString("pt-BR")}
+              icon={MessageSquare}
+              variant="kpi"
+              help={GROUP_SUPPORT_KPI_HELP.supportMessages}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-cyan-500/15 bg-gradient-to-br from-cyan-500/[0.08] via-card to-card`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-cyan-950 dark:text-cyan-100`}
+              description="Volume total enviado por suportes ativos"
+            />
+            <StatsCard
+              title="Participação (30d)"
+              value={`${(kpis?.supportParticipationPct ?? 0).toFixed(1).replace(".", ",")}%`}
+              icon={Activity}
+              variant="kpi"
+              help={GROUP_SUPPORT_KPI_HELP.participation}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-teal-500/15 bg-gradient-to-br from-teal-500/[0.08] via-card to-card`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-teal-950 dark:text-teal-100`}
+              description={`${(kpis?.totalMessages30d ?? 0).toLocaleString("pt-BR")} mensagens no grupo`}
+            />
+            <StatsCard
+              title="TMR útil (aprox.)"
+              value={formatRelativeMinutes(kpis?.avgResponseMs ?? null)}
+              icon={Clock3}
+              variant="kpi"
+              help={GROUP_SUPPORT_KPI_HELP.tmr}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-violet-500/15 bg-gradient-to-br from-violet-500/[0.08] via-card to-card`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-violet-950 dark:text-violet-100`}
+              description={`${(kpis?.answeredInteractions ?? 0).toLocaleString("pt-BR")} interações respondidas • horário comercial`}
+            />
+            <StatsCard
+              title={`SLA ${RESPONSE_SLA_BUSINESS_MINUTES}min (útil)`}
+              value={`${(kpis?.slaPct ?? 0).toFixed(1).replace(".", ",")}%`}
+              icon={CheckCircle2}
+              variant="kpi"
+              help={GROUP_SUPPORT_KPI_HELP.sla}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-emerald-500/15 bg-gradient-to-br from-emerald-500/[0.08] via-card to-card`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-emerald-950 dark:text-emerald-100`}
+              description={`${(kpis?.answeredWithinSla ?? 0).toLocaleString("pt-BR")} respostas no SLA`}
+            />
+            <StatsCard
+              title="Pendências abertas"
+              value={(kpis?.openPendingInteractions ?? 0).toLocaleString("pt-BR")}
+              icon={MessageSquare}
+              variant="kpi"
+              help={GROUP_SUPPORT_KPI_HELP.pending}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-rose-500/15 bg-gradient-to-br from-rose-500/[0.08] via-card to-card`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-rose-950 dark:text-rose-100`}
+              description={`${(kpis?.openPendingSlaBreached ?? 0).toLocaleString("pt-BR")} fora do SLA`}
+            />
+            <StatsCard
+              title={`Inatividade (${GROUP_INACTIVITY_DAYS}d)`}
+              value={isGroupInactive ? "Inativo" : "Ativo"}
+              icon={isGroupInactive ? Clock3 : CheckCircle2}
+              variant="kpi"
+              help={GROUP_SUPPORT_KPI_HELP.inactivity}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-amber-500/15 bg-gradient-to-br from-amber-500/[0.10] via-card to-card`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-amber-950 dark:text-amber-100`}
+              description={
+                lastMessageAt
+                  ? `Última mensagem há ${(inactiveDays ?? 0).toLocaleString("pt-BR")} dia(s)`
+                  : "Sem mensagens registradas"
+              }
+            />
+          </div>
+        </section>
 
         {(kpis?.sequenceSampleCapped || kpis?.supportMessageSampleCapped || kpis?.demandClusterSampleCapped) && (
-          <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-warning">
+          <div className="rounded-2xl border border-warning/30 bg-warning/5 p-3 text-xs text-warning">
             Alguns indicadores aproximados usam amostragem da janela recente para manter performance em grupos com alto volume. TMR considera horário comercial (seg-sex, 08h-18h SP).
           </div>
         )}
 
-        <section className="rounded-2xl border border-border/60 bg-card/70 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Clusterização de demandas (MVP)</h2>
-              <p className="text-xs text-muted-foreground">
-                Classificação por palavras-chave nas mensagens de clientes (texto), com comparação ao período anterior ({KPI_LOOKBACK_DAYS}d vs {KPI_LOOKBACK_DAYS}d anteriores).
-              </p>
+        <section className="overflow-hidden rounded-[32px] border border-border/60 bg-card/70">
+          <div className="border-b border-border/60 px-5 py-5 sm:px-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Leitura das demandas</h2>
+                <p className="text-xs text-muted-foreground">
+                  Classificação por palavras-chave nas mensagens de clientes, com comparação ao período anterior ({KPI_LOOKBACK_DAYS}d vs {KPI_LOOKBACK_DAYS}d anteriores).
+                </p>
+              </div>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(kpis?.demandClusters ?? []).filter((c) => c.count > 0).slice(0, 6).map((cluster) => (
-              <div
-                key={cluster.key}
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm"
-              >
-                <span className="font-medium text-foreground">{cluster.label}</span>
-                <span className="text-muted-foreground tabular-nums">
-                  {cluster.count.toLocaleString("pt-BR")} ({cluster.pct.toFixed(0).replace(".", ",")}%)
-                </span>
-                <span className={cn(
-                  "text-xs tabular-nums",
-                  cluster.deltaCount > 0 && "text-warning",
-                  cluster.deltaCount < 0 && "text-success",
-                  cluster.deltaCount === 0 && "text-muted-foreground",
-                )}>
-                  {cluster.deltaCount > 0 ? "+" : ""}{cluster.deltaCount}
-                </span>
+          <div className="px-5 py-5 sm:px-6">
+            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Clusters ativos</div>
+                <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">{demandClustersWithVolume.length.toLocaleString("pt-BR")}</div>
+                <div className="mt-1 text-xs text-muted-foreground">categorias com volume no período</div>
               </div>
-            ))}
-            {!(kpis?.demandClusters ?? []).some((c) => c.count > 0) ? (
-              <div className="text-sm text-muted-foreground">Sem mensagens de texto suficientes para clusterização no período.</div>
-            ) : null}
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Pressão da fila</div>
+                <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">{(kpis?.openPendingInteractions ?? 0).toLocaleString("pt-BR")}</div>
+                <div className="mt-1 text-xs text-muted-foreground">pendência(s) abertas agora</div>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Risco de SLA</div>
+                <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">{(kpis?.openPendingSlaBreached ?? 0).toLocaleString("pt-BR")}</div>
+                <div className="mt-1 text-xs text-muted-foreground">já fora da janela útil</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {demandClustersWithVolume.slice(0, 6).map((cluster) => (
+                <div
+                  key={cluster.key}
+                  className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm"
+                >
+                  <span className="font-medium text-foreground">{cluster.label}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {cluster.count.toLocaleString("pt-BR")} ({cluster.pct.toFixed(0).replace(".", ",")}%)
+                  </span>
+                  <span className={cn(
+                    "text-xs tabular-nums",
+                    cluster.deltaCount > 0 && "text-warning",
+                    cluster.deltaCount < 0 && "text-success",
+                    cluster.deltaCount === 0 && "text-muted-foreground",
+                  )}>
+                    {cluster.deltaCount > 0 ? "+" : ""}{cluster.deltaCount}
+                  </span>
+                </div>
+              ))}
+              {!demandClustersWithVolume.length ? (
+                <div className="text-sm text-muted-foreground">Sem mensagens de texto suficientes para clusterização no período.</div>
+              ) : null}
+            </div>
           </div>
         </section>
 
-        <section className="rounded-2xl border border-border/60 bg-card/70 overflow-hidden">
-          <div className="px-4 py-3 border-b border-border/60">
+        <section className="rounded-[32px] border border-border/60 bg-card/70 overflow-hidden">
+          <div className="px-5 py-5 border-b border-border/60 sm:px-6">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Lista de atendentes do grupo</h2>
@@ -1093,6 +1194,7 @@ const GroupSupport = () => {
               icon={Headset}
               title="Nenhum suporte configurado"
               message="Designe uma ou mais pessoas como atendente para começar a acompanhar atendimento neste grupo."
+              action={canManageSupport ? { label: "Buscar atendentes", onClick: () => candidateSearchRef.current?.focus() } : undefined}
               className="py-14"
             />
           ) : (
@@ -1102,9 +1204,10 @@ const GroupSupport = () => {
                 const metric = kpis?.perSupport[row.identityKey];
                 const phone = formatPhoneE164BR(row.member.phone_e164) || "-";
                 const duplicateCount = row.members.length;
+                const activityLabel = metric?.lastMessageAt ? formatDateTime(metric.lastMessageAt) : "Sem atuação recente";
 
                 return (
-                  <div key={row.identityKey} className="p-4 space-y-3">
+                  <div key={row.identityKey} className="p-5 space-y-4 sm:p-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar className="h-10 w-10">
@@ -1158,21 +1261,21 @@ const GroupSupport = () => {
                     </div>
 
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+                      <div className="rounded-2xl border border-border/60 bg-background/60 p-3">
                         <div className="text-[11px] font-medium text-muted-foreground">Mensagens (30d)</div>
                         <div className="mt-1 text-lg font-semibold text-foreground tabular-nums">
                           {(metric?.messageCount ?? 0).toLocaleString("pt-BR")}
                         </div>
                       </div>
-                      <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+                      <div className="rounded-2xl border border-border/60 bg-background/60 p-3">
                         <div className="text-[11px] font-medium text-muted-foreground">Participação no grupo</div>
                         <div className="mt-1 text-lg font-semibold text-foreground tabular-nums">
                           {kpis?.totalMessages30d
                             ? `${(((metric?.messageCount ?? 0) / (kpis.totalMessages30d || 1)) * 100).toFixed(1).replace(".", ",")}%`
-                            : "0,0%"}
+                          : "0,0%"}
                         </div>
                       </div>
-                      <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+                      <div className="rounded-2xl border border-border/60 bg-background/60 p-3">
                         <div className="text-[11px] font-medium text-muted-foreground">Interações respondidas (aprox.)</div>
                         <div className="mt-1 text-lg font-semibold text-foreground tabular-nums">
                           {(metric?.answeredInteractions ?? 0).toLocaleString("pt-BR")}
@@ -1181,10 +1284,10 @@ const GroupSupport = () => {
                           SLA {RESPONSE_SLA_BUSINESS_MINUTES}m: {((metric?.slaPct ?? 0)).toFixed(1).replace(".", ",")}%
                         </div>
                       </div>
-                      <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+                      <div className="rounded-2xl border border-border/60 bg-background/60 p-3">
                         <div className="text-[11px] font-medium text-muted-foreground">Última atuação (30d)</div>
                         <div className="mt-1 text-sm font-medium text-foreground">
-                          {formatDateTime(metric?.lastMessageAt ?? null)}
+                          {activityLabel}
                         </div>
                         <div className="mt-1 text-[11px] text-muted-foreground">
                           TMR útil: {formatRelativeMinutes(metric?.avgResponseMs ?? null)}

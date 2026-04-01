@@ -73,4 +73,25 @@ describe("system-events helpers", () => {
     expect(overview.sensitive).toBe(1);
     expect(overview.recentAlerts).toHaveLength(2);
   });
+
+  it("trata alerta de cobrança da OpenAI como falha sensível", () => {
+    const event: AuditEvent = {
+      id: "evt-openai",
+      event_type: "OPENAI_BILLING_ALERT",
+      entity_type: "system",
+      entity_id: "openai-billing",
+      user_id: null,
+      metadata: {
+        operation: "generate-group-summary",
+        group_name: "Comunidade Auto Mate +",
+        status: 429,
+      },
+      created_at: "2026-03-31T23:05:00.000Z",
+    };
+
+    expect(getAuditOutcome(event)).toBe("failure");
+    expect(getAuditSeverity(event)).toBe("high");
+    expect(getEventSummary(event)).toContain("OpenAI bloqueou");
+    expect(buildSystemEventSearchText(event)).toContain("comunidade auto mate".toLowerCase());
+  });
 });

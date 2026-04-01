@@ -10,6 +10,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
   Edit,
+  ArrowRight,
   FolderOpen,
   ChevronDown,
   CreditCard,
@@ -1469,52 +1470,55 @@ const Org = () => {
         }),
     [signalsWithMetrics],
   );
-  const supportNowStatusMeta: Array<{
+  const supportNowStatusMeta = useMemo<Array<{
     key: SupportNowStatus;
     title: string;
     description: string;
     help: string;
     icon: typeof TimerReset;
     accent: string;
-  }> = [
-    {
-      key: "awaiting_attendant",
-      title: "Aguardando equipe",
-      description: "Clientes que estao esperando resposta agora.",
-      help: "Mostra grupos em que a mensagem mais recente relevante veio do cliente e ainda nao houve retorno da equipe. O Boris considera a sequencia recente da conversa e marca como fora do SLA quando a espera util passa de 30 minutos.",
-      icon: TimerReset,
-      accent: "border-warning/30 bg-warning/[0.08] text-warning",
-    },
-    {
-      key: "in_progress",
-      title: "Em atendimento",
-      description: "Trocas recentes com ida e volta entre cliente e equipe.",
-      help: "Mostra grupos com interacao recente entre cliente e equipe, sem uma pendencia aberta clara de um lado so. O Boris classifica assim quando houve troca entre os dois lados dentro da janela recente.",
-      icon: Radio,
-      accent: "border-cyan-500/20 bg-cyan-500/[0.08] text-cyan-700",
-    },
-    {
-      key: "awaiting_customer",
-      title: "Aguardando cliente",
-      description: "A equipe respondeu e a conversa aguarda retorno.",
-      help: "Mostra grupos em que a ultima acao relevante foi da equipe, entao o proximo passo esperado esta do lado do cliente. Tambem pode aparecer quando houve atividade recente, mas sem pendencia aberta para o time.",
-      icon: MessageCircleWarning,
-      accent: "border-primary/20 bg-primary/[0.08] text-primary",
-    },
-    {
-      key: "inactive",
-      title: "Sem atividade recente",
-      description: "Grupos de atendimento sem troca recente na janela atual.",
-      help: "Mostra grupos sem movimentacao recente suficiente para serem lidos como atendimento em curso. Em geral, sao conversas frias ou paradas fora da janela recente analisada pelo Boris.",
-      icon: PauseCircle,
-      accent: "border-border/70 bg-secondary/30 text-muted-foreground",
-    },
-  ];
+  }>>(
+    () => [
+      {
+        key: "awaiting_attendant",
+        title: "Aguardando equipe",
+        description: "Clientes que estao esperando resposta agora.",
+        help: "Mostra grupos em que a mensagem mais recente relevante veio do cliente e ainda nao houve retorno da equipe. O Boris considera a sequencia recente da conversa e marca como fora do SLA quando a espera util passa de 30 minutos.",
+        icon: TimerReset,
+        accent: "border-warning/30 bg-warning/[0.08] text-warning",
+      },
+      {
+        key: "in_progress",
+        title: "Em atendimento",
+        description: "Trocas recentes com ida e volta entre cliente e equipe.",
+        help: "Mostra grupos com interacao recente entre cliente e equipe, sem uma pendencia aberta clara de um lado so. O Boris classifica assim quando houve troca entre os dois lados dentro da janela recente.",
+        icon: Radio,
+        accent: "border-cyan-500/20 bg-cyan-500/[0.08] text-cyan-700",
+      },
+      {
+        key: "awaiting_customer",
+        title: "Aguardando cliente",
+        description: "A equipe respondeu e a conversa aguarda retorno.",
+        help: "Mostra grupos em que a ultima acao relevante foi da equipe, entao o proximo passo esperado esta do lado do cliente. Tambem pode aparecer quando houve atividade recente, mas sem pendencia aberta para o time.",
+        icon: MessageCircleWarning,
+        accent: "border-primary/20 bg-primary/[0.08] text-primary",
+      },
+      {
+        key: "inactive",
+        title: "Sem atividade recente",
+        description: "Grupos de atendimento sem troca recente na janela atual.",
+        help: "Mostra grupos sem movimentacao recente suficiente para serem lidos como atendimento em curso. Em geral, sao conversas frias ou paradas fora da janela recente analisada pelo Boris.",
+        icon: PauseCircle,
+        accent: "border-border/70 bg-secondary/30 text-muted-foreground",
+      },
+    ],
+    [],
+  );
   const supportNowStatusMetaByKey = useMemo(
     () => new Map(supportNowStatusMeta.map((item) => [item.key, item])),
     [supportNowStatusMeta],
   );
-  const supportNowItems = orgSupportNowQuery.data?.items ?? [];
+  const supportNowItems = useMemo(() => orgSupportNowQuery.data?.items ?? [], [orgSupportNowQuery.data?.items]);
   const supportNowFilteredItems = useMemo(() => {
     const query = supportNowSearch.trim().toLowerCase();
     return supportNowItems.filter((item) => {
@@ -1535,7 +1539,7 @@ const Org = () => {
   ];
 
   const formatSupportRelativeMinutes = (ms: number | null) => {
-    if (!ms || !Number.isFinite(ms)) return "N/A";
+    if (!ms || !Number.isFinite(ms)) return "Sem leitura";
     const minutes = Math.round(ms / 60000);
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -2387,6 +2391,82 @@ const Org = () => {
           onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); }}
         />
 
+        {(isDashboardRoute || isDefaultOrgHome) && (
+          <>
+            <div className="rounded-[24px] border border-border/70 bg-card/90 p-3 shadow-subtle">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Navegação rápida
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Vá direto ao bloco executivo, atendimento ao vivo ou panorama dos grupos.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href="#org-kpis"
+                    className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
+                  >
+                    KPIs
+                  </a>
+                  <a
+                    href="#org-admin-summary"
+                    className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
+                  >
+                    Resumo executivo
+                  </a>
+                  <a
+                    href="#org-live-summary"
+                    className="inline-flex h-9 items-center rounded-full border border-primary/20 bg-primary/[0.05] px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/[0.09]"
+                  >
+                    Resumo agora
+                  </a>
+                  <a
+                    href="#org-groups-activity"
+                    className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
+                  >
+                    Atividade dos grupos
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <section className="rounded-[28px] border border-border/70 bg-card/95 p-4 shadow-subtle sm:p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="max-w-2xl">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Como ler este painel
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">
+                    Leia saúde da conta, operação ao vivo e depois aprofunde nos grupos
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    A melhor ordem aqui é conferir a base ativa da organização, validar quem precisa de ação imediata no atendimento e só então abrir o grupo certo para investigar.
+                  </p>
+                </div>
+                <div className="grid gap-3 lg:min-w-[620px] lg:grid-cols-3">
+                  <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">1. Saúde</div>
+                    <p className="mt-2 text-sm font-medium text-foreground">Comece pelos KPIs executivos.</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Veja volume de grupos, atividade recente e alertas antes de decidir prioridade.</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">2. Ação imediata</div>
+                    <p className="mt-2 text-sm font-medium text-foreground">Use o Resumo Agora como fila.</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Esse bloco já responde quem está esperando e qual grupo merece intervenção primeiro.</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">3. Aprofunde</div>
+                    <p className="mt-2 text-sm font-medium text-foreground">Abra a atividade dos grupos.</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Desça para entender contexto, ritmo e qual grupo deve virar investigação detalhada.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
         {isProfileRoute && (
           <div id="org-profile" className="space-y-8">
             {(() => {
@@ -2495,7 +2575,7 @@ const Org = () => {
                     disabled={!userCanEditOrg}
                     title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem alterar contato."}
                   >
-                    Editar contato
+                    {hasPrimaryContactData ? "Editar contato" : "Cadastrar contato"}
                   </Button>
                 </div>
                 {(() => {
@@ -2528,9 +2608,18 @@ const Org = () => {
                         )}
                       </div>
                       <div>
-                        <a href={contactEmail ? `mailto:${contactEmail}` : undefined} className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-subtle disabled:opacity-50" aria-disabled={!contactEmail}>
-                          Enviar mensagem
-                        </a>
+                        {contactEmail ? (
+                          <a
+                            href={`mailto:${contactEmail}`}
+                            className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-subtle"
+                          >
+                            Enviar mensagem
+                          </a>
+                        ) : (
+                          <span className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-border/70 bg-background px-3 py-2 text-sm font-medium text-muted-foreground">
+                            Adicione um e-mail para enviar mensagem
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
@@ -2705,7 +2794,7 @@ const Org = () => {
                         disabled={!userCanEditOrg}
                         title={userCanEditOrg ? undefined : "Somente perfis com permissão de edição podem alterar contato."}
                       >
-                        {hasPrimaryContactData ? "Revisar contato" : "Cadastrar contato"}
+                        {hasPrimaryContactData ? "Editar contato" : "Cadastrar contato"}
                       </Button>
                       {hasGroups ? (
                         <Button
@@ -2741,7 +2830,7 @@ const Org = () => {
                 </CardContent>
               </Card>
             )}
-            <Card className="border-border/80 shadow-subtle">
+            <Card className="border-border/80 shadow-subtle scroll-mt-32" id="org-kpis">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -2831,9 +2920,11 @@ const Org = () => {
               </CardContent>
             </Card>
 
-            {adminSummarySection}
+            <div id="org-admin-summary" className="scroll-mt-32">
+              {adminSummarySection}
+            </div>
 
-            <section className="rounded-[28px] border border-border/70 bg-card p-5 shadow-subtle">
+            <section className="scroll-mt-32 rounded-[28px] border border-border/70 bg-card p-5 shadow-subtle" id="org-live-summary">
               <ExecutiveSectionHeader
                 eyebrow="Operação ao vivo"
                 title="Resumo Agora"
@@ -2857,6 +2948,51 @@ const Org = () => {
                 />
               ) : (
                 <div className="space-y-5">
+                  {(() => {
+                    const topStatus = supportNowStatusMeta.reduce<{
+                      key: SupportNowStatus;
+                      title: string;
+                      count: number;
+                      description: string;
+                    } | null>((best, meta) => {
+                      const count = orgSupportNowQuery.data?.counts[meta.key] ?? 0;
+                      if (!best || count > best.count) {
+                        return {
+                          key: meta.key,
+                          title: meta.title,
+                          count,
+                          description: meta.description,
+                        };
+                      }
+                      return best;
+                    }, null);
+
+                    return (
+                      <div className="rounded-[24px] border border-primary/15 bg-primary/[0.05] p-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/85">
+                              Leitura imediata
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-card-foreground">
+                              {topStatus && topStatus.count > 0
+                                ? `${topStatus.title} é o principal status da operação agora.`
+                                : "Nenhum status dominante no atendimento agora."}
+                            </p>
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                              {topStatus && topStatus.count > 0
+                                ? `${topStatus.count.toLocaleString("pt-BR")} grupo(s) neste status. ${topStatus.description}`
+                                : "Use os cards abaixo para entender rapidamente onde existe fila, acompanhamento ou ociosidade."}
+                            </p>
+                          </div>
+                          <div className="rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium text-muted-foreground">
+                            {supportNowFilteredItems.length.toLocaleString("pt-BR")} grupos monitorados agora
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-4">
                     {supportNowStatusMeta.map((meta) => {
                       const count = orgSupportNowQuery.data?.counts[meta.key] ?? 0;
@@ -3002,7 +3138,7 @@ const Org = () => {
               )}
             </section>
 
-            <Card className="border-border/80 shadow-subtle">
+            <Card className="border-border/80 shadow-subtle scroll-mt-32" id="org-groups-activity">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>

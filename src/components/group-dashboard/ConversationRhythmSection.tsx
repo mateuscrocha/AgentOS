@@ -51,7 +51,7 @@ export function ConversationRhythmSection({
     if (isLoading) return null;
     const counts = (messagesPerDay || []).map((d) => Number(d.count) || 0);
     const nonZeroDays = counts.filter((n) => n > 0).length;
-    if (counts.length < 2 || nonZeroDays === 0) return "Sem tendência clara neste período.";
+    if (counts.length < 2 || nonZeroDays === 0) return "Ainda não há tendência clara neste período.";
 
     const window = Math.min(3, counts.length);
     const firstAvg = counts.slice(0, window).reduce((a, b) => a + b, 0) / window;
@@ -62,6 +62,28 @@ export function ConversationRhythmSection({
     if (delta > threshold) return "Tendência: o ritmo ficou mais forte nos últimos dias.";
     if (delta < -threshold) return "Tendência: o ritmo perdeu força nos últimos dias.";
     return "Tendência: ritmo estável ao longo do período.";
+  })();
+
+  const emptyStateCopy = (() => {
+    if ((messagesPerDay || []).length === 0) {
+      return {
+        title: "Ainda não há ritmo suficiente para leitura",
+        description: "Quando o grupo acumular mensagens ao longo do período, este gráfico vai mostrar tendência e aceleração da conversa.",
+      };
+    }
+
+    const totalMessages = (messagesPerDay || []).reduce((sum, item) => sum + (Number(item.count) || 0), 0);
+    if (totalMessages === 0) {
+      return {
+        title: "O grupo ficou silencioso neste recorte",
+        description: "Use isso como sinal de baixa tração neste período ou volte para um intervalo maior para encontrar os últimos movimentos.",
+      };
+    }
+
+    return {
+      title: "Sem leitura de ritmo",
+      description: "Ainda não há dados suficientes para montar uma tendência confiável.",
+    };
   })();
 
   return (
@@ -82,8 +104,11 @@ export function ConversationRhythmSection({
         {isLoading ? (
           <Skeleton className="h-[220px] w-full" />
         ) : messagesPerDay.length === 0 ? (
-          <div className="h-[220px] flex items-center justify-center bg-secondary/30 rounded-lg">
-            <p className="text-sm text-muted-foreground">Sem dados de atividade</p>
+          <div className="h-[220px] rounded-lg border border-border/70 bg-secondary/20 px-6 py-5">
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <p className="text-sm font-medium text-card-foreground">{emptyStateCopy.title}</p>
+              <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{emptyStateCopy.description}</p>
+            </div>
           </div>
         ) : (
           <ChartContainer config={chartConfig} className="h-[220px] w-full">

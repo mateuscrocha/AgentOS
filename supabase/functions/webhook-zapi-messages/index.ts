@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -213,6 +214,38 @@ function sanitizeForMessageContent(value: string | null): string | null {
   return text || null;
 }
 
+function stringifyJsonSafe(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function normalizeStringArray(values: string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => String(value || "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function sameStringArray(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const normalizedA = [...normalizeStringArray(a)].sort();
+  const normalizedB = [...normalizeStringArray(b)].sort();
+  return normalizedA.every((value, index) => value === normalizedB[index]);
+}
+
+function isLikelyGroupPayload(input: Record<string, unknown>, payload: Record<string, unknown>, providerGroupId: string | null): boolean {
+  const explicitIsGroup = input.isGroup ?? input.is_group ?? payload.isGroup ?? payload.is_group;
+  if (typeof explicitIsGroup === "boolean") return explicitIsGroup;
+  const raw = String(providerGroupId || "").trim().toLowerCase();
+  return raw.endsWith("@g.us") || raw.endsWith("-group");
+}
+
 export function createWebhookZapiMessagesHandler(deps?: {
   env?: Pick<typeof Deno.env, 'get'>;
   createClientImpl?: typeof createClient;
@@ -222,13 +255,35 @@ export function createWebhookZapiMessagesHandler(deps?: {
   const createClientImpl = deps?.createClientImpl ?? createClient;
   const fetchImpl = deps?.fetchImpl ?? fetch;
 
-  const buildWelcomeMessage = (args: { groupName: string | null; memberName: string | null }) => {
+    const buildWelcomeMessage = (args: { groupName: string | null; memberName: string | null }) => {
     const memberName = String(args.memberName || "").trim();
     const groupName = String(args.groupName || "").trim();
     if (memberName) {
       return `Boas-vindas, ${memberName}! Que bom ter voce aqui${groupName ? ` no grupo *${groupName}*` : ""}.`;
     }
-    return `Boas-vindas! Que bom ter voce aqui${groupName ? ` no grupo *${groupName}*` : ""}.`;
+      return `Boas-vindas! Que bom ter voce aqui${groupName ? ` no grupo *${groupName}*` : ""}.`;
+    };
+
+  const buildMateusAlertMessage = (args: {
+    provider: string;
+    providerGroupId: string | null;
+    messageId: string | null;
+    notificationType: string | null;
+    payload: unknown;
+  }) => {
+    const serializedPayload = stringifyJsonSafe(args.payload);
+    const payloadPreview = serializedPayload.length > 1200
+      ? `${serializedPayload.slice(0, 1200)}...`
+      : serializedPayload;
+    return [
+      "Webhook recebido fora de grupo no Main Listener migrado.",
+      `provider: ${args.provider}`,
+      `origem: ${args.providerGroupId || "-"}`,
+      `message_id: ${args.messageId || "-"}`,
+      `tipo: ${args.notificationType || "-"}`,
+      "",
+      payloadPreview,
+    ].join("\n");
   };
 
   const persistWelcomeAttempt = async (args: {
@@ -353,15 +408,83 @@ export function createWebhookZapiMessagesHandler(deps?: {
       return group || null;
     };
 
+    const providerGroupId = getGroupProviderId();
+    const notificationType = firstString(
+      input.notification,
+      input.event_type,
+      input.eventType,
+      input.webhookEvent,
+      input.webhook_event,
+      input.subscriptionType,
+      input.subscription_type,
+      input.type,
+      input?.message?.type,
+      input?.data?.event_type,
+      input?.data?.eventType,
+      input?.data?.type
+    );
+    const messageId: string | null = firstString(
+      input.messageId,
+      input.id,
+      input.message_id,
+      input?.message?.messageId,
+      input?.message?.id,
+      input?.data?.messageId,
+      input?.data?.id
+    );
+
     const group = await getGroup();
     const groupId = group?.id || null;
     syncedGroupId = groupId;
     if (!groupId) {
+      const notGroupPayload = !isLikelyGroupPayload(input, payload, providerGroupId);
+      const mateusPhone = normalizeMemberProviderId(env.get("MATEUS_PHONE_E164") || env.get("MATEUS_PHONE") || null);
+
+      if (notGroupPayload && mateusPhone) {
+        try {
+          const alertMessage = buildMateusAlertMessage({
+            provider,
+            providerGroupId,
+            messageId,
+            notificationType,
+            payload,
+          });
+          const providerResponse = await sendZapiText({
+            env,
+            phone: mateusPhone,
+            message: alertMessage,
+            fetchImpl,
+          });
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              notifiedMateus: true,
+              reason: 'non_group_payload',
+              providerResponse,
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (notifyError) {
+          console.error('webhook-zapi-messages failed to notify Mateus for non-group payload', notifyError);
+          const notifyMessage = notifyError instanceof Error ? notifyError.message : 'Unknown notify Mateus error';
+          return new Response(
+            JSON.stringify({
+              success: true,
+              notifiedMateus: false,
+              reason: 'non_group_payload',
+              error: notifyMessage,
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
           ignored: true,
-          reason: 'group_not_found',
+          reason: notGroupPayload ? 'non_group_without_mateus_destination' : 'group_not_found',
           message: 'group not found for provider id',
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -375,15 +498,330 @@ export function createWebhookZapiMessagesHandler(deps?: {
         .eq('id', groupId);
     };
 
-    const messageId: string | null = firstString(
-      input.messageId,
-      input.id,
-      input.message_id,
-      input?.message?.messageId,
-      input?.message?.id,
-      input?.data?.messageId,
-      input?.data?.id
+    const resolveMember = async (args: {
+      phone?: string | null;
+      providerMemberId?: string | null;
+      lid?: string | null;
+      name?: string | null;
+      photoUrl?: string | null;
+      isAdmin?: boolean | null;
+      isSuperAdmin?: boolean | null;
+      createdAt?: string | null;
+      allowCreate?: boolean;
+      metadataSource: string;
+    }) => {
+      const phone = normalizePhoneE164(args.phone || null);
+      const providerMemberId = normalizeMemberProviderId(args.providerMemberId || null);
+      const lid = normalizeLid(args.lid || null);
+      const displayName = firstString(args.name);
+      const photoUrl = firstString(args.photoUrl);
+      const isAdmin = typeof args.isAdmin === 'boolean' ? args.isAdmin : null;
+      const isSuperAdmin = typeof args.isSuperAdmin === 'boolean' ? args.isSuperAdmin : null;
+
+      let member: { id: string; metadata?: unknown } | null = null;
+
+      if (lid) {
+        const { data } = await supabase
+          .from('members')
+          .select('id,metadata')
+          .eq('group_id', groupId)
+          .eq('lid', lid)
+          .maybeSingle();
+        member = data || null;
+      }
+
+      if (!member && phone) {
+        const { data } = await supabase
+          .from('members')
+          .select('id,metadata')
+          .eq('group_id', groupId)
+          .eq('phone_e164', phone)
+          .maybeSingle();
+        member = data || null;
+      }
+
+      if (!member && providerMemberId) {
+        const { data } = await supabase
+          .from('members')
+          .select('id,metadata')
+          .eq('group_id', groupId)
+          .eq('whatsapp_provider_id', providerMemberId)
+          .maybeSingle();
+        member = data || null;
+      }
+
+      if (!member && args.allowCreate && (phone || lid || providerMemberId)) {
+        const nowIso = new Date().toISOString();
+        const joinedAt = args.createdAt || nowIso;
+        const memberName = displayName || phone || lid || providerMemberId || "Membro";
+        const { data: createdMember } = await supabase
+          .from('members')
+          .insert({
+            group_id: groupId,
+            phone_e164: phone,
+            name: memberName,
+            display_name: memberName,
+            provider: 'whatsapp',
+            whatsapp_provider_id: providerMemberId,
+            lid,
+            profile_pic_url: photoUrl,
+            is_admin: isAdmin ?? false,
+            is_super_admin: isSuperAdmin ?? false,
+            first_seen_at: joinedAt,
+            joined_at: joinedAt,
+            status: 'active',
+            metadata: { source: args.metadataSource },
+          })
+          .select('id,metadata')
+          .single();
+        member = createdMember || null;
+      }
+
+      if (member?.id) {
+        const patch: Record<string, unknown> = {};
+        if (displayName) {
+          patch.name = displayName;
+          patch.display_name = displayName;
+        }
+        if (photoUrl) patch.profile_pic_url = photoUrl;
+        if (phone) patch.phone_e164 = phone;
+        if (providerMemberId) patch.whatsapp_provider_id = providerMemberId;
+        if (lid) patch.lid = lid;
+        if (isAdmin !== null) patch.is_admin = isAdmin;
+        if (isSuperAdmin !== null) patch.is_super_admin = isSuperAdmin;
+
+        if (Object.keys(patch).length > 0) {
+          await supabase
+            .from('members')
+            .update(patch)
+            .eq('id', member.id);
+        }
+
+        const metadata = asPlainObject(member.metadata);
+        return {
+          id: member.id,
+          metadata,
+          phone,
+          lid,
+          providerMemberId,
+        };
+      }
+
+      return {
+        id: null,
+        metadata: {},
+        phone,
+        lid,
+        providerMemberId,
+      };
+    };
+
+    const reactionEmoji = firstString(
+      input.reaction?.emoji,
+      input.reaction?.text,
+      input.reaction?.value,
+      input.reactionText,
+      input.reaction_text,
+      input.emoji,
+      input.reaction,
+      input?.message?.reaction?.emoji,
+      input?.message?.reaction?.text,
+      input?.message?.reactionText,
+      input?.data?.reaction?.emoji,
+      input?.data?.reaction?.text,
     );
+    const reactionTargetMessageId = firstString(
+      input.reaction?.messageId,
+      input.reaction?.message_id,
+      input.reaction?.referencedMessage?.messageId,
+      input.reaction?.referencedMessage?.message_id,
+      input.reaction?.referenced_message?.messageId,
+      input.reaction?.referenced_message?.message_id,
+      input.reactionToMessageId,
+      input.reaction_to_message_id,
+      input.referencedMessageId,
+      input.referenced_message_id,
+      input?.message?.reaction?.messageId,
+      input?.message?.reaction?.message_id,
+      input?.message?.reaction?.referencedMessage?.messageId,
+      input?.message?.reaction?.referencedMessage?.message_id,
+      input?.data?.reaction?.messageId,
+      input?.data?.reaction?.message_id,
+      input?.data?.reaction?.referencedMessage?.messageId,
+      input?.data?.reaction?.referencedMessage?.message_id,
+      input?.contextInfo?.stanzaId,
+      input?.message?.contextInfo?.stanzaId,
+    );
+    const reactionRemoved =
+      Boolean(
+        input.reactionRemoved ??
+        input.reaction_removed ??
+        input.removed ??
+        input.isRemoved ??
+        input.is_removed ??
+        input.reaction?.removed ??
+        input.reaction?.isRemoved ??
+        input?.message?.reaction?.removed ??
+        input?.data?.reaction?.removed
+      ) || !reactionEmoji;
+    const looksLikeReaction =
+      normalizeEventKey(
+        input.notification ||
+        input.event_type ||
+        input.eventType ||
+        input.webhookEvent ||
+        input.webhook_event ||
+        input.subscriptionType ||
+        input.subscription_type ||
+        input.type ||
+        input?.message?.type ||
+        input?.data?.event_type ||
+        input?.data?.eventType ||
+        input?.data?.type
+      ).includes('REACTION') ||
+      !!reactionTargetMessageId ||
+      !!input.reaction?.referencedMessage ||
+      !!input?.message?.reaction?.referencedMessage ||
+      !!input?.data?.reaction?.referencedMessage;
+
+    if (looksLikeReaction && reactionTargetMessageId) {
+      const reactedAt = parseTimestampToIso(
+        input.timestamp ||
+        input.messageTimestamp ||
+        input.message_ts ||
+        input?.message?.timestamp ||
+        input?.message?.t ||
+        input.momment ||
+        null
+      ) || new Date().toISOString();
+
+      const senderProviderIdRaw = firstString(
+        input.participantPhone,
+        input.participant_phone,
+        input.senderPhone,
+        input.sender_phone,
+        input.from,
+        input.author,
+        input?.message?.from,
+        input?.message?.author,
+        input?.data?.participantPhone,
+        input?.data?.participant_phone,
+      );
+      const senderName = firstString(
+        input.senderName,
+        input.sender_name,
+        input.pushName,
+        input.participantName,
+        input.participant_name,
+        input?.message?.senderName,
+        input?.message?.pushName,
+        input?.data?.senderName,
+      );
+      const senderLid = normalizeLid(firstString(
+        input.participantLid,
+        input.participant_lid,
+        input.senderLid,
+        input.sender_lid,
+        input.lid,
+        input?.message?.participantLid,
+        input?.message?.participant_lid,
+        input?.message?.senderLid,
+        input?.message?.sender_lid,
+        input?.data?.participantLid,
+      ));
+
+      const { data: targetMessage } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('provider', provider)
+        .eq('whatsapp_provider_id', reactionTargetMessageId)
+        .maybeSingle();
+
+      if (!targetMessage?.id) {
+        await touchGroupSync();
+        return new Response(
+          JSON.stringify({ success: true, type: 'reaction', skipped: 'target_message_not_found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const member = await resolveMember({
+        phone: senderProviderIdRaw,
+        providerMemberId: senderProviderIdRaw,
+        lid: senderLid,
+        name: senderName,
+        createdAt: reactedAt,
+        allowCreate: true,
+        metadataSource: 'zapi_reaction',
+      });
+
+      if (reactionRemoved) {
+        let removeBuilder = supabase
+          .from('message_reactions')
+          .update({
+            removed_at: reactedAt,
+            status: 'removed',
+            raw_provider: payload,
+          })
+          .eq('group_id', groupId)
+          .eq('message_id', targetMessage.id)
+          .is('removed_at', null);
+
+        if (member.id) {
+          removeBuilder = removeBuilder.eq('member_id', member.id);
+        } else if (reactionEmoji) {
+          removeBuilder = removeBuilder.eq('emoji', reactionEmoji);
+        }
+
+        await removeBuilder;
+        await touchGroupSync();
+
+        return new Response(
+          JSON.stringify({ success: true, type: 'reaction', removed: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const normalizedEmoji = reactionEmoji!;
+      let existingReactionQuery = supabase
+        .from('message_reactions')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('message_id', targetMessage.id)
+        .eq('emoji', normalizedEmoji)
+        .is('removed_at', null);
+
+      if (member.id) {
+        existingReactionQuery = existingReactionQuery.eq('member_id', member.id);
+      }
+
+      const { data: existingReaction } = await existingReactionQuery.maybeSingle();
+      if (!existingReaction?.id) {
+        const { error: insertReactionError } = await supabase
+          .from('message_reactions')
+          .insert({
+            group_id: groupId,
+            message_id: targetMessage.id,
+            member_id: member.id,
+            emoji: normalizedEmoji,
+            reacted_at: reactedAt,
+            provider,
+            whatsapp_provider_id: reactionTargetMessageId,
+            provider_reaction_key: messageId,
+            raw_provider: payload,
+            metadata: { source: 'zapi_webhook' },
+          });
+
+        if (insertReactionError) throw insertReactionError;
+      }
+
+      await touchGroupSync();
+
+      return new Response(
+        JSON.stringify({ success: true, type: 'reaction', deduped: !!existingReaction?.id }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Handle POLL
     if (input.poll) {
@@ -476,7 +914,7 @@ export function createWebhookZapiMessagesHandler(deps?: {
     if (input.pollVote) {
       const votePayload = input as ZapiPollVotePayload;
       const voteOpts = Array.isArray(votePayload.pollVote.options) ? votePayload.pollVote.options : [];
-      const votedTexts = voteOpts.map(o => o.name).filter(Boolean);
+      const votedTexts = normalizeStringArray(voteOpts.map((o) => o.name));
 
       const tsRaw = (votePayload.timestamp && Number(votePayload.timestamp)) || (input.momment && Number(input.momment));
       const createdAt = Number.isFinite(tsRaw) ? new Date(tsRaw).toISOString() : undefined;
@@ -562,74 +1000,64 @@ export function createWebhookZapiMessagesHandler(deps?: {
         input?.message?.senderLid,
         input?.message?.sender_lid
       ));
-      const phone = normalizePhoneE164(votePayload.participantPhone || null);
-      const participantProviderId = normalizeMemberProviderId(votePayload.participantPhone || null);
-      let personId: string | null = null;
-      if (participantLid) {
-        const { data: existingByLid } = await supabase
-          .from('members')
-          .select('id')
-          .eq('group_id', groupId)
-          .eq('lid', participantLid)
-          .maybeSingle();
-        if (existingByLid?.id) personId = existingByLid.id;
-      }
-      if (!personId && phone) {
-        const { data: existingByPhone } = await supabase
-          .from('members')
-          .select('id')
-          .eq('group_id', groupId)
-          .eq('phone_e164', phone)
-          .maybeSingle();
-        if (existingByPhone?.id) personId = existingByPhone.id;
-      }
-      if (!personId && (phone || participantLid)) {
-          const nowIso = new Date().toISOString();
-          const joinedAt = createdAt || nowIso;
-          const phoneDigits = phone ? (phone.replace(/\D/g, '') || null) : null;
-          const whatsappProviderId = participantProviderId || phoneDigits;
-          const { data: newMember } = await supabase
-            .from('members')
-            .insert({
-              group_id: groupId,
-              phone_e164: phone,
-              name: phone || participantLid,
-              display_name: phone || participantLid,
-              provider: 'whatsapp',
-              whatsapp_provider_id: whatsappProviderId,
-              lid: participantLid,
-              first_seen_at: joinedAt,
-              joined_at: joinedAt,
-              status: 'active',
-              metadata: { source: 'zapi' },
-            })
-            .select('id')
-            .single();
-          personId = newMember?.id || null;
-      }
+      const member = await resolveMember({
+        phone: votePayload.participantPhone || null,
+        providerMemberId: votePayload.participantPhone || null,
+        lid: participantLid,
+        name: votePayload.participantPhone || participantLid,
+        photoUrl: firstString(
+          input.photoUrl,
+          input.photo_url,
+          input.profilePicUrl,
+          input.profile_pic_url,
+          input?.participant?.photoUrl,
+          input?.participant?.photo_url,
+          input?.data?.photoUrl,
+          input?.data?.photo_url
+        ),
+        isAdmin: typeof (input.isAdmin ?? input.is_admin) === 'boolean' ? Boolean(input.isAdmin ?? input.is_admin) : null,
+        isSuperAdmin: typeof (input.isSuperAdmin ?? input.is_super_admin) === 'boolean' ? Boolean(input.isSuperAdmin ?? input.is_super_admin) : null,
+        createdAt,
+        allowCreate: true,
+        metadataSource: 'zapi_poll_vote',
+      });
+      const personId = member.id;
 
       let voteSequence: number | null = null;
       if (personId) {
-        const { count } = await supabase
+        const { data: existingVotes } = await supabase
           .from('poll_votes')
-          .select('id', { count: 'exact', head: true })
+          .select('id,voted_options,vote_sequence')
           .eq('poll_id', poll.id)
           .eq('person_id', personId);
 
-        const maxVotes = Number.isFinite(Number((poll as any).max_votes_per_member))
-          ? Number((poll as any).max_votes_per_member)
-          : 2;
-        const currentVotes = count ?? 0;
+        const currentVotes = Array.isArray(existingVotes) ? existingVotes : [];
+        const latestVote = currentVotes.reduce((latest: any, candidate: any) => {
+          if (!latest) return candidate;
+          return Number(candidate?.vote_sequence ?? 0) > Number(latest?.vote_sequence ?? 0) ? candidate : latest;
+        }, null);
 
-        if (maxVotes > 0 && currentVotes >= maxVotes) {
+        if (latestVote && sameStringArray(asArray(latestVote.voted_options).map(String), votedTexts)) {
           await touchGroupSync();
           return new Response(
-            JSON.stringify({ success: true, type: 'poll_vote', skipped: 'max_votes_per_member_reached' }),
+            JSON.stringify({ success: true, type: 'poll_vote', deduped: true, reason: 'same_vote_state' }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
-        voteSequence = currentVotes + 1;
+        const maxPreviousSequence = currentVotes.reduce(
+          (max: number, row: any) => Math.max(max, Number(row?.vote_sequence ?? 0)),
+          0,
+        );
+        voteSequence = maxPreviousSequence + 1;
+
+        if (currentVotes.length > 0) {
+          await supabase
+            .from('poll_votes')
+            .delete()
+            .eq('poll_id', poll.id)
+            .eq('person_id', personId);
+        }
       }
 
       const { error: insertVoteError } = await supabase
@@ -740,8 +1168,8 @@ export function createWebhookZapiMessagesHandler(deps?: {
         null
       ) || new Date().toISOString();
 
-      const eventRows = participants
-        .map((participant) => {
+      const eventRows = [];
+      for (const participant of participants) {
           const participantObj = asObject(participant) ?? {};
           const participantPhone = normalizePhoneE164(firstString(
             participantObj.participantPhone,
@@ -773,7 +1201,7 @@ export function createWebhookZapiMessagesHandler(deps?: {
             participantObj.user_lid
           ));
           const memberLid = participantProviderId || participantLid;
-          if (!memberLid) return null;
+          if (!memberLid) continue;
 
           const participantName = firstString(
             participantObj.participantName,
@@ -785,9 +1213,35 @@ export function createWebhookZapiMessagesHandler(deps?: {
             participantObj.display_name,
             participantObj.pushName
           );
+          const participantPhotoUrl = firstString(
+            participantObj.photoUrl,
+            participantObj.photo_url,
+            participantObj.profilePicUrl,
+            participantObj.profile_pic_url
+          );
+          const participantIsAdmin = typeof (participantObj.isAdmin ?? participantObj.is_admin) === 'boolean'
+            ? Boolean(participantObj.isAdmin ?? participantObj.is_admin)
+            : null;
+          const participantIsSuperAdmin = typeof (participantObj.isSuperAdmin ?? participantObj.is_super_admin) === 'boolean'
+            ? Boolean(participantObj.isSuperAdmin ?? participantObj.is_super_admin)
+            : null;
 
-          return {
+          const member = await resolveMember({
+            phone: participantPhone,
+            providerMemberId: participantProviderId,
+            lid: participantLid,
+            name: participantName,
+            photoUrl: participantPhotoUrl,
+            isAdmin: participantIsAdmin,
+            isSuperAdmin: participantIsSuperAdmin,
+            createdAt: occurredAt,
+            allowCreate: memberEventType === 'GROUP_PARTICIPANT_ADD' || memberEventType === 'GROUP_PARTICIPANT_INVITE',
+            metadataSource: 'zapi_member_event',
+          });
+
+          eventRows.push({
             group_id: groupId,
+            member_id: member.id,
             event_type: memberEventType,
             member_lid: memberLid,
             source: provider,
@@ -807,9 +1261,8 @@ export function createWebhookZapiMessagesHandler(deps?: {
                 input.connectedPhone
               )),
             },
-          };
-        })
-        .filter((row): row is NonNullable<typeof row> => !!row);
+          });
+      }
 
       if (eventRows.length === 0) {
         return new Response(
@@ -837,40 +1290,19 @@ export function createWebhookZapiMessagesHandler(deps?: {
 
         if (groupSettings?.welcome_message_enabled && group?.provider_phone) {
           for (const row of eventRows) {
-            let memberId: string | null = null;
-            let memberMetadata: Record<string, unknown> = {};
+          const memberId = row.member_id || null;
+          let memberMetadata: Record<string, unknown> = {};
+          if (memberId) {
+            const { data: memberRecord } = await supabase
+              .from('members')
+              .select('metadata')
+              .eq('id', memberId)
+              .maybeSingle();
+            memberMetadata = asPlainObject(memberRecord?.metadata);
+          }
 
-            const rowLid = normalizeLid((row.meta as any)?.lid ?? row.member_lid ?? null);
-            const rowPhone = normalizePhoneE164((row.meta as any)?.phone_e164 ?? null);
-
-            if (rowLid) {
-              const { data: existingByLid } = await supabase
-                .from('members')
-                .select('id,metadata')
-                .eq('group_id', groupId)
-                .eq('lid', rowLid)
-                .maybeSingle();
-              if (existingByLid?.id) {
-                memberId = existingByLid.id;
-                memberMetadata = asPlainObject(existingByLid.metadata);
-              }
-            }
-
-            if (!memberId && rowPhone) {
-              const { data: existingByPhone } = await supabase
-                .from('members')
-                .select('id,metadata')
-                .eq('group_id', groupId)
-                .eq('phone_e164', rowPhone)
-                .maybeSingle();
-              if (existingByPhone?.id) {
-                memberId = existingByPhone.id;
-                memberMetadata = asPlainObject(existingByPhone.metadata);
-              }
-            }
-
-            const alreadyWelcomedAt = typeof memberMetadata.welcome_sent_at === 'string'
-              ? memberMetadata.welcome_sent_at
+          const alreadyWelcomedAt = typeof memberMetadata.welcome_sent_at === 'string'
+            ? memberMetadata.welcome_sent_at
               : null;
 
             if (alreadyWelcomedAt) {
@@ -958,8 +1390,6 @@ export function createWebhookZapiMessagesHandler(deps?: {
       const rawType = input.messageType || input.type || input?.message?.type || input?.message?.messageType;
       const messageType = mapMessageType(rawType);
 
-      const providerGroupId = getGroupProviderId();
-
       const senderProviderIdRaw = firstString(
         input.participantPhone ||
           input.participant_phone ||
@@ -1011,6 +1441,24 @@ export function createWebhookZapiMessagesHandler(deps?: {
           input?.message?.senderName ||
           input?.message?.pushName ||
           null) as string | null;
+      const senderPhotoUrl = firstString(
+        input.photoUrl,
+        input.photo_url,
+        input.profilePicUrl,
+        input.profile_pic_url,
+        input?.message?.photoUrl,
+        input?.message?.photo_url,
+        input?.sender?.photoUrl,
+        input?.sender?.photo_url,
+        input?.data?.photoUrl,
+        input?.data?.photo_url
+      );
+      const senderIsAdmin = typeof (input.isAdmin ?? input.is_admin ?? input?.sender?.isAdmin ?? input?.sender?.is_admin) === 'boolean'
+        ? Boolean(input.isAdmin ?? input.is_admin ?? input?.sender?.isAdmin ?? input?.sender?.is_admin)
+        : null;
+      const senderIsSuperAdmin = typeof (input.isSuperAdmin ?? input.is_super_admin ?? input?.sender?.isSuperAdmin ?? input?.sender?.is_super_admin) === 'boolean'
+        ? Boolean(input.isSuperAdmin ?? input.is_super_admin ?? input?.sender?.isSuperAdmin ?? input?.sender?.is_super_admin)
+        : null;
 
       const fromMe =
         Boolean(
@@ -1139,58 +1587,20 @@ export function createWebhookZapiMessagesHandler(deps?: {
         if (!existingMsg) {
           const direction = fromMe ? 'outbound' : 'inbound';
 
-          let memberId: string | null = null;
-          let memberMetadata: Record<string, unknown> = {};
-          if (senderLid) {
-            const { data: existingByLid } = await supabase
-              .from('members')
-              .select('id,metadata')
-              .eq('group_id', groupId)
-              .eq('lid', senderLid)
-              .maybeSingle();
-            if (existingByLid?.id) {
-              memberId = existingByLid.id;
-              memberMetadata = asPlainObject(existingByLid.metadata);
-            }
-          }
-          if (!memberId && senderPhone) {
-            const { data: existingByPhone } = await supabase
-              .from('members')
-              .select('id,metadata')
-              .eq('group_id', groupId)
-              .eq('phone_e164', senderPhone)
-              .maybeSingle();
-            if (existingByPhone?.id) {
-              memberId = existingByPhone.id;
-              memberMetadata = asPlainObject(existingByPhone.metadata);
-            }
-          }
-          if (!memberId && !fromMe && (senderPhone || senderLid)) {
-              const nowIso = new Date().toISOString();
-              const joinedAt = createdAtISO || nowIso;
-              const phoneDigits = senderPhone ? (senderPhone.replace(/\D/g, '') || null) : null;
-              const whatsappProviderId = senderProviderId || phoneDigits;
-              const memberName = senderName || senderPhone || senderLid;
-              const { data: createdMember } = await supabase
-                .from('members')
-                .insert({
-                  group_id: groupId,
-                  phone_e164: senderPhone,
-                  name: memberName,
-                  display_name: memberName,
-                  provider: 'whatsapp',
-                  whatsapp_provider_id: whatsappProviderId,
-                  lid: senderLid,
-                  first_seen_at: joinedAt,
-                  joined_at: joinedAt,
-                  status: 'active',
-                  metadata: { source: 'zapi_webhook' },
-                })
-                .select('id,metadata')
-                .single();
-              memberId = createdMember?.id || null;
-              memberMetadata = asPlainObject(createdMember?.metadata);
-          }
+          const member = await resolveMember({
+            phone: senderPhone,
+            providerMemberId: senderProviderId,
+            lid: senderLid,
+            name: senderName || senderPhone || senderLid,
+            photoUrl: senderPhotoUrl,
+            isAdmin: senderIsAdmin,
+            isSuperAdmin: senderIsSuperAdmin,
+            createdAt: createdAtISO,
+            allowCreate: !fromMe,
+            metadataSource: 'zapi_webhook',
+          });
+          const memberId = member.id;
+          const memberMetadata = member.metadata;
 
           const insertPayload: Record<string, unknown> = {
             group_id: groupId,

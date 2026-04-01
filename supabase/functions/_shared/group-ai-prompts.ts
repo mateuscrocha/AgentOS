@@ -1,5 +1,5 @@
 export const GROUP_AI_PROMPT_KEYS = {
-  assistantBase: "assistant_base",
+  groupAiBase: "group_ai_base",
   summaryShort: "summary_short",
   summaryFull: "summary_full",
   summaryMarged: "summary_marged",
@@ -9,7 +9,7 @@ export const GROUP_AI_PROMPT_KEYS = {
 
 export type GroupAiPromptKey = (typeof GROUP_AI_PROMPT_KEYS)[keyof typeof GROUP_AI_PROMPT_KEYS];
 
-export const GROUP_ASSISTANT_BASE_PROMPT =
+export const GROUP_AI_BASE_PROMPT =
   "Você é o Bóris, um assistente que acompanha este grupo de WhatsApp. Seu papel é ajudar a resumir conversas, identificar temas e tornar a informação clara, sem inventar nada.";
 
 export const GROUP_SUMMARY_SHORT_PROMPT = `📌 CONTEXTO
@@ -46,6 +46,7 @@ As mensagens do Bóris não estão incluídas.
 4) Considere \`group_name\` e \`group_description\` para ajustar o tom:
    - grupos de clientes → profissional, colaborativo e direto;  
    - comunidades e times → leve, inspirador e próximo.  
+5) Sempre que citar nomes de participantes na mensagem final, formate cada nome com crase simples do WhatsApp, por exemplo \`Mateus\`, para aparecer em destaque monoespaçado. Não use itálico para nomes.
 
 🎯 TAREFA
 Gerar **uma única mensagem (máx. 1000 caracteres)** que:
@@ -53,6 +54,7 @@ Gerar **uma única mensagem (máx. 1000 caracteres)** que:
 - destaque *1 ou 2 pontos principais* (pendências, ideias ou decisões);  
 - traga *perguntas ou provocações leves* para reacender a conversa;  
 - use *negrito*, _itálico_ e listas com emojis para destacar informações;  
+- quando citar participantes, escreva os nomes com crase simples, como \`Mateus\` e \`Ana\`;  
 - tenha um tom humano, simpático e natural — como alguém do grupo;  
 - finalize de forma positiva e aberta, incentivando respostas e retomada.  
 
@@ -94,6 +96,7 @@ Descrição do grupo: {{ $('Workflow Variables').item.json.group_description }}.
 Requisitos:  
 - Analise todas as interações das últimas 24h e extraia os pontos-chave, mesmo que haja poucas mensagens.
 - Siga o formato padrão de resumo (consulte o prompt padrão do assistente) e utilize as regras de formatação estabelecidas, mas apenas o que você achar interessante aplicar no contexto em questão do grupo, analisado nas mensagens.
+- Sempre que citar nomes de participantes no resumo final, formate cada nome com crase simples, como \`Mateus\`, para aparecer em destaque monoespaçado no WhatsApp.
 - Finalize o resumo chamando alguns membros para a conversa, de forma estratégica, com base no contexto das últimas mensagens.`;
 
 export const GROUP_SUMMARY_MARGED_PROMPT = `Instrução para o Resumo:  
@@ -110,6 +113,7 @@ Descrição do grupo: {{ $items('Workflow Variables')[0].json.group_description 
 Requisitos:  
 - Analise todas as interações das últimas mensagens e extraia os pontos-chave, mesmo que haja poucas mensagens.
 - Siga o formato padrão de resumo (consulte o prompt padrão do assistente) e utilize as regras de formatação estabelecidas, mas apenas o que você achar interessante aplicar no contexto em questão do grupo, analisado nas mensagens e nos resumos.
+- Sempre que citar nomes de participantes no resumo final, formate cada nome com crase simples, como \`Mateus\`, para aparecer em destaque monoespaçado no WhatsApp.
 - Finalize o resumo chamando alguns membros para a conversa, de forma estratégica, com base no contexto das últimas mensagens.
 
 - recapitule brevemente o que vinha sendo discutido;  
@@ -239,10 +243,10 @@ Exemplo de saída esperada:
 {{MESSAGES_JSON}}`;
 
 export const DEFAULT_GROUP_AI_PROMPTS: Record<GroupAiPromptKey, { model: string; runtime: string; prompt_text: string }> = {
-  assistant_base: {
+  group_ai_base: {
     model: "gpt-4o-mini",
     runtime: "responses",
-    prompt_text: GROUP_ASSISTANT_BASE_PROMPT,
+    prompt_text: GROUP_AI_BASE_PROMPT,
   },
   summary_short: {
     model: "gpt-4o-mini",

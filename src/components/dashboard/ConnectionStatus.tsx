@@ -156,12 +156,12 @@ export function ConnectionStatus() {
 
   const summaryText =
     overview.dbStatus === "disconnected"
-      ? "Nao foi possivel validar a saude da sincronizacao agora."
+      ? "Não foi possível validar a saúde da sincronização agora."
       : overview.errorGroups > 0
         ? `${overview.errorGroups} grupo(s) com falha registrada e ${overview.pendingGroups} pendente(s).`
         : overview.pendingGroups > 0
-          ? `${overview.pendingGroups} grupo(s) ainda pendente(s) de sincronizacao.`
-          : "Todos os grupos monitorados estao com sync ativo.";
+          ? `${overview.pendingGroups} grupo(s) ainda pendente(s) de sincronização.`
+          : "Todos os grupos monitorados estão com sync ativo.";
 
   const overviewTiles = [
     {

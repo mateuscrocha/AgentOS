@@ -11,6 +11,7 @@ import { countActiveInboundPeople, rankParticipantsByMessages } from "@/hooks/gr
 import { buildDailyCountSeries, buildDailyUniqueCountSeries } from "@/hooks/group-dashboard-series";
 import { buildHourlyActivitySummary, buildParticipantPresenceIndex } from "@/hooks/group-dashboard-activity";
 import { buildMemberEngagementDistribution, countUniqueExternalMembers } from "@/hooks/group-dashboard-member-metrics";
+import { fetchAllPages } from "@/hooks/group-dashboard-pagination";
 import {
   buildBusyDayAvatars,
   buildPeakWindowAvatars,
@@ -242,16 +243,26 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .lte('created_at', currentPeriodEndISO);
 
       // Fetch active members in period
-      const { data: activeMembersData } = await supabase
-        .from('messages')
-        .select('member_id, sender_phone, from_me, direction, message_type')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .eq('direction', 'inbound')
-        .eq('from_me', false)
-        .neq('message_type', 'poll_vote')
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO);
+      const activeMembersData = await fetchAllPages<{
+        member_id: string | null;
+        sender_phone: string | null;
+        from_me: boolean | null;
+        direction: string | null;
+        message_type: string | null;
+      }>((from, to) =>
+        supabase
+          .from('messages')
+          .select('member_id, sender_phone, from_me, direction, message_type')
+          .eq('group_id', groupId!)
+          .is('deleted_at', null)
+          .eq('direction', 'inbound')
+          .eq('from_me', false)
+          .neq('message_type', 'poll_vote')
+          .gte('created_at', currentPeriodStartISO)
+          .lte('created_at', currentPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       const activeMembers = countActiveInboundPeople(activeMembersData as any[]);
 
@@ -260,14 +271,22 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         : 0;
 
       // Get top participant
-      const { data: topParticipantData } = await supabase
-        .from('v_messages_with_members')
-        .select('member_id_resolved, member_name, profile_pic_url')
-        .eq('group_id', groupId!)
-        .is('message_deleted_at', null)
-        .not('member_id_resolved', 'is', null)
-        .gte('message_created_at', currentPeriodStartISO)
-        .lte('message_created_at', currentPeriodEndISO);
+      const topParticipantData = await fetchAllPages<{
+        member_id_resolved: string | null;
+        member_name: string | null;
+        profile_pic_url: string | null;
+      }>((from, to) =>
+        supabase
+          .from('v_messages_with_members')
+          .select('member_id_resolved, member_name, profile_pic_url')
+          .eq('group_id', groupId!)
+          .is('message_deleted_at', null)
+          .not('member_id_resolved', 'is', null)
+          .gte('message_created_at', currentPeriodStartISO)
+          .lte('message_created_at', currentPeriodEndISO)
+          .order('message_created_at', { ascending: true })
+          .range(from, to),
+      );
 
       const rankedTopParticipants = rankParticipantsByMessages(
         (topParticipantData ?? []).map((row: any) => ({
@@ -344,16 +363,26 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .gte('created_at', previousPeriodStartISO)
         .lte('created_at', previousPeriodEndISO);
 
-      const { data: activeMembersData } = await supabase
-        .from('messages')
-        .select('member_id, sender_phone, from_me, direction, message_type')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .eq('direction', 'inbound')
-        .eq('from_me', false)
-        .neq('message_type', 'poll_vote')
-        .gte('created_at', previousPeriodStartISO)
-        .lte('created_at', previousPeriodEndISO);
+      const activeMembersData = await fetchAllPages<{
+        member_id: string | null;
+        sender_phone: string | null;
+        from_me: boolean | null;
+        direction: string | null;
+        message_type: string | null;
+      }>((from, to) =>
+        supabase
+          .from('messages')
+          .select('member_id, sender_phone, from_me, direction, message_type')
+          .eq('group_id', groupId!)
+          .is('deleted_at', null)
+          .eq('direction', 'inbound')
+          .eq('from_me', false)
+          .neq('message_type', 'poll_vote')
+          .gte('created_at', previousPeriodStartISO)
+          .lte('created_at', previousPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       const activeMembers = countActiveInboundPeople(activeMembersData as any[]);
       // Compute snapshot of total members at end of previous period
@@ -385,14 +414,22 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         : 0;
 
       // Get top participant in previous period
-      const { data: topParticipantData } = await supabase
-        .from('v_messages_with_members')
-        .select('member_id_resolved, member_name, profile_pic_url')
-        .eq('group_id', groupId!)
-        .is('message_deleted_at', null)
-        .not('member_id_resolved', 'is', null)
-        .gte('message_created_at', previousPeriodStartISO)
-        .lte('message_created_at', previousPeriodEndISO);
+      const topParticipantData = await fetchAllPages<{
+        member_id_resolved: string | null;
+        member_name: string | null;
+        profile_pic_url: string | null;
+      }>((from, to) =>
+        supabase
+          .from('v_messages_with_members')
+          .select('member_id_resolved, member_name, profile_pic_url')
+          .eq('group_id', groupId!)
+          .is('message_deleted_at', null)
+          .not('member_id_resolved', 'is', null)
+          .gte('message_created_at', previousPeriodStartISO)
+          .lte('message_created_at', previousPeriodEndISO)
+          .order('message_created_at', { ascending: true })
+          .range(from, to),
+      );
 
       const rankedTopParticipants = rankParticipantsByMessages(
         (topParticipantData ?? []).map((row: any) => ({
@@ -420,13 +457,17 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: previousActivityData } = useQuery({
     queryKey: ['group-dashboard-previous-activity-hour', groupId, previousPeriodStartISO, previousPeriodEndISO],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('messages')
-        .select('created_at')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('created_at', previousPeriodStartISO)
-        .lte('created_at', previousPeriodEndISO);
+      const data = await fetchAllPages<{ created_at: string }>((from, to) =>
+        supabase
+          .from('messages')
+          .select('created_at')
+          .eq('group_id', groupId!)
+          .is('deleted_at', null)
+          .gte('created_at', previousPeriodStartISO)
+          .lte('created_at', previousPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       const summary = buildHourlyActivitySummary(data as any[]);
       return {
@@ -447,14 +488,18 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .eq('group_id', groupId!)
         .is('deleted_at', null);
 
-      const { data: messageCounts } = await supabase
-        .from('v_messages_with_members')
-        .select('member_id_resolved')
-        .eq('group_id', groupId!)
-        .is('message_deleted_at', null)
-        .not('member_id_resolved', 'is', null)
-        .gte('message_created_at', previousPeriodStartISO)
-        .lte('message_created_at', previousPeriodEndISO);
+      const messageCounts = await fetchAllPages<{ member_id_resolved: string | null }>((from, to) =>
+        supabase
+          .from('v_messages_with_members')
+          .select('member_id_resolved')
+          .eq('group_id', groupId!)
+          .is('message_deleted_at', null)
+          .not('member_id_resolved', 'is', null)
+          .gte('message_created_at', previousPeriodStartISO)
+          .lte('message_created_at', previousPeriodEndISO)
+          .order('message_created_at', { ascending: true })
+          .range(from, to),
+      );
 
       return buildMemberEngagementDistribution(
         members as any[],
@@ -516,13 +561,17 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       const adminPhones = admins.map(a => a.phone_e164).filter(Boolean) as string[];
       const adminPhoneSet = new Set(adminPhones);
 
-      const { data: periodMessages } = await supabase
-        .from('messages')
-        .select('member_id, sender_phone')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('created_at', previousPeriodStartISO)
-        .lte('created_at', previousPeriodEndISO);
+      const periodMessages = await fetchAllPages<{ member_id: string | null; sender_phone: string | null }>((from, to) =>
+        supabase
+          .from('messages')
+          .select('member_id, sender_phone')
+          .eq('group_id', groupId!)
+          .is('deleted_at', null)
+          .gte('created_at', previousPeriodStartISO)
+          .lte('created_at', previousPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       const adminMessages = (periodMessages || []).filter(m => {
         const byId = !!m.member_id && adminIds.includes(m.member_id);
@@ -561,14 +610,17 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: messagesPerDay, isLoading: chartLoading, error: chartError } = useQuery({
     queryKey: ['group-dashboard-chart', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('messages')
-        .select('created_at')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO)
-        .order('created_at', { ascending: true });
+      const data = await fetchAllPages<{ created_at: string }>((from, to) =>
+        supabase
+          .from('messages')
+          .select('created_at')
+          .eq('group_id', groupId!)
+          .is('deleted_at', null)
+          .gte('created_at', currentPeriodStartISO)
+          .lte('created_at', currentPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       return buildDailyCountSeries(data, {
         periodDays,
@@ -676,15 +728,18 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: activeMembersPerDay } = useQuery({
     queryKey: ['group-dashboard-active-per-day', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('messages')
-        .select('member_id, created_at')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .not('member_id', 'is', null)
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO)
-        .order('created_at', { ascending: true });
+      const data = await fetchAllPages<{ member_id: string; created_at: string }>((from, to) =>
+        supabase
+          .from('messages')
+          .select('member_id, created_at')
+          .eq('group_id', groupId!)
+          .is('deleted_at', null)
+          .not('member_id', 'is', null)
+          .gte('created_at', currentPeriodStartISO)
+          .lte('created_at', currentPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       return buildDailyUniqueCountSeries(data, {
         periodDays,
@@ -700,13 +755,17 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: activityData, error: activityError } = useQuery({
     queryKey: ['group-dashboard-activity-hour', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('messages')
-        .select('created_at')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO);
+      const data = await fetchAllPages<{ created_at: string }>((from, to) =>
+        supabase
+          .from('messages')
+          .select('created_at')
+          .eq('group_id', groupId!)
+          .is('deleted_at', null)
+          .gte('created_at', currentPeriodStartISO)
+          .lte('created_at', currentPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       return buildHourlyActivitySummary(data as any[]);
     },
@@ -722,13 +781,21 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: periodParticipants } = useQuery({
     queryKey: ['group-dashboard-participants', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('v_messages_feed')
-        .select('member_id, member_avatar, created_at')
-        .eq('group_id', groupId!)
-        .not('member_id', 'is', null)
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO);
+      const data = await fetchAllPages<{
+        member_id: string | null;
+        member_avatar: string | null;
+        created_at: string;
+      }>((from, to) =>
+        supabase
+          .from('v_messages_feed')
+          .select('member_id, member_avatar, created_at')
+          .eq('group_id', groupId!)
+          .not('member_id', 'is', null)
+          .gte('created_at', currentPeriodStartISO)
+          .lte('created_at', currentPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       return buildParticipantPresenceIndex(data as any[]);
     },
@@ -739,14 +806,22 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
   const { data: topParticipants, isLoading: topParticipantsLoading } = useQuery({
     queryKey: ['group-dashboard-top-participants', groupId, currentPeriodStartISO, currentPeriodEndISO],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('v_messages_with_members')
-        .select('member_id_resolved, member_name, profile_pic_url')
-        .eq('group_id', groupId!)
-        .is('message_deleted_at', null)
-        .not('member_id_resolved', 'is', null)
-        .gte('message_created_at', currentPeriodStartISO)
-        .lte('message_created_at', currentPeriodEndISO);
+      const data = await fetchAllPages<{
+        member_id_resolved: string | null;
+        member_name: string | null;
+        profile_pic_url: string | null;
+      }>((from, to) =>
+        supabase
+          .from('v_messages_with_members')
+          .select('member_id_resolved, member_name, profile_pic_url')
+          .eq('group_id', groupId!)
+          .is('message_deleted_at', null)
+          .not('member_id_resolved', 'is', null)
+          .gte('message_created_at', currentPeriodStartISO)
+          .lte('message_created_at', currentPeriodEndISO)
+          .order('message_created_at', { ascending: true })
+          .range(from, to),
+      );
 
       const rankedParticipants = rankParticipantsByMessages(
         (data ?? []).map((row: any) => ({
@@ -773,14 +848,18 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
         .eq('group_id', groupId!)
         .is('deleted_at', null);
 
-      const { data: messageCounts } = await supabase
-        .from('v_messages_with_members')
-        .select('member_id_resolved')
-        .eq('group_id', groupId!)
-        .is('message_deleted_at', null)
-        .not('member_id_resolved', 'is', null)
-        .gte('message_created_at', currentPeriodStartISO)
-        .lte('message_created_at', currentPeriodEndISO);
+      const messageCounts = await fetchAllPages<{ member_id_resolved: string | null }>((from, to) =>
+        supabase
+          .from('v_messages_with_members')
+          .select('member_id_resolved')
+          .eq('group_id', groupId!)
+          .is('message_deleted_at', null)
+          .not('member_id_resolved', 'is', null)
+          .gte('message_created_at', currentPeriodStartISO)
+          .lte('message_created_at', currentPeriodEndISO)
+          .order('message_created_at', { ascending: true })
+          .range(from, to),
+      );
 
       return buildMemberEngagementDistribution(
         members as any[],
@@ -868,13 +947,17 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
       const adminPhones = admins.map(a => a.phone_e164).filter(Boolean) as string[];
       const adminPhoneSet = new Set(adminPhones);
 
-      const { data: periodMessages } = await supabase
-        .from('messages')
-        .select('member_id, sender_phone')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO);
+      const periodMessages = await fetchAllPages<{ member_id: string | null; sender_phone: string | null }>((from, to) =>
+        supabase
+          .from('messages')
+          .select('member_id, sender_phone')
+          .eq('group_id', groupId!)
+          .is('deleted_at', null)
+          .gte('created_at', currentPeriodStartISO)
+          .lte('created_at', currentPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       const adminMessages = (periodMessages || []).filter(m => {
         const byId = !!m.member_id && adminIds.includes(m.member_id);
@@ -1029,14 +1112,18 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
       if (!members) return [];
 
-      const { data: messageCounts } = await supabase
-        .from('messages')
-        .select('member_id, created_at')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .not('member_id', 'is', null)
-        .gte('created_at', currentPeriodStartISO)
-        .lte('created_at', currentPeriodEndISO);
+      const messageCounts = await fetchAllPages<{ member_id: string | null; created_at: string }>((from, to) =>
+        supabase
+          .from('messages')
+          .select('member_id, created_at')
+          .eq('group_id', groupId!)
+          .is('deleted_at', null)
+          .not('member_id', 'is', null)
+          .gte('created_at', currentPeriodStartISO)
+          .lte('created_at', currentPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       const memberStats: Record<string, { count: number; lastAt: string | null }> = {};
       messageCounts?.forEach(msg => {
@@ -1075,14 +1162,18 @@ export function useGroupDashboard({ groupId, dateRange }: UseGroupDashboardOptio
 
       if (!members) return [];
 
-      const { data: messageCounts } = await supabase
-        .from('messages')
-        .select('member_id, created_at')
-        .eq('group_id', groupId!)
-        .is('deleted_at', null)
-        .not('member_id', 'is', null)
-        .gte('created_at', previousPeriodStartISO)
-        .lte('created_at', previousPeriodEndISO);
+      const messageCounts = await fetchAllPages<{ member_id: string | null; created_at: string }>((from, to) =>
+        supabase
+          .from('messages')
+          .select('member_id, created_at')
+          .eq('group_id', groupId!)
+          .is('deleted_at', null)
+          .not('member_id', 'is', null)
+          .gte('created_at', previousPeriodStartISO)
+          .lte('created_at', previousPeriodEndISO)
+          .order('created_at', { ascending: true })
+          .range(from, to),
+      );
 
       const memberStats: Record<string, number> = {};
       messageCounts?.forEach(msg => {

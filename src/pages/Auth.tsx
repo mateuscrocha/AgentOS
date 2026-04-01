@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { PublicLayout } from "@/components/layout/PublicLayout";
 import { notify } from "@/components/ui/sonner";
 import { getAppUrl } from "@/lib/utils";
 import { z } from "zod";
@@ -278,8 +279,8 @@ const Auth = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <PublicLayout contentClassName="max-w-md">
+      <div className="w-full">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <img src="/admin-logo.png" alt="Central de Comando do Bóris" className="h-24 w-auto mb-2" />
@@ -526,7 +527,7 @@ const Auth = () => {
           
         </form>
       </div>
-    </div>
+    </PublicLayout>
   );
 };
 

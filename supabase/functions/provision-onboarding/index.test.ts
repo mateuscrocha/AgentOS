@@ -38,11 +38,10 @@ function createMockSupabase(args?: { membersFirstInsertDuplicate?: boolean }) {
     invite_link: "https://chat.whatsapp.com/abc",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    assistant_id: null,
-    assistant_prompt: null,
-    assistant_model: null,
-    assistant_runtime: null,
-    has_assistant: false,
+    ai_enabled: false,
+    ai_prompt: null,
+    ai_model: null,
+    ai_runtime: null,
     metadata: null,
     raw_provider: null,
     status: null,
@@ -278,12 +277,11 @@ DenoRef.test("provision-onboarding cria org+grupo, insere members e marca SUPERA
 
   const groupUpdate = calls.find((call) => call.table === "groups" && call.action === "update");
   assertEquals(Boolean(groupUpdate), true);
-  assertEquals(groupUpdate?.values?.assistant_id, null);
-  assertEquals(groupUpdate?.values?.has_assistant, true);
-  assertEquals(groupUpdate?.values?.assistant_model, "gpt-4o-mini");
-  assertEquals(groupUpdate?.values?.assistant_runtime, "responses");
+  assertEquals(groupUpdate?.values?.ai_enabled, true);
+  assertEquals(groupUpdate?.values?.ai_model, "gpt-4o-mini");
+  assertEquals(groupUpdate?.values?.ai_runtime, "responses");
   assertEquals(
-    groupUpdate?.values?.assistant_prompt,
+    groupUpdate?.values?.ai_prompt,
     "Você é o Bóris, um assistente que acompanha este grupo de WhatsApp. Seu papel é ajudar a resumir conversas, identificar temas e tornar a informação clara, sem inventar nada."
   );
 });

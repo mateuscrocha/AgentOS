@@ -1207,7 +1207,7 @@ export default function SystemCRM() {
                                         </Badge>
                                         {account.lead_source_category ? (
                                           <Badge variant="outline" className={cn("border", crmMiniBadgeClassName, "border-slate-200 bg-slate-50 text-slate-700")}>
-                                            {CRM_LEAD_SOURCE_CATEGORY_META[account.lead_source_category].label}
+                                            {CRM_LEAD_SOURCE_CATEGORY_META[account.lead_source_category]?.label ?? account.lead_source_category}
                                           </Badge>
                                         ) : null}
                                         {billing ? (

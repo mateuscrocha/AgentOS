@@ -584,10 +584,10 @@ export type Database = {
       }
       groups: {
         Row: {
-          assistant_id: string | null
-          assistant_model: string | null
-          assistant_prompt: string | null
-          assistant_runtime: string | null
+          ai_enabled: boolean | null
+          ai_model: string | null
+          ai_prompt: string | null
+          ai_runtime: string | null
           counts_cache: Json | null
           created_at: string
           created_at_provider: string | null
@@ -612,10 +612,10 @@ export type Database = {
           whatsapp_provider_id: string | null
         }
         Insert: {
-          assistant_id?: string | null
-          assistant_model?: string | null
-          assistant_prompt?: string | null
-          assistant_runtime?: string | null
+          ai_enabled?: boolean | null
+          ai_model?: string | null
+          ai_prompt?: string | null
+          ai_runtime?: string | null
           counts_cache?: Json | null
           created_at?: string
           created_at_provider?: string | null
@@ -640,10 +640,10 @@ export type Database = {
           whatsapp_provider_id?: string | null
         }
         Update: {
-          assistant_id?: string | null
-          assistant_model?: string | null
-          assistant_prompt?: string | null
-          assistant_runtime?: string | null
+          ai_enabled?: boolean | null
+          ai_model?: string | null
+          ai_prompt?: string | null
+          ai_runtime?: string | null
           counts_cache?: Json | null
           created_at?: string
           created_at_provider?: string | null

@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ProvisionCoreError, provisionGroupWithMembersCore } from "../_shared/provision-group-core.ts";
-import { AssistantProvisionError, createGroupAssistant } from "../_shared/create-group-assistant.ts";
+import { GroupAiConfigError, configureGroupAi } from "../_shared/configure-group-ai.ts";
 
 type Env = {
   get: (key: string) => string | undefined;
@@ -57,11 +57,10 @@ type GroupRow = {
   provider?: string | null;
   invite_link?: string | null;
   status?: string | null;
-  has_assistant?: boolean | null;
-  assistant_id?: string | null;
-  assistant_prompt?: string | null;
-  assistant_model?: string | null;
-  assistant_runtime?: string | null;
+  ai_enabled?: boolean | null;
+  ai_prompt?: string | null;
+  ai_model?: string | null;
+  ai_runtime?: string | null;
   metadata?: unknown;
   raw_provider?: unknown;
   sync_status?: string | null;
@@ -287,11 +286,10 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
         invite_link: payload.group.invite_link,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        assistant_id: null,
-        assistant_prompt: null,
-        assistant_model: null,
-        assistant_runtime: null,
-        has_assistant: false,
+        ai_enabled: false,
+        ai_prompt: null,
+        ai_model: null,
+        ai_runtime: null,
         metadata: null,
         raw_provider: null,
         status: null,
@@ -299,21 +297,21 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
         sync_error: null,
       };
 
-      await createGroupAssistant({
+      await configureGroupAi({
         supabase: supabaseAdmin,
         group: (groupRow as GroupRow) ?? fallbackGroup,
       });
     } catch (e: unknown) {
-      const code = e instanceof AssistantProvisionError ? e.code : 'ASSISTANT_CONFIG_UPDATE_FAILED';
-      const status = e instanceof AssistantProvisionError ? e.status : undefined;
-      const body = e instanceof AssistantProvisionError ? e.body : undefined;
+      const code = e instanceof GroupAiConfigError ? e.code : 'GROUP_AI_CONFIG_UPDATE_FAILED';
+      const status = e instanceof GroupAiConfigError ? e.status : undefined;
+      const body = e instanceof GroupAiConfigError ? e.body : undefined;
       const message = e instanceof Error ? e.message : String(e);
 
       try {
         await supabaseAdmin
           .from('events')
           .insert({
-            event_type: 'GROUP_ASSISTANT_PROVISION_FAILED',
+            event_type: 'GROUP_AI_CONFIG_FAILED',
             entity_type: 'group',
             entity_id: groupId,
             user_id: user.id,
@@ -332,7 +330,7 @@ export const createProvisionGroupHandler = (deps: Deps = {}) => {
       await cleanupGroup();
 
       return new Response(
-        JSON.stringify({ success: false, code, message: 'Falha ao salvar a configuração do assistant. Operação cancelada.' }),
+        JSON.stringify({ success: false, code, message: 'Falha ao salvar a configuração de IA do grupo. Operação cancelada.' }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

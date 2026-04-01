@@ -37,6 +37,7 @@ function compactId(value: string | null | undefined) {
 }
 
 export function humanizeEventType(eventType: string) {
+  if (eventType === "OPENAI_BILLING_ALERT") return "Alerta de cobrança OpenAI";
   return eventType
     .toLowerCase()
     .split("_")
@@ -47,6 +48,7 @@ export function humanizeEventType(eventType: string) {
 
 export function getAuditOutcome(event: Pick<AuditEvent, "event_type">): AuditOutcome {
   const type = normalize(event.event_type);
+  if (type === "OPENAI_BILLING_ALERT") return "failure";
   if (FAILURE_KEYWORDS.some((keyword) => type.includes(keyword))) return "failure";
   if (SUCCESS_KEYWORDS.some((keyword) => type.includes(keyword))) return "success";
   return "neutral";
@@ -62,6 +64,7 @@ export function isSensitiveEvent(event: Pick<AuditEvent, "event_type" | "metadat
   const type = normalize(event.event_type);
   const code = normalize(event.metadata?.code);
   const role = normalize(event.metadata?.role);
+  if (type === "OPENAI_BILLING_ALERT") return true;
   return (
     SENSITIVE_KEYWORDS.some((keyword) => type.includes(keyword)) ||
     SENSITIVE_KEYWORDS.some((keyword) => code.includes(keyword)) ||
@@ -113,6 +116,8 @@ export function getEventSummary(event: AuditEvent) {
   const metadata = event.metadata ?? {};
 
   switch (event.event_type) {
+    case "OPENAI_BILLING_ALERT":
+      return `A OpenAI bloqueou ${metadata.operation === "generate-group-topics-keywords" ? "a geração de tópicos/keywords" : "a geração do resumo"}${metadata.group_name ? ` para o grupo ${metadata.group_name}` : ""} por limite, quota ou cobrança.`;
     case "GROUP_ADDED":
       return `Grupo ${metadata.group_name || compactId(event.entity_id)} adicionado à organização ${metadata.organization_name || compactId(metadata.organization_id)}.`;
     case "GROUP_WEBHOOK_FAILED":

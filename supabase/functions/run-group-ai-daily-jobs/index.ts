@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { createGenerateGroupSummaryHandler } from "../generate-group-summary/index.ts";
 import { createGenerateGroupTopicsKeywordsHandler } from "../generate-group-topics-keywords/index.ts";
+import { verifyCronApiKey } from "../_shared/cron-auth.ts";
 
 const DenoRef = (globalThis as any).Deno;
 
@@ -25,10 +26,11 @@ function readEnv(env: { get: (key: string) => string | undefined }, key: string)
   return String(env.get(key) || "").trim();
 }
 
-function saoPauloHour(date: Date) {
+function saoPauloTime(date: Date) {
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: "America/Sao_Paulo",
     hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
   }).format(date);
 }
@@ -48,10 +50,10 @@ function saoPauloDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function extractHour(value: string | null | undefined) {
+function extractHourMinute(value: string | null | undefined) {
   const raw = String(value || "").trim();
-  const match = raw.match(/^(\d{2}):/);
-  return match ? match[1] : "";
+  const match = raw.match(/^(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : "";
 }
 
 function isGroupPaused(group: { is_active?: boolean | null; status?: string | null }) {
@@ -95,11 +97,16 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
         return json({ success: false, code: "METHOD_NOT_ALLOWED", message: "Method Not Allowed" }, 405);
       }
 
-      const inboundApiKey = readEnv(env, "GROUP_AI_CRON_API_KEY");
       const providedApiKey = String(req.headers.get("x-api-key") || "").trim();
-      if (!inboundApiKey || providedApiKey !== inboundApiKey) {
+      const cronAuthorized = await verifyCronApiKey({
+        env,
+        providedApiKey,
+        createClientImpl,
+      });
+      if (!cronAuthorized) {
         return json({ success: false, code: "UNAUTHORIZED", message: "Unauthorized" }, 401);
       }
+      const internalCronApiKey = readEnv(env, "GROUP_AI_CRON_API_KEY") || providedApiKey;
 
       const supabaseUrl = readEnv(env, "SUPABASE_URL");
       const serviceRoleKey = readEnv(env, "SUPABASE_SERVICE_ROLE_KEY");
@@ -108,7 +115,7 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
       }
 
       const currentNow = now();
-      const currentHour = saoPauloHour(currentNow);
+      const currentTime = saoPauloTime(currentNow);
       const summaryDate = saoPauloDateKey(currentNow);
       const supabase = createClientImpl(supabaseUrl, serviceRoleKey);
 
@@ -124,7 +131,7 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
       const groups = Array.isArray(data) ? data : [];
       const dueGroups = groups.filter((group) => {
         const settings = Array.isArray(group.group_settings) ? group.group_settings[0] : group.group_settings;
-        return !isGroupPaused(group) && extractHour(settings?.daily_summary_time) === currentHour;
+        return !isGroupPaused(group) && extractHourMinute(settings?.daily_summary_time) === currentTime;
       });
 
       const results: Array<Record<string, unknown>> = [];
@@ -135,7 +142,7 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": inboundApiKey,
+            "x-api-key": internalCronApiKey,
           },
           body: JSON.stringify({
             groupId: group.id,
@@ -161,7 +168,7 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": inboundApiKey,
+            "x-api-key": internalCronApiKey,
           },
           body: JSON.stringify({
             groupId: group.id,
@@ -180,7 +187,7 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
 
       return json({
         success: true,
-        currentHour,
+        currentTime,
         summaryDate,
         matchedGroups: dueGroups.length,
         processedGroups: results.length,

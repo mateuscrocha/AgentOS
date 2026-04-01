@@ -74,6 +74,12 @@ const GroupMessages = () => {
   }, [search, setSearchParams]);
 
   const safeSearch = debouncedSearch.trim().replace(/,/g, " ");
+  const hasActiveFilters = !!typeFilter || !!search.trim() || !!queryFrom || !!queryTo;
+  const filterSummary = [
+    typeFilter ? `tipo "${translateMessageType(typeFilter)}"` : null,
+    search.trim() ? `texto "${search.trim()}"` : null,
+    queryFrom && queryTo ? `período de ${queryFrom} até ${queryTo}` : queryFrom ? `a partir de ${queryFrom}` : queryTo ? `até ${queryTo}` : null,
+  ].filter(Boolean).join(", ");
 
   const safeFrom = (() => {
     if (!queryFrom) return null;
@@ -126,8 +132,6 @@ const GroupMessages = () => {
     }
     setSelectedMessageId(m.message_id);
   };
-
-  const hasActiveFilters = !!typeFilter || !!search.trim() || !!queryFrom || !!queryTo;
 
   const clearAllFilters = () => {
     setTypeFilter("");
@@ -258,15 +262,17 @@ const GroupMessages = () => {
           <div className="rounded-[28px] border border-dashed border-emerald-200 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/60 p-4 shadow-subtle sm:p-6">
             <EmptyState
               icon={MessageSquare}
-              title={typeFilter || search.trim() ? "Nenhum resultado" : "Nenhuma mensagem"}
+              title={hasActiveFilters ? "Nenhum resultado" : "Nenhuma mensagem"}
               message={
-                typeFilter || search.trim()
-                  ? `Nenhuma mensagem${typeFilter ? ` do tipo "${translateMessageType(typeFilter)}"` : ""}${search.trim() ? ` contendo "${search.trim()}"` : ""} encontrada.`
+                hasActiveFilters
+                  ? `Nenhuma mensagem encontrada com os filtros atuais${filterSummary ? `: ${filterSummary}` : ""}.`
                   : "Este grupo ainda não possui mensagens. Quando elas chegarem, você poderá revisar conteúdo, detalhes e filtros de conversa aqui."
               }
-              action={canEditGroup(groupId as string, groupInfo?.orgId)
-                ? { label: "Importar mensagens", onClick: () => setImportOpen(true) }
-                : undefined}
+              action={hasActiveFilters
+                ? { label: "Limpar filtros", onClick: clearAllFilters }
+                : canEditGroup(groupId as string, groupInfo?.orgId)
+                  ? { label: "Importar mensagens", onClick: () => setImportOpen(true) }
+                  : undefined}
             />
           </div>
         ) : (

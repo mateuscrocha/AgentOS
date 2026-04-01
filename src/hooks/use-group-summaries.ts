@@ -281,6 +281,7 @@ export function useGroupSummaries({
   }, [selectedSummary]);
 
   const displayKeyword = (value: string) => cleanInlineLabel(value || "");
+  const hasMoreDays = (query.data?.summaries?.length ?? 0) >= daysLimit;
 
   return {
     normalizedGroupId,
@@ -301,6 +302,7 @@ export function useGroupSummaries({
     selectedTopicsSorted,
     visibleTopics,
     selectedExecutive,
+    hasMoreDays,
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,

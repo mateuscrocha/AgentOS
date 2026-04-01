@@ -6,6 +6,8 @@ import {
   loadGroupAiPrompts,
 } from "../_shared/group-ai-prompts.ts";
 import { createOpenAiTextResponse, OpenAiResponsesError } from "../_shared/openai-responses.ts";
+import { recordOpenAiBillingAlert } from "../_shared/openai-system-alert.ts";
+import { verifyCronApiKey } from "../_shared/cron-auth.ts";
 
 const DenoRef = (globalThis as any).Deno;
 
@@ -79,9 +81,8 @@ async function resolveAuth(args: {
   groupId: string;
 }) {
   const { req, env, createClientImpl, groupId } = args;
-  const inboundApiKey = readEnv(env, "GROUP_AI_CRON_API_KEY");
   const providedApiKey = String(req.headers.get("x-api-key") || "").trim();
-  if (inboundApiKey && providedApiKey && providedApiKey === inboundApiKey) {
+  if (await verifyCronApiKey({ env, providedApiKey, createClientImpl })) {
     return { mode: "api_key" as const };
   }
 
@@ -125,6 +126,11 @@ export function createGenerateGroupTopicsKeywordsHandler(deps: Deps = {}) {
   const now = deps.now ?? (() => new Date());
 
   return async (req: Request) => {
+    let supabase: ReturnType<typeof createClient> | null = null;
+    let groupContext: { id: string; name?: string | null } | null = null;
+    let requesterId: string | null = null;
+    let requestedTargetDate: string | null = null;
+
     if (req.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
     }
@@ -141,6 +147,7 @@ export function createGenerateGroupTopicsKeywordsHandler(deps: Deps = {}) {
 
       const groupId = String(body?.groupId || "").trim();
       const targetDate = String(body?.targetDate || "").trim() || getSaoPauloDateKey(now());
+      requestedTargetDate = targetDate;
       if (!isUuid(groupId)) {
         return json({ success: false, code: "VALIDATION_ERROR", message: "groupId inválido" }, 400);
       }
@@ -149,6 +156,7 @@ export function createGenerateGroupTopicsKeywordsHandler(deps: Deps = {}) {
       if (auth.mode === "config_error") return json({ success: false, code: "SUPABASE_NOT_CONFIGURED", message: "Supabase não configurado" }, 500);
       if (auth.mode === "unauthorized") return json({ success: false, code: "UNAUTHORIZED", message: "Unauthorized" }, 401);
       if (auth.mode === "forbidden") return json({ success: false, code: "FORBIDDEN", message: "Forbidden" }, 403);
+      requesterId = auth.mode === "user" ? null : null;
 
       const supabaseUrl = readEnv(env, "SUPABASE_URL");
       const serviceRoleKey = readEnv(env, "SUPABASE_SERVICE_ROLE_KEY");
@@ -156,7 +164,7 @@ export function createGenerateGroupTopicsKeywordsHandler(deps: Deps = {}) {
       if (!supabaseUrl || !serviceRoleKey) return json({ success: false, code: "SUPABASE_NOT_CONFIGURED", message: "Supabase não configurado" }, 500);
       if (!openAiApiKey) return json({ success: false, code: "OPENAI_NOT_CONFIGURED", message: "OpenAI não configurada" }, 500);
 
-      const supabase = createClientImpl(supabaseUrl, serviceRoleKey);
+      supabase = createClientImpl(supabaseUrl, serviceRoleKey);
       const { data: group, error: groupError } = await supabase
         .from("groups")
         .select("id, name, description, is_active, status")
@@ -165,7 +173,15 @@ export function createGenerateGroupTopicsKeywordsHandler(deps: Deps = {}) {
 
       if (groupError) return json({ success: false, code: "GROUP_LOOKUP_FAILED", message: groupError.message }, 500);
       if (!group?.id) return json({ success: false, code: "GROUP_NOT_FOUND", message: "Grupo não encontrado" }, 404);
-      if (isGroupPaused(group)) {
+      const groupRow = group as {
+        id: string;
+        name?: string | null;
+        description?: string | null;
+        is_active?: boolean | null;
+        status?: string | null;
+      };
+      groupContext = { id: String(groupRow.id), name: groupRow.name ?? null };
+      if (isGroupPaused(groupRow)) {
         return json({
           success: true,
           skipped: true,
@@ -216,7 +232,7 @@ export function createGenerateGroupTopicsKeywordsHandler(deps: Deps = {}) {
       const keywordsPromptConfig = promptMap.get(GROUP_AI_PROMPT_KEYS.keywordsDaily) ?? DEFAULT_GROUP_AI_PROMPTS[GROUP_AI_PROMPT_KEYS.keywordsDaily];
 
       const messagesJson = JSON.stringify(messages);
-      const groupDescription = String(group.description || "");
+      const groupDescription = String(groupRow.description || "");
 
       const [topicsResponse, keywordsResponse] = await Promise.all([
         createOpenAiTextResponse({
@@ -292,6 +308,17 @@ export function createGenerateGroupTopicsKeywordsHandler(deps: Deps = {}) {
       });
     } catch (error: unknown) {
       if (error instanceof OpenAiResponsesError) {
+        if (supabase) {
+          await recordOpenAiBillingAlert({
+            supabase: supabase as any,
+            error,
+            operation: "generate-group-topics-keywords",
+            groupId: groupContext?.id ?? null,
+            groupName: groupContext?.name ?? null,
+            targetDate: requestedTargetDate,
+            userId: requesterId,
+          });
+        }
         return json({ success: false, code: error.code, message: error.message }, 502);
       }
       return json({ success: false, code: "SERVER_ERROR", message: error instanceof Error ? error.message : "Erro interno" }, 500);

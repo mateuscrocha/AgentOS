@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Building2, ChevronLeft, ChevronRight, Loader2, Plus, SlidersHorizontal, Users } from "lucide-react";
+import { ArrowRight, Building2, ChevronLeft, ChevronRight, Loader2, Plus, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { FunctionsHttpError } from "@supabase/supabase-js";
@@ -384,7 +384,40 @@ export default function SystemOrganizations() {
           )}
         />
 
-        <section className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
+        <div className="rounded-[24px] border border-border/70 bg-card/90 p-3 shadow-subtle">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Navegação rápida
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Use os atalhos para ir direto ao mapa operacional, filtros ou lista.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href="#org-radar"
+                className="inline-flex h-9 items-center rounded-full border border-primary/20 bg-primary/[0.05] px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/[0.09]"
+              >
+                Mapa operacional
+              </a>
+              <a
+                href="#org-filters"
+                className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
+              >
+                Filtros
+              </a>
+              <a
+                href="#org-list"
+                className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
+              >
+                Lista
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <section className="scroll-mt-32 overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle" id="org-radar">
           <div className="bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.18),transparent_34%),linear-gradient(135deg,hsl(var(--secondary)/0.55),transparent_72%)] px-5 py-6 sm:px-6 lg:px-7">
             <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
               <div className="max-w-3xl space-y-3">
@@ -431,7 +464,7 @@ export default function SystemOrganizations() {
           </div>
         </section>
 
-        <div className="rounded-[28px] border border-border/80 bg-card/95 p-3 shadow-subtle sm:p-4">
+        <div className="scroll-mt-32 rounded-[28px] border border-border/80 bg-card/95 p-3 shadow-subtle sm:p-4" id="org-filters">
           <FilterBarRow
             desktopFilters={filtersForm}
             mobileTrigger={(
@@ -486,6 +519,7 @@ export default function SystemOrganizations() {
           ) : null}
         </div>
 
+        <div id="org-list" className="scroll-mt-32">
         <ListSectionHeader
           title="Lista de organizações"
           count={typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
@@ -493,6 +527,52 @@ export default function SystemOrganizations() {
           isLoading={orgsFetching}
           loadingIndicator={<Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />}
         />
+        </div>
+
+        <section className="rounded-[28px] border border-border/70 bg-card/95 p-4 shadow-subtle sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Como operar esta lista
+              </p>
+              <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">
+                Use a fila como triagem rápida antes de abrir uma organização
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                O ideal é começar pela atividade das últimas 24h, depois conferir billing e relacionamento para entender se é caso de suporte, comercial ou acompanhamento.
+              </p>
+            </div>
+            <div className="grid gap-3 lg:min-w-[620px] lg:grid-cols-3">
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">1. Prioridade</div>
+                <p className="mt-2 text-sm font-medium text-foreground">
+                  {topActiveOrg?.name || "Sem organização dominante"}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {(topActiveOrg?.activity_24h ?? 0).toLocaleString("pt-BR")} mensagens nas últimas 24h.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">2. Leitura</div>
+                <p className="mt-2 text-sm font-medium text-foreground">
+                  {sortLabel || "Ordenação padrão por atividade"}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Leia atividade primeiro; badges de billing e relacionamento ajudam a entender o contexto em segundos.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">3. Próxima ação</div>
+                <p className="mt-2 text-sm font-medium text-foreground">
+                  Abra a linha ou use o menu para editar
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Entre na organização para seguir com grupos, billing e contato principal.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
           <DrawerContent className="border-border bg-card">
@@ -602,6 +682,10 @@ export default function SystemOrganizations() {
                               <div className="mt-1 text-sm font-semibold text-card-foreground">{formatDateSimpleBR(org.created_at)}</div>
                             </div>
                           </div>
+                          <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+                            <span>Abrir organização</span>
+                            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                          </div>
                         </Link>
 
                         <div className="shrink-0">
@@ -653,8 +737,14 @@ export default function SystemOrganizations() {
                   Organizações ordenadas por atividade recente, com leitura rápida de relacionamento e billing.
                 </div>
               </div>
-              <div className="hidden rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium text-muted-foreground lg:inline-flex">
-                Clique na linha para abrir a visão da organização
+              <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium text-muted-foreground lg:inline-flex">
+                <span>Leia da esquerda para a direita</span>
+                <span className="text-border">•</span>
+                <span>atividade</span>
+                <span className="text-border">•</span>
+                <span>billing</span>
+                <span className="text-border">•</span>
+                <span>abrir linha</span>
               </div>
             </div>
             <div className={cn(orgsFetching && !orgsLoading ? "opacity-80 transition-opacity" : undefined)}>

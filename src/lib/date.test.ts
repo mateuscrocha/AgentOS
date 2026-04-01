@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidDate } from "./date";
+import { formatDateSimpleBR, formatDateTickBR, isValidDate } from "./date";
 
 describe("isValidDate", () => {
   it("retorna true para Date válido", () => {
@@ -14,5 +14,15 @@ describe("isValidDate", () => {
     expect(isValidDate("2025-01-01")).toBe(false);
     expect(isValidDate(null)).toBe(false);
     expect(isValidDate(undefined)).toBe(false);
+  });
+});
+
+describe("date formatting in Sao Paulo timezone", () => {
+  it("mantém o mesmo dia para strings YYYY-MM-DD no tick do gráfico", () => {
+    expect(formatDateTickBR("2026-03-31")).toBe("31/03");
+  });
+
+  it("mantém o mesmo dia para strings YYYY-MM-DD na data simples", () => {
+    expect(formatDateSimpleBR("2026-03-31")).toBe("31/03/2026");
   });
 });

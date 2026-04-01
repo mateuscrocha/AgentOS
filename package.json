@@ -19,6 +19,7 @@
     "test:screenshot:groups": "playwright test e2e/groups.deep-dive.screenshot.spec.ts",
     "test:screenshot:orgs": "playwright test e2e/organizations.deep-dive.screenshot.spec.ts",
     "test:screenshot:dashboard": "playwright test e2e/dashboard.deep-dive.screenshot.spec.ts",
+    "test:screenshot:group-support": "playwright test e2e/group-support.deep-dive.screenshot.spec.ts",
     "test:edge": "deno test -A --node-modules-dir=auto supabase/functions/**/index.test.ts",
     "preview": "vite preview"
   },

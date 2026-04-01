@@ -29,6 +29,8 @@ function makeCreateClientStub(state: {
   beforePrevDayMessages?: any[];
   summaryUpserts: any[];
   promptUpserts: any[];
+  eventInserts?: any[];
+  existingEvents?: any[];
 }) {
   return (_url: string, _key: string, _opts?: any) => {
     const from = (table: string) => {
@@ -80,6 +82,13 @@ function makeCreateClientStub(state: {
           if (table === "group_ai_prompt_configs") state.promptUpserts.push(values);
           return builder;
         },
+        insert(values: any) {
+          if (table === "events") {
+            const inserts = Array.isArray(values) ? values : [values];
+            state.eventInserts?.push(...inserts);
+          }
+          return Promise.resolve({ error: null });
+        },
         then(onFulfilled: any, onRejected: any) {
           let result: any = { data: [], error: null };
 
@@ -114,6 +123,10 @@ function makeCreateClientStub(state: {
               is_enabled: true,
             }));
             result = { data: rows, error: null };
+          }
+
+          if (table === "events") {
+            result = { data: state.existingEvents ?? [], error: null };
           }
 
           return Promise.resolve(result).then(onFulfilled, onRejected);
@@ -165,6 +178,7 @@ DenoRef.test("generate-group-summary gera SHORT, salva no banco e envia ao grupo
       previousSummaries: [],
       summaryUpserts,
       promptUpserts,
+      eventInserts: [],
     }) as any,
     fetchImpl: (async (input: string | URL, init?: RequestInit) => {
       const url = String(input);
@@ -236,6 +250,7 @@ DenoRef.test("generate-group-summary usa MARGED quando os dois últimos resumos 
       ],
       summaryUpserts,
       promptUpserts: [],
+      eventInserts: [],
     }) as any,
     fetchImpl: (async (input: string | URL, init?: RequestInit) => {
       const url = String(input);
@@ -299,6 +314,7 @@ DenoRef.test("generate-group-summary salva resumo mas bloqueia envio quando entr
       previousSummaries: [],
       summaryUpserts,
       promptUpserts: [],
+      eventInserts: [],
     }) as any,
     fetchImpl: (async (input: string | URL) => {
       const url = String(input);
@@ -355,6 +371,7 @@ DenoRef.test("generate-group-summary ignora grupo pausado", async () => {
       previousSummaries: [],
       summaryUpserts,
       promptUpserts: [],
+      eventInserts: [],
     }) as any,
     fetchImpl: (async () => {
       throw new Error("nao deveria chamar fetch");
@@ -367,4 +384,73 @@ DenoRef.test("generate-group-summary ignora grupo pausado", async () => {
   assertEquals(body.skipped, true);
   assertEquals(body.code, "GROUP_PAUSED");
   assertEquals(summaryUpserts.length, 0);
+});
+
+DenoRef.test("generate-group-summary registra alerta sistêmico quando a OpenAI bloqueia por quota", async () => {
+  const eventInserts: any[] = [];
+
+  const handler = createGenerateGroupSummaryHandler({
+    env: {
+      get: (key: string) => {
+        if (key === "SUPABASE_URL") return "http://localhost:8000";
+        if (key === "SUPABASE_SERVICE_ROLE_KEY") return "service";
+        if (key === "GROUP_AI_CRON_API_KEY") return "cron-key";
+        if (key === "OPENAI_API_KEY") return "sk-test";
+        return undefined;
+      },
+    },
+    now: () => new Date("2026-03-31T23:10:00.000Z"),
+    createClientImpl: makeCreateClientStub({
+      group: {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Comunidade Auto Mate +",
+        description: "Grupo de teste",
+        provider_phone: "5511999990000-group",
+      },
+      last24Messages: [
+        { message_created_at: "2026-03-31T22:00:00.000Z", text: "Falamos de onboarding", display_name: "Ana" },
+      ],
+      recentMessages: [
+        { message_created_at: "2026-03-31T22:00:00.000Z", text: "Falamos de onboarding", display_name: "Ana" },
+      ],
+      previousSummaries: [],
+      summaryUpserts: [],
+      promptUpserts: [],
+      eventInserts,
+      existingEvents: [],
+    }) as any,
+    fetchImpl: (async (input: string | URL) => {
+      const url = String(input);
+      if (url.includes("/v1/responses")) {
+        return new Response(
+          JSON.stringify({
+            error: {
+              code: "insufficient_quota",
+              message: "You exceeded your current quota, please check your plan and billing details.",
+            },
+          }),
+          {
+            status: 429,
+            statusText: "Too Many Requests",
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      throw new Error("nao deveria tentar enviar no whatsapp");
+    }) as any,
+  });
+
+  const res = await handler(makeReq({ groupId: "11111111-1111-4111-8111-111111111111" }));
+  const body = await res.json();
+
+  assertEquals(res.status, 502);
+  assertEquals(body.code, "OPENAI_RESPONSES_FAILED");
+  assertEquals(eventInserts.length, 1);
+  assertEquals(eventInserts[0].event_type, "OPENAI_BILLING_ALERT");
+  assertEquals(eventInserts[0].entity_type, "system");
+  assertEquals(eventInserts[0].entity_id, "openai-billing");
+  assertEquals(eventInserts[0].metadata.group_name, "Comunidade Auto Mate +");
+  assertEquals(eventInserts[0].metadata.operation, "generate-group-summary");
+  assertEquals(eventInserts[0].metadata.status, 429);
 });

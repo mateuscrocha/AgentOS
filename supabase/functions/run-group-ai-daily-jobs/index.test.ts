@@ -112,7 +112,7 @@ function makeCreateClientStub(state: {
   };
 }
 
-DenoRef.test("run-group-ai-daily-jobs gera resumo e topicos para todo grupo no horario e so envia quando configurado", async () => {
+DenoRef.test("run-group-ai-daily-jobs gera resumo e topicos para todo grupo no minuto exato e so envia quando configurado", async () => {
   const openAiCalls: any[] = [];
   const zapiCalls: any[] = [];
 
@@ -165,7 +165,7 @@ DenoRef.test("run-group-ai-daily-jobs gera resumo e topicos para todo grupo no h
         return undefined;
       },
     },
-    now: () => new Date("2026-03-24T16:10:00.000Z"),
+    now: () => new Date("2026-03-24T16:30:00.000Z"),
     createClientImpl: makeCreateClientStub({
       groups: [
         {
@@ -175,7 +175,7 @@ DenoRef.test("run-group-ai-daily-jobs gera resumo e topicos para todo grupo no h
           provider_phone: "5511999990000-group",
           group_settings: {
             daily_summary_enabled: true,
-            daily_summary_time: "13:00:00",
+            daily_summary_time: "13:30:00",
             daily_topics_enabled: false,
           },
         },
@@ -186,7 +186,7 @@ DenoRef.test("run-group-ai-daily-jobs gera resumo e topicos para todo grupo no h
           provider_phone: "5511777770000-group",
           group_settings: {
             daily_summary_enabled: false,
-            daily_summary_time: "13:00:00",
+            daily_summary_time: "13:30:00",
             daily_topics_enabled: false,
           },
         },
@@ -197,7 +197,7 @@ DenoRef.test("run-group-ai-daily-jobs gera resumo e topicos para todo grupo no h
           provider_phone: "5511888880000-group",
           group_settings: {
             daily_summary_enabled: true,
-            daily_summary_time: "08:00:00",
+            daily_summary_time: "13:00:00",
             daily_topics_enabled: true,
           },
         },
@@ -209,7 +209,7 @@ DenoRef.test("run-group-ai-daily-jobs gera resumo e topicos para todo grupo no h
           status: "inactive",
           group_settings: {
             daily_summary_enabled: true,
-            daily_summary_time: "13:00:00",
+            daily_summary_time: "13:30:00",
             daily_topics_enabled: true,
           },
         },
@@ -224,6 +224,7 @@ DenoRef.test("run-group-ai-daily-jobs gera resumo e topicos para todo grupo no h
   const body = await res.json();
   assertEquals(res.status, 200);
   assertEquals(body.matchedGroups, 2);
+  assertEquals(body.currentTime, "13:30");
   assertEquals(openAiCalls.length, 6);
   assertEquals(zapiCalls.length, 1);
   assertEquals(body.results[0].topicsKeywords.ok, true);

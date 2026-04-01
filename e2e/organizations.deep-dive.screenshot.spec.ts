@@ -58,27 +58,21 @@ test("explora profundamente a area de organizacoes no app real", async ({ page }
   await shot(page, testInfo, "organization-detail-overview.png");
 
   const safeButtons = [
-    "Atualizar Stripe",
-    "Adicionar grupo",
-    "Editar",
-    "Revisar contato principal",
+    { label: /Atualizar Stripe/i, fileSlug: "atualizar-stripe" },
+    { label: /Adicionar grupo|Criar primeiro grupo/i, fileSlug: "adicionar-grupo" },
+    { label: /^Editar$/i, fileSlug: "editar" },
+    { label: /Editar contato|Cadastrar contato/i, fileSlug: "contato-principal" },
   ];
 
-  for (const label of safeButtons) {
-    const button = page.getByRole("button", { name: new RegExp(label, "i") }).first();
+  for (const entry of safeButtons) {
+    const button = page.getByRole("button", { name: entry.label }).first();
     const isVisible = await button.isVisible().catch(() => false);
     const isEnabled = await button.isEnabled().catch(() => false);
     if (isVisible && isEnabled) {
       await button.click();
       await settle(page);
       if (await page.getByRole("dialog").isVisible().catch(() => false)) {
-        const fileSafe = label
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "");
-        await shot(page, testInfo, `organization-detail-${fileSafe}-dialog.png`);
+        await shot(page, testInfo, `organization-detail-${entry.fileSlug}-dialog.png`);
         await page.keyboard.press("Escape").catch(() => {});
         await settle(page);
       }

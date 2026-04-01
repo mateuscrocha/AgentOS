@@ -7,7 +7,9 @@ import {
   type GroupAiPromptKey,
 } from "../_shared/group-ai-prompts.ts";
 import { createOpenAiTextResponse, OpenAiResponsesError } from "../_shared/openai-responses.ts";
+import { recordOpenAiBillingAlert } from "../_shared/openai-system-alert.ts";
 import { sendZapiText, ZapiSendError } from "../_shared/zapi-send-text.ts";
+import { verifyCronApiKey } from "../_shared/cron-auth.ts";
 
 const DenoRef = (globalThis as any).Deno;
 
@@ -109,9 +111,8 @@ async function resolveAuth(args: {
   groupId: string;
 }) {
   const { req, env, createClientImpl, groupId } = args;
-  const inboundApiKey = readEnv(env, "GROUP_AI_CRON_API_KEY");
   const providedApiKey = String(req.headers.get("x-api-key") || "").trim();
-  if (inboundApiKey && providedApiKey && providedApiKey === inboundApiKey) {
+  if (await verifyCronApiKey({ env, providedApiKey, createClientImpl })) {
     return { mode: "api_key" as const, requesterId: null };
   }
 
@@ -167,6 +168,11 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
   const now = deps.now ?? (() => new Date());
 
   return async (req: Request) => {
+    let supabase: ReturnType<typeof createClient> | null = null;
+    let groupContext: { id: string; name?: string | null } | null = null;
+    let authRequesterId: string | null = null;
+    let requestedSummaryDate: string | null = null;
+
     if (req.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
     }
@@ -185,6 +191,7 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
       const groupId = String(body?.groupId || "").trim();
       const sendToGroup = body?.sendToGroup !== false;
       const summaryDate = String(body?.summaryDate || "").trim() || getSaoPauloDateKey(now());
+      requestedSummaryDate = summaryDate;
 
       if (!isUuid(groupId)) {
         return json({ success: false, code: "VALIDATION_ERROR", message: "groupId inválido" }, 400);
@@ -200,6 +207,7 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
       if (auth.mode === "forbidden") {
         return json({ success: false, code: "FORBIDDEN", message: "Forbidden" }, 403);
       }
+      authRequesterId = auth.requesterId;
 
       const supabaseUrl = readEnv(env, "SUPABASE_URL");
       const serviceRoleKey = readEnv(env, "SUPABASE_SERVICE_ROLE_KEY");
@@ -211,7 +219,7 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
         return json({ success: false, code: "OPENAI_NOT_CONFIGURED", message: "OpenAI não configurada" }, 500);
       }
 
-      const supabase = createClientImpl(supabaseUrl, serviceRoleKey);
+      supabase = createClientImpl(supabaseUrl, serviceRoleKey);
 
       const { data: group, error: groupError } = await supabase
         .from("groups")
@@ -225,7 +233,16 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
       if (!group?.id) {
         return json({ success: false, code: "GROUP_NOT_FOUND", message: "Grupo não encontrado" }, 404);
       }
-      if (isGroupPaused(group)) {
+      const groupRow = group as {
+        id: string;
+        name?: string | null;
+        description?: string | null;
+        provider_phone?: string | null;
+        is_active?: boolean | null;
+        status?: string | null;
+      };
+      groupContext = { id: String(groupRow.id), name: groupRow.name ?? null };
+      if (isGroupPaused(groupRow)) {
         return json({
           success: true,
           skipped: true,
@@ -322,12 +339,12 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
       };
 
       const promptText = renderSummaryPrompt(String(promptConfig.prompt_text || ""), {
-        "{{ $items('Workflow Variables')[0].json.group_name }}": String(group.name || ""),
-        "{{ $('Workflow Variables').item.json.group_name }}": String(group.name || ""),
-        "{{ $items('Workflow Variables')[0].json.group_description }}": String(group.description || ""),
-        "{{ $('Workflow Variables').item.json.group_description }}": String(group.description || ""),
-        "{{ $items('Workflow Variables')[0].json.assistant_id }}": "",
-        "{{ $('When Executed by Another Workflow').item.json.assistant_id }}": "",
+        "{{ $items('Workflow Variables')[0].json.group_name }}": String(groupRow.name || ""),
+        "{{ $('Workflow Variables').item.json.group_name }}": String(groupRow.name || ""),
+        "{{ $items('Workflow Variables')[0].json.group_description }}": String(groupRow.description || ""),
+        "{{ $('Workflow Variables').item.json.group_description }}": String(groupRow.description || ""),
+        "{{ $items('Workflow Variables')[0].json.group_ai_id }}": "",
+        "{{ $('When Executed by Another Workflow').item.json.group_ai_id }}": "",
         "{{ $now.toISO() }}": getSaoPauloNowIso(currentNow),
         "{{ $json.data.toJsonString() }}":
           JSON.stringify(summaryType === "MARGED" ? recentMessages : last24Messages),
@@ -381,7 +398,7 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
 
       let providerResponse: any = null;
       if (shouldSendToGroup) {
-        const providerPhone = String(group.provider_phone || "").trim();
+        const providerPhone = String(groupRow.provider_phone || "").trim();
         if (!providerPhone) {
           return json(
             {
@@ -416,6 +433,18 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
       });
     } catch (error: unknown) {
       if (error instanceof OpenAiResponsesError || error instanceof ZapiSendError) {
+        if (error instanceof OpenAiResponsesError && supabase) {
+          await recordOpenAiBillingAlert({
+            supabase: supabase as any,
+            error,
+            operation: "generate-group-summary",
+            groupId: groupContext?.id ?? null,
+            groupName: groupContext?.name ?? null,
+            targetDate: requestedSummaryDate,
+            userId: authRequesterId,
+          });
+        }
+
         return json(
           {
             success: false,

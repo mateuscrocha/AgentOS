@@ -117,6 +117,10 @@ No onboarding público, `provision-onboarding` agora aceita apenas chamadas aute
 
 `ZAPI_CLIENT_TOKEN` define o `Client-Token` enviado nas chamadas de envio para a Z-API.
 
+### MATEUS_PHONE
+
+`MATEUS_PHONE` define o número de destino usado pelo listener migrado para encaminhar payloads que chegarem fora de contexto de grupo, preservando o comportamento legado do n8n. Também aceita `MATEUS_PHONE_E164`.
+
 ### TEST_BASE_URL
 
 `TEST_BASE_URL` define a URL base usada pelos testes das Edge Functions (Deno) para construir URLs de request e para preencher `SUPABASE_URL` quando necessário.

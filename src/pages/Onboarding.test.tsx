@@ -61,6 +61,12 @@ function setInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+function getButtonByText(container: HTMLDivElement, text: string) {
+  return Array.from(container.querySelectorAll("button")).find((item) => item.textContent?.includes(text)) as
+    | HTMLButtonElement
+    | undefined;
+}
+
 describe("Onboarding page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -95,26 +101,51 @@ describe("Onboarding page", () => {
     return { container, root };
   }
 
-  async function fillForm(container: HTMLDivElement) {
-    const inputs = Array.from(container.querySelectorAll("input"));
-    const [
-      fullName,
-      organizationName,
-      email,
-      whatsappPhone,
-      password,
-      confirmPassword,
-      inviteLink,
-    ] = inputs as HTMLInputElement[];
-
+  async function fillNewOnboardingWizard(container: HTMLDivElement) {
     await act(async () => {
+      const profileInputs = Array.from(container.querySelectorAll("input")) as HTMLInputElement[];
+      const [fullName, organizationName, email, whatsappPhone] = profileInputs;
       setInputValue(fullName, "Ana Souza");
       setInputValue(organizationName, "Operação Ana");
       setInputValue(email, "ana@example.com");
       setInputValue(whatsappPhone, "(11) 99999-1111");
+      await flushPromises();
+    });
+
+    await act(async () => {
+      getButtonByText(container, "Continuar")?.click();
+      await flushPromises();
+    });
+
+    await act(async () => {
+      const passwordInputs = Array.from(container.querySelectorAll("input")) as HTMLInputElement[];
+      const [password, confirmPassword] = passwordInputs;
       setInputValue(password, "Senha!12345");
       setInputValue(confirmPassword, "Senha!12345");
-      setInputValue(inviteLink, "https://chat.whatsapp.com/convite");
+      await flushPromises();
+    });
+
+    await act(async () => {
+      getButtonByText(container, "Continuar")?.click();
+      await flushPromises();
+    });
+
+    await act(async () => {
+      const groupInput = container.querySelector("input") as HTMLInputElement;
+      setInputValue(groupInput, "https://chat.whatsapp.com/convite");
+      await flushPromises();
+    });
+  }
+
+  async function advanceResumedWizardToGroup(container: HTMLDivElement, inviteLink = "https://chat.whatsapp.com/convite-novo") {
+    await act(async () => {
+      getButtonByText(container, "Continuar")?.click();
+      await flushPromises();
+    });
+
+    await act(async () => {
+      const groupInput = container.querySelector("input") as HTMLInputElement;
+      setInputValue(groupInput, inviteLink);
       await flushPromises();
     });
   }
@@ -154,7 +185,7 @@ describe("Onboarding page", () => {
     });
 
     const { container, root } = await renderPage();
-    await fillForm(container);
+    await fillNewOnboardingWizard(container);
 
     const form = container.querySelector("form") as HTMLFormElement;
     await act(async () => {
@@ -199,7 +230,7 @@ describe("Onboarding page", () => {
     });
 
     const { container, root } = await renderPage();
-    await fillForm(container);
+    await fillNewOnboardingWizard(container);
 
     const form = container.querySelector("form") as HTMLFormElement;
     await act(async () => {
@@ -228,7 +259,7 @@ describe("Onboarding page", () => {
     });
 
     const { container, root } = await renderPage();
-    await fillForm(container);
+    await fillNewOnboardingWizard(container);
 
     const form = container.querySelector("form") as HTMLFormElement;
     await act(async () => {
@@ -334,13 +365,12 @@ describe("Onboarding page", () => {
     expect(container.textContent).toContain("Esse grupo já foi cadastrado");
     expect(container.textContent).toContain("Continuar cadastro");
     expect(container.textContent).not.toContain("Senha do app");
+    expect(container.textContent).toContain("Conecte seu grupo");
 
-    const inputs = Array.from(container.querySelectorAll("input")) as HTMLInputElement[];
-    const inviteLinkInput = inputs[4];
+    await advanceResumedWizardToGroup(container);
 
+    const form = container.querySelector("form") as HTMLFormElement;
     await act(async () => {
-      setInputValue(inviteLinkInput, "https://chat.whatsapp.com/convite-novo");
-      const form = container.querySelector("form") as HTMLFormElement;
       form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
       await flushPromises();
     });

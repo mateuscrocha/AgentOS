@@ -38,6 +38,7 @@ export function PeriodReport(props: PeriodReportProps) {
   const conclusion = activeMembers > 0
     ? `${format(observers)} pessoas acompanharam sem enviar mensagens.`
     : "O grupo ficou mais em modo observação neste período.";
+  const hasActivity = activeMembers > 0;
 
   return (
     <section className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm">
@@ -55,6 +56,15 @@ export function PeriodReport(props: PeriodReportProps) {
             <p className="text-sm font-medium text-card-foreground/90 max-w-[70ch]">{insight}</p>
           </div>
         </div>
+
+        {!hasActivity ? (
+          <div className="rounded-xl border border-border/70 bg-background/60 p-4">
+            <p className="text-sm font-medium text-card-foreground">Leitura do período: grupo em observação</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground max-w-[70ch]">
+              Sem mensagens no recorte, o principal sinal aqui é ausência de movimento. Vale testar um período maior ou voltar ao painel depois das próximas interações.
+            </p>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <KpiCard

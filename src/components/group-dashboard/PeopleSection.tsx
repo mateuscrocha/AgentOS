@@ -24,7 +24,6 @@ interface MemberEngagement {
 interface PeopleSectionProps {
   groupId: string;
   topParticipant: { id?: string; name: string; count: number; avatarUrl?: string | null; leftAt?: string | null; status?: string | null } | null;
-  previousTopParticipant?: { id?: string; name: string; count: number; avatarUrl?: string | null; leftAt?: string | null; status?: string | null } | null;
   topParticipants: { id: string; name: string; count: number; avatarUrl?: string | null; leftAt?: string | null; status?: string | null }[];
   memberEngagement?: MemberEngagement;
   previousMemberEngagement?: MemberEngagement | null;
@@ -117,6 +116,8 @@ export function PeopleSection({
     if (!memberEngagement || !previousMemberEngagement) return undefined;
     return memberEngagement.esporadicos - previousMemberEngagement.esporadicos;
   }, [memberEngagement, previousMemberEngagement]);
+
+  const hasPeopleData = topParticipants.length > 0 || !!topParticipant || donutData.length > 0;
 
   return (
     <section className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm">
@@ -211,8 +212,11 @@ export function PeopleSection({
                 ) : null}
               </>
             ) : (
-              <div className="h-[104px] flex items-center justify-center">
-                <p className="text-sm text-muted-foreground">Sem dados</p>
+              <div className="rounded-xl border border-border/70 bg-background/60 px-4 py-5">
+                <p className="text-sm font-medium text-card-foreground">Ainda não dá para apontar protagonistas</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  Assim que o grupo acumular mensagens no período, esta área vai destacar quem mais sustentou a conversa.
+                </p>
               </div>
             )}
           </div>
@@ -232,7 +236,12 @@ export function PeopleSection({
                 ))}
               </div>
             ) : topParticipants.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem dados</p>
+              <div className="rounded-xl border border-border/70 bg-background/60 px-4 py-5">
+                <p className="text-sm font-medium text-card-foreground">Ainda não há ranking de participantes neste período</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  O ranking aparece quando já existe atividade suficiente para comparar presença e volume de mensagens.
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {top5.map((participant, index) => {
@@ -307,8 +316,11 @@ export function PeopleSection({
                 ) : null}
 
                 {donutData.length === 0 ? (
-                  <div className="h-[96px] flex items-center justify-center">
-                    <p className="text-sm text-muted-foreground">Sem dados</p>
+                  <div className="rounded-xl border border-border/70 bg-background/60 px-4 py-5">
+                    <p className="text-sm font-medium text-card-foreground">Ainda não há distribuição de engajamento neste período</p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      Quando a base começar a falar, o Bóris separa quem participa com frequência, de vez em quando ou só observa.
+                    </p>
                   </div>
                 ) : (
                   <ChartContainer config={chartConfig} className="h-[96px] w-full mt-4">
@@ -402,6 +414,13 @@ export function PeopleSection({
                         <p className="mt-1 text-xs text-muted-foreground">Sem comparação anterior.</p>
                       )}
                     </div>
+                  </div>
+                ) : !hasPeopleData ? (
+                  <div className="mt-4 rounded-xl border border-border/70 bg-background/60 px-4 py-5">
+                    <p className="text-sm font-medium text-card-foreground">O grupo ainda não gerou leitura humana suficiente</p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      Use o resumo e o ritmo para entender o momento atual e volte aqui quando houver mais interação entre membros.
+                    </p>
                   </div>
                 ) : null}
               </>

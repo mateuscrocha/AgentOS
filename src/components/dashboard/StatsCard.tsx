@@ -126,7 +126,7 @@ export function StatsCard({
             {change && (
               <p
                 className={cn(
-                  "mt-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                  "mt-2 inline-flex max-w-full items-center truncate rounded-full border px-2 py-0.5 text-[10px] font-medium leading-tight",
                   changeType === "positive" && "bg-success/10 text-success",
                   changeType === "negative" && "bg-destructive/10 text-destructive",
                   changeType === "neutral" && "border-border/70 bg-muted/40 text-muted-foreground"

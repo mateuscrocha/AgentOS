@@ -53,6 +53,44 @@ const INITIAL_VALUES: PublicOnboardingFormValues = {
   inviteLink: "",
 };
 
+type OnboardingStep = {
+  id: "profile" | "access" | "group";
+  title: string;
+  description: string;
+  fields: Array<keyof PublicOnboardingFormValues>;
+};
+
+function getStepFooterCopy(stepId: OnboardingStep["id"], isResumingOnboarding: boolean) {
+  if (isResumingOnboarding) {
+    return {
+      title: "Continuar cadastro",
+      description:
+        stepId === "group"
+          ? "Troque o link se necessário e conclua a criação da sua organização."
+          : "Revise os dados e avance para concluir o cadastro.",
+    };
+  }
+
+  if (stepId === "profile") {
+    return {
+      title: "Seus dados de acesso",
+      description: "Usaremos essas informações para criar sua conta e identificar sua organização.",
+    };
+  }
+
+  if (stepId === "access") {
+    return {
+      title: "Senha do app",
+      description: getPasswordHint(),
+    };
+  }
+
+  return {
+    title: "Última etapa",
+    description: "Validamos o grupo antes de liberar seu primeiro acesso no painel.",
+  };
+}
+
 function parseOnboardingErrorDetails(message: string) {
   const trimmed = message.trim();
   const codeMatch = trimmed.match(/\(([A-Z0-9_]+)\)\s*$/);
@@ -142,24 +180,81 @@ export default function Onboarding() {
   const isResumingOnboarding = isAuthenticated && !!user?.id;
   const errorDetails = globalError ? parseOnboardingErrorDetails(globalError) : null;
   const inviteLinkInputRef = useRef<HTMLInputElement>(null);
-
-  const progress = useMemo(() => {
-    const filled = [
-      values.fullName,
-      values.organizationName,
-      values.email,
-      values.whatsappPhone,
-      values.password,
-      values.confirmPassword,
-      values.inviteLink,
-    ].filter((value) => value.trim()).length;
-    return Math.round((filled / 7) * 100);
-  }, [values]);
+  const steps = useMemo<OnboardingStep[]>(
+    () => [
+      {
+        id: "profile",
+        title: "Quem está criando",
+        description: "Vamos começar com os dados do responsável e da organização.",
+        fields: ["fullName", "organizationName", "email", "whatsappPhone"],
+      },
+      ...(!isResumingOnboarding
+        ? [
+            {
+              id: "access" as const,
+              title: "Crie sua senha",
+              description: "Defina a senha que você vai usar para entrar no painel.",
+              fields: ["password", "confirmPassword"],
+            },
+          ]
+        : []),
+      {
+        id: "group",
+        title: "Conecte seu grupo",
+        description: "Validamos o link do WhatsApp antes de liberar sua conta.",
+        fields: ["inviteLink"],
+      },
+    ],
+    [isResumingOnboarding],
+  );
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const currentStep = steps[currentStepIndex] ?? steps[0];
+  const isLastStep = currentStepIndex === steps.length - 1;
+  const progress = Math.round(((currentStepIndex + 1) / steps.length) * 100);
+  const footerCopy = getStepFooterCopy(currentStep.id, isResumingOnboarding);
 
   const setValue = (key: keyof PublicOnboardingFormValues, value: string) => {
     setValues((current) => ({ ...current, [key]: value }));
     setFieldErrors((current) => ({ ...current, [key]: undefined }));
     setGlobalError("");
+    if (key === "inviteLink") {
+      setValidatedGroup(null);
+    }
+  };
+
+  const getSanitizedValues = () => ({
+    ...values,
+    password: isResumingOnboarding ? "Senha!12345" : values.password,
+    confirmPassword: isResumingOnboarding ? "Senha!12345" : values.confirmPassword,
+  });
+
+  const getStepErrors = (step: OnboardingStep) => {
+    const allErrors = validatePublicOnboardingForm(getSanitizedValues());
+    if (isResumingOnboarding) {
+      delete allErrors.password;
+      delete allErrors.confirmPassword;
+    }
+
+    return step.fields.reduce<PublicOnboardingValidationErrors>((accumulator, field) => {
+      if (allErrors[field]) {
+        accumulator[field] = allErrors[field];
+      }
+      return accumulator;
+    }, {});
+  };
+
+  const handleStepAdvance = () => {
+    const stepErrors = getStepErrors(currentStep);
+    setFieldErrors((current) => ({ ...current, ...stepErrors }));
+
+    if (Object.keys(stepErrors).length > 0) {
+      if (stepErrors.inviteLink) {
+        inviteLinkInputRef.current?.focus();
+      }
+      return;
+    }
+
+    setCurrentStepIndex((index) => Math.min(index + 1, steps.length - 1));
   };
 
   useEffect(() => {
@@ -183,8 +278,13 @@ export default function Onboarding() {
 
     if (onboardingError) {
       setGlobalError(onboardingError);
+      setCurrentStepIndex(steps.length - 1);
     }
-  }, [location.search, user?.email]);
+  }, [location.search, steps.length, user?.email]);
+
+  useEffect(() => {
+    setCurrentStepIndex((index) => Math.min(index, steps.length - 1));
+  }, [steps.length]);
 
   const handleExistingAccountClick = () => {
     clearPendingOnboardingDraft();
@@ -197,11 +297,7 @@ export default function Onboarding() {
     setGlobalError("");
     setValidatedGroup(null);
 
-    const errors = validatePublicOnboardingForm({
-      ...values,
-      password: isResumingOnboarding ? "Senha!12345" : values.password,
-      confirmPassword: isResumingOnboarding ? "Senha!12345" : values.confirmPassword,
-    });
+    const errors = validatePublicOnboardingForm(getSanitizedValues());
 
     if (isResumingOnboarding) {
       delete errors.password;
@@ -326,18 +422,21 @@ export default function Onboarding() {
   };
 
   return (
-    <PublicLayout progress={progress}>
-      <div className="w-full max-w-2xl">
-        <div className="mb-8 flex flex-col items-center">
-          <img src="/admin-logo.png" alt="Central de Comando do Bóris" className="mb-2 h-24 w-auto" />
-          <h1 className="text-center text-2xl font-bold text-foreground">Criar organização</h1>
-          <p className="mt-1 max-w-xl text-center text-sm text-muted-foreground">
-            Use o mesmo fluxo do panel para validar o grupo, criar sua conta e liberar o primeiro acesso.
+    <PublicLayout progress={progress} contentClassName="max-w-5xl">
+      <div className="w-full max-w-4xl mx-auto">
+        <div className="mb-6 flex flex-col items-center">
+          <img src="/admin-logo.png" alt="Central de Comando do Bóris" className="mb-1 h-20 w-auto sm:h-24" />
+          <div className="mb-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-primary">
+            Setup em {steps.length} etapas
+          </div>
+          <h1 className="text-center text-[2rem] font-bold tracking-tight text-foreground">Crie sua conta</h1>
+          <p className="mt-1 max-w-xl text-center text-sm leading-6 text-muted-foreground">
+            Cadastre seu acesso, conecte o grupo do WhatsApp e entre no painel com a organização pronta.
           </p>
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+          <div className="space-y-4 rounded-[28px] border border-border/80 bg-card/95 p-5 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.38)] backdrop-blur sm:p-6">
             {globalError ? (
               <Alert
                 variant={errorDetails?.tone === "warning" ? "default" : "destructive"}
@@ -386,123 +485,219 @@ export default function Onboarding() {
               </Alert>
             ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label="Nome completo"
-                icon={<Users className="h-4 w-4" />}
-                error={fieldErrors.fullName}
-              >
-                <Input
-                  value={values.fullName}
-                  onChange={(event) => setValue("fullName", event.target.value)}
-                  placeholder="Seu nome"
-                  autoComplete="name"
-                  disabled={isSubmitting}
-                />
-              </Field>
+            <div className="space-y-4 rounded-2xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/20 p-4 sm:p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                    Etapa {currentStepIndex + 1} de {steps.length}
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold tracking-tight text-foreground">{currentStep.title}</h2>
+                  <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">{currentStep.description}</p>
+                </div>
+                <div className="min-w-[88px] rounded-2xl border border-border/70 bg-background/80 px-3 py-2 text-right">
+                  <p className="text-lg font-semibold leading-none text-foreground">{progress}%</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">concluído</p>
+                </div>
+              </div>
 
-              <Field
-                label="Organização"
-                icon={<Building2 className="h-4 w-4" />}
-                error={fieldErrors.organizationName}
-              >
-                <Input
-                  value={values.organizationName}
-                  onChange={(event) => setValue("organizationName", event.target.value)}
-                  placeholder="Nome da empresa ou operação"
-                  autoComplete="organization"
-                  disabled={isSubmitting}
+              <div className="h-2 overflow-hidden rounded-full bg-muted/80">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-primary via-primary to-primary/80 transition-all duration-300 ease-out"
+                  style={{ width: `${progress}%` }}
                 />
-              </Field>
+              </div>
 
-              <Field label="Email" icon={<Mail className="h-4 w-4" />} error={fieldErrors.email}>
-                <Input
-                  type="email"
-                  value={values.email}
-                  onChange={(event) => setValue("email", event.target.value)}
-                  placeholder="voce@empresa.com"
-                  autoComplete="email"
-                  disabled={isSubmitting || isResumingOnboarding}
-                />
-              </Field>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {steps.map((step, index) => {
+                  const isCurrent = index === currentStepIndex;
+                  const isCompleted = index < currentStepIndex;
 
-              <Field label="WhatsApp" icon={<Phone className="h-4 w-4" />} error={fieldErrors.whatsappPhone}>
-                <Input
-                  value={values.whatsappPhone}
-                  onChange={(event) => setValue("whatsappPhone", event.target.value)}
-                  placeholder="(11) 99999-9999"
-                  autoComplete="tel"
-                  disabled={isSubmitting}
-                />
-              </Field>
-
-              {!isResumingOnboarding ? (
-                <>
-                  <Field label="Senha" icon={<Lock className="h-4 w-4" />} error={fieldErrors.password}>
-                    <Input
-                      type="password"
-                      value={values.password}
-                      onChange={(event) => setValue("password", event.target.value)}
-                      placeholder="Crie uma senha segura"
-                      autoComplete="new-password"
-                      disabled={isSubmitting}
+                  return (
+                    <StepChip
+                      key={step.id}
+                      index={index}
+                      title={step.title}
+                      isCurrent={isCurrent}
+                      isCompleted={isCompleted}
+                      disabled={isSubmitting || index > currentStepIndex}
+                      onClick={() => {
+                        if (index <= currentStepIndex) {
+                          setCurrentStepIndex(index);
+                        }
+                      }}
                     />
-                  </Field>
-
-                  <Field label="Confirmar senha" icon={<KeyRound className="h-4 w-4" />} error={fieldErrors.confirmPassword}>
-                    <Input
-                      type="password"
-                      value={values.confirmPassword}
-                      onChange={(event) => setValue("confirmPassword", event.target.value)}
-                      placeholder="Repita sua senha"
-                      autoComplete="new-password"
-                      disabled={isSubmitting}
-                    />
-                  </Field>
-                </>
-              ) : null}
+                  );
+                })}
+              </div>
             </div>
 
-            <Field label="Link do grupo do WhatsApp" icon={<ArrowRight className="h-4 w-4" />} error={fieldErrors.inviteLink}>
-              <Input
-                ref={inviteLinkInputRef}
-                value={values.inviteLink}
-                onChange={(event) => setValue("inviteLink", event.target.value)}
-                placeholder="https://chat.whatsapp.com/..."
-                autoComplete="off"
-                disabled={isSubmitting}
-              />
-            </Field>
+            {currentStep.id === "profile" ? (
+              <div className="grid gap-4 rounded-2xl border border-border/60 bg-background/70 p-4 sm:grid-cols-2">
+                <Field
+                  label="Nome completo"
+                  icon={<Users className="h-4 w-4" />}
+                  error={fieldErrors.fullName}
+                >
+                  <Input
+                    value={values.fullName}
+                    onChange={(event) => setValue("fullName", event.target.value)}
+                    placeholder="Seu nome"
+                    autoComplete="name"
+                    disabled={isSubmitting}
+                  />
+                </Field>
 
-            <div className="rounded-lg border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">O que acontece depois</p>
-              <p className="mt-1">
-                {isResumingOnboarding
-                  ? "Sua conta já está confirmada. Agora falta validar o grupo e concluir a criação da organização."
-                  : "Validamos o grupo, criamos a conta e provisionamos sua organização com base nos participantes retornados."}
-              </p>
-            </div>
+                <Field
+                  label="Organização"
+                  icon={<Building2 className="h-4 w-4" />}
+                  error={fieldErrors.organizationName}
+                >
+                  <Input
+                    value={values.organizationName}
+                    onChange={(event) => setValue("organizationName", event.target.value)}
+                    placeholder="Nome da empresa ou operação"
+                    autoComplete="organization"
+                    disabled={isSubmitting}
+                  />
+                </Field>
 
-            <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                {isResumingOnboarding ? (
-                  <>
-                    <p className="text-sm font-medium text-card-foreground">Continuar cadastro</p>
-                    <p className="text-sm text-muted-foreground">Ajuste os dados abaixo e tente novamente com outro grupo.</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-medium text-card-foreground">Senha do app</p>
-                    <p className="text-sm text-muted-foreground">{getPasswordHint()}</p>
-                  </>
-                )}
+                <Field label="Email" icon={<Mail className="h-4 w-4" />} error={fieldErrors.email}>
+                  <Input
+                    type="email"
+                    value={values.email}
+                    onChange={(event) => setValue("email", event.target.value)}
+                    placeholder="voce@empresa.com"
+                    autoComplete="email"
+                    disabled={isSubmitting || isResumingOnboarding}
+                  />
+                </Field>
+
+                <Field label="WhatsApp" icon={<Phone className="h-4 w-4" />} error={fieldErrors.whatsappPhone}>
+                  <Input
+                    value={values.whatsappPhone}
+                    onChange={(event) => setValue("whatsappPhone", event.target.value)}
+                    placeholder="(11) 99999-9999"
+                    autoComplete="tel"
+                    disabled={isSubmitting}
+                  />
+                </Field>
+              </div>
+            ) : null}
+
+            {currentStep.id === "access" ? (
+              <div className="grid gap-4 rounded-2xl border border-border/60 bg-background/70 p-4 sm:grid-cols-2">
+                <Field label="Senha" icon={<Lock className="h-4 w-4" />} error={fieldErrors.password}>
+                  <Input
+                    type="password"
+                    value={values.password}
+                    onChange={(event) => setValue("password", event.target.value)}
+                    placeholder="Crie uma senha segura"
+                    autoComplete="new-password"
+                    disabled={isSubmitting}
+                  />
+                </Field>
+
+                <Field label="Confirmar senha" icon={<KeyRound className="h-4 w-4" />} error={fieldErrors.confirmPassword}>
+                  <Input
+                    type="password"
+                    value={values.confirmPassword}
+                    onChange={(event) => setValue("confirmPassword", event.target.value)}
+                    placeholder="Repita sua senha"
+                    autoComplete="new-password"
+                    disabled={isSubmitting}
+                  />
+                </Field>
+              </div>
+            ) : null}
+
+            {currentStep.id === "group" ? (
+              <div className="space-y-4 rounded-2xl border border-border/60 bg-background/70 p-4">
+                <Field label="Link do grupo do WhatsApp" icon={<ArrowRight className="h-4 w-4" />} error={fieldErrors.inviteLink}>
+                  <Input
+                    ref={inviteLinkInputRef}
+                    value={values.inviteLink}
+                    onChange={(event) => setValue("inviteLink", event.target.value)}
+                    placeholder="https://chat.whatsapp.com/..."
+                    autoComplete="off"
+                    disabled={isSubmitting}
+                  />
+                </Field>
+
+                <div className="rounded-xl border border-primary/15 bg-gradient-to-br from-primary/5 via-background to-background p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Resumo da criação</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Ao concluir, vamos preparar estes itens para o seu primeiro acesso.
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      {isResumingOnboarding ? "Quase pronto" : "Último passo"}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <SummaryCard
+                      icon={<Mail className="h-4 w-4" />}
+                      title="Conta"
+                      description={isResumingOnboarding ? "Seu acesso será vinculado ao cadastro." : "Seu login será criado com email e senha."}
+                    />
+                    <SummaryCard
+                      icon={<Building2 className="h-4 w-4" />}
+                      title="Organização"
+                      description="A empresa será criada com os dados informados nas etapas anteriores."
+                    />
+                    <SummaryCard
+                      icon={<Users className="h-4 w-4" />}
+                      title="Grupo"
+                      description="O grupo será validado e conectado para liberar o painel."
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">Antes de finalizar</p>
+                  <p className="mt-1">
+                    {isResumingOnboarding
+                      ? "Sua conta já está confirmada. Agora só falta validar o grupo e concluir a criação da organização."
+                      : "Vamos validar o link, criar sua conta e preparar sua organização com base nos participantes retornados."}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-col gap-4 border-t border-border/70 pt-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="max-w-sm rounded-2xl border border-border/60 bg-background/60 px-4 py-3">
+                <p className="text-sm font-medium text-card-foreground">{footerCopy.title}</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">{footerCopy.description}</p>
               </div>
 
               <div className="flex flex-col gap-3 sm:items-end">
-                <Button type="submit" size="lg" className="min-w-[220px]" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {isSubmitting ? "Criando acesso..." : isResumingOnboarding ? "Concluir cadastro" : "Criar conta e entrar"}
-                </Button>
+                <div className="flex w-full flex-col-reverse gap-3 sm:w-auto sm:flex-row sm:items-center">
+                  {currentStepIndex > 0 ? (
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="outline"
+                      className="min-w-[140px] border-border/70 bg-background/80"
+                      disabled={isSubmitting}
+                      onClick={() => setCurrentStepIndex((index) => Math.max(index - 1, 0))}
+                    >
+                      Voltar
+                    </Button>
+                  ) : null}
+
+                  {isLastStep ? (
+                    <Button type="submit" size="lg" className="min-w-[220px] shadow-[0_14px_30px_-18px_rgba(251,146,60,0.9)]" disabled={isSubmitting}>
+                      {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {isSubmitting ? "Criando acesso..." : isResumingOnboarding ? "Concluir cadastro" : "Criar conta e entrar"}
+                    </Button>
+                  ) : (
+                    <Button type="button" size="lg" className="min-w-[220px] shadow-[0_14px_30px_-18px_rgba(251,146,60,0.9)]" disabled={isSubmitting} onClick={handleStepAdvance}>
+                      Continuar
+                    </Button>
+                  )}
+                </div>
                 <button
                   type="button"
                   className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
@@ -537,5 +732,67 @@ function Field({ label, icon, error, children }: FieldProps) {
       {children}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </label>
+  );
+}
+
+type SummaryCardProps = {
+  icon: ReactNode;
+  title: string;
+  description: string;
+};
+
+type StepChipProps = {
+  index: number;
+  title: string;
+  isCurrent: boolean;
+  isCompleted: boolean;
+  disabled: boolean;
+  onClick: () => void;
+};
+
+function SummaryCard({ icon, title, description }: SummaryCardProps) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-background/85 p-3 shadow-sm">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <span className="text-primary">{icon}</span>
+        <span>{title}</span>
+      </div>
+      <p className="mt-2 text-sm leading-5 text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function StepChip({ index, title, isCurrent, isCompleted, disabled, onClick }: StepChipProps) {
+  return (
+    <button
+      type="button"
+      className={`min-h-[88px] rounded-2xl border px-3 py-3 text-left transition ${
+        isCurrent
+          ? "border-primary/50 bg-primary/8 shadow-[0_12px_24px_-20px_rgba(251,146,60,0.9)]"
+          : isCompleted
+            ? "border-success/30 bg-success/10"
+            : "border-border/70 bg-background/80 hover:border-border"
+      }`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+            isCurrent
+              ? "bg-primary text-primary-foreground"
+              : isCompleted
+                ? "bg-success/20 text-success"
+                : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {index + 1}
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Etapa</p>
+          <p className="mt-1 text-sm font-medium leading-5 text-foreground">{title}</p>
+        </div>
+      </div>
+    </button>
   );
 }

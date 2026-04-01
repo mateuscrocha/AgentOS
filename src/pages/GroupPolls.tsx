@@ -55,6 +55,33 @@ type PollAuditItem = {
 const PAGE_SIZE = 10;
 const QUESTION_LAYOUT_TRANSITION = { duration: 0.22, ease: "easeOut" } as const;
 
+function getPeriodLabel(period: PeriodType, customRange?: DateRange) {
+  switch (period) {
+    case "today":
+      return "hoje";
+    case "yesterday":
+      return "ontem";
+    case "this_week":
+      return "esta semana";
+    case "last_week":
+      return "semana passada";
+    case "this_month":
+      return "este mês";
+    case "7d":
+      return "últimos 7 dias";
+    case "14d":
+      return "últimos 14 dias";
+    case "30d":
+      return "últimos 30 dias";
+    case "90d":
+      return "últimos 90 dias";
+    case "custom":
+      return customRange ? `período de ${formatDateSimpleBR(customRange.from)} até ${formatDateSimpleBR(customRange.to)}` : "período personalizado";
+    default:
+      return "período selecionado";
+  }
+}
+
 export default function GroupPolls() {
   const { groupId } = useParams();
   const navigate = useNavigate();
@@ -70,6 +97,12 @@ export default function GroupPolls() {
   const hasActiveFilters = selectedPeriod !== '7d' || !!customRange || !!search.trim();
   const searchTrimmed = search.trim();
   const searchTooShort = searchTrimmed.length > 0 && searchTrimmed.length < 2;
+  const pollFilterSummary = [
+    debouncedSearch ? `busca "${debouncedSearch}"` : null,
+    selectedPeriod !== "7d" || customRange
+      ? getPeriodLabel(selectedPeriod, customRange)
+      : null,
+  ].filter(Boolean).join(" e ");
 
   useEffect(() => {
     const next = search.trim();
@@ -383,7 +416,7 @@ export default function GroupPolls() {
             }
             message={
               debouncedSearch
-                ? `Nenhuma enquete corresponde à busca "${debouncedSearch}".`
+                ? `Nenhuma enquete corresponde aos filtros atuais${pollFilterSummary ? `: ${pollFilterSummary}` : ""}.`
                 : hasActiveFilters
                   ? "Ajuste o período ou limpe os filtros para ver outras enquetes."
                   : "Ainda não há enquetes neste grupo."

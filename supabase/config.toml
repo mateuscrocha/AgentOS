@@ -18,5 +18,14 @@ verify_jwt = true
 [functions.billing-sync-stripe-organizations]
 verify_jwt = false
 
+[functions.generate-group-summary]
+verify_jwt = false
+
+[functions.generate-group-topics-keywords]
+verify_jwt = false
+
 [functions.run-group-ai-daily-jobs]
+verify_jwt = false
+
+[functions.incoming-provider-event]
 verify_jwt = false

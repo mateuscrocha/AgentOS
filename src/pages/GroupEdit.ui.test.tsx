@@ -46,10 +46,13 @@ vi.mock("@/components/group-navigation/GroupPageTop", () => {
 vi.mock("@/components/ui/select", () => {
   return {
     Select: ({ children }: { children: any }) => <div>{children}</div>,
+    SelectGroup: ({ children }: { children: any }) => <div>{children}</div>,
     SelectTrigger: ({ children }: { children: any }) => <div>{children}</div>,
     SelectValue: () => null,
     SelectContent: ({ children }: { children: any }) => <div>{children}</div>,
+    SelectLabel: ({ children }: { children: any }) => <div>{children}</div>,
     SelectItem: ({ children }: { children: any }) => <div>{children}</div>,
+    SelectSeparator: () => <div />,
   };
 });
 

@@ -67,11 +67,10 @@ DenoRef.test("provision-group marca SUPERADMIN também como is_admin ...", async
     invite_link: "https://chat.whatsapp.com/abc",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    assistant_id: null,
-    assistant_prompt: null,
-    assistant_model: null,
-    assistant_runtime: null,
-    has_assistant: false,
+    ai_enabled: false,
+    ai_prompt: null,
+    ai_model: null,
+    ai_runtime: null,
     metadata: null,
     raw_provider: null,
     status: null,
@@ -205,12 +204,11 @@ DenoRef.test("provision-group marca SUPERADMIN também como is_admin ...", async
   assertEquals(inserted[0]?.is_admin, true);
   assertEquals(inserted[0]?.is_super_admin, true);
   assertEquals(groupUpdates.length, 1);
-  assertEquals(groupUpdates[0]?.values?.assistant_id, null);
-  assertEquals(groupUpdates[0]?.values?.has_assistant, true);
-  assertEquals(groupUpdates[0]?.values?.assistant_model, "gpt-4o-mini");
-  assertEquals(groupUpdates[0]?.values?.assistant_runtime, "responses");
+  assertEquals(groupUpdates[0]?.values?.ai_enabled, true);
+  assertEquals(groupUpdates[0]?.values?.ai_model, "gpt-4o-mini");
+  assertEquals(groupUpdates[0]?.values?.ai_runtime, "responses");
   assertEquals(
-    groupUpdates[0]?.values?.assistant_prompt,
+    groupUpdates[0]?.values?.ai_prompt,
     "Você é o Bóris, um assistente que acompanha este grupo de WhatsApp. Seu papel é ajudar a resumir conversas, identificar temas e tornar a informação clara, sem inventar nada."
   );
 });
@@ -256,11 +254,6 @@ DenoRef.test("provision-group deduplica participantes por whatsapp_provider_id",
     invite_link: "https://chat.whatsapp.com/abc",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    assistant_id: null,
-    assistant_prompt: null,
-    assistant_model: null,
-    assistant_runtime: null,
-    has_assistant: false,
     metadata: null,
     raw_provider: null,
     status: null,
@@ -424,11 +417,6 @@ DenoRef.test("provision-group ignora duplicidade e continua inserindo outros mem
     invite_link: "https://chat.whatsapp.com/abc",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    assistant_id: null,
-    assistant_prompt: null,
-    assistant_model: null,
-    assistant_runtime: null,
-    has_assistant: false,
     metadata: null,
     raw_provider: null,
     status: null,
@@ -552,7 +540,7 @@ DenoRef.test("provision-group ignora duplicidade e continua inserindo outros mem
   assertEquals(groupUpdates.length, 1);
 });
 
-DenoRef.test("provision-group tolera schema sem coluna has_assistant", async () => {
+DenoRef.test("provision-group tolera schema sem colunas opcionais de modelo/runtime", async () => {
   const groupUpdates: any[] = [];
 
   const payload = {
@@ -577,11 +565,10 @@ DenoRef.test("provision-group tolera schema sem coluna has_assistant", async () 
     invite_link: "https://chat.whatsapp.com/abc",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    assistant_id: null,
-    assistant_prompt: null,
-    assistant_model: null,
-    assistant_runtime: null,
-    has_assistant: null,
+    ai_enabled: false,
+    ai_prompt: null,
+    ai_model: null,
+    ai_runtime: null,
     metadata: null,
     raw_provider: null,
     status: null,
@@ -639,8 +626,11 @@ DenoRef.test("provision-group tolera schema sem coluna has_assistant", async () 
               eq: async (id: string) => {
                 groupsUpdateCalls += 1;
                 groupUpdates.push({ id, values });
-                if (groupsUpdateCalls === 1) {
-                  return { error: { code: "PGRST204", message: "Could not find the 'has_assistant' column" } };
+                if ("ai_model" in values) {
+                  return { error: { code: "PGRST204", message: "Could not find the 'ai_model' column" } };
+                }
+                if ("ai_runtime" in values) {
+                  return { error: { code: "PGRST204", message: "Could not find the 'ai_runtime' column" } };
                 }
                 return { error: null };
               },
@@ -695,6 +685,8 @@ DenoRef.test("provision-group tolera schema sem coluna has_assistant", async () 
   const body = await res.json();
   assertEquals(body.success, true);
   assertEquals(groupsUpdateCalls, 2);
-  assertEquals("has_assistant" in groupUpdates[0]?.values, true);
-  assertEquals("has_assistant" in groupUpdates[1]?.values, false);
+  assertEquals("ai_model" in groupUpdates[0]?.values, true);
+  assertEquals("ai_runtime" in groupUpdates[0]?.values, true);
+  assertEquals("ai_model" in groupUpdates[1]?.values, false);
+  assertEquals("ai_runtime" in groupUpdates[1]?.values, false);
 });

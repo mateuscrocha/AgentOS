@@ -310,6 +310,9 @@ const GroupMembers = () => {
   const activeFiltersCount = (search.trim() ? 1 : 0) + (roleFilter !== "all" ? 1 : 0);
   const isSearching = search !== debouncedSearch;
   const roleFilterLabel = ROLE_FILTER_OPTIONS.find((opt) => opt.key === roleFilter)?.label;
+  const filteredCountLabel = hasActiveFilters
+    ? ` • ${(membersData?.count ?? 0).toLocaleString("pt-BR")} encontrados`
+    : "";
 
   const handleExportMembers = async () => {
     if (!groupId || isExporting) return;
@@ -390,7 +393,7 @@ const GroupMembers = () => {
   return (
     <AdminLayout 
       title="Membros" 
-      subtitle={`${(totalMembersCount ?? 0).toLocaleString("pt-BR")} membros${search.trim() ? ` • ${(membersData?.count ?? 0).toLocaleString("pt-BR")} encontrados` : ""}`}
+      subtitle={`${(totalMembersCount ?? 0).toLocaleString("pt-BR")} membros${filteredCountLabel}`}
     >
       <TooltipProvider>
         <div className="mx-auto max-w-[1480px] animate-fade-in space-y-6 bg-gradient-to-b from-background via-background to-info/5 pb-8 sm:pb-10">

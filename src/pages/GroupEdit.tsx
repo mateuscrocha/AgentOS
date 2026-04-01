@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { GroupPageTop } from "@/components/group-navigation/GroupPageTop";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -10,7 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -118,6 +122,29 @@ const AUTOMATION_LABELS: Record<AutomationKey, { name: string; description: stri
   },
 };
 
+async function getEdgeFunctionAuthHeaders() {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
+}
+
+async function normalizeEdgeFunctionError(error: any, fallbackMessage: string) {
+  let message = error?.message || fallbackMessage;
+
+  if (error instanceof FunctionsHttpError && (error as any).context) {
+    try {
+      const body = await (error as any).context.json();
+      if (body?.message) {
+        message = String(body.message);
+      }
+    } catch {
+      void 0;
+    }
+  }
+
+  return new Error(message);
+}
+
 const AUTOMATION_PANEL_KEYS: AutomationKey[] = [
   "welcome_message_enabled",
   "audio_transcription_enabled",
@@ -207,6 +234,20 @@ function toDbTime(value: string) {
   if (!normalized) return "19:00:00";
   return normalized.length === 5 ? `${normalized}:00` : normalized;
 }
+
+const SUMMARY_TIME_PRESETS = Array.from({ length: 48 }, (_, index) => {
+  const hours = String(Math.floor(index / 2)).padStart(2, "0");
+  const minutes = index % 2 === 0 ? "00" : "30";
+  const value = `${hours}:${minutes}`;
+  return { value, label: value };
+});
+
+const SUMMARY_TIME_GROUPS = [
+  { label: "Madrugada", values: SUMMARY_TIME_PRESETS.filter((option) => Number(option.value.slice(0, 2)) < 6) },
+  { label: "Manhã", values: SUMMARY_TIME_PRESETS.filter((option) => Number(option.value.slice(0, 2)) >= 6 && Number(option.value.slice(0, 2)) < 12) },
+  { label: "Tarde", values: SUMMARY_TIME_PRESETS.filter((option) => Number(option.value.slice(0, 2)) >= 12 && Number(option.value.slice(0, 2)) < 18) },
+  { label: "Noite", values: SUMMARY_TIME_PRESETS.filter((option) => Number(option.value.slice(0, 2)) >= 18) },
+] as const;
 
 function truncateText(value: string, limit = 220) {
   const text = value.trim();
@@ -577,13 +618,15 @@ export default function GroupEdit() {
 
   const runSummaryNowMutation = useMutation({
     mutationFn: async () => {
+      const headers = await getEdgeFunctionAuthHeaders();
       const { data, error } = await supabase.functions.invoke("generate-group-summary", {
         body: {
           groupId: groupId!,
           sendToGroup: false,
         },
+        headers,
       });
-      if (error) throw error;
+      if (error) throw await normalizeEdgeFunctionError(error, "Algo deu errado. Tente novamente.");
       return data as any;
     },
     onSuccess: (data) => {
@@ -599,13 +642,15 @@ export default function GroupEdit() {
 
   const sendSummaryNowMutation = useMutation({
     mutationFn: async () => {
+      const headers = await getEdgeFunctionAuthHeaders();
       const { data, error } = await supabase.functions.invoke("generate-group-summary", {
         body: {
           groupId: groupId!,
           sendToGroup: true,
         },
+        headers,
       });
-      if (error) throw error;
+      if (error) throw await normalizeEdgeFunctionError(error, "Algo deu errado. Tente novamente.");
       return data as any;
     },
     onSuccess: (data) => {
@@ -621,12 +666,14 @@ export default function GroupEdit() {
 
   const runTopicsNowMutation = useMutation({
     mutationFn: async () => {
+      const headers = await getEdgeFunctionAuthHeaders();
       const { data, error } = await supabase.functions.invoke("generate-group-topics-keywords", {
         body: {
           groupId: groupId!,
         },
+        headers,
       });
-      if (error) throw error;
+      if (error) throw await normalizeEdgeFunctionError(error, "Algo deu errado. Tente novamente.");
       return data as any;
     },
     onSuccess: (data) => {
@@ -740,6 +787,20 @@ export default function GroupEdit() {
     () => AUTOMATION_PANEL_KEYS.filter((key) => Boolean(automationsEnabled[key])).length,
     [automationsEnabled]
   );
+  const activeLiveAutomationsCount = useMemo(
+    () =>
+      AUTOMATION_PANEL_KEYS.filter(
+        (key) => Boolean(automationsEnabled[key]) && AUTOMATION_LABELS[key].availability === "live"
+      ).length,
+    [automationsEnabled]
+  );
+  const activePreparedAutomationsCount = useMemo(
+    () =>
+      AUTOMATION_PANEL_KEYS.filter(
+        (key) => Boolean(automationsEnabled[key]) && AUTOMATION_LABELS[key].availability === "prepared"
+      ).length,
+    [automationsEnabled]
+  );
 
   useEffect(() => {
     if (timezoneError || summaryTimeError) {
@@ -766,6 +827,21 @@ export default function GroupEdit() {
     if (status === "active") return { variant: "success" as const, label: "Ligado" };
     return { variant: "neutral" as const, label: "Pausado" };
   }, [status]);
+
+  const connectionStatusHint = useMemo(() => {
+    if (group?.sync_status === "error") {
+      return "A sincronização mais recente falhou. Revise o link do grupo e tente verificar novamente.";
+    }
+    if (!lastActivityAt) {
+      return "Ainda não encontramos atividade recente. Verifique o link do grupo para atualizar admins e conexão.";
+    }
+    const lastMsgDate = new Date(lastActivityAt);
+    const hoursSinceLastMsg = (Date.now() - lastMsgDate.getTime()) / (1000 * 60 * 60);
+    if (hoursSinceLastMsg > 48) {
+      return "O grupo está há mais de 48h sem novas mensagens. Vale confirmar se o link e a conexão continuam válidos.";
+    }
+    return "Conexão e atividade recentes parecem saudáveis neste grupo.";
+  }, [group?.sync_status, lastActivityAt]);
 
   if (authLoading || rolesLoading) {
     return (
@@ -851,7 +927,7 @@ export default function GroupEdit() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-medium text-card-foreground">Configurações para equipe técnica</div>
-                    <div className="text-xs text-muted-foreground">Idioma, fuso horário e horário do resumo.</div>
+                    <div className="text-xs text-muted-foreground">Idioma e fuso horário do grupo. O horário do resumo fica na seção de automações.</div>
                   </div>
                   <Button
                     type="button"
@@ -970,6 +1046,10 @@ export default function GroupEdit() {
             </div>
 
             <div className="mt-5 space-y-4">
+              <div className="rounded-[20px] border border-border/70 bg-secondary/10 px-4 py-3 text-sm text-muted-foreground">
+                {connectionStatusHint}
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
                 <div className="space-y-2">
                   <label htmlFor="group-invite-link" className="text-xs font-medium text-muted-foreground">Link de convite</label>
@@ -1017,7 +1097,9 @@ export default function GroupEdit() {
 
                 {showWhatsAppAdmins ? (
                   orderedSpecialMembers.length === 0 ? (
-                    <div className="mt-3 text-sm text-muted-foreground">Sem funções especiais configuradas.</div>
+                    <div className="mt-3 text-sm text-muted-foreground">
+                      Nenhum admin foi detectado na última verificação. Revise o link e use "Verificar grupo" para atualizar esta lista.
+                    </div>
                   ) : (
                     <div className="mt-3 space-y-2">
                       {orderedSpecialMembers.map((m) => {
@@ -1129,6 +1211,17 @@ export default function GroupEdit() {
                     </Button>
                   </div>
                 </div>
+                <div className="mt-3 grid grid-cols-1 gap-2 text-[11px] text-muted-foreground sm:grid-cols-3">
+                  <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2">
+                    <span className="font-medium text-foreground">Gerar resumo agora</span> cria uma leitura para revisão interna sem publicar no grupo.
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2">
+                    <span className="font-medium text-foreground">Enviar resumo no grupo</span> gera e publica o resumo imediatamente, mesmo fora do horário automático.
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2">
+                    <span className="font-medium text-foreground">Gerar tópicos/keywords agora</span> atualiza a leitura analítica sem enviar mensagem no grupo.
+                  </div>
+                </div>
               </div>
 
               <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-4">
@@ -1141,6 +1234,28 @@ export default function GroupEdit() {
                     <span className="font-semibold text-foreground">{activeAutomationsCount}</span>
                     <span>{activeAutomationsCount === 1 ? "automação ativa" : "automações ativas"}</span>
                   </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div className="rounded-[20px] border border-border/70 bg-background/80 px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ativas agora</div>
+                    <div className="mt-1 text-2xl font-semibold text-foreground">{activeAutomationsCount}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Total de rotinas ligadas neste grupo.</div>
+                  </div>
+                  <div className="rounded-[20px] border border-success/20 bg-success/5 px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-success">Ao vivo</div>
+                    <div className="mt-1 text-2xl font-semibold text-foreground">{activeLiveAutomationsCount}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Já podem rodar operacionalmente no backend.</div>
+                  </div>
+                  <div className="rounded-[20px] border border-warning/25 bg-warning/5 px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-warning">Preparadas</div>
+                    <div className="mt-1 text-2xl font-semibold text-foreground">{activePreparedAutomationsCount}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Configuradas no grupo, mas ainda sem rotina conectada.</div>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-[20px] border border-border/70 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
+                  Ligue primeiro o que precisa rodar no dia a dia, ajuste o horário do resumo quando necessário e deixe as ações manuais para testes ou disparos pontuais.
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-3">
@@ -1185,17 +1300,41 @@ export default function GroupEdit() {
                             {key === "daily_summary_enabled" ? (
                               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="space-y-2">
-                                  <label htmlFor="group-summary-time" className="text-xs font-medium text-muted-foreground">Horário do resumo (aprox.)</label>
-                                  <Input
-                                    id="group-summary-time"
-                                    value={summaryTime}
-                                    onChange={(e) => setSummaryTime(e.target.value)}
-                                    placeholder="08:00"
-                                    className={cn("h-11 rounded-xl", summaryTimeError ? "border-destructive focus-visible:ring-destructive/30" : "")}
-                                    aria-invalid={!!summaryTimeError}
-                                    aria-describedby={summaryTimeError ? "group-summary-time-error" : undefined}
-                                  />
-                                  <div className="text-[11px] text-muted-foreground">Define o horário aproximado da geração diária. Se esta opção estiver ligada, o resumo também será enviado no grupo.</div>
+                                  <label htmlFor="group-summary-time" className="text-xs font-medium text-muted-foreground">Horário do resumo</label>
+                                  <Select value={summaryTime} onValueChange={setSummaryTime}>
+                                    <SelectTrigger
+                                      id="group-summary-time"
+                                      className={cn("h-11 rounded-xl", summaryTimeError ? "border-destructive focus-visible:ring-destructive/30" : "")}
+                                      aria-invalid={!!summaryTimeError}
+                                      aria-describedby={summaryTimeError ? "group-summary-time-error" : undefined}
+                                    >
+                                      <SelectValue placeholder="Selecione um horário" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-2xl border-slate-200/90 bg-white">
+                                      {!SUMMARY_TIME_PRESETS.some((option) => option.value === summaryTime) && summaryTime ? (
+                                        <>
+                                          <SelectGroup>
+                                            <SelectLabel>Atual</SelectLabel>
+                                            <SelectItem value={summaryTime}>
+                                              {summaryTime} (personalizado)
+                                            </SelectItem>
+                                          </SelectGroup>
+                                          <SelectSeparator />
+                                        </>
+                                      ) : null}
+                                      {SUMMARY_TIME_GROUPS.map((group) => (
+                                        <SelectGroup key={group.label}>
+                                          <SelectLabel>{group.label}</SelectLabel>
+                                          {group.values.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                              {option.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectGroup>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <div className="text-[11px] text-muted-foreground">Escolha um horário em intervalos de 30 minutos. Se esta opção estiver ligada, o resumo também será enviado no grupo.</div>
                                   {summaryTimeError ? <div id="group-summary-time-error" className="text-[11px] text-destructive">{summaryTimeError}</div> : null}
                                 </div>
                               </div>
