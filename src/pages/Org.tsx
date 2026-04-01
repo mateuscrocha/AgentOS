@@ -1759,7 +1759,7 @@ const Org = () => {
     },
     {
       id: "contact",
-      title: hasPrimaryContactData ? "Contato principal revisado" : "Revisar contato principal",
+      title: hasPrimaryContactData ? "Contato principal revisado" : "Cadastrar contato principal",
       description: hasPrimaryContactData
         ? "A organizacao ja tem um contato de referencia para suporte e billing."
         : "Cadastre um contato oficial para centralizar suporte e comunicacao comercial.",
@@ -3087,8 +3087,27 @@ const Org = () => {
                       </div>
 
                       {supportNowFilteredItems.length === 0 ? (
-                        <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                          Nenhum grupo encontrado para esse recorte da operação ao vivo.
+                        <div className="px-4 py-6">
+                          <EmptyState
+                            icon={Headset}
+                            title={(supportNowFilter !== "all" || supportNowSearch.trim()) ? "Nenhum grupo nesta triagem" : "Nenhum grupo monitorado agora"}
+                            message={
+                              (supportNowFilter !== "all" || supportNowSearch.trim())
+                                ? `Nenhum grupo corresponde à busca e à triagem atuais${supportNowSearch.trim() ? ` para "${supportNowSearch.trim()}"` : ""}.`
+                                : "Ainda não há grupos suficientes nesta operação ao vivo para montar a fila."
+                            }
+                            action={
+                              (supportNowFilter !== "all" || supportNowSearch.trim())
+                                ? {
+                                    label: "Limpar triagem",
+                                    onClick: () => {
+                                      setSupportNowFilter("all");
+                                      setSupportNowSearch("");
+                                    },
+                                  }
+                                : undefined
+                            }
+                          />
                         </div>
                       ) : (
                         <div className="max-h-[560px] overflow-auto">

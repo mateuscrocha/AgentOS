@@ -143,7 +143,7 @@ const SUPPORT_KPI_CARD = "rounded-[26px] shadow-subtle";
 const SUPPORT_KPI_VALUE = "text-2xl sm:text-3xl";
 
 function formatRelativeMinutes(ms: number | null) {
-  if (!ms || !Number.isFinite(ms)) return "N/A";
+  if (!ms || !Number.isFinite(ms)) return "Sem leitura";
   const minutes = Math.round(ms / 60000);
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);

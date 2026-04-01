@@ -648,6 +648,14 @@ export default function SystemOrganizations() {
                   const activity24h = org.activity_24h ?? 0;
                   const relationshipMeta = getRelationshipTypeMeta(org.relationship_type);
                   const billingMeta = getBillingStatusMeta(org.billing_status);
+                  const nextActionLabel =
+                    groupsCount === 0
+                      ? "Conectar o primeiro grupo"
+                      : org.billing_status === "past_due" || org.billing_status === "unpaid" || org.billing_status === "overdue"
+                        ? "Revisar billing antes de tudo"
+                        : activity24h > 0
+                          ? "Abrir a operação desta organização"
+                          : "Revisar grupos e contato principal";
                   return (
                     <li key={org.id} className="rounded-[24px] border border-border/70 bg-card/95 p-4 shadow-subtle transition-colors hover:bg-secondary/20">
                       <div className="flex items-start justify-between gap-3">
@@ -681,6 +689,10 @@ export default function SystemOrganizations() {
                               <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Criada em</div>
                               <div className="mt-1 text-sm font-semibold text-card-foreground">{formatDateSimpleBR(org.created_at)}</div>
                             </div>
+                          </div>
+                          <div className="mt-3 rounded-2xl border border-primary/15 bg-primary/[0.05] px-3 py-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">Próxima ação</div>
+                            <div className="mt-1 text-sm font-medium text-card-foreground">{nextActionLabel}</div>
                           </div>
                           <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
                             <span>Abrir organização</span>

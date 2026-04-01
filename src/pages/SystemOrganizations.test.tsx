@@ -226,14 +226,13 @@ describe("SystemOrganizations page", () => {
     hookState = createHookState();
   });
 
-  it("expõe filtro de suspensas e atualiza página ao paginar", async () => {
+  it("expõe ordenação da lista e atualiza página ao paginar", async () => {
     const { container, root } = await renderPage();
 
-    expect(container.textContent).not.toContain("Suspensas:0");
-    const statusSelect = Array.from(container.querySelectorAll("select")).find((s) =>
-      Array.from(s.options).some((o) => o.value === "suspended"),
+    const sortSelect = Array.from(container.querySelectorAll("select")).find((s) =>
+      Array.from(s.options).some((o) => o.value === "created_at:asc"),
     );
-    expect(statusSelect).toBeTruthy();
+    expect(sortSelect).toBeTruthy();
 
     const nextBtn = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "next-page");
     await act(async () => {
@@ -328,17 +327,37 @@ describe("SystemOrganizations page", () => {
     container.remove();
   });
 
-  it("mostra erro contextual ao falhar alteração de status por permissão", async () => {
-    mutateAsyncMock.mockRejectedValueOnce({ code: "42501", message: "new row violates policy" });
+  it("mostra erro contextual ao falhar exclusão em cascata por permissão", async () => {
+    functionsInvokeMock.mockRejectedValueOnce({ message: "forbidden" });
     const { container, root } = await renderPage();
 
-    const statusButton = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Desativar");
     await act(async () => {
-      statusButton?.click();
+      const deleteButton = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Excluir organização");
+      deleteButton?.click();
       await flush();
     });
 
-    expect(notifyMock.error).toHaveBeenCalledWith("Sem permissão", "Você não tem permissão para concluir esta ação.");
+    const confirmInput = container.querySelector("#confirm-cascade-name") as HTMLInputElement | null;
+    expect(confirmInput).toBeTruthy();
+
+    await act(async () => {
+      if (confirmInput) {
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+        setValue?.call(confirmInput, "Org 1");
+        confirmInput.dispatchEvent(new Event("input", { bubbles: true }));
+        confirmInput.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      await flush();
+    });
+
+    const confirmButton = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Excluir");
+    expect(confirmButton?.hasAttribute("disabled")).toBe(false);
+    await act(async () => {
+      confirmButton?.click();
+      await flush();
+    });
+
+    expect(notifyMock.error).toHaveBeenCalledWith("Acesso negado", "Apenas admins do sistema podem excluir organizações.");
 
     await act(async () => root.unmount());
     container.remove();
