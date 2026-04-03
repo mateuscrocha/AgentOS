@@ -449,7 +449,7 @@ DenoRef.test("generate-group-summary registra alerta sistêmico quando a OpenAI 
   assertEquals(eventInserts.length, 1);
   assertEquals(eventInserts[0].event_type, "OPENAI_BILLING_ALERT");
   assertEquals(eventInserts[0].entity_type, "system");
-  assertEquals(eventInserts[0].entity_id, "openai-billing");
+  assertEquals(eventInserts[0].entity_id, "00000000-0000-0000-0000-000000000001");
   assertEquals(eventInserts[0].metadata.group_name, "Comunidade Auto Mate +");
   assertEquals(eventInserts[0].metadata.operation, "generate-group-summary");
   assertEquals(eventInserts[0].metadata.status, 429);

@@ -187,8 +187,10 @@ export function AdminSidebar() {
   const gruposHref = useMemo(() => {
     if (isSystemAdmin) return "/system/groups";
     if (orgIdForNavigation) return `/organization/${orgIdForNavigation}/groups`;
-    return "/";
-  }, [isSystemAdmin, orgIdForNavigation]);
+    if (currentGroupId) return `/groups/${currentGroupId}`;
+    if (groupIdFallback) return `/groups/${groupIdFallback}`;
+    return painelHref;
+  }, [currentGroupId, groupIdFallback, isSystemAdmin, orgIdForNavigation, painelHref]);
   const minhaOrganizacaoHref = useMemo(() => {
     if (!orgIdForNavigation) return null;
     return `/organization/${orgIdForNavigation}/dashboard`;
@@ -367,13 +369,13 @@ export function AdminSidebar() {
       <SidebarHeader className="p-2">
         <div className="flex items-center gap-2 rounded-[var(--radius-lg)] border border-transparent px-2 py-2">
           <a
-            href="/"
+            href={painelHref}
             onClick={(event) => {
               if (event.defaultPrevented) return;
               if (event.button !== 0) return;
               if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
               event.preventDefault();
-              navigate("/");
+              navigate(painelHref);
             }}
             className="flex min-w-0 items-center gap-2 rounded-[var(--radius-md)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >

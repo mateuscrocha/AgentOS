@@ -53,6 +53,33 @@ const INITIAL_VALUES: PublicOnboardingFormValues = {
   inviteLink: "",
 };
 
+const TEST_ONBOARDING_PRESETS: Record<string, PublicOnboardingFormValues> = {
+  agatha: {
+    fullName: "Agatha Martins",
+    organizationName: "CAMP/COTI",
+    email: "agatha@sintetizo.com.br",
+    whatsappPhone: "+55 31 8738-0055",
+    password: "Senha!12345",
+    confirmPassword: "Senha!12345",
+    inviteLink: "https://chat.whatsapp.com/BjITDHtNtzVDf2hahj42SH?mode=gi_t",
+  },
+};
+
+function readQueryPrefill(params: URLSearchParams): Partial<PublicOnboardingFormValues> {
+  const presetKey = (params.get("prefill") || "").trim().toLowerCase();
+  const preset = presetKey ? TEST_ONBOARDING_PRESETS[presetKey] : undefined;
+
+  return {
+    fullName: params.get("full_name") || preset?.fullName || "",
+    organizationName: params.get("organization_name") || preset?.organizationName || "",
+    email: params.get("email") || preset?.email || "",
+    whatsappPhone: params.get("whatsapp_phone") || preset?.whatsappPhone || "",
+    password: params.get("password") || preset?.password || "",
+    confirmPassword: params.get("confirm_password") || preset?.confirmPassword || params.get("password") || preset?.password || "",
+    inviteLink: params.get("invite_link") || preset?.inviteLink || "",
+  };
+}
+
 type OnboardingStep = {
   id: "profile" | "access" | "group";
   title: string;
@@ -124,6 +151,17 @@ function parseOnboardingErrorDetails(message: string) {
       title: "O Bóris ainda não está nesse grupo",
       description: "Para concluir o cadastro, o Bóris precisa já estar presente no grupo do WhatsApp.",
       guidance: "Adicione o Bóris ao grupo, gere um novo link de convite e tente novamente.",
+      actionLabel: "Trocar link do grupo",
+      code,
+    };
+  }
+
+  if (/GROUP_METADATA_FORBIDDEN/i.test(trimmed) || /bóris.*não.*conseguiu acessar/i.test(cleanMessage) || /não conseguiu acessar os dados/i.test(cleanMessage)) {
+    return {
+      tone: "warning" as const,
+      title: "O Bóris ainda não está nesse grupo",
+      description: "Encontramos o grupo, mas o Bóris ainda não entrou nele.",
+      guidance: "Adicione o Bóris ao grupo e tente novamente em instantes.",
       actionLabel: "Trocar link do grupo",
       code,
     };
@@ -261,19 +299,21 @@ export default function Onboarding() {
     const pendingDraft = readPendingOnboardingDraft();
     const params = new URLSearchParams(location.search);
     const onboardingError = params.get("onboarding_error");
-    const prefilledEmail = params.get("email");
+    const queryPrefill = readQueryPrefill(params);
 
-    if (!pendingDraft && !onboardingError && !prefilledEmail && !user?.email) {
+    if (!pendingDraft && !onboardingError && !Object.values(queryPrefill).some(Boolean) && !user?.email) {
       return;
     }
 
     setValues((current) => ({
       ...current,
-      fullName: current.fullName || pendingDraft?.fullName || "",
-      organizationName: current.organizationName || pendingDraft?.organizationName || "",
-      email: current.email || user?.email || prefilledEmail || pendingDraft?.email || "",
-      whatsappPhone: current.whatsappPhone || pendingDraft?.whatsappPhone || "",
-      inviteLink: current.inviteLink || pendingDraft?.inviteLink || "",
+      fullName: current.fullName || queryPrefill.fullName || pendingDraft?.fullName || "",
+      organizationName: current.organizationName || queryPrefill.organizationName || pendingDraft?.organizationName || "",
+      email: current.email || user?.email || queryPrefill.email || pendingDraft?.email || "",
+      whatsappPhone: current.whatsappPhone || queryPrefill.whatsappPhone || pendingDraft?.whatsappPhone || "",
+      password: current.password || queryPrefill.password || "",
+      confirmPassword: current.confirmPassword || queryPrefill.confirmPassword || "",
+      inviteLink: current.inviteLink || queryPrefill.inviteLink || pendingDraft?.inviteLink || "",
     }));
 
     if (onboardingError) {

@@ -223,12 +223,10 @@ DenoRef.test("run-group-ai-daily-jobs gera resumo e topicos para todo grupo no m
   const res = await runtimeHandler(makeReq());
   const body = await res.json();
   assertEquals(res.status, 200);
-  assertEquals(body.matchedGroups, 2);
+  assertEquals(body.matchedGroups, 1);
   assertEquals(body.currentTime, "13:30");
-  assertEquals(openAiCalls.length, 6);
+  assertEquals(openAiCalls.length, 3);
   assertEquals(zapiCalls.length, 1);
   assertEquals(body.results[0].topicsKeywords.ok, true);
   assertEquals(body.results[0].summary.payload.sentToGroup, true);
-  assertEquals(body.results[1].topicsKeywords.ok, true);
-  assertEquals(body.results[1].summary.payload.sentToGroup, false);
 });

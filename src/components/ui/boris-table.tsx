@@ -41,6 +41,7 @@ interface BorisTableProps<T> {
   data: T[];
   keyExtractor: (item: T) => string;
   onRowClick?: (item: T) => void;
+  rowHref?: (item: T) => string | undefined;
   page?: number;
   pageSize?: number;
   totalCount?: number;
@@ -82,6 +83,7 @@ export function BorisTable<T>({
   data,
   keyExtractor,
   onRowClick,
+  rowHref,
   page = 1,
   pageSize = 10,
   totalCount,
@@ -153,6 +155,15 @@ export function BorisTable<T>({
     }
 
     updateSortState(null);
+  };
+
+  const openRowHref = (href: string, target: "_self" | "_blank") => {
+    if (typeof window === "undefined") return;
+    if (target === "_blank") {
+      window.open(href, "_blank", "noopener,noreferrer");
+      return;
+    }
+    window.location.assign(href);
   };
 
   if (loading) {
@@ -241,7 +252,28 @@ export function BorisTable<T>({
             {sortedData.map((item, index) => (
               <tr
                 key={keyExtractor(item)}
-                onClick={() => onRowClick?.(item)}
+                onClick={(e) => {
+                  if (isInteractiveTarget(e.target, e.currentTarget)) return;
+
+                  const href = rowHref?.(item);
+                  if (href && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    openRowHref(href, "_blank");
+                    return;
+                  }
+
+                  onRowClick?.(item);
+                }}
+                onAuxClick={(e) => {
+                  if (e.button !== 1) return;
+                  if (isInteractiveTarget(e.target, e.currentTarget)) return;
+
+                  const href = rowHref?.(item);
+                  if (!href) return;
+
+                  e.preventDefault();
+                  openRowHref(href, "_blank");
+                }}
                 onKeyDown={(e) => {
                   if (!onRowClick) return;
                   if (isInteractiveTarget(e.target, e.currentTarget)) return;

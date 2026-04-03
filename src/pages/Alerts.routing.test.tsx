@@ -162,7 +162,7 @@ async function renderAlerts(initialPath: string) {
 
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={[initialPath]}>
+      <MemoryRouter initialEntries={[initialPath]} future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
         <Routes>
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/system/alerts" element={<Alerts />} />

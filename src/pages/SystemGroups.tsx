@@ -5,11 +5,18 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
 import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, SlidersHorizontal, Users, CheckCircle, XCircle, BarChart3 } from "lucide-react";
+import {
+  BarChart3,
+  Building2,
+  CheckCircle,
+  Loader2,
+  SlidersHorizontal,
+  Users,
+  XCircle,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,7 +51,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { notify } from "@/components/ui/sonner";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { formatDateSimpleBR, formatDateTickBR } from "@/lib/date";
 import { notifyActionError } from "@/lib/notify-action-error";
 import { SendGroupMessageDialog } from "@/components/modals/SendGroupMessageDialog";
@@ -508,8 +515,23 @@ export default function SystemGroups() {
       sortable: true,
       sortValue: (g: GroupRow) => g.name || "",
       render: (g: GroupRow) => (
-        <div className="min-w-0 max-w-[18rem] lg:max-w-[22rem]">
-          <div className="truncate text-sm font-semibold text-foreground">{g.name || "—"}</div>
+        <div className="min-w-0 max-w-[18rem] lg:max-w-[22rem] space-y-2">
+          <Link
+            to={`/groups/${g.id}`}
+            className="block truncate text-sm font-semibold text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring rounded-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {g.name || "—"}
+          </Link>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/70 bg-amber-50/80 px-2 py-0.5 text-amber-800">
+              <Building2 className="h-3 w-3" />
+              {g.organizations?.name || "Sem organização"}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5">
+              {typeof g.members_count === "number" ? g.members_count.toLocaleString("pt-BR") : "—"} membros
+            </span>
+          </div>
         </div>
       ),
     },
@@ -565,10 +587,22 @@ export default function SystemGroups() {
       sortable: true,
       render: (g: GroupRow) => {
         const count = g.activity_24h ?? 0;
+        const barWidth = Math.max(10, Math.min(100, count === 0 ? 10 : count));
         return (
-          <span className={count > 0 ? "text-sm font-semibold text-foreground" : "text-sm text-muted-foreground"}>
-            {count.toLocaleString("pt-BR")} msg{count === 1 ? "" : "s"}
-          </span>
+          <div className="min-w-[10rem]">
+            <div className="flex items-center justify-between gap-3">
+              <span className={count > 0 ? "text-sm font-semibold text-foreground" : "text-sm text-muted-foreground"}>
+                {count.toLocaleString("pt-BR")} msg{count === 1 ? "" : "s"}
+              </span>
+              <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">24h</span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-amber-100/80">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-amber-400 via-orange-400 to-amber-600"
+                style={{ width: `${barWidth}%` }}
+              />
+            </div>
+          </div>
         );
       },
     },
@@ -718,72 +752,63 @@ export default function SystemGroups() {
     return chips;
   })();
 
+  const visibleGroups = groupsData?.items ?? [];
+  const totalGroups = overview?.total ?? 0;
+  const activeGroups = overview?.active ?? 0;
+  const inactiveGroups = overview?.inactive ?? 0;
+  const averageMembers = overview?.avgMembers ?? 0;
+  const visibleActivity24h = visibleGroups.reduce((sum, group) => sum + (group.activity_24h ?? 0), 0);
+
   return (
     <AdminLayout title="Grupos" subtitle="Central de Comando › Grupos">
       <div className="mx-auto max-w-[1480px] space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Grupos" }]}
           title="Grupos"
-          description="Visão operacional da base de grupos conectados ao Bóris, com filtros, status e ações administrativas."
+          description="Visão operacional da base de grupos conectados ao Bóris, com foco nos indicadores principais e na lista de gestão."
+          actions={(
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <Button onClick={() => refetch()}>
+                Atualizar dados
+              </Button>
+            </div>
+          )}
           generalKpis={(
             <>
-              <StatsCard
-                title="Total"
-                value={overview?.total?.toLocaleString("pt-BR") ?? "—"}
-                icon={Users}
-                variant="kpi"
-                isLoading={overviewLoading}
-                numericValue
-                help={{
-                  whatIs: "Quantidade total de grupos cadastrados no sistema (considerando os filtros da tela, quando aplicável).",
-                  howToInterpret: "Mostra o tamanho da base de grupos monitorados.",
-                  whatToObserve: "Compare com ‘Ativos’ e ‘Inativos’ para entender a distribuição do status dos grupos.",
-                }}
-              />
-              <StatsCard
-                title="Ativos"
-                value={overview?.active?.toLocaleString("pt-BR") ?? "—"}
-                icon={CheckCircle}
-                variant="kpi"
-                isLoading={overviewLoading}
-                numericValue
-                help={{
-                  whatIs: "Quantidade de grupos com status ativo.",
-                  howToInterpret: "Representa grupos habilitados/operando normalmente na base.",
-                  whatToObserve: "Acompanhe a proporção sobre o total e mudanças após ações operacionais.",
-                }}
-              />
-              <StatsCard
-                title="Inativos"
-                value={overview?.inactive?.toLocaleString("pt-BR") ?? "—"}
-                icon={XCircle}
-                variant="kpi"
-                isLoading={overviewLoading}
-                numericValue
-                help={{
-                  whatIs: "Quantidade de grupos com status inativo.",
-                  howToInterpret: "Mostra grupos desativados ou fora de operação no cadastro do sistema.",
-                  whatToObserve: "Observe tendência de crescimento e se há concentração em alguma organização.",
-                }}
-              />
-              <StatsCard
-                title="Média de membros"
-                value={overviewLoading ? "—" : (overview?.avgMembers ?? 0).toLocaleString("pt-BR")}
-                icon={BarChart3}
-                variant="kpi"
-                isLoading={overviewLoading}
-                numericValue
-                help={{
-                  whatIs: "Número médio de membros por grupo na base atual.",
-                  howToInterpret: "Ajuda a entender o porte médio dos grupos, sem depender apenas de casos extremos.",
-                  whatToObserve: "Compare com atividade para distinguir grupos grandes pouco ativos de grupos menores mais engajados.",
-                }}
-              />
+              <div className="rounded-[24px] border border-amber-200/70 bg-[linear-gradient(180deg,rgba(255,251,235,0.95),rgba(255,255,255,1))] p-4 shadow-[0_18px_40px_-30px_rgba(120,53,15,0.22)]">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-800">Total</div>
+                <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{totalGroups.toLocaleString("pt-BR")}</div>
+                <div className="mt-2 text-sm text-slate-600">grupos cadastrados na base</div>
+              </div>
+              <div className="rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.12)]">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+                  Ativos
+                </div>
+                <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{activeGroups.toLocaleString("pt-BR")}</div>
+                <div className="mt-2 text-sm text-slate-600">operando normalmente</div>
+              </div>
+              <div className="rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.12)]">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <XCircle className="h-3.5 w-3.5 text-rose-500" />
+                  Inativos
+                </div>
+                <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{inactiveGroups.toLocaleString("pt-BR")}</div>
+                <div className="mt-2 text-sm text-slate-600">fora de operação</div>
+              </div>
+              <div className="rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.12)]">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <BarChart3 className="h-3.5 w-3.5 text-amber-600" />
+                  Atividade 24h
+                </div>
+                <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{visibleActivity24h.toLocaleString("pt-BR")}</div>
+                <div className="mt-2 text-sm text-slate-600">mensagens no recorte atual</div>
+              </div>
             </>
           )}
         />
 
-        <div className="rounded-[28px] border border-slate-200/90 bg-white p-3 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.3)] sm:p-4">
+        <section className="rounded-[30px] border border-slate-200/80 bg-white/95 p-3 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.25)] sm:p-4">
           <FilterBarRow
             desktopFilters={filtersForm}
             mobileTrigger={(
@@ -796,7 +821,7 @@ export default function SystemGroups() {
             )}
             rightActions={hasActiveFilters ? (
               <>
-                <Badge variant="secondary" className="h-6 px-2.5 text-[11px]">
+                <Badge variant="secondary" className="h-6 border-amber-200 bg-amber-50 px-2.5 text-[11px] text-amber-900">
                   {activeFiltersCount} filtro{activeFiltersCount > 1 ? "s" : ""} ativo{activeFiltersCount > 1 ? "s" : ""}
                 </Badge>
                 <Button variant="ghost" size="sm" onClick={handleClearFilters}>
@@ -816,7 +841,7 @@ export default function SystemGroups() {
               }))}
             />
           )}
-        </div>
+        </section>
 
         <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
           <DrawerContent className="border-border bg-card">
@@ -849,7 +874,7 @@ export default function SystemGroups() {
           </DrawerContent>
         </Drawer>
 
-        <div className="rounded-[28px] border border-slate-200/90 bg-white p-4 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.3)] sm:p-5">
+        <section className="rounded-[32px] border border-slate-200/80 bg-white p-4 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.28)] sm:p-5">
           <ListSectionHeader
             title="Lista de grupos"
             count={typeof groupsData?.count === "number" ? groupsData.count.toLocaleString("pt-BR") : "—"}
@@ -895,21 +920,22 @@ export default function SystemGroups() {
                 return (
                   <div
                     key={g.id}
-                    className="cursor-pointer rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-4 shadow-subtle transition-colors hover:bg-secondary/20"
+                    className="cursor-pointer rounded-[26px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.96))] p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] transition-all hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-[0_24px_44px_-34px_rgba(120,53,15,0.35)]"
                     onClick={() => navigate(`/groups/${g.id}`)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-base font-semibold tracking-[-0.02em] text-foreground">{g.name || "—"}</div>
+                        <div className="truncate text-base font-semibold tracking-[-0.025em] text-slate-950">{g.name || "—"}</div>
                         <button
                           type="button"
-                          className="mt-1 truncate text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-4"
+                          className="mt-1 inline-flex max-w-full items-center gap-1 truncate text-sm text-slate-500 hover:text-slate-950 hover:underline underline-offset-4"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (g.organization_id) navigate(`/organization/${g.organization_id}/dashboard`);
                           }}
                           aria-label={g.organizations?.name ? `Abrir organização ${g.organizations.name}` : "Abrir organização"}
                         >
+                          <Building2 className="h-3.5 w-3.5 shrink-0" />
                           {g.organizations?.name || "—"}
                         </button>
                       </div>
@@ -921,15 +947,38 @@ export default function SystemGroups() {
                       </div>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-semibold tabular-nums text-foreground">{membersLabel}</span>
-                        <span> membros · </span>
-                        <span className={activity24h > 0 ? "font-medium text-foreground" : undefined}>
-                          {activity24hLabel}
+                    <div className="mt-4 grid gap-3 rounded-[20px] border border-slate-200/80 bg-white/80 p-3 text-sm text-slate-600">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Porte</div>
+                          <div className="mt-1">
+                            <span className="font-semibold tabular-nums text-slate-950">{membersLabel}</span>
+                            <span> membros</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Atividade</div>
+                          <div className={activity24h > 0 ? "mt-1 font-medium text-slate-950" : "mt-1"}>
+                            {activity24hLabel}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-amber-100">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500"
+                          style={{ width: `${Math.max(10, Math.min(100, activity24h === 0 ? 10 : activity24h))}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className={getLastActivityTone(g.last_message_at) === "attention" ? "text-amber-800" : "text-slate-500"}>
+                          Última atividade: {g.last_message_at ? formatDateTickBR(g.last_message_at) : "sem registro recente"}
+                        </span>
+                        <span className="text-slate-400">
+                          Criado em {g.created_at ? formatDateSimpleBR(g.created_at) : "—"}
                         </span>
                       </div>
-
+                    </div>
+                    <div className="mt-3 flex items-center justify-end">
                       <StatusTag variant={getStatusVariant(g.status)} className="sm:hidden">
                         {getStatusLabel(g.status)}
                       </StatusTag>
@@ -947,6 +996,7 @@ export default function SystemGroups() {
             data={groupsData?.items ?? []}
             keyExtractor={(g) => g.id}
             onRowClick={(g) => navigate(`/groups/${g.id}`)}
+            rowHref={(g) => `/groups/${g.id}`}
             page={page}
             pageSize={PAGE_SIZE}
             totalCount={groupsData?.count}
@@ -966,7 +1016,7 @@ export default function SystemGroups() {
             emptyMessage={hasActiveFilters ? "Nenhum grupo com esses filtros." : "Ainda não há grupos cadastrados."}
           />
         </div>
-        </div>
+        </section>
 
         <AlertDialog open={!!removeGroup} onOpenChange={(open) => !open && setRemoveGroup(null)}>
           <AlertDialogContent className="border-border bg-card">

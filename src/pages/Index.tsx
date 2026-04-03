@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
-import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
 import { ConnectionStatus } from "@/components/dashboard/ConnectionStatus";
 import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
@@ -269,7 +268,7 @@ const Index = () => {
       .select("id, created_at, event_type, entity_type, entity_id, metadata")
       .eq("event_type", "OPENAI_BILLING_ALERT")
       .eq("entity_type", "system")
-      .eq("entity_id", "openai-billing")
+      .eq("entity_id", "00000000-0000-0000-0000-000000000001")
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(5);
@@ -779,62 +778,8 @@ const Index = () => {
     },
   ];
   const topGroupHeadline = pulse24h?.topGroups?.[0] ?? null;
-  const dashboardRadarCards = [
-    {
-      label: "Pulso de 24h",
-      value: pulseSummaryLoading ? "—" : pulseSummaryError ? "Erro" : formatNumberBR(pulseMeta.totalMessages),
-      detail: "mensagens recentes captadas",
-    },
-    {
-      label: "Organizações em 30d",
-      value: kpiOrgsPeriodLoading ? "—" : kpiOrgsPeriodError ? "Erro" : formatNumberBR(kpiOrgsPeriod ?? 0),
-      detail: "com atividade recente no período",
-    },
-    {
-      label: "Grupo dominante",
-      value: pulseSummaryLoading ? "—" : pulseSummaryError ? "Indisponível" : topGroupHeadline?.name || "Sem destaque",
-      detail: pulseSummaryLoading || pulseSummaryError
-        ? "sem leitura comparativa"
-        : `${formatNumberBR(Number(topGroupHeadline?.count ?? 0))} mensagens no topo do ranking`,
-    },
-  ];
-  const kpiSignalStrip = [
-    {
-      label: "Mensagens 30d",
-      value: kpiMessagesLoading ? "Calculando" : messagesChangeLabel,
-      tone: messagesChangeType,
-    },
-    {
-      label: "Membros ativos",
-      value: kpiActiveMembersLoading ? "Calculando" : activeMembersChange.label,
-      tone: activeMembersChange.type,
-    },
-    {
-      label: "Participação",
-      value: kpiActiveMembersLoading || kpiMembersLoading ? "Calculando" : participationChange.label,
-      tone: participationChange.type,
-    },
-  ];
-
   const mainKpis = (
     <>
-      <StatsCard
-        title="Mensagens totais"
-        value={systemTotalsError ? "Erro" : String(systemTotals?.messages ?? 0)}
-        isLoading={systemTotalsLoading}
-        icon={MessageSquare}
-        help={{
-          whatIs: "Total acumulado de mensagens registradas em toda a base do sistema.",
-          howToInterpret: "É um indicador histórico/cumulativo. Tende a crescer continuamente com o uso.",
-          whatToObserve: "Use junto de ‘Mensagens (30d)’ para diferenciar tamanho da base de ritmo recente.",
-        }}
-        description="Mensagens acumuladas na base"
-        variant="kpi"
-        className="bg-card"
-        titleClassName="text-muted-foreground/80"
-        valueClassName="font-mono"
-        numericValue
-      />
       <StatsCard
         title="Mensagens (30d)"
         value={kpiMessagesError ? "Erro" : String(kpiMessagesPeriod ?? 0)}
@@ -893,33 +838,18 @@ const Index = () => {
         numericValue
       />
       <StatsCard
-        title="Organizações"
-        value={systemTotalsError ? "Erro" : String(systemTotals?.organizations ?? 0)}
-        isLoading={systemTotalsLoading}
+        title="Organizações ativas (30d)"
+        value={kpiOrgsPeriodError ? "Erro" : String(kpiOrgsPeriod ?? 0)}
+        isLoading={kpiOrgsPeriodLoading}
+        change={kpiOrgsPeriodLoading ? undefined : orgsChange.label}
+        changeType={orgsChange.type}
         icon={Activity}
         help={{
-          whatIs: "Quantidade total de organizações cadastradas no Bóris.",
-          howToInterpret: "Mostra a escala da base de organizações na plataforma.",
-          whatToObserve: "Compare com grupos para acompanhar expansão estrutural.",
+          whatIs: "Organizações com atividade no período analisado.",
+          howToInterpret: "Mostra o alcance operacional recente do sistema.",
+          whatToObserve: "Use junto de mensagens e participação para avaliar profundidade do uso.",
         }}
-        description="Quantidade total de organizações"
-        variant="kpi"
-        className="bg-card"
-        titleClassName="text-muted-foreground/80"
-        valueClassName="font-mono"
-        numericValue
-      />
-      <StatsCard
-        title="Grupos"
-        value={systemTotalsError ? "Erro" : String(systemTotals?.groups ?? 0)}
-        isLoading={systemTotalsLoading}
-        icon={Layers}
-        help={{
-          whatIs: "Quantidade total de grupos monitorados no sistema.",
-          howToInterpret: "Mostra a escala operacional em número de grupos conectados.",
-          whatToObserve: "Compare com mensagens e membros ativos para entender uso por grupo.",
-        }}
-        description="Quantidade total de grupos monitorados"
+        description="Organizações com atividade recente"
         variant="kpi"
         className="bg-card"
         titleClassName="text-muted-foreground/80"
@@ -937,24 +867,29 @@ const Index = () => {
       <div className="mx-auto max-w-[1480px] space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando" }]}
-          title={(
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-3xl">Panorama geral</span>
-              <span className="inline-flex h-6 items-center rounded-full border border-primary/20 bg-primary/[0.08] px-2.5 align-middle text-[11px] font-semibold uppercase tracking-[0.06em] text-primary">
-                Sistema
-              </span>
-            </div>
-          )}
+          title="Panorama geral"
           description="Visão executiva do Bóris com sinais de uso recente, volume e alcance da base."
           className="mb-4"
+          actions={(
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <Button variant="outline" onClick={() => {
+                void Promise.all([
+                  queryClient.invalidateQueries({ queryKey: ["kpi-members-total"] }),
+                  queryClient.invalidateQueries({ queryKey: ["system-totals-summary"] }),
+                  queryClient.invalidateQueries({ queryKey: ["system-openai-billing-alerts"] }),
+                  queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h"] }),
+                  queryClient.invalidateQueries({ queryKey: ["system-new-groups-24h-count"] }),
+                  queryClient.invalidateQueries({ queryKey: ["kpi-summary-period"] }),
+                  queryClient.invalidateQueries({ queryKey: ["kpi-summary-prev-period"] }),
+                  queryClient.invalidateQueries({ queryKey: ["signal-concentration-24h"] }),
+                ]);
+              }}>
+                Atualizar dados
+              </Button>
+            </div>
+          )}
           filters={(
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <Badge variant="outline" className="h-6 border-primary/20 bg-primary/[0.05] px-2.5 text-[11px] font-medium text-primary/85">
-                Visão geral do sistema
-              </Badge>
-              <Badge variant="outline" className="h-6 border-border/60 bg-background/70 px-2.5 text-[11px] font-medium text-muted-foreground">
-                Base consolidada
-              </Badge>
               <span className="inline-flex h-6 items-center rounded-full border border-border/60 bg-background px-2.5 text-[11px] font-medium text-muted-foreground">
                 Atualizado às <span className="ml-1 font-mono text-[0.95em] text-foreground">{formatTimeBR(liveUpdatedAtDate)}</span> BRT
               </span>
@@ -1000,147 +935,21 @@ const Index = () => {
           </section>
         ) : null}
 
-        <div className="rounded-[24px] border border-border/70 bg-card/90 p-3 shadow-subtle">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                Navegação rápida
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Vá direto ao bloco que responde sua dúvida operacional.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <a
-                href="#radar"
-                className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
-              >
-                Radar
-              </a>
-              <a
-                href="#kpis"
-                className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
-              >
-                KPIs 30d
-              </a>
-              <a
-                href="#sync-status"
-                className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
-              >
-                Sync
-              </a>
-              <a
-                href="#executive-summary"
-                className="inline-flex h-9 items-center rounded-full border border-primary/20 bg-primary/[0.05] px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/[0.09]"
-              >
-                Resumo 24h
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <section className="rounded-[28px] border border-border/70 bg-card/95 p-4 shadow-subtle sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                Como ler esta página
-              </p>
-              <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">
-                Faça a leitura em 3 passos para decidir mais rápido
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                O fluxo ideal é identificar o foco do momento, validar se a base está saudável e só então abrir o grupo que merece investigação.
-              </p>
-            </div>
-            <div className="grid gap-3 lg:min-w-[620px] lg:grid-cols-3">
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">1. Radar</div>
-                <p className="mt-2 text-sm font-medium text-foreground">Descubra o recorte que pede atenção agora.</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Leia volume, organizações ativas e grupo dominante antes de entrar nos detalhes.</p>
+        <section className="overflow-hidden rounded-[32px] border border-slate-200/80 bg-white shadow-[0_24px_60px_-42px_rgba(15,23,42,0.28)]" id="kpis">
+          <div className="border-b border-slate-200/80 px-5 py-5 sm:px-6 sm:py-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Indicadores principais</div>
+                <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-slate-950">Panorama dos últimos 30 dias</h2>
+                <p className="mt-1 text-sm text-slate-600">Volume, alcance e participação em leitura direta.</p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">2. KPIs + Sync</div>
-                <p className="mt-2 text-sm font-medium text-foreground">Confirme se o sinal é confiável.</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Cruze tendência de 30 dias com cobertura de sync para evitar decisões em cima de dados incompletos.</p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">3. Resumo 24h</div>
-                <p className="mt-2 text-sm font-medium text-foreground">Abra o grupo certo e aja.</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Use o ranking final como fila operacional para suporte, operação ou investigação.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="scroll-mt-32 overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle" id="radar">
-          <div className="bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_34%),linear-gradient(135deg,hsl(var(--secondary)/0.42),transparent_72%)] px-5 py-6 sm:px-6 lg:px-7">
-            <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-              <div className="max-w-3xl space-y-3">
-                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  <Activity className="h-3.5 w-3.5" />
-                  Radar do sistema
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-3xl">
-                    Veja o que acelerou, onde a base está ativa e qual grupo merece investigação primeiro
-                  </h3>
-                  <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-                    O painel principal agora combina volume, alcance e concentração operacional para facilitar decisão
-                    executiva sem obrigar leitura de todos os blocos.
-                  </p>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[620px]">
-                {dashboardRadarCards.map((card) => (
-                  <div key={card.label} className="rounded-2xl border border-border/70 bg-background/85 p-4">
-                    <div className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted-foreground">{card.label}</div>
-                    <div className="mt-2 truncate text-2xl font-semibold tracking-[-0.03em] text-foreground">{card.value}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">{card.detail}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="scroll-mt-32 overflow-hidden rounded-[32px] border border-border/60 bg-card/95 shadow-subtle" id="kpis">
-          <div className="border-b border-border/70 px-5 py-5 sm:px-6 sm:py-6">
-          <ExecutiveSectionHeader
-            eyebrow="Base e Tendência"
-            title="Indicadores principais (30d)"
-            description="Volume, alcance e crescimento em leitura executiva."
-            icon={Layers}
-            badge={(
-              <Badge variant="outline" className="h-6 px-2.5 text-[11px] font-medium text-muted-foreground">
+              <Badge variant="outline" className="h-6 w-fit px-2.5 text-[11px] font-medium text-muted-foreground">
                 {ADMIN_MICROCOPY.labels.selectedPeriod}
               </Badge>
-            )}
-          />
+            </div>
           </div>
           <div className="space-y-4 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="grid gap-3 rounded-[28px] border border-border/60 bg-background/80 p-3 md:grid-cols-3">
-            {kpiSignalStrip.map((item) => {
-              const toneClassName = item.tone === "positive"
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-                : item.tone === "negative"
-                  ? "border-rose-500/30 bg-rose-500/10 text-rose-700"
-                  : "border-border/70 bg-background text-muted-foreground";
-
-              return (
-                <div key={item.label} className="rounded-[var(--radius-md)] border border-border/60 bg-card/90 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted-foreground">
-                      {item.label}
-                    </p>
-                    <Badge variant="outline" className={`h-6 px-2.5 text-[11px] font-semibold ${toneClassName}`}>
-                      {item.value}
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {mainKpis}
           </div>
           {kpiMembersError || kpiMembersPrevBaseError || currentPeriodKpisError || prevPeriodKpisError || systemTotalsError ? (
@@ -1151,24 +960,22 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="scroll-mt-32" id="sync-status">
+        <section id="sync-status">
           <ConnectionStatus />
         </section>
 
-        <section className="scroll-mt-32 overflow-hidden rounded-[32px] border border-primary/10 bg-card/95 shadow-subtle" id="executive-summary" aria-busy={newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading ? "true" : undefined}>
-          <div className="border-b border-border/70 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.1),transparent_34%),linear-gradient(180deg,hsl(var(--secondary)/0.25),transparent)] px-5 py-5 sm:px-6 sm:py-6">
-          <ExecutiveSectionHeader
-            eyebrow="Operação"
-            eyebrowTone="primary"
-            title="Resumo das últimas 24h"
-            description="Leitura rápida do movimento recente com um ranking claro de onde investigar primeiro."
-            icon={Activity}
-            badge={(
-              <Badge variant="outline" className="h-6 border-primary/20 bg-primary/[0.04] px-2.5 text-[11px] font-medium text-primary/85">
+        <section className="overflow-hidden rounded-[32px] border border-slate-200/80 bg-white shadow-[0_24px_60px_-42px_rgba(15,23,42,0.28)]" id="executive-summary" aria-busy={newGroups24hLoading || newGroups24hCountLoading || pulse24hLoading ? "true" : undefined}>
+          <div className="border-b border-slate-200/80 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.14),transparent_34%),linear-gradient(180deg,rgba(255,251,235,0.9),transparent)] px-5 py-5 sm:px-6 sm:py-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/80">Operação</div>
+                <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-slate-950">Resumo das últimas 24h</h2>
+                <p className="mt-1 text-sm text-slate-600">O que mudou agora e quais grupos merecem investigação primeiro.</p>
+              </div>
+              <Badge variant="outline" className="h-6 w-fit border-primary/20 bg-primary/[0.04] px-2.5 text-[11px] font-medium text-primary/85">
                 Atualização contínua
               </Badge>
-            )}
-          />
+            </div>
           </div>
           <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
             <div className="grid gap-4 sm:grid-cols-3">

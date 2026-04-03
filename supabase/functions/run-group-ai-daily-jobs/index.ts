@@ -131,7 +131,11 @@ export function createRunGroupAiDailyJobsHandler(deps: Deps = {}) {
       const groups = Array.isArray(data) ? data : [];
       const dueGroups = groups.filter((group) => {
         const settings = Array.isArray(group.group_settings) ? group.group_settings[0] : group.group_settings;
-        return !isGroupPaused(group) && extractHourMinute(settings?.daily_summary_time) === currentTime;
+        return (
+          !isGroupPaused(group) &&
+          settings?.daily_summary_enabled === true &&
+          extractHourMinute(settings?.daily_summary_time) === currentTime
+        );
       });
 
       const results: Array<Record<string, unknown>> = [];

@@ -4,11 +4,6 @@ import {
   Activity,
   ArrowRight,
   Building2,
-  Clock3,
-  MousePointerClick,
-  ShieldAlert,
-  Sparkles,
-  TrendingUp,
   UserX,
   Users,
 } from "lucide-react";
@@ -17,7 +12,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
 import { PeriodFilter } from "@/components/group-dashboard/PeriodFilter";
 import { BorisTable, RowActions } from "@/components/ui/boris-table";
 import { Button } from "@/components/ui/button";
@@ -27,7 +21,6 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { LoadingState } from "@/components/ui/loading-state";
 import { StatusTag } from "@/components/ui/status-tag";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FilterChips } from "@/components/ui/filter-chips";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getDateRange, type DateRange, type PeriodType } from "@/components/group-dashboard/period-utils";
 import { formatDateTimeBR } from "@/lib/date";
@@ -92,8 +85,6 @@ type TopPageRow = {
   page_views: number;
   admins: number;
 };
-
-type ToneVariant = "success" | "warning" | "neutral" | "error";
 
 const PAGE_SIZE = 20;
 
@@ -380,140 +371,29 @@ export default function SystemActivity() {
     if (!kpis) return [];
     return [
       {
-        title: "Organizações com acesso",
+        title: "Organizações ativas",
         value: toCount(kpis.organizations_with_activity),
-        icon: Building2,
-        description: "Organizações que tiveram login ou navegação no período",
+        note: "Com login ou navegação no período",
         onClick: focusActiveOrgs,
-        cta: "Abrir base ativa",
       },
       {
         title: "Logins registrados",
         value: toCount(kpis.logins),
-        icon: Activity,
-        description: "Total de entradas no sistema",
+        note: "Entradas realizadas no período",
       },
       {
         title: "Páginas visitadas",
         value: toCount(kpis.page_views),
-        icon: MousePointerClick,
-        description: "Total de navegação registrada",
+        note: "Navegação registrada no período",
       },
       {
         title: "Sem primeiro login",
         value: toCount(kpis.never_logged_in_users),
-        icon: UserX,
-        description: "Usuários cadastrados que ainda não entraram",
+        note: "Usuários criados que ainda não entraram",
         onClick: focusNeverLoggedUsers,
-        cta: "Ver pendentes",
       },
     ];
   }, [kpis]);
-
-  const heroMetrics = useMemo(() => {
-    if (!kpis) return null;
-
-    const activeOrgs = toCount(kpis.organizations_with_activity);
-    const totalOrgs = toCount(kpis.organizations_total);
-    const atRiskOrgs = toCount(kpis.orgs_at_risk);
-
-    return {
-      activeOrgs,
-      totalOrgs,
-      atRiskOrgs,
-      adoptionRate: toPercent(activeOrgs, totalOrgs),
-      riskRate: toPercent(atRiskOrgs, totalOrgs),
-    };
-  }, [kpis]);
-
-  const journeySteps = useMemo(() => {
-    if (!kpis) return [];
-
-    return [
-      {
-        key: "first_access_pending",
-        eyebrow: "Ativação inicial",
-        title: "Pendentes do primeiro acesso",
-        value: toCount(kpis.never_logged_in_users),
-        tone: "warning" as ToneVariant,
-        description: "Usuários criados que ainda não atravessaram a barreira de entrada.",
-        onClick: focusNeverLoggedUsers,
-        cta: "Ver usuários pendentes",
-      },
-      {
-        key: "active_week",
-        eyebrow: "Recorrência",
-        title: "Operação ativa em 7 dias",
-        value: toCount(kpis.admins_active_7d),
-        tone: "success" as ToneVariant,
-        description: "Pessoas com presença operacional recente e chance maior de retenção.",
-        onClick: focusActiveUsers,
-        cta: "Abrir usuários ativos",
-      },
-      {
-        key: "inactive_30d",
-        eyebrow: "Retração",
-        title: "Usuários inativos em 30 dias",
-        value: toCount(kpis.users_inactive_30d),
-        tone: "neutral" as ToneVariant,
-        description: "Quem já entrou, mas perdeu frequência e merece atenção de retorno.",
-        onClick: focusInactiveUsers,
-        cta: "Ver usuários inativos",
-      },
-      {
-        key: "orgs_risk",
-        eyebrow: "Carteira",
-        title: "Organizações em risco",
-        value: toCount(kpis.orgs_at_risk),
-        tone: "error" as ToneVariant,
-        description: "Contas com sinal fraco de retorno, queda de frequência ou abandono.",
-        onClick: focusRiskOrgs,
-        cta: "Abrir contas em risco",
-      },
-    ];
-  }, [kpis]);
-
-  const pageHighlights = useMemo(() => {
-    const pages = topPagesQuery.data ?? [];
-    return {
-      mostUsed: pages.slice(0, 5),
-      leastUsed: [...pages]
-        .sort((a, b) => a.page_views - b.page_views || a.admins - b.admins || a.page.localeCompare(b.page, "pt-BR"))
-        .slice(0, 5),
-    };
-  }, [topPagesQuery.data]);
-
-  const orgListStatusLabel = useMemo(() => {
-    if (search) return "Busca refinada para contas";
-    if (orgStatus !== "all") return `Status: ${getOrgStatusLabel(orgStatus)}`;
-    return "Base observada no período";
-  }, [orgStatus, search]);
-
-  const userListStatusLabel = useMemo(() => {
-    if (search) return "Busca refinada para usuários";
-    if (userStatus !== "all") return `Status: ${getUserActivityStatusLabel(userStatus)}`;
-    if (userRole !== "all") return `Papel: ${getRoleLabel(userRole)}`;
-    return "Base observada no período";
-  }, [search, userRole, userStatus]);
-
-  const activeFilterChips = useMemo(() => {
-    const items: Array<{ key: string; label: string; onRemove?: () => void }> = [];
-    if (selectedPeriod !== "30d" || customRange) {
-      items.push({
-        key: "period",
-        label: getPeriodLabel(selectedPeriod, customRange),
-        onRemove: () => {
-          setSelectedPeriod("30d");
-          setCustomRange(undefined);
-        },
-      });
-    }
-    if (search) items.push({ key: "search", label: `Busca: ${search}`, onRemove: () => setSearch("") });
-    if (orgStatus !== "all") items.push({ key: "orgStatus", label: `Orgs: ${getOrgStatusLabel(orgStatus)}`, onRemove: () => setOrgStatus("all") });
-    if (userStatus !== "all") items.push({ key: "userStatus", label: `Usuarios: ${getUserActivityStatusLabel(userStatus)}`, onRemove: () => setUserStatus("all") });
-    if (userRole !== "all") items.push({ key: "userRole", label: `Papel: ${getRoleLabel(userRole)}`, onRemove: () => setUserRole("all") });
-    return items;
-  }, [customRange, orgStatus, search, selectedPeriod, userRole, userStatus]);
 
   if (authLoading || rolesLoading) {
     return (
@@ -686,8 +566,8 @@ export default function SystemActivity() {
       <div className="mx-auto max-w-[1480px] space-y-8 animate-fade-in">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Atividade" }]}
-          title="Comportamento de usuários"
-          description="Acompanhe adoção, retorno e risco de uso com foco no que realmente pede ação dentro da administração."
+          title="Atividade"
+          description="Acompanhe adoção, retorno e risco de uso com foco em organizações e usuários."
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" onClick={focusRiskOrgs}>
@@ -700,24 +580,30 @@ export default function SystemActivity() {
             </div>
           }
           filters={
-            <div className="flex flex-wrap items-center gap-2">
-              <PeriodFilter
-                value={selectedPeriod}
-                customRange={customRange}
-                onChange={(period, range) => {
-                  setSelectedPeriod(period);
-                  setCustomRange(period === "custom" ? range : undefined);
-                  setOrgsPage(1);
-                  setUsersPage(1);
-                }}
-              />
-              <Input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por organização, gestor ou usuário"
-                className="w-72"
-              />
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-slate-950">Filtros</p>
+                <p className="text-sm text-slate-600">Selecione o período e refine a busca sem poluir a leitura da tela.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <PeriodFilter
+                  value={selectedPeriod}
+                  customRange={customRange}
+                  onChange={(period, range) => {
+                    setSelectedPeriod(period);
+                    setCustomRange(period === "custom" ? range : undefined);
+                    setOrgsPage(1);
+                    setUsersPage(1);
+                  }}
+                />
+                <Input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar por organização, gestor ou usuário"
+                  className="h-10 w-full min-w-[280px] flex-1 border-slate-200 bg-slate-50"
+                />
+              </div>
             </div>
           }
           showClearFilters={showClearFilters}
@@ -737,264 +623,45 @@ export default function SystemActivity() {
           }}
         />
 
-        {heroMetrics ? (
-          <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(135deg,rgba(255,247,237,0.96)_0%,rgba(255,255,255,0.98)_42%,rgba(255,250,245,0.96)_100%)] p-5 shadow-subtle">
-            <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_top_right,rgba(251,146,60,0.18),transparent_58%)]" />
-            <div className="relative grid gap-5 xl:grid-cols-[1.45fr_1fr]">
-              <div className="space-y-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusTag variant={heroMetrics.riskRate >= 40 ? "error" : heroMetrics.riskRate >= 20 ? "warning" : "success"}>
-                    {heroMetrics.riskRate >= 40 ? "Risco alto no portfólio" : heroMetrics.riskRate >= 20 ? "Atenção moderada" : "Base com retorno saudável"}
-                  </StatusTag>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs text-muted-foreground">
-                    <Sparkles className="h-3.5 w-3.5 text-primary" />
-                    Leitura orientada por recorrência e risco
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Leitura do período</div>
-                  <h3 className="max-w-3xl text-2xl font-semibold tracking-[-0.03em] text-card-foreground sm:text-[2rem] sm:leading-[1.1]">
-                    {heroMetrics.activeOrgs.toLocaleString("pt-BR")} de {heroMetrics.totalOrgs.toLocaleString("pt-BR")} organizações deram sinal real de uso no recorte.
-                  </h3>
-                  <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                    Esta visão ajuda a separar presença ocasional de uso recorrente, localizar contas em retração e entender quais superfícies realmente puxam a rotina operacional.
-                  </p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-[20px] border border-border/70 bg-background/80 p-4">
-                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                      <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                      Cobertura ativa
-                    </div>
-                    <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{heroMetrics.adoptionRate}%</div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Percentual da base organizacional com login ou navegação no período.</p>
-                  </div>
-                  <div className="rounded-[20px] border border-border/70 bg-background/80 p-4">
-                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                      <ShieldAlert className="h-3.5 w-3.5 text-warning" />
-                      Exposição a risco
-                    </div>
-                    <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{heroMetrics.riskRate}%</div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Participação de contas em risco ou abandonadas dentro da base total.</p>
-                  </div>
-                  <div className="rounded-[20px] border border-border/70 bg-background/80 p-4">
-                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                      <Clock3 className="h-3.5 w-3.5 text-primary" />
-                      Próxima prioridade
-                    </div>
-                    <div className="mt-2 text-base font-semibold text-card-foreground">
-                      {toCount(kpis.never_logged_in_users) > 0 ? "Ativação inicial" : "Retenção operacional"}
-                    </div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {toCount(kpis.never_logged_in_users) > 0
-                        ? "Existem usuários criados que ainda não completaram o primeiro acesso."
-                        : "O foco principal agora é recuperar frequência e aprofundar o uso."}
-                    </p>
-                  </div>
-                </div>
+        <section className="grid gap-3 lg:grid-cols-4">
+          {primaryCards.map((card) => (
+            <button
+              key={card.title}
+              type="button"
+              onClick={card.onClick}
+              className={`rounded-[24px] border border-amber-200/70 bg-gradient-to-b from-white to-amber-50/50 p-5 text-left shadow-sm ${
+                card.onClick ? "transition hover:-translate-y-0.5 hover:border-amber-300" : ""
+              }`}
+            >
+              <p className="text-sm font-medium text-amber-700/90">{card.title}</p>
+              <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-amber-950">
+                {card.value.toLocaleString("pt-BR")}
               </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
-                {primaryCards.map((card) => (
-                  <button
-                    key={card.title}
-                    type="button"
-                    onClick={card.onClick}
-                    className={`rounded-[22px] border border-border/70 bg-background/82 p-4 text-left shadow-[0_1px_0_rgba(255,255,255,0.75)_inset] transition-all ${
-                      card.onClick ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/25 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : ""
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{card.title}</div>
-                        <div className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-card-foreground">{card.value.toLocaleString("pt-BR")}</div>
-                      </div>
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-primary/15 bg-primary/[0.08]">
-                        <card.icon className="h-4 w-4 text-primary" />
-                      </div>
-                    </div>
-                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{card.description}</p>
-                    {card.onClick ? (
-                      <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
-                        {card.cta}
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </div>
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        {journeySteps.length ? (
-          <section className="rounded-[24px] border border-border/70 bg-card/95 p-4 shadow-subtle">
-            <div className="flex flex-col gap-2 border-b border-border/70 pb-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Jornada operacional</div>
-                <h3 className="mt-1 text-base font-semibold tracking-[-0.02em] text-card-foreground sm:text-lg">Da ativação inicial ao risco de retorno</h3>
-              </div>
-              <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                Um resumo rápido para entender onde a base trava: entrada, frequência e sinais de abandono.
-              </p>
-            </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {journeySteps.map((step) => (
-                <button
-                  key={step.key}
-                  type="button"
-                  onClick={step.onClick}
-                  className={`rounded-[20px] border border-border/70 bg-background/70 p-4 text-left transition-all ${
-                    step.onClick ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/25 hover:bg-background/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : ""
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{step.eyebrow}</div>
-                      <div className="mt-1 text-sm font-semibold text-card-foreground">{step.title}</div>
-                      <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-card-foreground">{step.value.toLocaleString("pt-BR")}</div>
-                    </div>
-                    <StatusTag variant={step.tone}>
-                      {step.tone === "success" ? "Saudável" : step.tone === "warning" ? "Atenção" : step.tone === "error" ? "Crítico" : "Monitorar"}
-                    </StatusTag>
-                  </div>
-                  <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{step.description}</p>
-                  {step.onClick ? (
-                    <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
-                      {step.cta}
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </div>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        <FilterChips items={activeFilterChips} onClearAll={showClearFilters ? () => {
-          setSelectedPeriod("30d");
-          setCustomRange(undefined);
-          setSearch("");
-          setOrgStatus("all");
-          setUserStatus("all");
-          setUserRole("all");
-          setOrderByOrgs("last_activity_at");
-          setOrderByUsers("last_seen_at");
-          setOrgOrderDir("desc");
-          setUserOrderDir("desc");
-          setOrgsPage(1);
-          setUsersPage(1);
-        } : undefined} className="-mt-2" />
+              <p className="mt-2 text-sm text-slate-600">{card.note}</p>
+            </button>
+          ))}
+        </section>
 
         {hasAnyError ? (
-          <div className="rounded-[var(--radius-lg)] border border-destructive/30 bg-destructive/5 p-4 shadow-subtle">
+          <div className="rounded-[24px] border border-destructive/30 bg-destructive/5 p-4 shadow-sm">
           <div className="text-sm font-semibold text-card-foreground">Falha ao carregar parte dos dados</div>
           <div className="text-xs text-muted-foreground mt-1">Verifique sua sessão e tente novamente.</div>
         </div>
       ) : null}
 
-        <section className="space-y-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Superfícies de navegação</div>
-              <h3 className="mt-1 text-xl font-semibold tracking-[-0.02em] text-card-foreground">Onde a atenção se concentra e onde ela some</h3>
-            </div>
-            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Páginas muito usadas revelam rotina operacional. Páginas pouco acessadas ajudam a localizar áreas escondidas, pouco validadas ou com baixo valor percebido.
-            </p>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-          <div className="rounded-[24px] border border-border/70 bg-card/95 p-5 shadow-subtle">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Páginas</div>
-                <div className="text-lg font-semibold text-card-foreground">Mais usadas</div>
-              </div>
-              <MousePointerClick className="h-4 w-4 text-primary" />
-            </div>
-            <div className="space-y-3">
-              {pageHighlights.mostUsed.map((page, index) => (
-                <div key={`${page.page}:${index}`} className="rounded-[20px] border border-border/70 bg-secondary/20 p-4 transition-colors hover:bg-secondary/30">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/[0.08] text-[11px] font-semibold text-primary">{index + 1}</div>
-                        <div className="text-sm font-semibold text-card-foreground">{getPageLabel(page.page)}</div>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">{page.admins.toLocaleString("pt-BR")} usuários passaram por aqui</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-card-foreground">{page.page_views.toLocaleString("pt-BR")}</div>
-                      <div className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">views</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {!topPagesQuery.isLoading && !pageHighlights.mostUsed.length ? (
-                <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                  Nenhuma navegação registrada no período selecionado.
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-border/70 bg-card/95 p-5 shadow-subtle">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Páginas</div>
-                <div className="text-lg font-semibold text-card-foreground">Menos usadas</div>
-              </div>
-              <Activity className="h-4 w-4 text-primary" />
-            </div>
-            <div className="space-y-3">
-              {pageHighlights.leastUsed.map((page, index) => (
-                <div key={`${page.page}:least:${index}`} className="rounded-[20px] border border-border/70 bg-secondary/20 p-4 transition-colors hover:bg-secondary/30">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">{index + 1}</div>
-                        <div className="text-sm font-semibold text-card-foreground">{getPageLabel(page.page)}</div>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">{page.admins.toLocaleString("pt-BR")} usuários passaram por aqui</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-card-foreground">{page.page_views.toLocaleString("pt-BR")}</div>
-                      <div className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">views</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {!topPagesQuery.isLoading && !pageHighlights.leastUsed.length ? (
-                <div className="rounded-[var(--radius-md)] border border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                  Nenhuma navegação registrada no período selecionado.
-                </div>
-              ) : null}
-            </div>
-          </div>
-          </div>
-        </section>
-
         <Tabs value={tab} onValueChange={(value) => setTab(value as TabKey)} className="space-y-3">
-          <TabsList className="h-10 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-1 shadow-subtle">
+          <TabsList className="h-10 rounded-[24px] border border-slate-200 bg-white p-1 shadow-sm">
             <TabsTrigger value="orgs">Organizações</TabsTrigger>
             <TabsTrigger value="users">Usuários</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="orgs" className="mt-0 space-y-0">
-            <div className="mb-2 flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Leitura por organização</div>
-                <h3 className="mt-1 text-base font-semibold tracking-[-0.02em] text-card-foreground sm:text-lg">Quem voltou, quem esfriou e quem já pede intervenção</h3>
+          <TabsContent value="orgs" className="mt-0 space-y-3">
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-slate-950">Leitura por organização</p>
+                <p className="text-sm text-slate-600">Use status, último sinal e navegação para separar conta saudável de conta sem recorrência.</p>
               </div>
-              <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                Use status, último sinal e navegação para separar conta saudável de conta sem recorrência.
-              </p>
-            </div>
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-3 shadow-subtle">
+              <div className="flex flex-wrap items-center gap-3">
               <Select
                 value={orgStatus}
                 onValueChange={(value) => {
@@ -1002,7 +669,7 @@ export default function SystemActivity() {
                   setOrgsPage(1);
                 }}
               >
-                <SelectTrigger className="w-[190px]" aria-label="Status das organizações">
+                <SelectTrigger className="h-10 w-[190px] border-slate-200 bg-slate-50" aria-label="Status das organizações">
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1018,7 +685,7 @@ export default function SystemActivity() {
                 value={orderByOrgs}
                 onValueChange={(value) => setOrderByOrgs(value as OrgOrderBy)}
               >
-                <SelectTrigger className="w-[220px]" aria-label="Ordenação das organizações">
+                <SelectTrigger className="h-10 w-[220px] border-slate-200 bg-slate-50" aria-label="Ordenação das organizações">
                   <SelectValue placeholder="Ordenar" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1033,7 +700,7 @@ export default function SystemActivity() {
                 value={orgOrderDir}
                 onValueChange={(value) => setOrgOrderDir(value as "asc" | "desc")}
               >
-                <SelectTrigger className="w-[150px]" aria-label="Direção da ordenação">
+                <SelectTrigger className="h-10 w-[150px] border-slate-200 bg-slate-50" aria-label="Direção da ordenação">
                   <SelectValue placeholder="Direção" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1041,48 +708,49 @@ export default function SystemActivity() {
                   <SelectItem value="asc">Direção: asc</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
-            <ListSectionHeader
-              className="mb-3"
-              title="Contas com sinal de uso"
-              count={typeof orgsQuery.data?.total === "number" ? orgsQuery.data.total.toLocaleString("pt-BR") : "—"}
-              statusLabel={orgListStatusLabel}
-              isLoading={orgsQuery.isLoading}
-            />
-            <BorisTable
-              columns={orgColumns}
-              data={orgsQuery.data?.items ?? []}
-              keyExtractor={(org) => org.org_id}
-              page={orgsPage}
-              pageSize={PAGE_SIZE}
-              totalCount={orgsQuery.data?.total}
-              onPageChange={setOrgsPage}
-              loading={orgsQuery.isLoading}
-              error={!!orgsQuery.error}
-              sortMode="manual"
-              sortState={{ key: orderByOrgs, direction: orgOrderDir }}
-              onSortChange={(sort) => {
-                if (!sort || !["org_name", "status", "logins", "page_views", "last_login_at", "last_activity_at"].includes(sort.key)) return;
-                setOrderByOrgs(sort.key as OrgOrderBy);
-                setOrgOrderDir(sort.direction);
-                setOrgsPage(1);
-              }}
-              emptyIcon={Building2}
-              emptyMessage="Nenhuma organização encontrada para os filtros aplicados."
-            />
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">Organizações</p>
+                  <p className="text-sm text-slate-600">Quem voltou, quem esfriou e quem já pede intervenção.</p>
+                </div>
+                <StatusTag variant="neutral">
+                  {(orgsQuery.data?.total ?? 0).toLocaleString("pt-BR")} registros
+                </StatusTag>
+              </div>
+              <BorisTable
+                columns={orgColumns}
+                data={orgsQuery.data?.items ?? []}
+                keyExtractor={(org) => org.org_id}
+                page={orgsPage}
+                pageSize={PAGE_SIZE}
+                totalCount={orgsQuery.data?.total}
+                onPageChange={setOrgsPage}
+                loading={orgsQuery.isLoading}
+                error={!!orgsQuery.error}
+                sortMode="manual"
+                sortState={{ key: orderByOrgs, direction: orgOrderDir }}
+                onSortChange={(sort) => {
+                  if (!sort || !["org_name", "status", "logins", "page_views", "last_login_at", "last_activity_at"].includes(sort.key)) return;
+                  setOrderByOrgs(sort.key as OrgOrderBy);
+                  setOrgOrderDir(sort.direction);
+                  setOrgsPage(1);
+                }}
+                emptyIcon={Building2}
+                emptyMessage="Nenhuma organização encontrada para os filtros aplicados."
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="users" className="mt-0 space-y-0">
-            <div className="mb-2 flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Leitura por usuário</div>
-                <h3 className="mt-1 text-base font-semibold tracking-[-0.02em] text-card-foreground sm:text-lg">Quem está ativo, quem nunca entrou e quem perdeu tração</h3>
+          <TabsContent value="users" className="mt-0 space-y-3">
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-slate-950">Leitura por usuário</p>
+                <p className="text-sm text-slate-600">Priorize reativação de inativos e reduza atrito de quem ainda não completou o primeiro acesso.</p>
               </div>
-              <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                Priorize reativação de inativos e remova atrito de quem ainda não completou o primeiro acesso.
-              </p>
-            </div>
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-3 shadow-subtle">
+              <div className="flex flex-wrap items-center gap-3">
               <Select
                 value={userStatus}
                 onValueChange={(value) => {
@@ -1090,7 +758,7 @@ export default function SystemActivity() {
                   setUsersPage(1);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="h-10 w-[180px] border-slate-200 bg-slate-50">
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1107,7 +775,7 @@ export default function SystemActivity() {
                   setUsersPage(1);
                 }}
               >
-                <SelectTrigger className="w-[220px]">
+                <SelectTrigger className="h-10 w-[220px] border-slate-200 bg-slate-50">
                   <SelectValue placeholder="Todos os papéis" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1122,7 +790,7 @@ export default function SystemActivity() {
                 value={orderByUsers}
                 onValueChange={(value) => setOrderByUsers(value as UserOrderBy)}
               >
-                <SelectTrigger className="w-[220px]" aria-label="Ordenação dos usuários">
+                <SelectTrigger className="h-10 w-[220px] border-slate-200 bg-slate-50" aria-label="Ordenação dos usuários">
                   <SelectValue placeholder="Ordenar" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1136,7 +804,7 @@ export default function SystemActivity() {
                 value={userOrderDir}
                 onValueChange={(value) => setUserOrderDir(value as "asc" | "desc")}
               >
-                <SelectTrigger className="w-[150px]" aria-label="Direção da ordenação">
+                <SelectTrigger className="h-10 w-[150px] border-slate-200 bg-slate-50" aria-label="Direção da ordenação">
                   <SelectValue placeholder="Direção" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1144,36 +812,41 @@ export default function SystemActivity() {
                   <SelectItem value="asc">Direção: asc</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
             </div>
-            <ListSectionHeader
-              className="mb-3"
-              title="Usuários e tração de uso"
-              count={typeof usersQuery.data?.total === "number" ? usersQuery.data.total.toLocaleString("pt-BR") : "—"}
-              statusLabel={userListStatusLabel}
-              isLoading={usersQuery.isLoading}
-            />
-            <BorisTable
-              columns={userColumns}
-              data={usersQuery.data?.items ?? []}
-              keyExtractor={(userRow) => userRow.user_id}
-              page={usersPage}
-              pageSize={PAGE_SIZE}
-              totalCount={usersQuery.data?.total}
-              onPageChange={setUsersPage}
-              loading={usersQuery.isLoading}
-              error={!!usersQuery.error}
-              sortMode="manual"
-              sortState={{ key: orderByUsers, direction: userOrderDir }}
-              onSortChange={(sort) => {
-                if (!sort || !["user_name", "page_views", "last_login_at", "last_seen_at"].includes(sort.key)) return;
-                setOrderByUsers(sort.key as UserOrderBy);
-                setUserOrderDir(sort.direction);
-                setUsersPage(1);
-              }}
-              emptyIcon={Users}
-              emptyMessage="Nenhum usuário encontrado para os filtros aplicados."
-              onRowClick={(userRow) => setSelectedUser(userRow)}
-            />
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">Usuários</p>
+                  <p className="text-sm text-slate-600">Quem está ativo, quem nunca entrou e quem perdeu tração.</p>
+                </div>
+                <StatusTag variant="neutral">
+                  {(usersQuery.data?.total ?? 0).toLocaleString("pt-BR")} registros
+                </StatusTag>
+              </div>
+              <BorisTable
+                columns={userColumns}
+                data={usersQuery.data?.items ?? []}
+                keyExtractor={(userRow) => userRow.user_id}
+                page={usersPage}
+                pageSize={PAGE_SIZE}
+                totalCount={usersQuery.data?.total}
+                onPageChange={setUsersPage}
+                loading={usersQuery.isLoading}
+                error={!!usersQuery.error}
+                sortMode="manual"
+                sortState={{ key: orderByUsers, direction: userOrderDir }}
+                onSortChange={(sort) => {
+                  if (!sort || !["user_name", "page_views", "last_login_at", "last_seen_at"].includes(sort.key)) return;
+                  setOrderByUsers(sort.key as UserOrderBy);
+                  setUserOrderDir(sort.direction);
+                  setUsersPage(1);
+                }}
+                emptyIcon={Users}
+                emptyMessage="Nenhum usuário encontrado para os filtros aplicados."
+                onRowClick={(userRow) => setSelectedUser(userRow)}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>

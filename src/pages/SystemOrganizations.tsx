@@ -16,8 +16,6 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import AccessDenied from "./AccessDenied";
 import { formatDateSimpleBR } from "@/lib/date";
 import { Button } from "@/components/ui/button";
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
 import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
 import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import {
@@ -257,10 +255,6 @@ export default function SystemOrganizations() {
   const activeFiltersCount = Number(!!search) + Number(orderBy !== "activity_24h" || orderDir !== "desc");
   const sortValue = `${orderBy}:${orderDir}`;
   const visibleItems = orgsData?.items ?? [];
-  const topActiveOrg = visibleItems.reduce<OrganizationListItem | null>((best, org) => {
-    if (!best) return org;
-    return (org.activity_24h ?? 0) > (best.activity_24h ?? 0) ? org : best;
-  }, null);
   const visibleActivity24h = visibleItems.reduce((sum, org) => sum + (org.activity_24h ?? 0), 0);
   const averageGroupsPerOrg = overview?.orgsTotal ? (overview.groupsTotal ?? 0) / Math.max(overview.orgsTotal, 1) : 0;
   const sortLabel = (() => {
@@ -331,140 +325,53 @@ export default function SystemOrganizations() {
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Organizações" }]}
           title="Organizações"
-          description="Cadastros, relacionamento e estrutura de grupos das organizações que usam o Bóris."
+          description="Visão operacional das organizações que usam o Bóris, com foco nos indicadores principais e na lista de gestão."
           actions={(
-            <Button onClick={() => setCreateOrgOpen(true)} size="lg" className="w-full sm:w-auto">
-              <Plus className="h-4 w-4" />
-              Nova organização
-            </Button>
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <Button variant="outline" onClick={() => void refreshOrganizationsData()}>
+                Atualizar dados
+              </Button>
+              <Button onClick={() => setCreateOrgOpen(true)} size="lg" className="w-full sm:w-auto">
+                <Plus className="h-4 w-4" />
+                Nova organização
+              </Button>
+            </div>
           )}
           generalKpis={(
             <>
-              <StatsCard
-                title="Total"
-                value={overview?.orgsTotal?.toLocaleString("pt-BR") ?? "—"}
-                icon={Building2}
-                variant="kpi"
-                isLoading={overviewLoading}
-                numericValue
-                help={{
-                  whatIs: "Quantidade total de organizações cadastradas no sistema.",
-                  howToInterpret: "Mostra o tamanho da base de clientes/organizações na plataforma.",
-                  whatToObserve: "Compare com ‘Grupos’ para acompanhar crescimento de estrutura por organização.",
-                }}
-              />
-              <StatsCard
-                title="Grupos"
-                value={overview?.groupsTotal?.toLocaleString("pt-BR") ?? "—"}
-                icon={Users}
-                variant="kpi"
-                isLoading={overviewLoading}
-                numericValue
-                help={{
-                  whatIs: "Total de grupos vinculados às organizações cadastradas.",
-                  howToInterpret: "Mostra a escala operacional distribuída entre as organizações.",
-                  whatToObserve: "Mudanças bruscas podem refletir criação/remoção em lote ou ajustes de vínculo.",
-                }}
-              />
+              <div className="rounded-[24px] border border-amber-200/70 bg-[linear-gradient(180deg,rgba(255,251,235,0.95),rgba(255,255,255,1))] p-4 shadow-[0_18px_40px_-30px_rgba(120,53,15,0.22)]">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-800">Organizações</div>
+                <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{overview?.orgsTotal?.toLocaleString("pt-BR") ?? "—"}</div>
+                <div className="mt-2 text-sm text-slate-600">base total cadastrada</div>
+              </div>
+              <div className="rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.12)]">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <Users className="h-3.5 w-3.5 text-amber-600" />
+                  Grupos
+                </div>
+                <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{overview?.groupsTotal?.toLocaleString("pt-BR") ?? "—"}</div>
+                <div className="mt-2 text-sm text-slate-600">vinculados a organizações</div>
+              </div>
+              <div className="rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.12)]">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <Building2 className="h-3.5 w-3.5 text-amber-600" />
+                  Média de grupos
+                </div>
+                <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{averageGroupsPerOrg.toFixed(1).replace(".", ",")}</div>
+                <div className="mt-2 text-sm text-slate-600">por organização</div>
+              </div>
+              <div className="rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.12)]">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <Users className="h-3.5 w-3.5 text-amber-600" />
+                  Atividade 24h
+                </div>
+                <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{visibleActivity24h.toLocaleString("pt-BR")}</div>
+                <div className="mt-2 text-sm text-slate-600">mensagens no recorte atual</div>
+              </div>
             </>
           )}
-          filters={(
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="h-6 border-primary/20 bg-primary/[0.04] px-2.5 text-[11px] font-medium text-primary/85">
-                Visão de sistema
-              </Badge>
-              <Badge variant="secondary" className="tabular-nums">
-                {typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
-              </Badge>
-              <span className="text-[12px] text-muted-foreground">{hasActiveFilters ? "Resultados filtrados" : "Base total"}</span>
-              {orgsFetching ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />
-              ) : null}
-            </div>
-          )}
         />
-
-        <div className="rounded-[24px] border border-border/70 bg-card/90 p-3 shadow-subtle">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                Navegação rápida
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Use os atalhos para ir direto ao mapa operacional, filtros ou lista.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <a
-                href="#org-radar"
-                className="inline-flex h-9 items-center rounded-full border border-primary/20 bg-primary/[0.05] px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/[0.09]"
-              >
-                Mapa operacional
-              </a>
-              <a
-                href="#org-filters"
-                className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
-              >
-                Filtros
-              </a>
-              <a
-                href="#org-list"
-                className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
-              >
-                Lista
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <section className="scroll-mt-32 overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle" id="org-radar">
-          <div className="bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.18),transparent_34%),linear-gradient(135deg,hsl(var(--secondary)/0.55),transparent_72%)] px-5 py-6 sm:px-6 lg:px-7">
-            <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-              <div className="max-w-3xl space-y-3">
-                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  <Building2 className="h-3.5 w-3.5" />
-                  Mapa operacional
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-3xl">
-                    Priorize as organizações com mais movimento agora
-                  </h3>
-                  <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-                    A lista já abre ordenada por atividade das últimas 24 horas para ajudar comercial, suporte e operação
-                    a encontrar primeiro onde o uso está concentrado.
-                  </p>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[560px]">
-                <div className="rounded-2xl border border-border/70 bg-background/85 p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Atividade visível</div>
-                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">
-                    {visibleActivity24h.toLocaleString("pt-BR")}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">Mensagens somadas nos registros desta página</div>
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-background/85 p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Mais ativa</div>
-                  <div className="mt-2 truncate text-base font-semibold text-foreground">
-                    {topActiveOrg?.name || "Sem destaque"}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {(topActiveOrg?.activity_24h ?? 0).toLocaleString("pt-BR")} msg nas últimas 24h
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-background/85 p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Densidade da base</div>
-                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">
-                    {averageGroupsPerOrg.toFixed(1).replace(".", ",")}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">Grupos por organização na base atual</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="scroll-mt-32 rounded-[28px] border border-border/80 bg-card/95 p-3 shadow-subtle sm:p-4" id="org-filters">
+        <div className="rounded-[30px] border border-slate-200/80 bg-white/95 p-3 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.25)] sm:p-4">
           <FilterBarRow
             desktopFilters={filtersForm}
             mobileTrigger={(
@@ -477,7 +384,7 @@ export default function SystemOrganizations() {
             )}
             rightActions={hasActiveFilters ? (
               <>
-                <Badge variant="secondary" className="h-6 px-2.5 text-[11px]">
+                <Badge variant="secondary" className="h-6 border-amber-200 bg-amber-50 px-2.5 text-[11px] text-amber-900">
                   {activeFiltersCount} filtro{activeFiltersCount > 1 ? "s" : ""} ativo{activeFiltersCount > 1 ? "s" : ""}
                 </Badge>
                 <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -518,61 +425,6 @@ export default function SystemOrganizations() {
             />
           ) : null}
         </div>
-
-        <div id="org-list" className="scroll-mt-32">
-        <ListSectionHeader
-          title="Lista de organizações"
-          count={typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
-          statusLabel={hasActiveFilters ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.allRecords}
-          isLoading={orgsFetching}
-          loadingIndicator={<Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />}
-        />
-        </div>
-
-        <section className="rounded-[28px] border border-border/70 bg-card/95 p-4 shadow-subtle sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                Como operar esta lista
-              </p>
-              <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">
-                Use a fila como triagem rápida antes de abrir uma organização
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                O ideal é começar pela atividade das últimas 24h, depois conferir billing e relacionamento para entender se é caso de suporte, comercial ou acompanhamento.
-              </p>
-            </div>
-            <div className="grid gap-3 lg:min-w-[620px] lg:grid-cols-3">
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">1. Prioridade</div>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {topActiveOrg?.name || "Sem organização dominante"}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {(topActiveOrg?.activity_24h ?? 0).toLocaleString("pt-BR")} mensagens nas últimas 24h.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">2. Leitura</div>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {sortLabel || "Ordenação padrão por atividade"}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Leia atividade primeiro; badges de billing e relacionamento ajudam a entender o contexto em segundos.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">3. Próxima ação</div>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  Abra a linha ou use o menu para editar
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Entre na organização para seguir com grupos, billing e contato principal.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
           <DrawerContent className="border-border bg-card">
@@ -657,7 +509,7 @@ export default function SystemOrganizations() {
                           ? "Abrir a operação desta organização"
                           : "Revisar grupos e contato principal";
                   return (
-                    <li key={org.id} className="rounded-[24px] border border-border/70 bg-card/95 p-4 shadow-subtle transition-colors hover:bg-secondary/20">
+                    <li key={org.id} className="rounded-[26px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.96))] p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] transition-all hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-[0_24px_44px_-34px_rgba(120,53,15,0.35)]">
                       <div className="flex items-start justify-between gap-3">
                         <Link
                           to={`/org/${org.id}`}
@@ -665,7 +517,7 @@ export default function SystemOrganizations() {
                           aria-label={`Abrir organização ${org.name}`}
                         >
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="truncate text-base font-semibold tracking-[-0.02em] text-card-foreground hover:underline">{org.name}</div>
+                            <div className="truncate text-base font-semibold tracking-[-0.025em] text-slate-950 hover:underline">{org.name}</div>
                             {activity24h > 0 ? (
                               <span className="inline-flex h-6 items-center rounded-full bg-emerald-500/10 px-2.5 text-[11px] font-semibold text-emerald-700">
                                 {activity24h.toLocaleString("pt-BR")} msg / 24h
@@ -680,19 +532,19 @@ export default function SystemOrganizations() {
                               {billingMeta.label}
                             </Badge>
                           </div>
-                          <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-border/60 bg-background/70 p-3">
+                          <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-3">
                             <div>
-                              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grupos</div>
-                              <div className="mt-1 text-sm font-semibold text-card-foreground">{groupsCount.toLocaleString("pt-BR")}</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Grupos</div>
+                              <div className="mt-1 text-sm font-semibold text-slate-950">{groupsCount.toLocaleString("pt-BR")}</div>
                             </div>
                             <div>
-                              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Criada em</div>
-                              <div className="mt-1 text-sm font-semibold text-card-foreground">{formatDateSimpleBR(org.created_at)}</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Criada em</div>
+                              <div className="mt-1 text-sm font-semibold text-slate-950">{formatDateSimpleBR(org.created_at)}</div>
                             </div>
                           </div>
-                          <div className="mt-3 rounded-2xl border border-primary/15 bg-primary/[0.05] px-3 py-2">
+                          <div className="mt-3 rounded-2xl border border-amber-200/70 bg-amber-50/70 px-3 py-2">
                             <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">Próxima ação</div>
-                            <div className="mt-1 text-sm font-medium text-card-foreground">{nextActionLabel}</div>
+                            <div className="mt-1 text-sm font-medium text-slate-950">{nextActionLabel}</div>
                           </div>
                           <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
                             <span>Abrir organização</span>
@@ -741,23 +593,15 @@ export default function SystemOrganizations() {
         </div>
 
         <div className="hidden md:block">
-          <div className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
-            <div className="flex items-center justify-between border-b border-border/70 px-5 py-4 sm:px-6">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Fila operacional</div>
-                <div className="mt-1 text-sm text-card-foreground">
-                  Organizações ordenadas por atividade recente, com leitura rápida de relacionamento e billing.
-                </div>
-              </div>
-              <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium text-muted-foreground lg:inline-flex">
-                <span>Leia da esquerda para a direita</span>
-                <span className="text-border">•</span>
-                <span>atividade</span>
-                <span className="text-border">•</span>
-                <span>billing</span>
-                <span className="text-border">•</span>
-                <span>abrir linha</span>
-              </div>
+          <div className="overflow-hidden rounded-[32px] border border-slate-200/80 bg-white shadow-[0_24px_60px_-42px_rgba(15,23,42,0.28)]">
+            <div className="border-b border-slate-200/80 px-5 py-4 sm:px-6">
+              <ListSectionHeader
+                title="Lista de organizações"
+                count={typeof orgsData?.count === "number" ? orgsData.count.toLocaleString("pt-BR") : "—"}
+                statusLabel={hasActiveFilters ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.allRecords}
+                isLoading={orgsFetching}
+                loadingIndicator={<Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />}
+              />
             </div>
             <div className={cn(orgsFetching && !orgsLoading ? "opacity-80 transition-opacity" : undefined)}>
               <BorisTable
@@ -765,6 +609,7 @@ export default function SystemOrganizations() {
                 data={orgsData?.items ?? []}
                 keyExtractor={(org) => org.id}
                 onRowClick={(org) => navigate(`/org/${org.id}`)}
+                rowHref={(org) => `/org/${org.id}`}
                 page={page}
                 pageSize={PAGE_SIZE}
                 totalCount={orgsData?.count}

@@ -7,6 +7,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 let isSystemAdminValue = false;
 let isOrgAdminValue = false;
 let isGroupManagerValue = false;
+let accessibleOrgIdsValue = ["00000000-0000-4000-8000-000000000001"];
+let accessibleGroupIdsValue = ["00000000-0000-4000-8000-000000000000"];
 
 vi.mock("@/hooks/use-user-roles", () => {
   return {
@@ -14,8 +16,8 @@ vi.mock("@/hooks/use-user-roles", () => {
       isSystemAdmin: isSystemAdminValue,
       isOrgAdmin: isOrgAdminValue,
       isGroupManager: isGroupManagerValue,
-      getAccessibleOrgIds: () => ["00000000-0000-4000-8000-000000000001"],
-      getAccessibleGroupIds: () => ["00000000-0000-4000-8000-000000000000"],
+      getAccessibleOrgIds: () => accessibleOrgIdsValue,
+      getAccessibleGroupIds: () => accessibleGroupIdsValue,
     }),
   };
 });
@@ -70,6 +72,8 @@ describe("AdminSidebar — menu do grupo", () => {
     isSystemAdminValue = false;
     isOrgAdminValue = false;
     isGroupManagerValue = false;
+    accessibleOrgIdsValue = ["00000000-0000-4000-8000-000000000001"];
+    accessibleGroupIdsValue = ["00000000-0000-4000-8000-000000000000"];
   });
 
   it("não exibe Configurações do grupo para não-system-admin", async () => {
@@ -174,6 +178,44 @@ describe("AdminSidebar — menu do grupo", () => {
       a.textContent?.includes("Minha organização"),
     );
     expect(orgLink?.getAttribute("href")).toBe("/organization/00000000-0000-4000-8000-000000000001/dashboard");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("para usuario com acesso apenas a grupo, o link superior volta para o grupo e nao para uma rota generica", async () => {
+    isGroupManagerValue = true;
+    accessibleOrgIdsValue = [];
+    accessibleGroupIdsValue = ["00000000-0000-4000-8000-000000000000"];
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { AdminSidebar } = await import("./AdminSidebar");
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter
+            initialEntries={["/groups/00000000-0000-4000-8000-000000000000/messages"]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
+            <AdminSidebar />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+    });
+
+    const homeLink = container.querySelector('a[aria-label="Central de Comando do Bóris"], a[href="/groups/00000000-0000-4000-8000-000000000000"]')
+      ?? Array.from(container.querySelectorAll("a")).find((a) => a.getAttribute("href") === "/groups/00000000-0000-4000-8000-000000000000");
+
+    expect(homeLink?.getAttribute("href")).toBe("/groups/00000000-0000-4000-8000-000000000000");
 
     await act(async () => {
       root.unmount();

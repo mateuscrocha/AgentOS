@@ -39,6 +39,7 @@ import { notify } from "@/components/ui/sonner";
 import { AlertTriangle, CheckCircle2, Trash2, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { notifyValidation } from "@/lib/notify-validation";
+import { getFriendlyValidateGroupMessage, parseSupabaseFunctionInvokeError } from "@/lib/supabase-function-invoke-error";
 
 type AutomationKey =
   | "welcome_message_enabled"
@@ -525,11 +526,13 @@ export default function GroupEdit() {
         body: { invite_link: val },
       });
       if (response.error) {
-        throw new Error(response.error.message || "Erro ao validar grupo");
+        const parsed = await parseSupabaseFunctionInvokeError(response.error);
+        notify.error("Não foi possível revalidar", getFriendlyValidateGroupMessage(parsed));
+        return;
       }
       const data = response.data as any;
       if (!data?.is_valid || !data?.is_boris_in_group) {
-        notify.warning("Não foi possível validar", "Tente novamente mais tarde.");
+        notify.warning("Não foi possível validar", getFriendlyValidateGroupMessage({ code: data?.code, message: data?.message || "Tente novamente mais tarde." }));
         return;
       }
       const participants = Array.isArray(data.participants) ? data.participants : [];
@@ -594,7 +597,7 @@ export default function GroupEdit() {
       queryClient.invalidateQueries({ queryKey: ["group-dashboard-admins"] });
       queryClient.invalidateQueries({ queryKey: ["group-dashboard-previous-admins"] });
       queryClient.invalidateQueries({ queryKey: ["group-members"] });
-    } catch (e: any) {
+    } catch (_e: any) {
       notify.error("Não foi possível revalidar", "Algo deu errado. Tente novamente.");
     } finally {
       setRevalidating(false);

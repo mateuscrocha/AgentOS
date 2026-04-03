@@ -92,6 +92,28 @@ DenoRef.test("validateWebhookGroupPayload aceita payload válido", () => {
   assertEquals(out.participants.length, 2);
 });
 
+DenoRef.test("validateWebhookGroupPayload aceita provider_phone @g.us sem group.phone", () => {
+  const payload: any = makeValidGroupPayload();
+  delete payload.phone;
+  payload.provider_phone = "120363@g.us";
+
+  const out = validateWebhookGroupPayload(payload);
+  assertEquals(out.phone, "120363@g.us");
+  assertEquals(out.provider_phone, "120363@g.us");
+});
+
+DenoRef.test("validateWebhookGroupPayload aceita payload de grupo aninhado", () => {
+  const payload: any = {
+    data: {
+      group: makeValidGroupPayload(),
+    },
+  };
+
+  const out = validateWebhookGroupPayload(payload);
+  assertEquals(out.provider_phone, "5511999990000-group");
+  assertEquals(out.name, "Nome do grupo");
+});
+
 DenoRef.test("validateWebhookGroupPayload aceita description ausente", () => {
   const payload: any = makeValidGroupPayload();
   delete payload.description;
@@ -125,7 +147,7 @@ DenoRef.test("validateWebhookGroupPayload exige owner corresponder a um particip
   assertThrowsMessage(() => validateWebhookGroupPayload(payload), "group.owner");
 });
 
-DenoRef.test("validateWebhookGroupPayload exige group.provider_phone terminar com -group", () => {
+DenoRef.test("validateWebhookGroupPayload exige identificador de grupo reconhecido", () => {
   const payload = makeValidGroupPayload();
   payload.provider_phone = "5511999990000";
   assertThrowsMessage(() => validateWebhookGroupPayload(payload), "group.provider_phone");
@@ -285,6 +307,62 @@ DenoRef.test("handler remove querystring do invite_link antes de chamar upstream
   const res = await handler(makeReq({ invite_link: "https://chat.whatsapp.com/abc123?mode=gi_t" }));
   assertEquals(res.status, 200);
   assertEquals(upstreamInviteLink, "https://chat.whatsapp.com/abc123");
+});
+
+DenoRef.test("handler aceita convite e metadata usando provider_phone @g.us", async () => {
+  const payload: any = makeValidGroupPayload();
+  delete payload.phone;
+  payload.provider_phone = "120363@g.us";
+
+  const handler = createValidateWhatsAppGroupHandler({
+    env: makeEnv(),
+    fetchImpl: async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/group-invitation-metadata?")) {
+        return new Response(JSON.stringify({ provider_phone: "120363@g.us" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  });
+
+  const res = await handler(makeReq({ invite_link: "https://chat.whatsapp.com/abc" }));
+  assertEquals(res.status, 200);
+  const body: any = await readJson(res);
+  assertEquals(body.success, true);
+  assertEquals(body.provider_phone, "120363@g.us");
+  assertEquals(body.whatsapp_provider_id, "120363@g.us");
+});
+
+DenoRef.test("handler aceita convite e metadata aninhados", async () => {
+  const handler = createValidateWhatsAppGroupHandler({
+    env: makeEnv(),
+    fetchImpl: async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/group-invitation-metadata?")) {
+        return new Response(JSON.stringify({ data: { id: "120363@g.us" } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ data: { group: { ...makeValidGroupPayload(), provider_phone: "120363@g.us", phone: "120363@g.us" } } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  });
+
+  const res = await handler(makeReq({ invite_link: "https://chat.whatsapp.com/abc" }));
+  assertEquals(res.status, 200);
+  const body: any = await readJson(res);
+  assertEquals(body.success, true);
+  assertEquals(body.provider_phone, "120363@g.us");
+  assertEquals(body.whatsapp_provider_id, "120363@g.us");
 });
 
 DenoRef.test("handler respeita timeout do upstream", async () => {

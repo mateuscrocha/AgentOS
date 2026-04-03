@@ -60,7 +60,6 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import AccessDenied from "./AccessDenied";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { cn } from "@/lib/utils";
 import { APP_PASSWORD_HINT, APP_PASSWORD_MAX_LENGTH, validateAppPassword } from "@/lib/password-policy";
 import { notifyActionError } from "@/lib/notify-action-error";
@@ -798,18 +797,6 @@ export default function Users() {
     return hay.includes(q);
   });
 
-  const groupedRows: Record<string, UserRow[]> = {
-    SYSTEM_ADMIN: [],
-    ORG_ADMIN: [],
-    GROUP_MANAGER: [],
-    USER: [],
-    none: [],
-  };
-  for (const row of filteredRows) {
-    const key = (row.primaryRole ?? 'none') as string;
-    (groupedRows[key] ?? (groupedRows[key] = [])).push(row);
-  }
-
   const sortRows = (rows: UserRow[]) => {
     const dir = sortDir === 'asc' ? 1 : -1;
     const sorted = [...rows].sort((a, b) => {
@@ -835,6 +822,11 @@ export default function Users() {
 
   const headerCls = "px-4 py-3 text-left text-[13px] font-semibold text-foreground/75";
   const cellCls = "px-4 py-3 text-[14px] font-normal text-card-foreground align-middle";
+  const totalUsers = profiles?.length ?? 0;
+  const systemAdminsCount = allRoles?.filter((r) => r.role === "SYSTEM_ADMIN").length ?? 0;
+  const orgAdminsCount = allRoles?.filter((r) => r.role === "ORG_ADMIN").length ?? 0;
+  const groupManagersCount = allRoles?.filter((r) => r.role === "GROUP_MANAGER").length ?? 0;
+  const activeUsersCount = allRows.filter((row) => row.profile.status === "active").length;
 
   const renderRolesBadges = (roles: UserRole[]) => {
     if (roles.length === 0) {
@@ -1037,101 +1029,92 @@ export default function Users() {
             </Button>
           )}
           filters={(
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar por nome ou telefone"
-                  className="pl-9 w-[280px]"
-                />
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">Filtros</p>
+                  <p className="text-sm text-slate-600">Encontre rapidamente o usuário certo sem poluir a tela.</p>
+                </div>
+                {!!searchQuery || statusFilter !== "all" || roleFilter !== "all" ? (
+                  <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+                    {Number(!!searchQuery) + Number(statusFilter !== "all") + Number(roleFilter !== "all")} ativo(s)
+                  </Badge>
+                ) : null}
               </div>
 
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="inactive">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative min-w-[260px] flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar por nome ou telefone"
+                    className="h-10 border-slate-200 bg-slate-50 pl-9"
+                  />
+                </div>
 
-              <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as any)}>
-                <SelectTrigger className="w-[190px]">
-                  <SelectValue placeholder="Papel" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os papéis</SelectItem>
-                  <SelectItem value="SYSTEM_ADMIN">Administrador do Sistema</SelectItem>
-                  <SelectItem value="ORG_ADMIN">Gestor de Organização</SelectItem>
-                  <SelectItem value="GROUP_MANAGER">Gestor de Grupo</SelectItem>
-                  <SelectItem value="USER">Usuário</SelectItem>
-                  <SelectItem value="none">Sem papéis</SelectItem>
-                </SelectContent>
-              </Select>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                  <SelectTrigger className="h-10 min-w-[170px] border-slate-200 bg-slate-50">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="active">Ativo</SelectItem>
+                    <SelectItem value="inactive">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as any)}>
+                  <SelectTrigger className="h-10 min-w-[210px] border-slate-200 bg-slate-50">
+                    <SelectValue placeholder="Papel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os papéis</SelectItem>
+                    <SelectItem value="SYSTEM_ADMIN">Administrador do Sistema</SelectItem>
+                    <SelectItem value="ORG_ADMIN">Gestor de Organização</SelectItem>
+                    <SelectItem value="GROUP_MANAGER">Gestor de Grupo</SelectItem>
+                    <SelectItem value="USER">Usuário</SelectItem>
+                    <SelectItem value="none">Sem papéis</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
           showClearFilters={!!searchQuery || statusFilter !== 'all' || roleFilter !== 'all'}
           onClearFilters={() => { setSearchQuery(''); setStatusFilter('all'); setRoleFilter('all'); }}
-          generalKpis={(
-            <>
-              <StatsCard
-                title="Admins do Sistema"
-                value={allRoles?.filter(r => r.role === 'SYSTEM_ADMIN').length || 0}
-                icon={Crown}
-                variant="kpi"
-                help={{
-                  whatIs: "Quantidade de usuários com papel de Administrador do Sistema.",
-                  howToInterpret: "Representa usuários com maior nível de permissão global.",
-                  whatToObserve: "Revise periodicamente para manter controle de acesso mínimo necessário.",
-                }}
-                numericValue
-              />
-              <StatsCard
-                title="Gestores de Org"
-                value={allRoles?.filter(r => r.role === 'ORG_ADMIN').length || 0}
-                icon={Building2}
-                variant="kpi"
-                help={{
-                  whatIs: "Quantidade de usuários com papel de gestor de organização.",
-                  howToInterpret: "Mostra quem administra organizações no sistema.",
-                  whatToObserve: "Compare com o número de organizações para avaliar cobertura de gestão.",
-                }}
-                numericValue
-              />
-              <StatsCard
-                title="Gestores de Grupo"
-                value={allRoles?.filter(r => r.role === 'GROUP_MANAGER').length || 0}
-                icon={UserCog}
-                variant="kpi"
-                help={{
-                  whatIs: "Quantidade de usuários com papel de gestor de grupo.",
-                  howToInterpret: "Indica quem tem permissão de gestão no nível de grupos.",
-                  whatToObserve: "Observe crescimento e distribuição em relação ao volume de grupos operados.",
-                }}
-                numericValue
-              />
-            </>
-          )}
         />
 
         <TooltipProvider>
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-border/80 bg-card/95 px-4 py-3 shadow-subtle">
-              <div className="text-sm text-muted-foreground">
-                Exibindo <span className="font-semibold text-card-foreground">{filteredRows.length}</span> de {profiles?.length ?? 0} usuários
+            <section className="grid gap-3 lg:grid-cols-4">
+              {[
+                { label: "Usuários", value: totalUsers, note: `${activeUsersCount} ativos agora` },
+                { label: "Admins do sistema", value: systemAdminsCount, note: "Acesso global" },
+                { label: "Gestores de org", value: orgAdminsCount, note: "Cobertura por organização" },
+                { label: "Gestores de grupo", value: groupManagersCount, note: "Operação por grupo" },
+              ].map((item) => (
+                <div key={item.label} className="rounded-[24px] border border-amber-200/70 bg-gradient-to-b from-white to-amber-50/50 p-5 shadow-sm">
+                  <p className="text-sm font-medium text-amber-700/90">{item.label}</p>
+                  <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-amber-950">
+                    {item.value.toLocaleString("pt-BR")}
+                  </div>
+                  <p className="mt-2 text-sm text-slate-600">{item.note}</p>
+                </div>
+              ))}
+            </section>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <div className="text-sm text-slate-600">
+                Exibindo <span className="font-semibold text-slate-950">{filteredRows.length}</span> de {profiles?.length ?? 0} usuários
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Ordenar por</span>
+                <span className="text-xs text-slate-500">Ordenar por</span>
                 <Select value={`${sortKey}:${sortDir}`} onValueChange={(v) => {
                   const [k, d] = (v || '').split(':');
                   if (k === 'name' || k === 'status' || k === 'created_at') setSortKey(k);
                   if (d === 'asc' || d === 'desc') setSortDir(d);
                 }}>
-                  <SelectTrigger className="w-[220px] h-9">
+                  <SelectTrigger className="h-9 w-[220px] border-slate-200 bg-slate-50">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1161,38 +1144,22 @@ export default function Users() {
                 message={searchQuery || statusFilter !== 'all' || roleFilter !== 'all' ? 'Ajuste a busca ou os filtros para ver resultados.' : 'Não há usuários cadastrados no sistema.'}
               />
             ) : (
-              <div className="space-y-6">
-                {([
-                  { key: 'SYSTEM_ADMIN' as const, title: 'Administradores do Sistema', icon: Crown, hint: 'Acesso total ao sistema' },
-                  { key: 'ORG_ADMIN' as const, title: 'Gestores de Organização', icon: Building2, hint: 'Administração dentro da organização' },
-                  { key: 'GROUP_MANAGER' as const, title: 'Gestores de Grupo', icon: UserCog, hint: 'Gestão de grupos específicos' },
-                  { key: 'USER' as const, title: 'Usuários', icon: UserCheck, hint: 'Visualização dentro do escopo atribuído' },
-                  { key: 'none' as const, title: 'Sem papéis', icon: UsersIcon, hint: 'Usuários sem vínculo de papel' },
-                ] as const).map((section) => {
-                  const rows = groupedRows[section.key] ?? [];
-                  if (rows.length === 0) return null;
-                  const SectionIcon = section.icon;
-                  return (
-                    <div key={section.key} className="space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] bg-secondary/60 shadow-subtle">
-                            <SectionIcon className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-base font-semibold tracking-[-0.02em] text-card-foreground">{section.title}</h3>
-                              <Badge variant="secondary" className="tabular-nums">{rows.length}</Badge>
-                            </div>
-                            <div className="text-sm text-muted-foreground">{section.hint}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {renderListTable(rows)}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold tracking-[-0.02em] text-slate-950">Lista de usuários</h3>
+                    <div className="text-sm text-slate-600">
+                      Visão única com papéis, status e ações administrativas em um só lugar.
                     </div>
-                  );
-                })}
+                  </div>
+                  <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+                    {filteredRows.length} resultado(s)
+                  </Badge>
+                </div>
+
+                <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+                  {renderListTable(filteredRows)}
+                </div>
               </div>
             )}
           </div>

@@ -9,18 +9,15 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { BorisTable, RowActions, type BorisColumn } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { notify } from "@/components/ui/sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { FilterChips } from "@/components/ui/filter-chips";
 import { AlertTriangle, Bell, Filter, Plus, Search, Settings } from "lucide-react";
 import { formatDateTimeBR, formatDateSimpleBR } from "@/lib/date";
 import {
@@ -82,12 +79,6 @@ type AlertTerm = {
 };
 
 type DefinitionScopeType = "system" | "org" | "group";
-
-const alertsKpiCardClassName = "border-amber-200/80 bg-gradient-to-b from-white to-amber-50/50 shadow-sm";
-const alertsKpiTitleClassName = "text-amber-700/85";
-const alertsKpiValueClassName = "text-amber-950";
-const alertsKpiIconContainerClassName = "border-amber-200 bg-amber-50/80 shadow-sm";
-const alertsKpiIconClassName = "text-amber-700";
 
 const EVENTS_PAGE_SIZE = 50;
 const DEFINITIONS_PAGE_SIZE = 25;
@@ -1028,20 +1019,27 @@ export default function Alerts() {
             </div>
           )}
           filters={!isDefinitionsPage ? (
-            <div className="min-w-0 space-y-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Filter className="h-4 w-4 text-primary" />
-                  Filtros
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                    <Filter className="h-4 w-4 text-amber-700" />
+                    Filtros
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Use só o necessário para chegar rápido ao alerta certo.
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Use só o necessário para encontrar um alerta.
-                </p>
+                {activeFilterChips.length > 0 ? (
+                  <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+                    {activeFilterChips.length} ativo(s)
+                  </Badge>
+                ) : null}
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">Status</div>
+                  <div className="text-xs font-medium text-slate-500">Status</div>
                   <Select
                     value={statusFilter}
                     onValueChange={(v) => {
@@ -1049,7 +1047,7 @@ export default function Alerts() {
                       setEventsPage(1);
                     }}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="h-10 w-full border-slate-200 bg-slate-50">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1062,9 +1060,9 @@ export default function Alerts() {
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">Buscar na mensagem</div>
+                  <div className="text-xs font-medium text-slate-500">Buscar na mensagem</div>
                   <div className="relative w-full">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <Input
                       value={search}
                       onChange={(e) => {
@@ -1072,7 +1070,7 @@ export default function Alerts() {
                         setEventsPage(1);
                       }}
                       placeholder="Ex.: pix, erro, suporte"
-                      className="w-full pl-9"
+                      className="h-10 w-full border-slate-200 bg-slate-50 pl-9"
                     />
                   </div>
                 </div>
@@ -1091,70 +1089,36 @@ export default function Alerts() {
         />
 
         <section className="grid gap-3 lg:grid-cols-4">
-          <StatsCard
-            title={isDefinitionsPage ? "Definições ativas" : "Não lidos"}
-            value={isDefinitionsPage ? activeDefinitionsCount : currentUnread}
-            icon={Bell}
-            description={
-              isDefinitionsPage
-                ? "Regras ativas monitorando termos no sistema."
-                : "Alertas ainda pendentes de triagem."
-            }
-            variant="kpi"
-            className={alertsKpiCardClassName}
-            titleClassName={alertsKpiTitleClassName}
-            valueClassName={alertsKpiValueClassName}
-            iconContainerClassName={alertsKpiIconContainerClassName}
-            iconClassName={alertsKpiIconClassName}
-          />
-          <StatsCard
-            title={isDefinitionsPage ? "Definições totais" : "Lidos no recorte"}
-            value={isDefinitionsPage ? totalDefinitions : readEventsCount}
-            icon={Settings}
-            description={
-              isDefinitionsPage
-                ? "Regras cadastradas para gerar alerta."
-                : "Itens já triados na lista atual."
-            }
-            variant="kpi"
-            className={alertsKpiCardClassName}
-            titleClassName={alertsKpiTitleClassName}
-            valueClassName={alertsKpiValueClassName}
-            iconContainerClassName={alertsKpiIconContainerClassName}
-            iconClassName={alertsKpiIconClassName}
-          />
-          <StatsCard
-            title={isDefinitionsPage ? "Termos monitorados" : "Arquivados no recorte"}
-            value={isDefinitionsPage ? totalTerms : archivedEventsCount}
-            icon={Filter}
-            description={
-              isDefinitionsPage
-                ? "Vocabulário ativo usado pelo motor de regras."
-                : "Alertas removidos da fila operacional."
-            }
-            variant="kpi"
-            className={alertsKpiCardClassName}
-            titleClassName={alertsKpiTitleClassName}
-            valueClassName={alertsKpiValueClassName}
-            iconContainerClassName={alertsKpiIconContainerClassName}
-            iconClassName={alertsKpiIconClassName}
-          />
-          <StatsCard
-            title={isDefinitionsPage ? "Alertas não lidos" : "Eventos encontrados"}
-            value={isDefinitionsPage ? currentUnread : totalEvents}
-            icon={AlertTriangle}
-            description={
-              isDefinitionsPage
-                ? "Volume atual pendente no centro de alertas."
-                : "Ocorrências retornadas com os filtros atuais."
-            }
-            variant="kpi"
-            className={alertsKpiCardClassName}
-            titleClassName={alertsKpiTitleClassName}
-            valueClassName={alertsKpiValueClassName}
-            iconContainerClassName={alertsKpiIconContainerClassName}
-            iconClassName={alertsKpiIconClassName}
-          />
+          {[
+            {
+              label: isDefinitionsPage ? "Definições ativas" : "Não lidos",
+              value: isDefinitionsPage ? activeDefinitionsCount : currentUnread,
+              note: isDefinitionsPage ? "Regras ativas agora" : "Pendentes de triagem",
+            },
+            {
+              label: isDefinitionsPage ? "Definições totais" : "Lidos",
+              value: isDefinitionsPage ? totalDefinitions : readEventsCount,
+              note: isDefinitionsPage ? "Regras cadastradas" : "Itens triados no recorte",
+            },
+            {
+              label: isDefinitionsPage ? "Termos monitorados" : "Arquivados",
+              value: isDefinitionsPage ? totalTerms : archivedEventsCount,
+              note: isDefinitionsPage ? "Vocabulário em monitoramento" : "Fora da fila operacional",
+            },
+            {
+              label: isDefinitionsPage ? "Alertas não lidos" : "Eventos",
+              value: isDefinitionsPage ? currentUnread : totalEvents,
+              note: isDefinitionsPage ? "Volume pendente no centro de alertas" : "Ocorrências com os filtros atuais",
+            },
+          ].map((item) => (
+            <div key={item.label} className="rounded-[24px] border border-amber-200/70 bg-gradient-to-b from-white to-amber-50/50 p-5 shadow-sm">
+              <p className="text-sm font-medium text-amber-700/90">{item.label}</p>
+              <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-amber-950">
+                {item.value.toLocaleString("pt-BR")}
+              </div>
+              <p className="mt-2 text-sm text-slate-600">{item.note}</p>
+            </div>
+          ))}
         </section>
 
         <div className="flex flex-wrap gap-2">
@@ -1183,52 +1147,54 @@ export default function Alerts() {
 
         {!isDefinitionsPage ? (
         <section className="space-y-4">
-          <Card className="border-amber-100 bg-gradient-to-r from-amber-50 via-white to-white shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-1">
-                  <div className="text-sm font-semibold uppercase tracking-[0.08em] text-amber-700">Centro de alertas</div>
-                  <p className="text-sm text-slate-600">
-                    Triagem operacional das ocorrências que merecem atenção agora.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="border-amber-200 bg-amber-50 text-amber-700">
-                    {statusFilter === "all"
-                      ? "Todos os status"
-                      : statusFilter === "unread"
-                        ? "Somente não lidos"
-                        : statusFilter === "read"
-                          ? "Somente lidos"
-                          : "Somente arquivados"}
-                  </Badge>
-                  {currentUnread > 0 ? (
-                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                      {currentUnread} não lido(s)
-                    </span>
-                  ) : null}
-                </div>
+          <div className="rounded-[24px] border border-amber-100 bg-gradient-to-r from-amber-50 via-white to-white p-4 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold uppercase tracking-[0.08em] text-amber-700">Centro de alertas</div>
+                <p className="text-sm text-slate-600">
+                  Triagem operacional das ocorrências que merecem atenção agora.
+                </p>
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+                  {statusFilter === "all"
+                    ? "Todos os status"
+                    : statusFilter === "unread"
+                      ? "Somente não lidos"
+                      : statusFilter === "read"
+                        ? "Somente lidos"
+                        : "Somente arquivados"}
+                </Badge>
+                {currentUnread > 0 ? (
+                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                    {currentUnread} não lido(s)
+                  </span>
+                ) : null}
+              </div>
+            </div>
 
-              {activeFilterChips.length > 0 ? (
-                <FilterChips
-                  className="mt-3"
-                  items={activeFilterChips.map((chip) => ({
-                    key: chip.key,
-                    label: chip.label,
-                    onRemove: () => {
+            {activeFilterChips.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {activeFilterChips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => {
                       chip.clear();
                       setEventsPage(1);
-                    },
-                  }))}
-                />
-              ) : (
-                <div className="mt-3 text-xs text-slate-500">
-                  Nenhum filtro extra ativo. A lista abaixo mostra os alertas conforme o status escolhido.
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    }}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-950"
+                  >
+                    {chip.label} ×
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 text-xs text-slate-500">
+                Nenhum filtro extra ativo. A lista abaixo mostra os alertas conforme o status escolhido.
+              </div>
+            )}
+          </div>
 
           <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">

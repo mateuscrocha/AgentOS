@@ -94,6 +94,11 @@ const readOptionalNumber = (obj: Record<string, unknown>, key: string, path: str
 
 const toDigits = (raw: unknown): string => String(raw ?? '').replace(/\D/g, '');
 
+const isValidGroupProviderId = (value: string): boolean => {
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.endsWith('-group') || trimmed.endsWith('@g.us');
+};
+
 const toE164 = (raw: unknown): string | null => {
   const s = String(raw ?? '').trim();
   if (!s) return null;
@@ -141,14 +146,63 @@ const validateWebhookParticipant = (raw: unknown, index: number): WebhookPartici
   return { phone, lid, isAdmin, isSuperAdmin };
 };
 
+const unwrapLikelyGroupRecord = (raw: unknown): Record<string, unknown> | null => {
+  if (!isRecord(raw)) return null;
+
+  const hasParticipants = Array.isArray((raw as Record<string, unknown>).participants);
+  const hasGroupName = ['subject', 'name', 'description'].some((key) => typeof (raw as Record<string, unknown>)[key] === 'string');
+  const hasGroupId = ['provider_phone', 'phone', 'jid', 'id'].some((key) => typeof (raw as Record<string, unknown>)[key] === 'string');
+  if ((hasParticipants && hasGroupName) || (hasParticipants && hasGroupId)) {
+    return raw as Record<string, unknown>;
+  }
+
+  const wrapperKeys = ['data', 'value', 'result', 'response', 'group', 'metadata', 'payload'];
+  for (const key of wrapperKeys) {
+    const candidate = (raw as Record<string, unknown>)[key];
+    const unwrapped = unwrapLikelyGroupRecord(candidate);
+    if (unwrapped) return unwrapped;
+  }
+
+  for (const value of Object.values(raw as Record<string, unknown>)) {
+    if (!isRecord(value)) continue;
+    const unwrapped = unwrapLikelyGroupRecord(value);
+    if (unwrapped) return unwrapped;
+  }
+
+  return raw as Record<string, unknown>;
+};
+
+const readFirstNonEmptyString = (
+  obj: Record<string, unknown>,
+  candidates: Array<{ key: string; path: string }>,
+): string | undefined => {
+  for (const candidate of candidates) {
+    const value = obj[candidate.key];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== 'string') fail(candidate.path, 'esperado string');
+    const trimmed = String(value).trim();
+    if (trimmed) return trimmed;
+  }
+  return undefined;
+};
+
 export const validateWebhookGroupPayload = (raw: unknown): WebhookGroup => {
-  if (!isRecord(raw)) fail('group', 'esperado objeto');
+  const obj = unwrapLikelyGroupRecord(raw);
+  if (!obj) fail('group', 'esperado objeto');
 
-  const obj = raw as Record<string, unknown>;
+  const providerPhone =
+    readFirstNonEmptyString(obj, [
+      { key: 'provider_phone', path: 'group.provider_phone' },
+      { key: 'phone', path: 'group.phone' },
+      { key: 'jid', path: 'group.jid' },
+      { key: 'id', path: 'group.id' },
+    ]) ?? fail('group.provider_phone', 'esperado string não vazia');
 
-  const phone = readString(obj, 'phone', 'group.phone');
-  const providerPhone = readOptionalString(obj, 'provider_phone', 'group.provider_phone') ?? phone;
-  if (!providerPhone.endsWith('-group')) fail('group.provider_phone', 'deve terminar com "-group"');
+  if (!isValidGroupProviderId(providerPhone)) {
+    fail('group.provider_phone', 'deve terminar com "-group" ou "@g.us"');
+  }
+
+  const phone = readOptionalString(obj, 'phone', 'group.phone') ?? providerPhone;
 
   const description = readOptionalString(obj, 'description', 'group.description');
   const subject = readString(obj, 'subject', 'group.subject');
@@ -203,6 +257,94 @@ export const validateWebhookGroupPayload = (raw: unknown): WebhookGroup => {
     isGroupAnnouncement,
     subjectTime,
   };
+};
+
+const extractInvitationGroupPhone = (raw: unknown): string => {
+  if (!isRecord(raw)) return '';
+
+  const direct = readFirstNonEmptyString(raw as Record<string, unknown>, [
+    { key: 'provider_phone', path: 'group.provider_phone' },
+    { key: 'phone', path: 'group.phone' },
+    { key: 'jid', path: 'group.jid' },
+    { key: 'id', path: 'group.id' },
+    { key: 'groupId', path: 'group.groupId' },
+  ]);
+  if (direct && isValidGroupProviderId(direct)) return direct;
+
+  const wrapperKeys = ['data', 'value', 'result', 'response', 'group', 'metadata', 'payload'];
+  for (const key of wrapperKeys) {
+    const nested = extractInvitationGroupPhone((raw as Record<string, unknown>)[key]);
+    if (nested) return nested;
+  }
+
+  return '';
+};
+
+const describePayloadShape = (raw: unknown, depth = 0): unknown => {
+  if (depth > 2) return 'max-depth';
+  if (Array.isArray(raw)) {
+    return {
+      type: 'array',
+      length: raw.length,
+      first: raw.length > 0 ? describePayloadShape(raw[0], depth + 1) : null,
+    };
+  }
+  if (!isRecord(raw)) {
+    return typeof raw;
+  }
+
+  const entries = Object.entries(raw as Record<string, unknown>).slice(0, 12);
+  return {
+    type: 'object',
+    keys: entries.map(([key]) => key),
+    nested: Object.fromEntries(
+      entries
+        .filter(([, value]) => isRecord(value) || Array.isArray(value))
+        .map(([key, value]) => [key, describePayloadShape(value, depth + 1)]),
+    ),
+  };
+};
+
+const maskSensitiveString = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.length <= 8) return `${trimmed.slice(0, 2)}…`;
+  return `${trimmed.slice(0, 4)}…${trimmed.slice(-4)}`;
+};
+
+const sanitizePayloadForDebug = (raw: unknown, depth = 0): unknown => {
+  if (depth > 2) return 'max-depth';
+  if (Array.isArray(raw)) {
+    return raw.slice(0, 5).map((item) => sanitizePayloadForDebug(item, depth + 1));
+  }
+  if (!isRecord(raw)) {
+    if (typeof raw === 'string') return maskSensitiveString(raw);
+    return raw;
+  }
+
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw).slice(0, 15)) {
+    if (typeof value === 'string') {
+      out[key] = maskSensitiveString(value);
+      continue;
+    }
+    if (isRecord(value) || Array.isArray(value)) {
+      out[key] = sanitizePayloadForDebug(value, depth + 1);
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+};
+
+const readUpstreamErrorMessage = (raw: unknown): string | null => {
+  if (!isRecord(raw)) return null;
+  const success = (raw as Record<string, unknown>).success;
+  const message = (raw as Record<string, unknown>).message;
+  if (success === false && typeof message === 'string' && message.trim()) {
+    return message.trim();
+  }
+  return null;
 };
 
 const normalizeWebhookParticipants = (participants: WebhookParticipant[]): NormalizedParticipant[] => {
@@ -450,12 +592,14 @@ export const createValidateWhatsAppGroupHandler = (args?: {
           group_name: '',
           participants_count: 0,
           participants: [],
+          debug_shape: describePayloadShape(invitationData),
+          debug_payload: sanitizePayloadForDebug(invitationData),
         },
         502
       );
     }
 
-    const invitationGroupPhone = String(invitationData?.phone ?? invitationData?.provider_phone ?? '').trim();
+    const invitationGroupPhone = extractInvitationGroupPhone(invitationData);
     if (!invitationGroupPhone) {
       console.error('Missing group phone in invitation metadata', JSON.stringify({ correlation_id: correlationId }));
       return json(
@@ -470,6 +614,8 @@ export const createValidateWhatsAppGroupHandler = (args?: {
           group_name: '',
           participants_count: 0,
           participants: [],
+          debug_shape: describePayloadShape(invitationData),
+          debug_payload: sanitizePayloadForDebug(invitationData),
         },
         502
       );
@@ -527,12 +673,43 @@ export const createValidateWhatsAppGroupHandler = (args?: {
           group_name: '',
           participants_count: 0,
           participants: [],
+          debug_shape: describePayloadShape(groupData),
+          debug_payload: sanitizePayloadForDebug(groupData),
         },
         502
       );
     }
 
     const groupData = await metadataResponse.json().catch(() => null);
+    const upstreamMetadataError = readUpstreamErrorMessage(groupData);
+    if (upstreamMetadataError) {
+      const normalizedMessage = upstreamMetadataError.toLowerCase();
+      const code =
+        normalizedMessage.includes('forbidden') || normalizedMessage.includes('hidden') || normalizedMessage.includes('denied')
+          ? 'GROUP_METADATA_FORBIDDEN'
+          : 'VALIDATION_UPSTREAM_INVALID';
+      return json(
+        {
+          success: false,
+          code,
+          message:
+            code === 'GROUP_METADATA_FORBIDDEN'
+              ? 'A Z-API encontrou o grupo, mas não conseguiu ler os metadados. Isso normalmente significa que o Bóris ainda não entrou no grupo ou não tem acesso suficiente.'
+              : `Resposta inesperada da Z-API: ${upstreamMetadataError}`,
+          is_valid: false,
+          is_boris_in_group: false,
+          provider: 'whatsapp',
+          whatsapp_provider_id: '',
+          group_name: '',
+          participants_count: 0,
+          participants: [],
+          debug_shape: describePayloadShape(groupData),
+          debug_payload: sanitizePayloadForDebug(groupData),
+        },
+        502
+      );
+    }
+
     console.log('zapi response', JSON.stringify({
       correlation_id: correlationId,
       type: Array.isArray(groupData) ? 'array' : typeof groupData,
@@ -559,6 +736,7 @@ export const createValidateWhatsAppGroupHandler = (args?: {
         message,
         owner: maskedOwner,
         participants_count: Array.isArray((groupData as any)?.participants) ? (groupData as any).participants.length : null,
+        group_shape: describePayloadShape(groupData),
       }));
 
       return json(
@@ -575,6 +753,8 @@ export const createValidateWhatsAppGroupHandler = (args?: {
           group_name: '',
           participants_count: 0,
           participants: [],
+          debug_shape: describePayloadShape(groupData),
+          debug_payload: sanitizePayloadForDebug(groupData),
         },
         status
       );

@@ -99,7 +99,7 @@ import {
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { logEvent } from "@/lib/audit";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { parseSupabaseFunctionInvokeError } from "@/lib/supabase-function-invoke-error";
+import { getFriendlyValidateGroupMessage, parseSupabaseFunctionInvokeError } from "@/lib/supabase-function-invoke-error";
 import { buildSupportNowSummary, memberIdentityKey, type SupportNowStatus } from "@/lib/support-now";
 import { cn } from "@/lib/utils";
 
@@ -1930,7 +1930,8 @@ const Org = () => {
       });
 
       if (error) {
-        setAttachError("Não foi possível verificar o grupo agora. Tente novamente em instantes.");
+        const parsed = await parseSupabaseFunctionInvokeError(error);
+        setAttachError(getFriendlyValidateGroupMessage(parsed));
         return;
       }
 
@@ -1940,14 +1941,14 @@ const Org = () => {
         "Não foi possível adicionar esse grupo. O Bóris não está no grupo ou o link está inválido. Inclua o Bóris no grupo e tente novamente.";
 
       if (!payload?.is_valid || !payload?.is_boris_in_group) {
-        setAttachError(scenarioBMessage);
+        setAttachError(getFriendlyValidateGroupMessage({ code: payload?.code, message: payload?.message || scenarioBMessage }));
         return;
       }
 
       const providerPhone = String(payload?.provider_phone ?? "").trim();
       const groupName = String(payload?.group_name ?? "").trim();
       if (!providerPhone || !groupName) {
-        setAttachError("Resposta inesperada do verificador. Tente novamente em instantes.");
+        setAttachError("Não conseguimos confirmar os dados do grupo agora. Tente novamente em instantes.");
         return;
       }
 

@@ -315,6 +315,23 @@ describe("Onboarding page", () => {
     container.remove();
   });
 
+  it("carrega preset de teste pela query string", async () => {
+    const { container, root } = await renderPage("/signup?prefill=agatha");
+
+    const inputs = Array.from(container.querySelectorAll("input")) as HTMLInputElement[];
+    const [fullName, organizationName, email, whatsappPhone] = inputs;
+
+    expect(fullName.value).toBe("Agatha Martins");
+    expect(organizationName.value).toBe("CAMP/COTI");
+    expect(email.value).toBe("agatha@sintetizo.com.br");
+    expect(whatsappPhone.value).toBe("+55 31 8738-0055");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
   it("retoma o cadastro autenticado e mostra o erro na própria tela de onboarding", async () => {
     useAuthMock.mockReturnValue({
       isAuthenticated: true,

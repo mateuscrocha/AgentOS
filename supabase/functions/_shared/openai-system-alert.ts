@@ -1,5 +1,7 @@
 import { OpenAiResponsesError } from "./openai-responses.ts";
 
+export const OPENAI_BILLING_SYSTEM_ENTITY_ID = "00000000-0000-0000-0000-000000000001";
+
 type MinimalSupabaseClient = {
   from: (table: string) => {
     select: (...args: any[]) => any;
@@ -58,7 +60,7 @@ export async function recordOpenAiBillingAlert(args: {
     .select("id, created_at, metadata")
     .eq("event_type", "OPENAI_BILLING_ALERT")
     .eq("entity_type", "system")
-    .eq("entity_id", "openai-billing")
+    .eq("entity_id", OPENAI_BILLING_SYSTEM_ENTITY_ID)
     .gte("created_at", dedupeSince)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -78,7 +80,7 @@ export async function recordOpenAiBillingAlert(args: {
   const { error: insertError } = await supabase.from("events").insert({
     event_type: "OPENAI_BILLING_ALERT",
     entity_type: "system",
-    entity_id: "openai-billing",
+    entity_id: OPENAI_BILLING_SYSTEM_ENTITY_ID,
     user_id: userId,
     metadata: {
       provider: "openai",
