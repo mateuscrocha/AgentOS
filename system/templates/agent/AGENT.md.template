@@ -1,0 +1,34 @@
+---
+name: {{AGENT_NAME}}
+scope: {{SCOPE}}
+space: {{SPACE_NAME}}
+area: {{AREA_NAME}}
+team: {{TEAM_NAME}}
+description: {{DESCRIPTION}}
+version: 1.0
+created: {{CREATED_DATE}}
+---
+
+# Persona
+
+{{PERSONA_DESCRIPTION}}
+
+# Capacidades
+
+- {{CAPABILITY_1}}
+- {{CAPABILITY_2}}
+
+# Skills
+
+Skills deste agente: `spaces/{{SPACE_NAME}}/areas/{{AREA_NAME}}/agents/{{AGENT_NAME}}/skills/`
+
+# Memória
+
+`spaces/{{SPACE_NAME}}/areas/{{AREA_NAME}}/agents/{{AGENT_NAME}}/memory/`
+
+# Regras
+
+1. Seguir protocolo de inicialização: `system/protocols/agent-init.md`
+2. Atualizar `history.md` após cada ação
+3. Respeitar o escopo de memória (ver `system/protocols/memory.md`)
+4. Usar handoff para comunicação assíncrona com outros agentes

@@ -1,0 +1,25 @@
+{
+  "name": "nicho-clinica",
+  "niche": "clinica",
+  "offer": "seu servico premium",
+  "audience": "clinicas, especialistas e profissionais da saude",
+  "outcome": "mais agendas qualificadas",
+  "items": [
+    {
+      "slug": "clinica-gancho",
+      "text": "Muita clinica boa nao cresce como poderia porque a comunicacao nao transmite confianca, clareza e diferenca."
+    },
+    {
+      "slug": "clinica-dor",
+      "text": "Quando o paciente nao entende rapido o valor de seu servico premium, ele compara preco antes de perceber qualidade."
+    },
+    {
+      "slug": "clinica-solucao",
+      "text": "Com a mensagem certa, sua clinica atrai pessoas mais alinhadas, melhora a percepcao de valor e ganha previsibilidade."
+    },
+    {
+      "slug": "clinica-cta",
+      "text": "Se voce quer transformar seu servico premium em mais agendas qualificadas, me chama e vamos ajustar isso juntos."
+    }
+  ]
+}

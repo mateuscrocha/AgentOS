@@ -1,0 +1,17 @@
+{
+  "name": "Boas-vindas",
+  "items": [
+    {
+      "slug": "apresentacao-curta",
+      "text": "Eu sou o Boris, seu parceiro de marketing e vendas, pronto para transformar estrategia em resultado."
+    },
+    {
+      "slug": "boas-vindas-cliente",
+      "text": "Seja bem-vindo. A partir de agora, eu vou te ajudar a organizar suas ideias, comunicar melhor sua oferta e vender com mais consistencia."
+    },
+    {
+      "slug": "convite-acao",
+      "text": "Me diga seu objetivo e eu transformo isso em um plano claro, direto e acionavel."
+    }
+  ]
+}

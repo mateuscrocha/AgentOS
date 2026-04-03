@@ -1,0 +1,40 @@
+---
+name: {{TEAM_NAME}}
+space: {{SPACE_NAME}}
+area: {{AREA_NAME}}
+description: {{DESCRIPTION}}
+members: []
+lead: {{LEAD_AGENT}}
+created: {{CREATED_DATE}}
+---
+
+# Time: {{TEAM_NAME}}
+
+## Propósito
+
+{{PURPOSE}}
+
+## Membros e Papéis
+
+| Agente | Papel no Time | Capacidades Utilizadas |
+|---|---|---|
+| — | — | — |
+
+## Protocolo de Comunicação
+
+- Handoffs internos: `spaces/{{SPACE_NAME}}/areas/{{AREA_NAME}}/teams/{{TEAM_NAME}}/memory/handoff.md`
+- Estado compartilhado: `spaces/{{SPACE_NAME}}/areas/{{AREA_NAME}}/teams/{{TEAM_NAME}}/memory/world.md`
+- Requisições ao sistema: Via `system/memory/handoff.md`
+
+## Workflow
+
+1. Tarefa entra via handoff ou invocação direta
+2. Agente líder ({{LEAD_AGENT}}) distribui subtarefas
+3. Membros executam e registram em world.md do time
+4. Resultados consolidados pelo líder
+
+## Guidelines
+
+- Diretório: `spaces/{{SPACE_NAME}}/areas/{{AREA_NAME}}/teams/{{TEAM_NAME}}/guidelines/`
+- Herda de: `spaces/{{SPACE_NAME}}/guidelines/` → `spaces/{{SPACE_NAME}}/areas/{{AREA_NAME}}/guidelines/`
+- Adicione documentação específica deste time.

@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Proposta Comercial Boris - Comunidade Alfa</title>
+<style>
+  :root {
+    --boris-orange: #ff7a00;
+    --boris-orange-deep: #eb5f00;
+    --boris-amber: #ffc95c;
+    --boris-ink: #182433;
+    --boris-ink-soft: #425466;
+    --boris-line: rgba(24, 36, 51, 0.1);
+    --boris-surface: #fffaf4;
+    --boris-warm: #fff2df;
+    --boris-white: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #eef2f6; color: var(--boris-ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    background: white;
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
+  .page-inner { padding: 18mm 18mm 16mm 18mm; position: relative; min-height: 297mm; }
+
+  .hero {
+    background:
+      radial-gradient(circle at 14% 14%, rgba(255, 201, 92, 0.58) 0, rgba(255, 201, 92, 0.18) 22%, transparent 40%),
+      linear-gradient(135deg, #fff5e8 0%, #ffffff 56%, #eef4fb 100%);
+  }
+  .hero .page-inner { padding-top: 16mm; }
+  .brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14mm;
+  }
+  .brand-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--boris-orange-deep);
+    font-weight: 800;
+  }
+  .brand-chip {
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(24, 36, 51, 0.06);
+    color: var(--boris-ink-soft);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.72fr;
+    gap: 10mm;
+    align-items: stretch;
+  }
+  .eyebrow {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 122, 0, 0.18);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.75);
+    color: var(--boris-orange-deep);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+    color: var(--boris-ink);
+    max-width: 112mm;
+  }
+  .lead {
+    margin: 16px 0 0 0;
+    max-width: 110mm;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--boris-ink-soft);
+  }
+  .hero-summary {
+    margin-top: 18mm;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .metric {
+    background: rgba(255,255,255,0.78);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(24, 36, 51, 0.08);
+    border-radius: 18px;
+    padding: 14px;
+  }
+  .metric-label {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #7a8897;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--boris-ink);
+    font-weight: 700;
+  }
+  .hero-visual {
+    position: relative;
+    border-radius: 30px;
+    min-height: 206mm;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,247,237,0.95) 100%),
+      linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.6));
+    border: 1px solid rgba(255, 122, 0, 0.14);
+    box-shadow: 0 26px 60px rgba(24, 36, 51, 0.08);
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0 0 16mm 0;
+  }
+  .hero-visual::before {
+    content: "";
+    position: absolute;
+    inset: auto auto 14mm 50%;
+    width: 74mm;
+    height: 74mm;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(255, 122, 0, 0.26) 0%, rgba(255, 122, 0, 0.08) 40%, transparent 72%);
+  }
+  .hero-visual img {
+    width: 76mm;
+    height: auto;
+    display: block;
+    position: relative;
+    z-index: 2;
+  }
+  .visual-note {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    max-width: 44mm;
+    background: rgba(255,255,255,0.88);
+    border: 1px solid rgba(24, 36, 51, 0.08);
+    border-radius: 16px;
+    padding: 10px 12px;
+    z-index: 3;
+  }
+  .visual-note strong {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--boris-orange-deep);
+    margin-bottom: 6px;
+  }
+  .visual-note span {
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: var(--boris-ink-soft);
+  }
+
+  .section-header { margin-bottom: 10mm; }
+  .section-kicker {
+    color: var(--boris-orange-deep);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 11px;
+    font-weight: 800;
+    margin-bottom: 10px;
+  }
+  h2 {
+    margin: 0;
+    font-size: 26px;
+    line-height: 1.06;
+    letter-spacing: -0.03em;
+    color: var(--boris-ink);
+  }
+  .rule {
+    width: 56mm;
+    height: 3px;
+    background: linear-gradient(90deg, var(--boris-orange) 0%, var(--boris-amber) 70%, transparent 100%);
+    margin-top: 12px;
+    border-radius: 999px;
+  }
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1.12fr 0.88fr;
+    gap: 10mm;
+  }
+  .text-block p {
+    margin: 0 0 12px 0;
+    font-size: 13.2px;
+    line-height: 1.72;
+    color: var(--boris-ink-soft);
+  }
+  .card {
+    border: 1px solid var(--boris-line);
+    border-radius: 24px;
+    background: var(--boris-white);
+    padding: 18px 18px 16px 18px;
+    box-shadow: 0 10px 34px rgba(24, 36, 51, 0.04);
+  }
+  .card + .card { margin-top: 12px; }
+  .card.warm { background: linear-gradient(180deg, #fff8f0 0%, #ffffff 100%); border-color: rgba(255,122,0,0.12); }
+  .card.dark {
+    background: linear-gradient(160deg, #182433 0%, #223449 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 16px 40px rgba(24, 36, 51, 0.16);
+  }
+  .card.dark h3, .card.dark p, .card.dark li, .card.dark .small-copy { color: rgba(255,255,255,0.94); }
+  h3 {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--boris-orange-deep);
+  }
+  .card.dark h3 { color: var(--boris-amber); }
+  ul.clean {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  ul.clean li {
+    position: relative;
+    padding-left: 18px;
+    margin: 0 0 10px 0;
+    font-size: 12.8px;
+    line-height: 1.58;
+    color: var(--boris-ink-soft);
+  }
+  ul.clean li::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--boris-orange), var(--boris-amber));
+    position: absolute;
+    left: 0;
+    top: 8px;
+  }
+  .card.dark ul.clean li { color: rgba(255,255,255,0.92); }
+  .card.dark ul.clean li::before { background: var(--boris-amber); }
+  .blockquote {
+    margin-top: 12px;
+    padding: 14px 16px;
+    border-left: 4px solid var(--boris-orange);
+    background: rgba(255, 122, 0, 0.06);
+    border-radius: 0 16px 16px 0;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--boris-ink);
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .price {
+    font-size: 27px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    margin: 8px 0 10px 0;
+    font-weight: 800;
+  }
+  .small-copy {
+    font-size: 11px;
+    line-height: 1.55;
+    color: #8a97a7;
+  }
+  .footer {
+    position: absolute;
+    left: 18mm;
+    right: 18mm;
+    bottom: 10mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: #8a97a7;
+  }
+  .footer strong { color: var(--boris-ink); letter-spacing: 0.08em; }
+</style>
+</head>
+<body>
+  <section class="page hero">
+    <div class="page-inner">
+      <div class="brand-row">
+        <div class="brand-mark">Bóris • Proposta Comercial</div>
+        <div class="brand-chip">Comunidade Alfa</div>
+      </div>
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Comunidades e grupos com mais clareza operacional</div>
+          <h1>Uma proposta comercial Boris para transformar conversa em contexto, leitura e ação.</h1>
+          <p class="lead">A Comunidade Alfa já opera onde a rotina acontece: no WhatsApp. O papel do Boris não é adicionar mais uma camada de ferramenta. É tornar o que hoje está disperso em mensagens uma fonte confiável de clareza para retenção, acompanhamento e decisão.</p>
+
+          <div class="hero-summary">
+            <div class="metric">
+              <div class="metric-label">Conta</div>
+              <div class="metric-value">Comunidade educacional com base paga e operação ativa em grupos</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Objetivo</div>
+              <div class="metric-value">Reduzir cegueira operacional e sustentar valor ao longo da jornada</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Formato</div>
+              <div class="metric-value">Proposta comercial branded em PDF</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="visual-note">
+            <strong>Bóris</strong>
+            <span>Camada de inteligência para grupos e comunidades em WhatsApp.</span>
+          </div>
+          <img src="data:image/png;base64,__BORIS_BASE64__" alt="Bóris" />
+        </div>
+      </div>
+      <div class="footer"><span>Proposta fictícia de demonstração</span><strong>BÓRIS</strong></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="page-inner">
+      <div class="section-header">
+        <div class="section-kicker">Diagnóstico e tese de valor</div>
+        <h2>O problema não está no canal. Está na falta de leitura operacional sobre o que já acontece nele.</h2>
+        <div class="rule"></div>
+      </div>
+
+      <div class="content-grid">
+        <div class="text-block">
+          <p>A Comunidade Alfa construiu sua operação principal em grupos de WhatsApp porque esse é o canal onde a rotina dos membros realmente acontece. O problema é que, conforme a comunidade cresce, a comunicação continua fluida, mas a operação fica opaca. A equipe passa a depender de percepção, memória e leitura manual para entender se a comunidade está saudável, se os membros estão acompanhando a jornada e se há risco de queda de valor ou renovação.</p>
+          <p>Hoje, a principal dor não é falta de atividade. É falta de clareza. O grupo parece vivo na superfície, mas a equipe não consegue enxergar com confiança quem está se perdendo, esfriando ou deixando de capturar valor.</p>
+          <div class="blockquote">O Boris entra para reduzir esse tipo de cegueira operacional sem substituir a relação humana da comunidade. A proposta de valor está em organizar conversa, revelar sinais e aumentar a capacidade de resposta da equipe.</div>
+        </div>
+        <div>
+          <div class="card warm">
+            <h3>Gargalos atuais</h3>
+            <ul class="clean">
+              <li>dificuldade para transformar volume de conversa em visibilidade operacional</li>
+              <li>perda de contexto sobre membros silenciosos, dúvidas recorrentes e sinais de esfriamento</li>
+              <li>excesso de trabalho manual para resumir, acompanhar e interpretar o que acontece nos grupos</li>
+              <li>dificuldade para provar valor contínuo da comunidade ao longo da jornada</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Tese de valor Boris</h3>
+            <ul class="clean">
+              <li>sinais de engajamento e silêncio</li>
+              <li>temas recorrentes e padrões de dor</li>
+              <li>contexto perdido entre mensagens</li>
+              <li>pontos que exigem ação, acompanhamento ou decisão</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>Diagnóstico e tese</span><strong>BÓRIS</strong></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="page-inner">
+      <div class="section-header">
+        <div class="section-kicker">Proposta, escopo e próximo passo</div>
+        <h2>Uma implementação inicial voltada para clareza, leitura de sinais e capacidade prática de agir.</h2>
+        <div class="rule"></div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <h3>Solução proposta</h3>
+            <ul class="clean">
+              <li>leitura estruturada da atividade dos grupos</li>
+              <li>apoio a resumos e entendimento do que está acontecendo</li>
+              <li>visibilidade sobre sinais de risco, silêncio e temas recorrentes</li>
+              <li>melhoria da capacidade operacional da equipe sem aumentar carga manual</li>
+            </ul>
+          </div>
+          <div class="card warm">
+            <h3>Resultado esperado</h3>
+            <ul class="clean">
+              <li>mais clareza sobre o que está acontecendo nos grupos</li>
+              <li>menos dependência de leitura manual dispersa</li>
+              <li>mais velocidade para identificar risco e oportunidade</li>
+              <li>mais capacidade de sustentar valor percebido ao longo da jornada</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <div class="card dark">
+            <h3>Investimento</h3>
+            <p>Modelo comercial: implementação inicial + acompanhamento da primeira fase</p>
+            <div class="price">R$ 6.000</div>
+            <p>setup inicial</p>
+            <div class="price" style="margin-top:18px;">R$ 2.500/mês</div>
+            <p>acompanhamento do primeiro ciclo</p>
+            <p class="small-copy">Valores apenas demonstrativos para esta proposta fictícia.</p>
+          </div>
+          <div class="card" style="margin-top:12px;">
+            <h3>Próximo passo</h3>
+            <p style="font-size:12.8px; line-height:1.65; color:var(--boris-ink-soft); margin:0;">Recomendamos uma conversa de alinhamento operacional para validar os grupos priorizados, as principais dores da operação, os sinais que hoje passam batido e o formato de entrega mais útil para a equipe. Com isso, a proposta pode ser fechada já com escopo inicial e desenho de implantação.</p>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>Escopo e investimento</span><strong>BÓRIS</strong></div>
+    </div>
+  </section>
+</body>
+</html>

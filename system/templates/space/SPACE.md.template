@@ -1,0 +1,29 @@
+---
+name: {{SPACE_NAME}}
+description: {{DESCRIPTION}}
+created: {{CREATED_DATE}}
+owner: {{OWNER}}
+---
+
+# Space: {{SPACE_NAME}}
+
+## Propósito
+
+{{PURPOSE}}
+
+## Areas
+
+| Area | Propósito | Agentes | Times |
+|---|---|---|---|
+| — | — | — | — |
+
+## Memória
+
+- Space: `spaces/{{SPACE_NAME}}/memory/`
+- Areas: `spaces/{{SPACE_NAME}}/areas/{nome}/memory/`
+
+## Guidelines
+
+- Diretório: `spaces/{{SPACE_NAME}}/guidelines/`
+- Index: `spaces/{{SPACE_NAME}}/guidelines/GUIDELINES.md`
+- Adicione playbooks, padrões e documentação de ferramentas neste diretório.

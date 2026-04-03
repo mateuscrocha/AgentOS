@@ -1,0 +1,25 @@
+{
+  "name": "vsl-clinica",
+  "type": "vsl",
+  "offer": "sua consultoria",
+  "audience": "clinicas e especialistas",
+  "outcome": "mais agenda qualificada",
+  "items": [
+    {
+      "slug": "vsl-gancho",
+      "text": "Se voce oferece sua consultoria para clinicas e especialistas, mas sente que a mensagem nao converte como deveria, presta atencao nisso."
+    },
+    {
+      "slug": "vsl-problema",
+      "text": "Na maioria das vezes, o problema nao esta na qualidade da oferta. Esta na forma como o valor chega ate a pessoa certa."
+    },
+    {
+      "slug": "vsl-oportunidade",
+      "text": "Quando a comunicacao fica clara, a decisao acontece com menos resistencia e com muito mais confianca."
+    },
+    {
+      "slug": "vsl-cta",
+      "text": "Se voce quer transformar sua consultoria em mais agenda qualificada, me chama e vamos estruturar isso do jeito certo."
+    }
+  ]
+}

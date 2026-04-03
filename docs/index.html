@@ -1,0 +1,2340 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentOS — Documentação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mulish:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" id="hljs-theme">
+<style>
+/* ============================================
+   CSS VARIABLES — PALETA MELIUZ
+   ============================================ */
+:root {
+  --rosa-meliuz: #FD9CBF;
+  --rosa-l1:     #FDB9D2;
+  --rosa-l2:     #FFE0EB;
+  --rosa-l3:     #FDF0F5;
+  --rosa-s1:     #FF619A;
+  --rosa-s2:     #E02D6E;
+  --preto-meliuz: #2A2A2A;
+  --preto-l1:     #404040;
+  --preto-l2:     #7A7A7A;
+  --preto-l3:     #BFBFBF;
+  --preto-l4:     #D9D9D9;
+  --branco-puro:  #FFFFFF;
+  --preto-puro:   #000000;
+
+  --font-heading: 'Syne', sans-serif;
+  --font-body: 'Mulish', sans-serif;
+  --sidebar-width: 280px;
+  --header-height: 60px;
+  --transition: 0.25s ease;
+}
+
+/* DARK MODE (default) */
+[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --bg-secondary: var(--preto-meliuz);
+  --bg-card: var(--preto-l1);
+  --bg-card-hover: #4a4a4a;
+  --bg-sidebar: #1e1e1e;
+  --bg-header: rgba(26,26,26,0.95);
+  --bg-code: #161616;
+  --text: var(--branco-puro);
+  --text-secondary: var(--preto-l3);
+  --text-muted: var(--preto-l2);
+  --border: #333;
+  --accent: var(--rosa-meliuz);
+  --accent-hover: var(--rosa-s1);
+  --accent-strong: var(--rosa-s2);
+  --badge-bg: rgba(253,156,191,0.15);
+  --badge-text: var(--rosa-meliuz);
+  --table-header: rgba(253,156,191,0.12);
+  --table-row-alt: rgba(255,255,255,0.03);
+  --shadow: 0 2px 12px rgba(0,0,0,0.4);
+  --mermaid-theme: dark;
+}
+
+/* LIGHT MODE */
+[data-theme="light"] {
+  --bg: var(--rosa-l3);
+  --bg-secondary: var(--branco-puro);
+  --bg-card: var(--branco-puro);
+  --bg-card-hover: var(--rosa-l2);
+  --bg-sidebar: #f7f0f3;
+  --bg-header: rgba(253,240,245,0.95);
+  --bg-code: #f5f0f2;
+  --text: var(--preto-meliuz);
+  --text-secondary: var(--preto-l1);
+  --text-muted: var(--preto-l2);
+  --border: var(--preto-l4);
+  --accent: var(--rosa-s2);
+  --accent-hover: var(--rosa-s1);
+  --accent-strong: var(--rosa-s2);
+  --badge-bg: rgba(224,45,110,0.1);
+  --badge-text: var(--rosa-s2);
+  --table-header: rgba(224,45,110,0.08);
+  --table-row-alt: rgba(0,0,0,0.02);
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --mermaid-theme: default;
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--header-height) + 24px);
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  transition: background var(--transition), color var(--transition);
+  overflow-x: hidden;
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--rosa-meliuz); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--rosa-s1); }
+
+/* ============================================
+   HEADER
+   ============================================ */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background: var(--bg-header);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 1000;
+  transition: background var(--transition);
+}
+
+.header-logo {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.3rem;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.header-logo span {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.header-search {
+  flex: 1;
+  max-width: 400px;
+  margin: 0 24px;
+  position: relative;
+}
+
+.header-search input {
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.header-search input:focus {
+  border-color: var(--accent);
+}
+
+.header-search .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.theme-toggle {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition);
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+}
+
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* ============================================
+   SIDEBAR
+   ============================================ */
+.sidebar {
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  width: var(--sidebar-width);
+  height: calc(100vh - var(--header-height));
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 16px 0;
+  z-index: 900;
+  transition: transform 0.3s ease;
+}
+
+[data-theme="dark"] .sidebar {
+  background-color: #1e1e1e;
+  border-right-color: #333;
+}
+
+[data-theme="light"] .sidebar {
+  background-color: #f7f0f3;
+  border-right-color: #D9D9D9;
+}
+
+.sidebar-section {
+  margin-bottom: 4px;
+}
+
+.sidebar-section-title {
+  font-family: var(--font-heading);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 12px 20px 6px;
+}
+
+[data-theme="dark"] .sidebar-section-title { color: #7A7A7A; }
+[data-theme="light"] .sidebar-section-title { color: #7A7A7A; }
+
+.sidebar-link {
+  display: block;
+  padding: 8px 20px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  border-left: 3px solid transparent;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+[data-theme="dark"] .sidebar-link { color: #BFBFBF; }
+[data-theme="light"] .sidebar-link { color: #404040; }
+
+[data-theme="dark"] .sidebar-link:hover {
+  color: #FD9CBF;
+  background: rgba(253,156,191,0.15);
+}
+[data-theme="light"] .sidebar-link:hover {
+  color: #E02D6E;
+  background: rgba(224,45,110,0.1);
+}
+
+[data-theme="dark"] .sidebar-link.active {
+  color: #FD9CBF;
+  border-left-color: #FD9CBF;
+  background: rgba(253,156,191,0.15);
+  font-weight: 600;
+}
+[data-theme="light"] .sidebar-link.active {
+  color: #E02D6E;
+  border-left-color: #E02D6E;
+  background: rgba(224,45,110,0.1);
+  font-weight: 600;
+}
+
+.sidebar-link.sub {
+  padding-left: 36px;
+  font-size: 0.8125rem;
+}
+
+/* ============================================
+   MAIN CONTENT
+   ============================================ */
+.main {
+  margin-left: var(--sidebar-width);
+  margin-top: var(--header-height);
+  min-height: calc(100vh - var(--header-height));
+  padding: 40px 48px 80px;
+  max-width: 960px;
+}
+
+.section {
+  margin-bottom: 72px;
+}
+
+.section:last-child {
+  margin-bottom: 40px;
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  line-height: 1.3;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 28px 0 12px;
+  color: var(--accent);
+}
+
+h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 20px 0 8px;
+}
+
+p {
+  margin-bottom: 14px;
+  color: var(--text-secondary);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ============================================
+   COMPONENTS
+   ============================================ */
+
+/* BADGES */
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  letter-spacing: 0.02em;
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+/* CARDS */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  transition: all var(--transition);
+}
+
+.card:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.card-icon {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.card-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.card-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.card-skills {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.card-skills .badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
+
+/* CODE BLOCKS */
+.code-wrapper {
+  position: relative;
+  margin: 16px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+}
+
+.code-wrapper .code-lang {
+  position: absolute;
+  top: 8px;
+  right: 48px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-family: var(--font-body);
+  transition: all var(--transition);
+}
+
+.copy-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.code-wrapper pre {
+  margin: 0;
+  padding: 16px 20px;
+  background: var(--bg-code) !important;
+  overflow-x: auto;
+}
+
+.code-wrapper code {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+/* Inline code */
+p code, li code, td code {
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.8em;
+}
+
+/* TABLES */
+.table-wrapper {
+  overflow-x: auto;
+  margin: 16px 0;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+thead th {
+  background: var(--table-header);
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+
+tbody td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+tbody tr:nth-child(even) {
+  background: var(--table-row-alt);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* MERMAID */
+.mermaid-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  margin: 20px 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.mermaid {
+  display: flex;
+  justify-content: center;
+}
+
+/* ACCORDION */
+.accordion-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+
+.accordion-item:hover {
+  border-color: var(--accent);
+}
+
+.accordion-header {
+  width: 100%;
+  background: var(--bg-card);
+  border: none;
+  padding: 16px 20px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background var(--transition);
+}
+
+.accordion-header:hover {
+  background: var(--bg-card-hover);
+}
+
+.accordion-arrow {
+  transition: transform 0.2s;
+  color: var(--accent);
+}
+
+.accordion-item.open .accordion-arrow {
+  transform: rotate(180deg);
+}
+
+.accordion-body {
+  display: none;
+  padding: 0 20px 16px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.accordion-item.open .accordion-body {
+  display: block;
+}
+
+/* TIMELINE */
+.timeline {
+  position: relative;
+  padding-left: 32px;
+  margin: 20px 0;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--rosa-s1), var(--rosa-meliuz), var(--rosa-l1));
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color var(--transition);
+}
+
+.timeline-item:hover {
+  border-color: var(--accent);
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -28px;
+  top: 20px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+}
+
+.timeline-version {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.timeline-date {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+
+.timeline-desc {
+  margin-top: 6px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* HERO */
+.hero {
+  text-align: center;
+  padding: 40px 0 20px;
+}
+
+.hero h1 {
+  font-size: 3.2rem;
+  background: linear-gradient(135deg, var(--rosa-s1), var(--rosa-meliuz), var(--rosa-l1));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+.hero .subtitle {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.hero .description {
+  max-width: 680px;
+  margin: 0 auto 28px;
+  font-size: 1rem;
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.stat-badge {
+  padding: 8px 18px;
+  border-radius: 24px;
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  font-weight: 700;
+  font-size: 0.85rem;
+  font-family: var(--font-heading);
+}
+
+/* STEPS */
+.step {
+  position: relative;
+  padding-left: 48px;
+  margin-bottom: 28px;
+}
+
+.step-number {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--rosa-s1), var(--rosa-s2));
+  color: white;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step h4 {
+  margin-top: 0;
+  color: var(--text);
+}
+
+/* TREE VIEW */
+.tree {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.tree .highlight {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tree .comment {
+  color: var(--text-muted);
+}
+
+/* PROTOCOL BOX */
+.protocol-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 20px 0;
+}
+
+.protocol-box h4 {
+  margin-top: 0;
+  color: var(--accent);
+}
+
+/* SEARCH RESULTS */
+.search-highlight {
+  display: none;
+}
+
+.section.hidden {
+  display: none;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 1024px) {
+  .main {
+    padding: 32px 28px 60px;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+  }
+
+  .main {
+    margin-left: 0;
+    padding: 24px 18px 60px;
+  }
+
+  .hamburger {
+    display: block;
+  }
+
+  .header-search {
+    max-width: 200px;
+    margin: 0 12px;
+  }
+
+  h1 { font-size: 2rem; }
+  .hero h1 { font-size: 2.2rem; }
+
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* OVERLAY */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 899;
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+</style>
+</head>
+<body>
+
+<!-- ====== HEADER ====== -->
+<header class="header">
+  <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">&#9776;</button>
+  <div class="header-logo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" stroke-width="2"/><line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2"/><line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" stroke-width="2"/><line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2"/></svg>
+    Agent<span>OS</span>
+  </div>
+  <div class="header-search">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Buscar na documentação..." oninput="handleSearch(this.value)">
+  </div>
+  <div class="header-actions">
+    <button class="theme-toggle" onclick="toggleTheme()">
+      <span id="themeIcon">&#9788;</span>
+      <span id="themeLabel">Dark</span>
+    </button>
+  </div>
+</header>
+
+<!-- ====== SIDEBAR OVERLAY ====== -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- ====== SIDEBAR ====== -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Início</div>
+    <a href="#hero" class="sidebar-link active" data-section="hero">Visão Geral</a>
+    <a href="#arquitetura" class="sidebar-link" data-section="arquitetura">Arquitetura</a>
+    <a href="#quick-start" class="sidebar-link" data-section="quick-start">Como Começar</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Fundamentos</div>
+    <a href="#conceitos" class="sidebar-link" data-section="conceitos">Conceitos</a>
+    <a href="#comandos" class="sidebar-link" data-section="comandos">Comandos</a>
+    <a href="#agentes" class="sidebar-link" data-section="agentes">Agentes do Sistema</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Infraestrutura</div>
+    <a href="#memoria" class="sidebar-link" data-section="memoria">Sistema de Memória</a>
+    <a href="#protocolos" class="sidebar-link" data-section="protocolos">Protocolos</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Prática</div>
+    <a href="#cenario" class="sidebar-link" data-section="cenario">Cenário Prático</a>
+    <a href="#desenvolvimento" class="sidebar-link" data-section="desenvolvimento">Guia de Desenvolvimento</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Referência</div>
+    <a href="#faq" class="sidebar-link" data-section="faq">FAQ</a>
+    <a href="#changelog" class="sidebar-link" data-section="changelog">Changelog</a>
+  </div>
+</nav>
+
+<!-- ====== MAIN CONTENT ====== -->
+<main class="main">
+
+<!-- ==================== SECTION 1: HERO ==================== -->
+<section class="section" id="hero" data-search="agentos visão geral introdução sistema operacional agentes ia">
+  <div class="hero">
+    <h1>Agent<span style="color: #000000 !important;">OS</span></h1>
+    <p class="subtitle">Sistema Operacional de Agentes de IA</p>
+    <p class="description">
+      Assim como um sistema operacional gerencia processos, memória e comunicação entre programas,
+      o AgentOS gerencia agentes, memória e comunicação entre eles.
+      Construído sobre o <strong>Claude Code</strong> e <strong>Gemini CLI</strong>.
+    </p>
+    <div class="stats-row">
+      <span class="stat-badge">v0.9.0</span>
+      <span class="stat-badge">19 Agentes</span>
+      <span class="stat-badge">42 Skills</span>
+      <span class="stat-badge">5 Protocolos</span>
+    </div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">&#9881;</div>
+      <div class="card-title">Padronização</div>
+      <div class="card-desc">Todos os agentes seguem o mesmo formato e convenções, tornando o sistema previsível e fácil de manter.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128274;</div>
+      <div class="card-title">Isolamento</div>
+      <div class="card-desc">Cada space é um namespace isolado. Agentes de spaces diferentes não interferem entre si.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#129504;</div>
+      <div class="card-title">Memória Persistente</div>
+      <div class="card-desc">Agentes têm memória estruturada que persiste entre sessões, com escopos hierárquicos.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128101;</div>
+      <div class="card-title">Colaboração</div>
+      <div class="card-desc">Comunicação síncrona (invocação direta) e assíncrona (handoff e bus de eventos) entre agentes.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128640;</div>
+      <div class="card-title">Extensibilidade</div>
+      <div class="card-desc">Novos agentes, skills e times podem ser adicionados a qualquer momento sem afetar o existente.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#127760;</div>
+      <div class="card-title">Multi-Runtime</div>
+      <div class="card-desc">Suporte completo ao Claude Code e Gemini CLI com dual-write automático.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SECTION 2: ARQUITETURA ==================== -->
+<section class="section" id="arquitetura" data-search="arquitetura estrutura camadas sistema spaces hierarquia skills">
+  <h2>Arquitetura</h2>
+
+  <h3>Duas Camadas</h3>
+  <p>O AgentOS é organizado em duas camadas distintas: o <strong>sistema</strong> (core do OS) e os <strong>spaces</strong> (espaços do usuário).</p>
+
+  <div class="card-grid" style="grid-template-columns: 1fr 1fr;">
+    <div class="card">
+      <div class="card-icon">&#9881;</div>
+      <div class="card-title">Camada do Sistema</div>
+      <div class="card-desc"><code>system/</code> — Core do AgentOS. Contém agentes de sistema, protocolos, templates, skills globais e memória global. <strong>Não deve ser modificada diretamente.</strong></div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128193;</div>
+      <div class="card-title">Camada do Usuário</div>
+      <div class="card-desc"><code>spaces/</code> — Espaços criados pelo usuário. Cada space é um namespace isolado, subdividido em áreas e times.</div>
+    </div>
+  </div>
+
+  <h3>Estrutura de Diretórios</h3>
+  <div class="mermaid-wrapper">
+    <pre class="mermaid">
+graph TD
+    ROOT["AgentOS/"] --> SYS["system/"]
+    ROOT --> SPACES["spaces/"]
+    ROOT --> DOCS["docs/"]
+    SYS --> AGENTS_S["agents/ — 19 agentes"]
+    SYS --> MEM_S["memory/ — estado global"]
+    SYS --> PROTO["protocols/ — 5 protocolos"]
+    SYS --> SKILLS_S["skills/ — 12 globais"]
+    SYS --> TMPL["templates/ — 6 templates"]
+    SPACES --> SP1["{space}/"]
+    SP1 --> SPMEM["memory/"]
+    SP1 --> AREA1["areas/{area}/"]
+    AREA1 --> AG_U["agents/"]
+    AREA1 --> TM_U["teams/"]
+    AREA1 --> AMEM["memory/"]
+
+    style ROOT fill:#E02D6E,stroke:#E02D6E,color:#fff
+    style SYS fill:#FF619A,stroke:#FF619A,color:#fff
+    style SPACES fill:#FD9CBF,stroke:#FD9CBF,color:#fff
+    style DOCS fill:#7A7A7A,stroke:#7A7A7A,color:#fff
+    </pre>
+  </div>
+
+  <h3>Hierarquia: Space &gt; Area &gt; Team &gt; Agent</h3>
+  <div class="mermaid-wrapper">
+    <pre class="mermaid">
+graph TD
+    S["Space"] --> A1["Area 1"]
+    S --> A2["Area 2"]
+    A1 --> AG1["Agent"]
+    A1 --> AG2["Agent"]
+    A1 --> T1["Team"]
+    T1 --> AG3["Agent"]
+    T1 --> AG4["Agent"]
+    A2 --> AG5["Agent"]
+
+    style S fill:#E02D6E,stroke:#E02D6E,color:#fff
+    style A1 fill:#FF619A,stroke:#FF619A,color:#fff
+    style A2 fill:#FF619A,stroke:#FF619A,color:#fff
+    style T1 fill:#FD9CBF,stroke:#FD9CBF,color:#2A2A2A
+    style AG1 fill:#404040,stroke:#FD9CBF,color:#fff
+    style AG2 fill:#404040,stroke:#FD9CBF,color:#fff
+    style AG3 fill:#404040,stroke:#FD9CBF,color:#fff
+    style AG4 fill:#404040,stroke:#FD9CBF,color:#fff
+    style AG5 fill:#404040,stroke:#FD9CBF,color:#fff
+    </pre>
+  </div>
+
+  <h3>Três Níveis de Skills</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Nível</th><th>Localização</th><th>Escopo</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Skills globais</strong></td><td><code>system/skills/</code></td><td>Disponíveis para qualquer agente</td></tr>
+        <tr><td><strong>Skills de agente do sistema</strong></td><td><code>system/agents/{agente}/skills/</code></td><td>Específicas do agente de sistema</td></tr>
+        <tr><td><strong>Skills de agente do usuário</strong></td><td><code>spaces/.../agents/{agente}/skills/</code></td><td>Específicas do agente do usuário</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ==================== SECTION 3: QUICK START ==================== -->
+<section class="section" id="quick-start" data-search="como começar quick start instalação setup primeiro agente passo a passo tutorial">
+  <h2>Como Começar</h2>
+
+  <h3>Pré-requisitos</h3>
+  <div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="card">
+      <div class="card-icon">&#128187;</div>
+      <div class="card-title">Runtime</div>
+      <div class="card-desc">Claude Code ou Gemini CLI instalado e configurado no terminal.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128230;</div>
+      <div class="card-title">Repositório</div>
+      <div class="card-desc">AgentOS clonado no computador.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#9889;</div>
+      <div class="card-title">Bootstrap</div>
+      <div class="card-desc">Executar <code>/setup</code> uma vez.</div>
+    </div>
+  </div>
+
+  <h3>Passo a Passo</h3>
+
+  <div class="step">
+    <div class="step-number">1</div>
+    <h4>Bootstrap do sistema</h4>
+    <p>Inicializa o AgentOS com 19 agentes, 5 protocolos e 42 skills.</p>
+    <div class="code-wrapper">
+      <span class="code-lang">bash</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+      <pre><code class="language-bash">/setup</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">2</div>
+    <h4>Verificar o sistema</h4>
+    <p>Confirme que o sistema está ativo e os agentes funcionando.</p>
+    <div class="code-wrapper">
+      <span class="code-lang">bash</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+      <pre><code class="language-bash">/status</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">3</div>
+    <h4>Criar um space</h4>
+    <p>Crie seu primeiro namespace isolado.</p>
+    <div class="code-wrapper">
+      <span class="code-lang">bash</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+      <pre><code class="language-bash">/new-space meu-projeto</code></pre>
+    </div>
+    <div class="tree">
+spaces/meu-projeto/
+├── <span class="highlight">SPACE.md</span>              <span class="comment">← Manifesto do space</span>
+├── memory/
+│   ├── world.md          <span class="comment">← Estado do space</span>
+│   └── handoff.md        <span class="comment">← Tarefas pendentes</span>
+├── guidelines/
+│   └── GUIDELINES.md     <span class="comment">← Documentação do space</span>
+└── areas/                <span class="comment">← Vazio (ainda sem áreas)</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">4</div>
+    <h4>Criar uma área</h4>
+    <p>Subdivida o space em domínios lógicos.</p>
+    <div class="code-wrapper">
+      <span class="code-lang">bash</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+      <pre><code class="language-bash">/new-area meu-projeto backend</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">5</div>
+    <h4>Criar um agente</h4>
+    <p>Crie sua unidade fundamental de trabalho. O sistema perguntará sobre persona, capacidades e regras.</p>
+    <div class="code-wrapper">
+      <span class="code-lang">bash</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+      <pre><code class="language-bash">/new-agent meu-projeto backend assistente</code></pre>
+    </div>
+    <div class="tree">
+spaces/meu-projeto/areas/backend/agents/assistente/
+├── <span class="highlight">AGENT.md</span>              <span class="comment">← Definição do agente</span>
+├── memory/
+│   └── history.md        <span class="comment">← Histórico de ações</span>
+└── skills/               <span class="comment">← Vazio (ainda sem skills)</span>
+
+.claude/agents/<span class="highlight">meu-projeto--backend--assistente.md</span>  <span class="comment">← Integração Claude Code</span>
+.gemini/agents/<span class="highlight">meu-projeto--backend--assistente.md</span>  <span class="comment">← Integração Gemini CLI</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">6</div>
+    <h4>Adicionar uma skill</h4>
+    <p>Dê ao agente um processo documentado e repetível.</p>
+    <div class="code-wrapper">
+      <span class="code-lang">bash</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+      <pre><code class="language-bash">/new-skill meu-projeto/backend/assistente revisar-codigo</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">7</div>
+    <h4>Interagir com o agente</h4>
+    <p>Pronto! O agente lê sua memória, executa a tarefa e atualiza o contexto.</p>
+    <div class="code-wrapper">
+      <span class="code-lang">Claude Code</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+      <pre><code class="language-plaintext">"Use o assistente para revisar o último PR"</code></pre>
+    </div>
+    <div class="code-wrapper">
+      <span class="code-lang">Gemini CLI</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+      <pre><code class="language-plaintext">@meu-projeto--backend--assistente revise este código</code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SECTION 4: CONCEITOS ==================== -->
+<section class="section" id="conceitos" data-search="conceitos space area agent team skill memory fundamental">
+  <h2>Conceitos Essenciais</h2>
+  <p>Os blocos fundamentais que formam o AgentOS.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">&#127970;</div>
+      <div class="card-title">Space</div>
+      <div class="card-desc">Namespace isolado de nível superior. Equivale a um projeto ou domínio de trabalho. <strong>Agentes de spaces diferentes não se comunicam.</strong> Exemplos: <code>automacao-vendas</code>, <code>analise-dados</code>.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128193;</div>
+      <div class="card-title">Area</div>
+      <div class="card-desc">Subdivisão temática dentro de um space. Agrupa agentes e times relacionados. Exemplos: <code>backend</code>, <code>frontend</code>, <code>dados</code>.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#129302;</div>
+      <div class="card-title">Agent</div>
+      <div class="card-desc">Unidade fundamental. Tem <strong>Persona</strong> (quem é), <strong>Capacidades</strong> (o que faz), <strong>Skills</strong> (processos) e <strong>Memória</strong> (contexto). Regra de ouro: um agente, uma responsabilidade.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128101;</div>
+      <div class="card-title">Team</div>
+      <div class="card-desc">Grupo de agentes colaborativos dentro de uma área. Tem memória compartilhada e um agente líder que coordena os demais.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#9889;</div>
+      <div class="card-title">Skill</div>
+      <div class="card-desc">Processo documentado passo-a-passo que um agente executa. Sem skill, o agente improvisa. Com skill, o comportamento é <strong>previsível e repetível</strong>.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#129504;</div>
+      <div class="card-title">Memory</div>
+      <div class="card-desc">Memória hierárquica em 5 níveis. Arquivos: <code>world.md</code> (estado atual), <code>history.md</code> (log de ações), <code>handoff.md</code> (tarefas transferidas).</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SECTION 5: COMANDOS ==================== -->
+<section class="section" id="comandos" data-search="comandos referência setup status new-space new-area new-agent new-team new-skill handoff plan run brand-guidelines canvas-design doc-coauthoring docx pptx xlsx pdf frontend-design theme-factory web-artifacts mcp-builder">
+  <h2>Referência de Comandos</h2>
+  <p>O AgentOS é controlado por comandos que começam com <code>/</code>. Todos os nomes devem ser <strong>kebab-case</strong> (minúsculas + hífens).</p>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>Comando</th><th>Ação</th><th>Agente</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>/setup</code></td><td>Bootstrap do sistema (primeira vez)</td><td>kernel</td></tr>
+        <tr><td><code>/status</code></td><td>Visão geral do sistema</td><td>kernel</td></tr>
+        <tr><td><code>/health</code></td><td>Diagnóstico de integridade</td><td>health-monitor</td></tr>
+        <tr><td><code>/new-space &lt;nome&gt;</code></td><td>Criar novo space</td><td>agent-manager</td></tr>
+        <tr><td><code>/new-area &lt;space&gt; &lt;nome&gt;</code></td><td>Criar área dentro de um space</td><td>agent-manager</td></tr>
+        <tr><td><code>/new-agent &lt;space&gt; &lt;area&gt; &lt;nome&gt;</code></td><td>Criar agente dentro de uma área</td><td>agent-manager</td></tr>
+        <tr><td><code>/new-team &lt;space&gt; &lt;area&gt; &lt;nome&gt;</code></td><td>Criar time dentro de uma área</td><td>team-manager</td></tr>
+        <tr><td><code>/new-skill &lt;space/area/agente&gt; &lt;nome&gt;</code></td><td>Criar skill para um agente</td><td>skill-manager</td></tr>
+        <tr><td><code>/handoff &lt;de&gt; &lt;para&gt; &lt;tarefa&gt;</code></td><td>Transferir tarefa entre agentes</td><td>kernel</td></tr>
+        <tr><td><code>/plan &lt;descrição&gt;</code></td><td>Gerar plano sem executar</td><td>workflow-planner</td></tr>
+        <tr><td><code>/run &lt;workflow&gt;</code></td><td>Executar workflow multi-agente</td><td>task-runner</td></tr>
+        <tr><td><code>/workflows</code></td><td>Listar workflows disponíveis</td><td>task-runner</td></tr>
+        <tr><td><code>/brand-guidelines</code></td><td>Aplica identidade visual Anthropic a artefatos</td><td>brand-guidelines</td></tr>
+        <tr><td><code>/canvas-design</code></td><td>Cria arte visual em PDF/PNG com filosofia de design</td><td>canvas-design</td></tr>
+        <tr><td><code>/doc-coauthoring</code></td><td>Inicia workflow colaborativo de criação de documentos</td><td>doc-coauthoring</td></tr>
+        <tr><td><code>/docx</code></td><td>Criar, ler, editar documentos Word (.docx)</td><td>docx-manager</td></tr>
+        <tr><td><code>/pptx</code></td><td>Criar, editar apresentações PowerPoint (.pptx)</td><td>pptx-manager</td></tr>
+        <tr><td><code>/xlsx</code></td><td>Operações com planilhas Excel (.xlsx, .csv)</td><td>xlsx-manager</td></tr>
+        <tr><td><code>/pdf</code></td><td>Processamento de documentos PDF</td><td>pdf-manager</td></tr>
+        <tr><td><code>/frontend-design</code></td><td>Cria interfaces frontend production-grade</td><td>frontend-design</td></tr>
+        <tr><td><code>/theme-factory</code></td><td>Aplica temas profissionais a artefatos</td><td>theme-factory</td></tr>
+        <tr><td><code>/web-artifacts</code></td><td>Cria artefatos web React/TS bundled</td><td>web-artifacts-builder</td></tr>
+        <tr><td><code>/mcp-builder</code></td><td>Constrói servidores MCP</td><td>mcp-builder</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Exemplos de Uso</h3>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span><code>/new-space</code> — Criar um space</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <div class="code-wrapper">
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        <pre><code class="language-bash">/new-space analise-dados
+/new-space automacao-vendas
+/new-space suporte-cliente</code></pre>
+      </div>
+      <p>O nome deve ser único e em kebab-case. O <code>agent-manager</code> cria a estrutura completa com memória, guidelines e diretório de áreas.</p>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span><code>/new-agent</code> — Criar um agente</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <div class="code-wrapper">
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        <pre><code class="language-bash">/new-agent meu-space backend analista
+/new-agent meu-space frontend designer
+/new-agent analise-dados coleta coletor-dados</code></pre>
+      </div>
+      <p>O sistema pergunta sobre <strong>persona</strong>, <strong>capacidades</strong> e <strong>regras</strong>. Cria AGENT.md, memória e integração com ambos os runtimes.</p>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span><code>/handoff</code> — Transferir tarefa</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <div class="code-wrapper">
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        <pre><code class="language-bash">/handoff analista executor "processar os dados analisados"
+/handoff coletor analista "analisar os dados coletados do Q1"</code></pre>
+      </div>
+      <p>O handoff é escrito no <code>handoff.md</code> do escopo correto. O agente destino vê a tarefa na próxima invocação.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SECTION 6: AGENTES DO SISTEMA ==================== -->
+<section class="section" id="agentes" data-search="agentes sistema agent-manager skill-manager memory-manager team-manager doc-manager health-monitor task-runner workflow-planner anthropic">
+  <h2>Agentes do Sistema</h2>
+  <p>19 agentes — <strong>8 core</strong> (infraestrutura) + <strong>11 skills Anthropic</strong> (capacidades especializadas).</p>
+
+  <h3>Core — Infraestrutura</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">&#128736;</div>
+      <div class="card-title">agent-manager</div>
+      <div class="card-desc">Gerencia ciclo de vida de agentes, spaces e áreas — criação, evolução e registro.</div>
+      <div class="card-skills">
+        <span class="badge">create-space</span>
+        <span class="badge">create-area</span>
+        <span class="badge">create-agent</span>
+        <span class="badge">evolve-agent</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#9889;</div>
+      <div class="card-title">skill-manager</div>
+      <div class="card-desc">Gerencia skills — criação, validação, registro e descoberta.</div>
+      <div class="card-skills">
+        <span class="badge">validate-skill</span>
+        <span class="badge">skill-creator</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#129504;</div>
+      <div class="card-title">memory-manager</div>
+      <div class="card-desc">Gerencia memória — inicialização, escopos, limpeza e mapeamento.</div>
+      <div class="card-skills">
+        <span class="badge">init-memory</span>
+        <span class="badge">cleanup-memory</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128101;</div>
+      <div class="card-title">team-manager</div>
+      <div class="card-desc">Gerencia times — criação, composição, comunicação e coordenação.</div>
+      <div class="card-skills">
+        <span class="badge">create-team</span>
+        <span class="badge">manage-members</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128195;</div>
+      <div class="card-title">doc-manager</div>
+      <div class="card-desc">Gera e mantém toda a documentação do sistema.</div>
+      <div class="card-skills">
+        <span class="badge">generate-docs</span>
+        <span class="badge">generate-readme</span>
+        <span class="badge">audit-docs</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#129657;</div>
+      <div class="card-title">health-monitor</div>
+      <div class="card-desc">Diagnostica problemas de integridade — verifica consistência e detecta drift.</div>
+      <div class="card-skills">
+        <span class="badge">check-health</span>
+        <span class="badge">check-handoffs</span>
+        <span class="badge">generate-report</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#9654;</div>
+      <div class="card-title">task-runner</div>
+      <div class="card-desc">Orquestra workflows multi-agente com dependências e retry.</div>
+      <div class="card-skills">
+        <span class="badge">run-workflow</span>
+        <span class="badge">create-workflow</span>
+        <span class="badge">resume-workflow</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128466;</div>
+      <div class="card-title">workflow-planner</div>
+      <div class="card-desc">Traduz intenção do usuário em planos de execução concretos.</div>
+      <div class="card-skills">
+        <span class="badge">plan-action</span>
+        <span class="badge">estimate-impact</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Skills Anthropic</h3>
+  <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+    <div class="card">
+      <div class="card-icon">&#127912;</div>
+      <div class="card-title">brand-guidelines</div>
+      <div class="card-desc">Identidade visual e paleta de cores</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128444;</div>
+      <div class="card-title">canvas-design</div>
+      <div class="card-desc">Arte visual em PDF/PNG</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128221;</div>
+      <div class="card-title">doc-coauthoring</div>
+      <div class="card-desc">Workflow colaborativo de documentos</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128196;</div>
+      <div class="card-title">docx-manager</div>
+      <div class="card-desc">Documentos Word (.docx)</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128202;</div>
+      <div class="card-title">pptx-manager</div>
+      <div class="card-desc">Apresentações PowerPoint</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128200;</div>
+      <div class="card-title">xlsx-manager</div>
+      <div class="card-desc">Planilhas Excel</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128462;</div>
+      <div class="card-title">pdf-manager</div>
+      <div class="card-desc">Processamento de PDFs</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128421;</div>
+      <div class="card-title">frontend-design</div>
+      <div class="card-desc">Interfaces frontend</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#127752;</div>
+      <div class="card-title">theme-factory</div>
+      <div class="card-desc">Temas profissionais</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#127760;</div>
+      <div class="card-title">web-artifacts-builder</div>
+      <div class="card-desc">Artefatos web React/TS</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128268;</div>
+      <div class="card-title">mcp-builder</div>
+      <div class="card-desc">Servidores MCP</div>
+    </div>
+  </div>
+
+  <h3>Diagrama de Colaboração</h3>
+  <div class="mermaid-wrapper">
+    <pre class="mermaid">
+graph LR
+    subgraph Criação de Recursos
+        AM[agent-manager] --> MM[memory-manager]
+        AM --> SM[skill-manager]
+        AM --> TM[team-manager]
+    end
+    subgraph Orquestração
+        WP[workflow-planner] --> TR[task-runner]
+        TR --> AM
+        TR --> SM
+        TR --> MM
+    end
+    subgraph Saúde
+        HM[health-monitor] -.->|handoff| AM
+        HM -.->|handoff| MM
+        HM -.->|handoff| DM[doc-manager]
+    end
+
+    style AM fill:#E02D6E,stroke:#E02D6E,color:#fff
+    style SM fill:#FF619A,stroke:#FF619A,color:#fff
+    style MM fill:#FF619A,stroke:#FF619A,color:#fff
+    style TM fill:#FF619A,stroke:#FF619A,color:#fff
+    style WP fill:#FD9CBF,stroke:#FD9CBF,color:#2A2A2A
+    style TR fill:#FD9CBF,stroke:#FD9CBF,color:#2A2A2A
+    style HM fill:#404040,stroke:#FD9CBF,color:#fff
+    style DM fill:#404040,stroke:#FD9CBF,color:#fff
+    </pre>
+  </div>
+</section>
+
+<!-- ==================== SECTION 7: MEMÓRIA ==================== -->
+<section class="section" id="memoria" data-search="memória memory world.md history.md handoff.md bus.md escopos protocolo acesso">
+  <h2>Sistema de Memória</h2>
+  <p>Toda memória é baseada em arquivos markdown com estrutura definida e regras rígidas de escopo.</p>
+
+  <h3>Hierarquia de Escopos</h3>
+  <div class="tree">
+<span class="highlight">system/memory/world.md</span>                          <span class="comment">← Estado global (todos leem)</span>
+  └── <span class="highlight">spaces/{space}/memory/world.md</span>            <span class="comment">← Estado do space</span>
+        └── <span class="highlight">areas/{area}/memory/world.md</span>        <span class="comment">← Estado da área</span>
+              └── <span class="highlight">teams/{time}/memory/world.md</span>  <span class="comment">← Estado do time</span>
+                    └── <span class="highlight">{agente}/memory/history.md</span>    <span class="comment">← Histórico do agente</span>
+  </div>
+
+  <h3>Tabela de Escopos</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Escopo</th><th>Localização</th><th>Quem Lê</th><th>Quem Escreve</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Sistema</strong></td><td><code>system/memory/</code></td><td>Todos os agentes</td><td>Agentes do sistema</td></tr>
+        <tr><td><strong>Space</strong></td><td><code>spaces/{space}/memory/</code></td><td>Agentes do space + sistema</td><td>Agentes do space + sistema</td></tr>
+        <tr><td><strong>Área</strong></td><td><code>.../areas/{area}/memory/</code></td><td>Agentes da área + sistema</td><td>Agentes da área + sistema</td></tr>
+        <tr><td><strong>Time</strong></td><td><code>.../teams/{time}/memory/</code></td><td>Membros do time + sistema</td><td>Membros do time + sistema</td></tr>
+        <tr><td><strong>Agente</strong></td><td><code>{agente}/memory/</code></td><td>Próprio + memory-manager</td><td>Apenas o próprio agente</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Tipos de Arquivo</h3>
+  <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">
+    <div class="card">
+      <div class="card-title">world.md</div>
+      <div class="card-desc">Snapshot do estado atual. Pode ser reescrito completamente. Obrigatório incluir seção "Última Alteração".</div>
+      <div class="card-skills"><span class="badge">reescrevível</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">history.md</div>
+      <div class="card-desc">Log cronológico de ações do agente. Somente adiciona ao final, nunca substitui.</div>
+      <div class="card-skills"><span class="badge">append-only</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">handoff.md</div>
+      <div class="card-desc">Tarefas transferidas entre agentes. Entradas adicionadas; concluídas removidas no cleanup.</div>
+      <div class="card-skills"><span class="badge">append + cleanup</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">bus.md</div>
+      <div class="card-desc">Log de eventos broadcast do sistema. Qualquer agente lê; sistema escreve. Rotação a 50 entradas.</div>
+      <div class="card-skills"><span class="badge">broadcast</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">registry.md</div>
+      <div class="card-desc">Registros mestres de agentes, skills, times e docs. Mantidos pelos agentes de sistema responsáveis.</div>
+      <div class="card-skills"><span class="badge">sistema apenas</span></div>
+    </div>
+  </div>
+
+  <h3>Protocolo de Acesso</h3>
+  <div class="protocol-box">
+    <h4>Antes de Agir</h4>
+    <div class="code-wrapper">
+      <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+      <pre><code class="language-plaintext">1. Ler {agente}/memory/history.md        ← contexto pessoal
+2. Ler {escopo}/memory/world.md          ← contexto do escopo
+3. Ler system/memory/world.md            ← contexto global</code></pre>
+    </div>
+    <h4>Depois de Agir</h4>
+    <div class="code-wrapper">
+      <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+      <pre><code class="language-plaintext">1. Atualizar {agente}/memory/history.md
+2. Se estado mudou → atualizar {escopo}/memory/world.md
+3. Se precisa passar trabalho → escrever em {escopo}/memory/handoff.md
+4. Se evento relevante → registrar em system/memory/bus.md</code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SECTION 8: PROTOCOLOS ==================== -->
+<section class="section" id="protocolos" data-search="protocolos comunicação handoff manutenção invocação direta message bus síncrono assíncrono">
+  <h2>Protocolos</h2>
+  <p>Cinco protocolos governam comunicação, memória, manutenção e sincronização do sistema.</p>
+
+  <h3>Comunicação — 3 Padrões</h3>
+  <div class="mermaid-wrapper">
+    <pre class="mermaid">
+flowchart LR
+    subgraph "1. Síncrono"
+        A1["Agente A"] -->|"Agent tool"| A2["Agente B"]
+        A2 -->|"resultado"| A1
+    end
+    subgraph "2. Assíncrono"
+        A3["Agente C"] -->|"escreve"| H["handoff.md"]
+        H -->|"lê"| A4["Agente D"]
+    end
+    subgraph "3. Broadcast"
+        A5["Agente E"] -->|"registra"| BUS["bus.md"]
+        BUS -.->|"visível"| A6["Todos"]
+    end
+
+    style A1 fill:#E02D6E,stroke:#E02D6E,color:#fff
+    style A2 fill:#E02D6E,stroke:#E02D6E,color:#fff
+    style A3 fill:#FF619A,stroke:#FF619A,color:#fff
+    style A4 fill:#FF619A,stroke:#FF619A,color:#fff
+    style H fill:#404040,stroke:#FD9CBF,color:#fff
+    style A5 fill:#FD9CBF,stroke:#FD9CBF,color:#2A2A2A
+    style A6 fill:#FD9CBF,stroke:#FD9CBF,color:#2A2A2A
+    style BUS fill:#404040,stroke:#FD9CBF,color:#fff
+    </pre>
+  </div>
+
+  <h4>Quem pode chamar quem?</h4>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>De</th><th>Para</th><th>Permitido?</th></tr></thead>
+      <tbody>
+        <tr><td>Agente de sistema</td><td>Agente de sistema</td><td><span class="badge">Sim (direto)</span></td></tr>
+        <tr><td>Agente de usuário</td><td>Agente de sistema</td><td><span class="badge">Sim (direto)</span></td></tr>
+        <tr><td>Agente de sistema</td><td>Agente de usuário</td><td><span class="badge" style="background:rgba(224,45,110,0.2)">Via handoff</span></td></tr>
+        <tr><td>Mesma área</td><td>Mesma área</td><td><span class="badge">Sim (direto)</span></td></tr>
+        <tr><td>Mesmo space</td><td>Área diferente</td><td><span class="badge" style="background:rgba(224,45,110,0.2)">Via handoff</span></td></tr>
+        <tr><td>Space A</td><td>Space B</td><td><span class="badge" style="background:rgba(255,0,0,0.15);color:#ff6b6b">Não</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Handoff — Ciclo de Vida</h3>
+  <div class="mermaid-wrapper">
+    <pre class="mermaid">
+stateDiagram-v2
+    [*] --> Pendente : Agente A escreve
+    Pendente --> EmProgresso : Agente B lê
+    EmProgresso --> Concluido : Agente B preenche resultado
+    Concluido --> [*] : memory-manager remove
+    </pre>
+  </div>
+
+  <h4>Formato de um Handoff</h4>
+  <div class="code-wrapper">
+    <span class="code-lang">markdown</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+    <pre><code class="language-markdown">## Handoff: [Agente Origem] → [Agente Destino]
+**Data:** 2026-03-23 14:30
+**Prioridade:** Normal
+**Status:** Pendente
+
+### Contexto
+O que estava sendo feito e por que o handoff é necessário.
+
+### Tarefa
+O que o agente destino deve fazer.
+
+### Inputs
+- Arquivo: `caminho/para/arquivo`
+- Dado: informação relevante
+
+### Resultado (preenchido pelo destino)
+Output produzido pelo agente destino.</code></pre>
+  </div>
+
+  <h3>Manutenção</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Tarefa</th><th>Threshold</th><th>Ação</th></tr></thead>
+      <tbody>
+        <tr><td>Limpeza do bus</td><td><code>bus.md</code> &gt; 50 entradas</td><td>Arquivar para <code>bus-archive.md</code>, manter últimas 50</td></tr>
+        <tr><td>Rotação de histórico</td><td><code>history.md</code> &gt; 100 entradas</td><td>Podar, manter últimas 50</td></tr>
+        <tr><td>Atualização do CHANGELOG</td><td>Mudança estrutural</td><td>Registrar em formato Keep a Changelog</td></tr>
+        <tr><td>Auditoria de docs</td><td>3+ recursos sem auditoria</td><td>Acionar <code>doc-manager</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Sincronização de Runtimes</h3>
+  <p>O protocolo de sync garante que <code>.claude/</code> e <code>.gemini/</code> permaneçam sempre atualizados.</p>
+  <div class="mermaid-wrapper">
+    <pre class="mermaid">
+flowchart LR
+    KERNEL["KERNEL.md<br/>(source of truth)"] --> CLAUDE["CLAUDE.md<br/>(delta Claude)"]
+    KERNEL --> GEMINI["GEMINI.md<br/>(delta Gemini)"]
+    CLAUDE --> CA[".claude/agents/"]
+    CLAUDE --> CC[".claude/commands/"]
+    CA -->|"sync.py"| GA[".gemini/agents/"]
+    CC -->|"sync.py"| GS[".gemini/skills/"]
+
+    style KERNEL fill:#E02D6E,stroke:#E02D6E,color:#fff
+    style CLAUDE fill:#FF619A,stroke:#FF619A,color:#fff
+    style GEMINI fill:#FF619A,stroke:#FF619A,color:#fff
+    style CA fill:#404040,stroke:#FD9CBF,color:#fff
+    style CC fill:#404040,stroke:#FD9CBF,color:#fff
+    style GA fill:#404040,stroke:#FD9CBF,color:#fff
+    style GS fill:#404040,stroke:#FD9CBF,color:#fff
+    </pre>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Componente</th><th>Função</th></tr></thead>
+      <tbody>
+        <tr><td><code>system/protocols/sync.md</code></td><td>Protocolo completo — quando e como sincronizar</td></tr>
+        <tr><td><code>system/scripts/sync.py</code></td><td>Script de detecção de drift e correção automática (<code>--fix</code>, <code>--json</code>)</td></tr>
+        <tr><td>Hook PostToolUse</td><td>Detecta mudanças em KERNEL.md, agents e commands — emite aviso de sync</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="code-wrapper">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+    <pre><code class="language-bash"># Relatório de drift (read-only)
+python system/scripts/sync.py
+
+# Correção automática
+python system/scripts/sync.py --fix
+
+# Output JSON (para integração)
+python system/scripts/sync.py --json</code></pre>
+  </div>
+</section>
+
+<!-- ==================== SECTION 9: CENÁRIO PRÁTICO ==================== -->
+<section class="section" id="cenario" data-search="cenário prático pipeline dados exemplo tutorial coletor analista relator">
+  <h2>Cenário Prático: Pipeline de Dados</h2>
+  <p>Vamos criar um cenário completo e realista — automatizar coleta, análise e geração de relatórios.</p>
+
+  <h3>1. Criar a Estrutura</h3>
+  <div class="code-wrapper">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+    <pre><code class="language-bash">/new-space analise-dados
+/new-area analise-dados pipeline</code></pre>
+  </div>
+
+  <h3>2. Criar os Agentes</h3>
+  <div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="card">
+      <div class="card-icon">&#128229;</div>
+      <div class="card-title">coletor</div>
+      <div class="card-desc"><strong>Persona:</strong> Especialista em coleta e integração de dados.<br><strong>Skills:</strong> Ler CSVs, conectar APIs, validar dados, limpar duplicatas.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128200;</div>
+      <div class="card-title">analista</div>
+      <div class="card-desc"><strong>Persona:</strong> Cientista de dados senior.<br><strong>Skills:</strong> Análise estatística, identificar padrões, gerar insights.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#128195;</div>
+      <div class="card-title">relator</div>
+      <div class="card-desc"><strong>Persona:</strong> Especialista em comunicação de dados.<br><strong>Skills:</strong> Gerar relatórios claros, criar visualizações.</div>
+    </div>
+  </div>
+
+  <div class="code-wrapper">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+    <pre><code class="language-bash">/new-agent analise-dados pipeline coletor
+/new-agent analise-dados pipeline analista
+/new-agent analise-dados pipeline relator</code></pre>
+  </div>
+
+  <h3>3. Adicionar Skills</h3>
+  <div class="code-wrapper">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+    <pre><code class="language-bash">/new-skill analise-dados/pipeline/coletor extrair-csv
+/new-skill analise-dados/pipeline/analista analisar-padroes
+/new-skill analise-dados/pipeline/relator gerar-relatorio</code></pre>
+  </div>
+
+  <h3>4. Criar o Time</h3>
+  <div class="code-wrapper">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+    <pre><code class="language-bash">/new-team analise-dados pipeline equipe-pipeline
+# Líder: analista
+# Membros: coletor, analista, relator</code></pre>
+  </div>
+
+  <h3>5. Fluxo de Trabalho</h3>
+  <div class="mermaid-wrapper">
+    <pre class="mermaid">
+graph LR
+    C["coletor"] -->|"handoff"| A["analista"]
+    A -->|"handoff"| R["relator"]
+    C -.->|"extrair-csv"| D1["Dados limpos"]
+    A -.->|"analisar-padroes"| D2["Insights"]
+    R -.->|"gerar-relatorio"| D3["Relatório final"]
+
+    style C fill:#E02D6E,stroke:#E02D6E,color:#fff
+    style A fill:#FF619A,stroke:#FF619A,color:#fff
+    style R fill:#FD9CBF,stroke:#FD9CBF,color:#2A2A2A
+    style D1 fill:#404040,stroke:#BFBFBF,color:#fff
+    style D2 fill:#404040,stroke:#BFBFBF,color:#fff
+    style D3 fill:#404040,stroke:#BFBFBF,color:#fff
+    </pre>
+  </div>
+
+  <h3>6. Executar</h3>
+  <div class="code-wrapper">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+    <pre><code class="language-bash"># Pedir ao coletor para extrair dados
+"coletor, extraia os dados de vendas do Q1 2026"
+
+# Criar handoff para o analista
+/handoff coletor analista "Analisar os dados coletados do Q1 2026"
+
+# O analista processa e passa para o relator
+/handoff analista relator "Gerar relatório executivo com os insights"</code></pre>
+  </div>
+  <p>Cada agente atualiza sua memória ao final. Na próxima vez, eles já sabem o que foi feito antes.</p>
+</section>
+
+<!-- ==================== SECTION 10: DESENVOLVIMENTO ==================== -->
+<section class="section" id="desenvolvimento" data-search="desenvolvimento guia convenções templates namespace eventos princípios kebab-case agent.md skill.md">
+  <h2>Guia de Desenvolvimento</h2>
+  <p>Convenções internas e como estender o AgentOS corretamente.</p>
+
+  <h3>Princípios Fundamentais</h3>
+  <div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="card">
+      <div class="card-title">Tudo é Arquivo</div>
+      <div class="card-desc">Memória, agentes, skills, protocolos — nada existe fora do sistema de arquivos.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Escopo Explícito</div>
+      <div class="card-desc">Toda operação tem um escopo definido. Nunca escreva fora do seu escopo.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Templates First</div>
+      <div class="card-desc">Sempre use os templates em <code>system/templates/</code> como base para criar recursos.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Registre Tudo</div>
+      <div class="card-desc">Toda criação/mudança relevante vai para o registry e o bus de eventos.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Leia Antes de Agir</div>
+      <div class="card-desc">Agentes sempre leem sua memória antes de executar qualquer tarefa.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Nunca Invente</div>
+      <div class="card-desc">Agentes documentam e executam apenas o que está definido no sistema.</div>
+    </div>
+  </div>
+
+  <h3>Convenções de Nomes</h3>
+  <p>Todos os nomes devem ser <strong>kebab-case</strong>: letras minúsculas, sem espaços, sem underscores. Apenas letras, números e hífens.</p>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Correto</th><th>Incorreto</th></tr></thead>
+      <tbody>
+        <tr><td><code>meu-space</code></td><td><del>MeuSpace</del></td></tr>
+        <tr><td><code>analista-dados</code></td><td><del>analista_dados</del></td></tr>
+        <tr><td><code>gerar-relatorio</code></td><td><del>gerarRelatorio</del></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Namespace no Claude Code</h3>
+  <p>Agentes são descobertos via <code>.claude/agents/</code>:</p>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Tipo</th><th>Padrão</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td>Sistema</td><td><code>{nome}.md</code></td><td><code>agent-manager.md</code></td></tr>
+        <tr><td>Área</td><td><code>{space}--{area}--{agente}.md</code></td><td><code>meu-space--backend--analista.md</code></td></tr>
+        <tr><td>Time</td><td><code>{space}--{area}--{time}--{agente}.md</code></td><td><code>meu-space--backend--squad--dev.md</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Formato do AGENT.md</h3>
+  <div class="code-wrapper">
+    <span class="code-lang">yaml</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+    <pre><code class="language-yaml">---
+name: nome-do-agente
+scope: user              # ou system
+space: meu-space         # apenas para agentes de usuário
+area: backend            # apenas para agentes de usuário
+team: squad-api          # se for membro de time
+description: o que este agente faz
+version: 1.0
+created: 2026-03-23
+---
+
+# Persona
+Descrição do comportamento e missão do agente.
+
+# Capacidades
+- Capacidade 1
+- Capacidade 2
+
+# Skills
+| Skill | Propósito |
+|---|---|
+| nome-da-skill | O que ela faz |
+
+# Memória
+- `{agente}/memory/history.md`
+
+# Regras
+1. Seguir protocolo agent-init
+2. Atualizar history.md após cada ação
+3. Nunca escrever fora do seu escopo
+4. Usar handoff para comunicação cross-boundary</code></pre>
+  </div>
+
+  <h3>Eventos do Bus</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Evento</th><th>Quem Publica</th><th>Quando</th></tr></thead>
+      <tbody>
+        <tr><td><code>space.created</code></td><td>agent-manager</td><td>Novo space criado</td></tr>
+        <tr><td><code>area.created</code></td><td>agent-manager</td><td>Nova área criada</td></tr>
+        <tr><td><code>agent.created</code></td><td>agent-manager</td><td>Novo agente criado</td></tr>
+        <tr><td><code>agent.evolved</code></td><td>agent-manager</td><td>Agente atualizado</td></tr>
+        <tr><td><code>team.created</code></td><td>team-manager</td><td>Novo time criado</td></tr>
+        <tr><td><code>team.member.added</code></td><td>team-manager</td><td>Membro adicionado</td></tr>
+        <tr><td><code>skill.created</code></td><td>skill-manager</td><td>Nova skill criada</td></tr>
+        <tr><td><code>memory.cleaned</code></td><td>memory-manager</td><td>Limpeza executada</td></tr>
+        <tr><td><code>docs.generated</code></td><td>doc-manager</td><td>Docs atualizados</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ==================== SECTION 11: FAQ ==================== -->
+<section class="section" id="faq" data-search="faq perguntas frequentes troubleshooting problemas dúvidas">
+  <h2>FAQ</h2>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span>O <code>/setup</code> falhou ou não fez nada</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <p><strong>Causa provável:</strong> O sistema já foi instalado anteriormente.</p>
+      <p><strong>Solução:</strong> Rode <code>/status</code> para verificar. Se o sistema já está ativo, não precisa rodar <code>/setup</code> novamente.</p>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span>Meu agente não aparece no runtime</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <p><strong>Causa provável:</strong> O arquivo de integração não foi criado.</p>
+      <p><strong>Solução:</strong> Verifique se existem:</p>
+      <ul>
+        <li><code>.claude/agents/{space}--{area}--{agente}.md</code></li>
+        <li><code>.gemini/agents/{space}--{area}--{agente}.md</code></li>
+      </ul>
+      <p>Se não existirem, recrie com <code>/new-agent</code> ou rode <code>/setup</code>.</p>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span>Como vejo o que meu agente sabe/fez?</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <p>Leia a memória dele diretamente:</p>
+      <ul>
+        <li><strong>Quem ele é:</strong> <code>spaces/{space}/areas/{area}/agents/{agente}/AGENT.md</code></li>
+        <li><strong>O que fez:</strong> <code>spaces/{space}/areas/{area}/agents/{agente}/memory/history.md</code></li>
+        <li><strong>Estado da área:</strong> <code>spaces/{space}/areas/{area}/memory/world.md</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span>Como passo trabalho de um agente para outro?</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <p>Use o comando de handoff:</p>
+      <div class="code-wrapper">
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        <pre><code class="language-bash">/handoff agente-origem agente-destino "Descrição da tarefa"</code></pre>
+      </div>
+      <p>O agente de destino verá a tarefa pendente na próxima vez que for invocado.</p>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span>Agentes de spaces diferentes podem se comunicar?</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <p><strong>Não.</strong> Spaces são completamente isolados. Isso é intencional — garante que projetos diferentes não interfiram entre si. Se precisa que agentes colaborem, eles devem estar no mesmo space.</p>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span>Quando usar um time vs agentes soltos na área?</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Cenário</th><th>Recomendação</th></tr></thead>
+          <tbody>
+            <tr><td>Agente trabalha sozinho em tarefas independentes</td><td>Agente direto na área</td></tr>
+            <tr><td>2+ agentes precisam trocar informações</td><td>Crie um time</td></tr>
+            <tr><td>Fluxo sequencial (A → B → C)</td><td>Time com handoffs</td></tr>
+            <tr><td>Agentes compartilham contexto/estado</td><td>Time com memória compartilhada</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span>Como atualizo um agente que já existe?</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <p>Peça ao sistema para evoluir o agente:</p>
+      <div class="code-wrapper">
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        <pre><code class="language-plaintext">"Evolua o agente assistente do backend do meu-projeto para incluir capacidade de testes"</code></pre>
+      </div>
+      <p>O <code>agent-manager</code> atualiza a definição mantendo a memória e skills existentes, e incrementa a versão.</p>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <button class="accordion-header" onclick="toggleAccordion(this)">
+      <span>O <code>/health</code> mostrou problemas, o que faço?</span>
+      <span class="accordion-arrow">&#9660;</span>
+    </button>
+    <div class="accordion-body">
+      <p>O <code>health-monitor</code> cria automaticamente <strong>handoffs</strong> para os agentes responsáveis corrigirem os problemas encontrados. Na maioria dos casos, os problemas são resolvidos automaticamente na próxima interação.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SECTION 12: CHANGELOG ==================== -->
+<section class="section" id="changelog" data-search="changelog versões histórico evolução releases">
+  <h2>Changelog</h2>
+  <p>Histórico de evolução do AgentOS.</p>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <span class="timeline-version">v0.9.0</span>
+      <span class="timeline-date">2026-03-30</span>
+      <div class="timeline-desc">
+        <strong>Protocolo de Sincronização de Runtimes</strong> — Script <code>sync.py</code> para detecção de drift e correção automática entre <code>.claude/</code> e <code>.gemini/</code>. Protocolo <code>sync.md</code> documentado. Hooks expandidos para detectar mudanças em KERNEL.md, agents e commands e emitir avisos de sync.
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-version">v0.8.1</span>
+      <span class="timeline-date">2026-03-25</span>
+      <div class="timeline-desc">
+        <strong>CLAUDE.md refatorado</strong> — Removida duplicação com KERNEL.md (~210 para ~35 linhas). Segue padrão agnóstico: instrução para ler KERNEL.md + delta Claude-específico.
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-version">v0.8.0</span>
+      <span class="timeline-date">2026-03-24</span>
+      <div class="timeline-desc">
+        <strong>Sistema de Hooks — Enforcement automatizado</strong> — 3 hooks configurados em <code>.claude/settings.json</code>: Guardrails (PreToolUse) bloqueia writes em arquivos protegidos, Enforcement (PostToolUse) rastreia mudanças estruturais, Validation (Stop) verifica checklist de manutenção. 10 novos scripts em <code>system/scripts/hooks/</code>. 62 testes unitários.
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-version">v0.7.0</span>
+      <span class="timeline-date">2026-03-23</span>
+      <div class="timeline-desc">
+        <strong>11 Anthropic skills instaladas</strong> — brand-guidelines, canvas-design, doc-coauthoring, docx, pptx, xlsx, pdf, frontend-design, theme-factory, web-artifacts, mcp-builder. 11 agentes de sistema dedicados criados. 11 novos comandos com dual-write.
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-version">v0.6.0</span>
+      <span class="timeline-date">2026-03-23</span>
+      <div class="timeline-desc">
+        <strong>Multi-runtime</strong> — Suporte completo ao Claude Code e Gemini CLI. Dual-write automático em <code>.claude/agents/</code> e <code>.gemini/agents/</code>. Arquivos GEMINI.md e KERNEL.md adicionados.
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-version">v0.5.0</span>
+      <span class="timeline-date">2026-03-23</span>
+      <div class="timeline-desc">
+        <strong>Protocolo agent-init + registries automáticos</strong> — Script <code>generate-registries.py</code> para gerar registros a partir do filesystem. Redução de ~41% nas linhas de configuração.
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-version">v0.4.0</span>
+      <span class="timeline-date">2026-03-23</span>
+      <div class="timeline-desc">
+        <strong>Sistema de guidelines</strong> — Cascading de guidelines (space → area → time). Template para <code>GUIDELINES.md</code>. Cross-references entre escopos.
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-version">v0.3.0</span>
+      <span class="timeline-date">2026-03-21</span>
+      <div class="timeline-desc">
+        <strong>Workflow orchestration</strong> — 3 novos agentes: health-monitor, task-runner, workflow-planner. 8 novas skills. Suporte a fan-out/fan-in.
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-version">v0.2.0</span>
+      <span class="timeline-date">2026-03-21</span>
+      <div class="timeline-desc">
+        <strong>Reestruturação</strong> — Migração de <code>users/</code> para <code>spaces/</code>. Conceito de Area adicionado. Namespace alterado para <code>{space}--{area}--{agente}</code>.
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-version">v0.1.0</span>
+      <span class="timeline-date">2026-03-20</span>
+      <div class="timeline-desc">
+        <strong>Bootstrap inicial</strong> — 5 agentes core (agent-manager, skill-manager, memory-manager, team-manager, doc-manager). 3 protocolos (comunicação, memória, handoff). Message bus. 7 comandos.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer style="text-align:center; padding:40px 0 20px; border-top:1px solid var(--border); margin-top:40px;">
+  <p style="color:var(--text-muted); font-size:0.85rem;">
+    AgentOS v0.8.0 &mdash; Sistema Operacional de Agentes de IA
+  </p>
+</footer>
+
+</main>
+
+<!-- ====== SCRIPTS ====== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/markdown.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+// ============================================
+// INITIALIZATION
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+  initMermaid();
+  hljs.highlightAll();
+  initScrollSpy();
+});
+
+function initMermaid() {
+  const theme = document.documentElement.getAttribute('data-theme');
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: theme === 'dark' ? 'dark' : 'default',
+    themeVariables: theme === 'dark' ? {
+      primaryColor: '#E02D6E',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#FF619A',
+      lineColor: '#FD9CBF',
+      secondaryColor: '#404040',
+      tertiaryColor: '#2A2A2A',
+      background: '#2A2A2A',
+      mainBkg: '#404040',
+      nodeBorder: '#FD9CBF',
+      clusterBkg: '#333',
+      clusterBorder: '#555',
+      titleColor: '#FD9CBF',
+      edgeLabelBackground: '#2A2A2A'
+    } : {
+      primaryColor: '#E02D6E',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#FF619A',
+      lineColor: '#E02D6E',
+      secondaryColor: '#FFE0EB',
+      tertiaryColor: '#FDF0F5'
+    }
+  });
+}
+
+// ============================================
+// THEME TOGGLE
+// ============================================
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+
+  document.getElementById('themeIcon').textContent = next === 'dark' ? '\u263E' : '\u2600';
+  document.getElementById('themeLabel').textContent = next === 'dark' ? 'Light' : 'Dark';
+
+  // Force repaint on sidebar
+  var sidebar = document.getElementById('sidebar');
+  sidebar.style.display = 'none';
+  sidebar.offsetHeight; // trigger reflow
+  sidebar.style.display = '';
+
+  // Update highlight.js theme
+  const hljsLink = document.getElementById('hljs-theme');
+  hljsLink.href = next === 'dark'
+    ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css'
+    : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+
+  // Re-render mermaid diagrams
+  rerenderMermaid(next);
+}
+
+async function rerenderMermaid(theme) {
+  const wrappers = document.querySelectorAll('.mermaid-wrapper');
+  wrappers.forEach(function(wrapper) {
+    const mermaidEl = wrapper.querySelector('.mermaid');
+    if (!mermaidEl) return;
+
+    // Get original source
+    let src = mermaidEl.getAttribute('data-original');
+    if (!src) {
+      // First time: store original and it's already rendered as SVG
+      const pre = mermaidEl.querySelector('pre');
+      if (pre) {
+        src = pre.textContent;
+      } else {
+        src = mermaidEl.textContent;
+      }
+      mermaidEl.setAttribute('data-original', src);
+    }
+
+    // Remove rendered SVG
+    mermaidEl.removeAttribute('data-processed');
+    mermaidEl.innerHTML = src;
+  });
+
+  // Re-initialize
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: theme === 'dark' ? 'dark' : 'default',
+    themeVariables: theme === 'dark' ? {
+      primaryColor: '#E02D6E',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#FF619A',
+      lineColor: '#FD9CBF',
+      secondaryColor: '#404040',
+      tertiaryColor: '#2A2A2A'
+    } : {
+      primaryColor: '#E02D6E',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#FF619A',
+      lineColor: '#E02D6E',
+      secondaryColor: '#FFE0EB',
+      tertiaryColor: '#FDF0F5'
+    }
+  });
+
+  await mermaid.run();
+}
+
+// ============================================
+// SIDEBAR
+// ============================================
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('active');
+}
+
+// ============================================
+// SCROLL SPY
+// ============================================
+function initScrollSpy() {
+  const sections = document.querySelectorAll('.section');
+  const links = document.querySelectorAll('.sidebar-link');
+
+  const observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        links.forEach(function(link) { link.classList.remove('active'); });
+        const active = document.querySelector('.sidebar-link[data-section="' + entry.target.id + '"]');
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+
+  sections.forEach(function(section) { observer.observe(section); });
+
+  // Close sidebar on link click (mobile)
+  links.forEach(function(link) {
+    link.addEventListener('click', function() {
+      if (window.innerWidth <= 768) {
+        toggleSidebar();
+      }
+    });
+  });
+}
+
+// ============================================
+// COPY TO CLIPBOARD
+// ============================================
+function copyCode(btn) {
+  const wrapper = btn.closest('.code-wrapper');
+  const code = wrapper.querySelector('code');
+  navigator.clipboard.writeText(code.textContent).then(function() {
+    btn.textContent = 'Copiado!';
+    setTimeout(function() { btn.textContent = 'Copiar'; }, 2000);
+  });
+}
+
+// ============================================
+// ACCORDION
+// ============================================
+function toggleAccordion(header) {
+  const item = header.closest('.accordion-item');
+  item.classList.toggle('open');
+}
+
+// ============================================
+// SEARCH
+// ============================================
+function handleSearch(query) {
+  const sections = document.querySelectorAll('.section');
+  const q = query.toLowerCase().trim();
+
+  if (!q) {
+    sections.forEach(function(s) { s.classList.remove('hidden'); });
+    return;
+  }
+
+  sections.forEach(function(section) {
+    const searchData = (section.getAttribute('data-search') || '') + ' ' + section.textContent.toLowerCase();
+    if (searchData.includes(q)) {
+      section.classList.remove('hidden');
+    } else {
+      section.classList.add('hidden');
+    }
+  });
+}
+
+// Store original mermaid source before rendering
+document.querySelectorAll('.mermaid').forEach(function(el) {
+  el.setAttribute('data-original', el.textContent);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Boris Product Context"
+  short_description: "Alinha produto, UX, dor e fit operacional do ecossistema Boris"
+  default_prompt: "Use $boris-product-context para enquadrar o pedido dentro das dores, workflows, superficies de produto e criterios de UX do ecossistema Boris antes da execucao."

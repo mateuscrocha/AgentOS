@@ -1,0 +1,7 @@
+interface:
+  display_name: "Boris Content Orchestrator"
+  short_description: "Coordena pedidos amplos de conteudo Boris ponta a ponta"
+  default_prompt: "Use $boris-content-orchestrator para classificar o pedido, organizar a pasta de producao e rotear a execucao entre estrategia, marca, imagem, audio, documentos e repurposing."
+
+policy:
+  allow_implicit_invocation: true

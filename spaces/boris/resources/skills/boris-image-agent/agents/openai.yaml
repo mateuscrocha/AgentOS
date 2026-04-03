@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bóris Image Agent"
+  short_description: "Entrada principal para imagens Boris com consistencia visual forte"
+  default_prompt: "Use $boris-image-agent para gerar ou editar imagens Boris com controle de identidade, direcao visual e uso consistente das referencias canonicas."

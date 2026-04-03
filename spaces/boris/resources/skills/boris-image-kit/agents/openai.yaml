@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bóris Image Kit"
+  short_description: "Toolkit de templates e aceleracao para fluxos de imagem Boris"
+  default_prompt: "Use $boris-image-kit junto com $boris-image-agent quando o fluxo de imagem Boris ja estiver definido e voce quiser acelerar prompts, templates e execucoes recorrentes."

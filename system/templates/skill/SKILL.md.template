@@ -1,0 +1,38 @@
+---
+name: {{SKILL_NAME}}
+description: {{DESCRIPTION}}
+agent: {{AGENT_NAME}}
+project: {{PROJECT_NAME}}
+version: 1.0
+created: {{CREATED_DATE}}
+---
+
+# Skill: {{SKILL_NAME}}
+
+## O que esta skill faz
+
+{{SKILL_DESCRIPTION}}
+
+## Quando usar
+
+- {{USE_CASE_1}}
+- {{USE_CASE_2}}
+
+## Processo
+
+1. {{STEP_1}}
+2. {{STEP_2}}
+3. {{STEP_3}}
+
+## Inputs
+
+- `$ARGUMENTS`: {{ARGUMENTS_DESCRIPTION}}
+
+## Outputs
+
+{{OUTPUT_DESCRIPTION}}
+
+## Regras
+
+1. {{RULE_1}}
+2. {{RULE_2}}

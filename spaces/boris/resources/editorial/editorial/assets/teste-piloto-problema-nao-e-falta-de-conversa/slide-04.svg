@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#09111F"/>
+      <stop offset="55%" stop-color="#101B33"/>
+      <stop offset="100%" stop-color="#182640"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  
+        <circle cx="920" cy="190" r="220" fill="#13314F" opacity="0.78"/>
+        <circle cx="170" cy="1120" r="280" fill="#1D2540" opacity="0.95"/>
+        <path d="M780 840C920 760 1010 680 1080 580V1350H570C600 1120 650 940 780 840Z" fill="#0C1930" opacity="0.85"/>
+        
+  <rect x="88" y="130" width="230" height="44" rx="22" fill="#E9FF66" opacity="0.96"/>
+  <text x="112" y="161" fill="#0B1020"
+    font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif"
+    font-size="24" font-weight="800" letter-spacing="1.4">SEM LEITURA</text>
+  <text x="88" y="300" fill="#F5F6F7" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="82" font-weight="800" letter-spacing="-0.8">Os mesmos temas voltam.</text>
+<text x="88" y="396" fill="#F5F6F7" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="82" font-weight="800" letter-spacing="-0.8">Os sinais passam batido.</text>
+<text x="88" y="492" fill="#F5F6F7" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="82" font-weight="800" letter-spacing="-0.8">A decisao chega tarde.</text>
+  
+  <line x1="88" y1="1180" x2="992" y2="1180" stroke="#344055" stroke-width="2" opacity="0.9"/>
+  <text x="88" y="1234" fill="#E9FF66"
+    font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif"
+    font-size="30" font-weight="800" letter-spacing="3">BORIS</text>
+  <text x="992" y="1234" text-anchor="end" fill="#BFC6D1"
+    font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif"
+    font-size="28" font-weight="600" letter-spacing="0.4">O custo e silencioso</text>
+</svg>

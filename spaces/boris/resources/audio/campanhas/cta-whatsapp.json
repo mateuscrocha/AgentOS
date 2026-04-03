@@ -1,0 +1,17 @@
+{
+  "name": "CTA WhatsApp",
+  "items": [
+    {
+      "slug": "cta-direto",
+      "text": "Me chama no WhatsApp e eu te mostro, na pratica, onde esta o gargalo da sua comunicacao comercial."
+    },
+    {
+      "slug": "cta-oportunidade",
+      "text": "Se voce sente que esta deixando venda na mesa, agora e a hora de ajustar sua mensagem."
+    },
+    {
+      "slug": "cta-fechamento",
+      "text": "Manda uma mensagem e vamos construir uma comunicacao que faz sentido para o seu mercado."
+    }
+  ]
+}

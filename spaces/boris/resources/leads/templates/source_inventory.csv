@@ -1,0 +1,6 @@
+source_name,source_type,location_or_file,estimated_volume,owner,period_start,period_end,has_last_contact,has_status,notes
+leads_clientes_boris_TODOS_v2,master_export_csv,data/raw/leads_clientes_boris_TODOS_v2.csv,1047,,,,no,yes,Base principal; mesmo conteudo tambem existe em XLSX.
+leads_clientes_boris_TODOS_v2_xlsx,duplicate_format_xlsx,data/raw/leads_clientes_boris_TODOS_v2.xlsx,1047,,,,no,yes,Duplicata em formato XLSX da base principal; nao usar como fonte adicional na unificacao.
+base_unificada_leads,historical_unified_sheet,data/raw/base_unificada_leads (1).xlsx,999,,,,yes,partial,Possui 46 linhas sem telefone e 146 telefones ja existentes na base principal.
+leads_atuais_nao_pagos,reactivation_priority_sheet,data/raw/leads_atuais_nao_pagos (1).xlsx,20,,,,no,no,Lista curta e prioritária para follow-up comercial; apenas 1 telefone ja existe na base principal.
+backup_public_2025_08_19_dump,postgres_custom_dump,data/raw/postgres_backup_2025-08-19/full_data.sql,69878,,2025-02-06,2025-08-19,yes,partial,Backup PostgreSQL extraido do arquivo .dump; contem groups (268), members (69507), subscribers (33) e subscriber_groups (70). Fonte rica para enriquecimento e captacao de admins/managers; nao consolidar membros em massa sem recorte.

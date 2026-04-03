@@ -1,0 +1,64 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "Bash(python system/scripts/*)",
+      "Bash(ls *)",
+      "Bash(mkdir *)",
+      "Bash(cat *)",
+      "Bash(python system/scripts/validate.py)",
+      "Bash(python3 system/scripts/validate.py)",
+      "Bash(py system/scripts/validate.py)",
+      "Bash(where python3:*)",
+      "Bash(where py:*)",
+      "Bash(where python:*)",
+      "Bash(ls /c/Python*/python.exe)",
+      "Read(//c/Users/pedro.oliveira/AppData/Local/Programs/**)",
+      "Bash(py -3 system/scripts/validate.py)",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Bash(echo \"=== $f ===\")",
+      "Read(//c/Users/pedro.oliveira/Desktop/agentes/AgentOS/**)",
+      "Bash(done)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/pedro.oliveira/AppData/Roaming/uv/python/cpython-3.14.3-windows-x86_64-none/python.exe system/scripts/hooks/pre_tool_use.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/pedro.oliveira/AppData/Roaming/uv/python/cpython-3.14.3-windows-x86_64-none/python.exe system/scripts/hooks/post_tool_use.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/pedro.oliveira/AppData/Roaming/uv/python/cpython-3.14.3-windows-x86_64-none/python.exe system/scripts/hooks/on_stop.py"
+          }
+        ]
+      }
+    ]
+  }
+}

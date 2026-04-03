@@ -1,0 +1,25 @@
+.DS_Store
+
+# Python virtual environments
+.venv/
+.venv-*/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Runtime artifacts
+tmp/
+
+# Large local data dumps
+spaces/boris/resources/leads/data/raw/postgres_backup_2025-08-19/full_data.sql
+
+# Logs
+*.log

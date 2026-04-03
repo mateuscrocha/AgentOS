@@ -1,0 +1,20 @@
+{
+  "name": "captacao-clinica",
+  "objective": "captacao",
+  "offer": "sua consultoria",
+  "audience": "clinicas e especialistas",
+  "items": [
+    {
+      "slug": "captacao-1",
+      "text": "Se voce quer atrair mais clinicas e especialistas com clareza, talvez o problema nao esteja no alcance. Pode estar na mensagem."
+    },
+    {
+      "slug": "captacao-2",
+      "text": "A maioria das ofertas boas perde atencao porque nao deixa obvio o valor que entrega."
+    },
+    {
+      "slug": "captacao-3",
+      "text": "Se fizer sentido, me chama e eu te ajudo a transformar sua consultoria em uma comunicacao que gera resposta."
+    }
+  ]
+}

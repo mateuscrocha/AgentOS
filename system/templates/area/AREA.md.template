@@ -1,0 +1,36 @@
+---
+name: {{AREA_NAME}}
+space: {{SPACE_NAME}}
+description: {{DESCRIPTION}}
+created: {{CREATED_DATE}}
+---
+
+# Area: {{AREA_NAME}}
+
+## Propósito
+
+{{PURPOSE}}
+
+## Agentes
+
+| Agente | Papel | Status |
+|---|---|---|
+| — | — | — |
+
+## Times
+
+| Time | Propósito | Membros |
+|---|---|---|
+| — | — | — |
+
+## Memória
+
+- Area: `spaces/{{SPACE_NAME}}/areas/{{AREA_NAME}}/memory/`
+- Agentes: `spaces/{{SPACE_NAME}}/areas/{{AREA_NAME}}/agents/{nome}/memory/`
+- Times: `spaces/{{SPACE_NAME}}/areas/{{AREA_NAME}}/teams/{nome}/memory/`
+
+## Guidelines
+
+- Diretório: `spaces/{{SPACE_NAME}}/areas/{{AREA_NAME}}/guidelines/`
+- Herda de: `spaces/{{SPACE_NAME}}/guidelines/`
+- Adicione documentação específica desta area.

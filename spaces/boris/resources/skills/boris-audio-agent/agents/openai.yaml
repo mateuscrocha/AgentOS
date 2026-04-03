@@ -1,0 +1,4 @@
+interface:
+  display_name: "Boris Audio Agent"
+  short_description: "Entrada principal para voz, casting e locucao Boris"
+  default_prompt: "Use $boris-audio-agent para resolver persona, voz, preset e geracao final de audio Boris com consistencia editorial."

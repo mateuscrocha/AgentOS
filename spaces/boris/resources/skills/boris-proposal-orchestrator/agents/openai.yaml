@@ -1,0 +1,7 @@
+interface:
+  display_name: "Boris Proposal Orchestrator"
+  short_description: "Coordena propostas comerciais Boris com comercial, brand, design e documento"
+  default_prompt: "Use $boris-proposal-orchestrator para montar uma proposta comercial Boris ponta a ponta, organizando a pasta da oportunidade e roteando comercial, marca, design e documento final."
+
+policy:
+  allow_implicit_invocation: true

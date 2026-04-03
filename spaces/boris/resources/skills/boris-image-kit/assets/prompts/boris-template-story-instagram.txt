@@ -1,0 +1,14 @@
+Use case: campaign
+Asset type: Instagram Story
+Primary request: criar uma peca vertical 9:16 com Bóris apresentando uma mensagem, oferta, insight ou tela de produto com leitura limpa e impacto elegante
+Scene/background: ambiente premium, simples e coerente com a mensagem, podendo incluir interface, cards, objetos ou fundo com profundidade suave
+Subject: Bóris exatamente como na imagem de referencia canonica, com a mesma silhueta em gota/chama, olhos pretos grandes com brilho branco, sorriso simples amigavel, contorno escuro grosso, paleta laranja/amarela, mao direita levantada, laterais limpas, sem apendices, proporcoes chibi identicas a referencia
+Pose/action: <Bóris em acao coerente com a peca: apontando, reagindo, segurando objeto, apresentando insight, caminhando, digitando, lendo>
+Style/medium: ilustracao 3D estilizada premium, limpa, contemporanea e pensada para campanha digital
+Composition/framing: formato vertical 9:16; Bóris ocupando uma area clara da composicao sem bloquear a mensagem principal; espaco bem distribuido para interface, titulo ou destaque visual
+Lighting/mood: luz suave com acabamento premium, atmosfera clara, inteligente e energica
+Color palette: base neutra quente ou clara com acentos laranja do Bóris e cores auxiliares discretas
+Materials/textures: superficies limpas, cards arredondados quando houver UI, render nitido, tratamento visual refinado
+Text (verbatim): <se houver texto obrigatorio, escreva exatamente aqui; se nao houver, apague esta linha>
+Constraints: usar a imagem de referencia do Bóris como base obrigatoria; preservar integralmente identidade, silhueta, proporcoes, rosto, laterais limpas, sem apendices, paleta e contorno do Bóris; manter leitura clara no formato vertical; usar uma pose coerente com a mensagem e evitar repeticao da pose default; mudar apenas os elementos pedidos nesta tarefa; acabamento premium e sem excesso de informacao
+Avoid: watermark, texto aleatorio, letras embaralhadas, erro ortografico, rosto deformado, dedos extras, dashboard generico, visual generico de banco de imagens, mudanca de paleta do Bóris, mudanca da silhueta do Bóris, anatomia estranha, apendices laterais indevidos, fundo confuso, poluicao visual, pose repetida sem necessidade

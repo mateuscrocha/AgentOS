@@ -1,0 +1,17 @@
+{
+  "name": "Anuncios curtos",
+  "items": [
+    {
+      "slug": "gancho-resultado",
+      "text": "Se a sua comunicacao nao gera resposta, o problema pode nao ser o produto. Pode ser a forma como voce esta vendendo."
+    },
+    {
+      "slug": "dor-cliente",
+      "text": "Tem negocio bom perdendo dinheiro todos os dias porque ninguem entendeu o valor da oferta."
+    },
+    {
+      "slug": "cta-diagnostico",
+      "text": "Se voce quer vender com mais clareza e mais confianca, fala comigo e vamos diagnosticar isso juntos."
+    }
+  ]
+}

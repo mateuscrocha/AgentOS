@@ -1,0 +1,4 @@
+interface:
+  display_name: "Boris Editorial Strategy"
+  short_description: "Alinha estrategia editorial, canais, hooks e CTA de Boris"
+  default_prompt: "Use $boris-editorial-strategy para definir framing editorial, pauta, calendario, hook, CTA e adaptacao por canal antes da execucao de conteudo Boris."

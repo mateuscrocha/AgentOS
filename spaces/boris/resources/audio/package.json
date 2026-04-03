@@ -1,0 +1,16 @@
+{
+  "name": "boris-audios",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eleven:list-voices": "node scripts/elevenlabs/list-voices.mjs",
+    "eleven:tts": "node scripts/elevenlabs/text-to-speech.mjs",
+    "eleven:batch": "node scripts/elevenlabs/batch-text-to-speech.mjs",
+    "eleven:campaign": "node scripts/elevenlabs/generate-campaign.mjs",
+    "eleven:campaign:create": "node scripts/elevenlabs/create-campaign.mjs",
+    "eleven:pack:create": "node scripts/elevenlabs/create-content-pack.mjs",
+    "eleven:niche:create": "node scripts/elevenlabs/create-niche-campaign.mjs",
+    "eleven:studio": "node scripts/elevenlabs/studio.mjs"
+  }
+}

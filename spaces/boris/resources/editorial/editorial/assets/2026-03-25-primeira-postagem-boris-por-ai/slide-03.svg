@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#09111F"/>
+      <stop offset="55%" stop-color="#101B33"/>
+      <stop offset="100%" stop-color="#182640"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <circle cx="820" cy="220" r="190" fill="#13314F" opacity="0.72"/>
+  <circle cx="250" cy="1080" r="300" fill="#1B2144" opacity="0.92"/>
+  <rect x="640" y="690" width="520" height="760" rx="120" fill="#0C1A34" opacity="0.75"/>
+
+  <rect x="88" y="130" width="230" height="44" rx="22" fill="#E9FF66" opacity="0.96"/>
+  <text x="112" y="161" fill="#0B1020" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="24" font-weight="800" letter-spacing="1.4">ROTINA REAL</text>
+
+  <text x="88" y="300" fill="#F5F6F7" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="82" font-weight="800" letter-spacing="-0.8">Quando tudo depende</text>
+  <text x="88" y="396" fill="#F5F6F7" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="82" font-weight="800" letter-spacing="-0.8">de leitura manual,</text>
+
+  <text x="88" y="545" fill="#BFC6D1" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="42" font-weight="500">a rotina fica assim</text>
+  <text x="88" y="650" fill="#E9FF66" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="44" font-weight="700">o time se perde no volume</text>
+  <text x="88" y="720" fill="#E9FF66" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="44" font-weight="700">o contexto chega quebrado</text>
+  <text x="88" y="790" fill="#E9FF66" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="44" font-weight="700">a decisao vem tarde</text>
+
+  <line x1="88" y1="1180" x2="992" y2="1180" stroke="#344055" stroke-width="2" opacity="0.9"/>
+  <text x="88" y="1234" fill="#E9FF66" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="3">BORIS POR AI</text>
+  <text x="992" y="1234" text-anchor="end" fill="#BFC6D1" font-family="Avenir Next, Avenir, Helvetica, Arial, sans-serif" font-size="28" font-weight="600" letter-spacing="0.4">Leitura manual nao escala</text>
+</svg>

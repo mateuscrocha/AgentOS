@@ -1,0 +1,103 @@
+{
+  "source": {
+    "editorial_personas_file": "/Users/eu.rochamateus/Documents/Codex/Bóris - Linha Editorial/editorial/strategy/boris-persona-visual-system.md",
+    "generated_on": "2026-03-25",
+    "notes": [
+      "Mapa operacional baseado na biblioteca oficial de 6 personagens do Boris.",
+      "Selecao limitada as vozes brasileiras disponiveis hoje na conta do ElevenLabs.",
+      "A conta ainda tem pouca variedade de vozes masculinas brasileiras; Rafael, Diego e Bruno podem soar proximos em certos usos."
+    ]
+  },
+  "personas": {
+    "marina": {
+      "character_name": "Marina",
+      "role": "Gestora de Comunidade",
+      "primary_voice": {
+        "name": "Paula",
+        "voice_id": "xPnmQf6Ow3GGYWWURFPi"
+      },
+      "backup_voice": {
+        "name": "Yasmin",
+        "voice_id": "lWq4KDY8znfkV0DrK8Vb"
+      },
+      "recommended_preset": "calmo",
+      "performance_note": "Tom acolhedor, organizado e presente. Deve soar como quem segura o caos sem dramatizar."
+    },
+    "rafael": {
+      "character_name": "Rafael",
+      "role": "Customer Success",
+      "primary_voice": {
+        "name": "Flavio Francisco",
+        "voice_id": "x6uRgOliu4lpcrqMH3s1"
+      },
+      "backup_voice": {
+        "name": "Boris",
+        "voice_id": "6FToiFTrIwAN1cjxCdyn"
+      },
+      "recommended_preset": "institucional",
+      "performance_note": "Tom seguro e consultivo. Deve transmitir acompanhamento, contexto e confianca."
+    },
+    "livia": {
+      "character_name": "Livia",
+      "role": "Social Media",
+      "primary_voice": {
+        "name": "Jenifer",
+        "voice_id": "GOkMqfyKMLVUcYfO2WbB"
+      },
+      "backup_voice": {
+        "name": "Paula",
+        "voice_id": "xPnmQf6Ow3GGYWWURFPi"
+      },
+      "recommended_preset": "energetico",
+      "performance_note": "Tom agil, claro e com senso de ritmo. Energia de quem decide rapido sem perder clareza."
+    },
+    "diego": {
+      "character_name": "Diego",
+      "role": "Suporte",
+      "primary_voice": {
+        "name": "Joel",
+        "voice_id": "uOjV7aFQoCQBSZxYyOds"
+      },
+      "backup_voice": {
+        "name": "Flavio Francisco",
+        "voice_id": "x6uRgOliu4lpcrqMH3s1"
+      },
+      "recommended_preset": "padrao",
+      "performance_note": "Tom estavel e calmo em contexto de pressao. Deve acalmar sem parecer lento."
+    },
+    "camila": {
+      "character_name": "Camila",
+      "role": "Gestora de Alunos / Student Success",
+      "primary_voice": {
+        "name": "Amanda Kelly",
+        "voice_id": "oi8rgjIfLgJRsQ6rbZh3"
+      },
+      "backup_voice": {
+        "name": "Carla",
+        "voice_id": "oJebhZNaPllxk6W0LSBA"
+      },
+      "recommended_preset": "calmo",
+      "performance_note": "Tom caloroso, paciente e didatico. Deve soar proxima e confiavel."
+    },
+    "bruno": {
+      "character_name": "Bruno",
+      "role": "Infoprodutor / Operacao Comercial via WhatsApp",
+      "primary_voice": {
+        "name": "Joel",
+        "voice_id": "uOjV7aFQoCQBSZxYyOds"
+      },
+      "backup_voice": {
+        "name": "Flavio Francisco",
+        "voice_id": "x6uRgOliu4lpcrqMH3s1"
+      },
+      "recommended_preset": "padrao",
+      "performance_note": "Tom comercial mais jovem, leve e claro. Deve soar presente e vendedor, mas sem peso excessivo ou grave demais."
+    }
+  },
+  "gaps": {
+    "recommended_new_voices": [
+      "1 voz masculina brasileira jovem com pegada comercial",
+      "1 voz masculina brasileira neutra para suporte e operacao"
+    ]
+  }
+}
