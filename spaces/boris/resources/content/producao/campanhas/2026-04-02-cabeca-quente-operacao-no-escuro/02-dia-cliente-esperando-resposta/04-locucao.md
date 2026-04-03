@@ -2,11 +2,11 @@
 
 ## Estrutura
 
-- voz 1: persona operacional
+- voz 1: Marina
 - voz 2: Boris
 - ritmo: tensao concreta seguida de leitura firme
 
-## Voz da Persona
+## Voz da Persona (Marina)
 
 Tom:
 
@@ -16,7 +16,7 @@ Tom:
 
 Texto:
 
-"Hoje eu achei que o grupo estava sob controle.
+"Boris, hoje eu achei que o grupo estava sob controle.
 
 Tinha mensagem subindo.
 Tinha gente respondendo.

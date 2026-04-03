@@ -1,14 +1,14 @@
 # Prompts de Imagem
 
-## Asset 1: persona em tensao
+## Asset 1: Marina em tensao
 
 Objetivo:
 
-- dramatizar o instante em que a operacao percebe tarde demais que havia uma pendencia no grupo
+- dramatizar o instante em que Marina percebe tarde demais que havia uma pendencia no grupo
 
 Prompt:
 
-"Cena vertical 9:16 de uma operadora brasileira olhando para o celular com tensao contida e surpresa incomoda, ambiente de trabalho realista, notificacoes e interface de chat inspirada em WhatsApp desfocadas ao fundo, sensacao de que uma mensagem importante passou despercebida, estetica premium, editorial, sem texto embutido, foco em pendencia invisivel e sobrecarga operacional."
+"Cena vertical 9:16 de Marina, persona oficial do Boris para gestao de comunidade, em estilo de quadrinhos editoriais premium no mesmo universo visual do Boris, olhando para o celular com tensao contida e surpresa incomoda, pensada como fundo de video para receber mensagens sobrepostas. O fundo deve fazer referencia clara ao wallpaper do WhatsApp: base clara, pattern sutil com icones e desenhos leves inspirados no app, tratamento suave e opaco, pouca informacao no centro e contraste controlado. Inserir sinais de rotina operacional e conversa no WhatsApp de forma desfocada e secundaria, sem texto legivel, mantendo a composicao respiravel e segura para overlays de mensagens. Foco em pendencia invisivel, sobrecarga operacional e leitura ruim."
 
 ## Asset 2: Boris respondendo
 

@@ -11,9 +11,9 @@ E descobrir que tinha cliente esperando resposta e ninguem viu."
 
 Roteiro falado:
 
-Persona:
+Persona (Marina):
 
-"Hoje eu achei que o grupo estava sob controle.
+"Boris, hoje eu achei que o grupo estava sob controle.
 
 Tinha mensagem subindo.
 Tinha gente respondendo.

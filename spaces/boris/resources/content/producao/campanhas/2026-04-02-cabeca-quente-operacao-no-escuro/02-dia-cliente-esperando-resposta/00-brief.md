@@ -2,6 +2,7 @@
 
 - Tipo: post
 - Linha editorial: cabeça quente
+- Persona oficial: Marina
 - Tese central: o grupo pode parecer funcionando ate a hora em que voce descobre que tinha cliente esperando resposta e ninguem viu
 - Objetivo: mostrar o custo operacional de depender de leitura manual e achismo
 - Formato principal: vídeo curto vertical com locucao em duas vozes
