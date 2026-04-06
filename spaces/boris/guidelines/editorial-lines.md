@@ -31,6 +31,9 @@ Serve para transformar caos operacional, sobrecarga e ruído em uma cena reconhe
 - Boris deve responder como Boris, não como narrador neutro
 - a tensão deve servir ao diagnóstico, não ao exagero vazio
 - o fechamento deve prever CTA claro e, quando fizer sentido, um asset visual final próprio
+- por padrao, quando o usuario pedir para `gerar uma peça` de `cabeça quente`, isso significa peca completa
+- `peca completa` de `cabeça quente` = imagem principal + imagem de CTA + audio da persona + audio do Boris
+- so entregar roteiro, texto ou imagem isolada se o usuario pedir explicitamente uma versao parcial
 
 ### Papel editorial
 
@@ -47,10 +50,11 @@ Serve para reorganizar racionalmente um problema, explicar um sinal, nomear um c
 
 ### Estrutura base
 
-1. apresentar o problema com calma e clareza
-2. organizar a leitura do tema
-3. mostrar critério, estrutura ou explicação
-4. fechar com próximo passo ou CTA coerente
+1. partir de uma situacao vivida, percebida ou observada
+2. conectar essa situacao a uma dor real de operacao
+3. organizar a leitura do tema
+4. mostrar criterio, estrutura ou explicacao
+5. fechar com interacao, continuidade ou CTA coerente
 
 ### Regras
 
@@ -58,7 +62,10 @@ Serve para reorganizar racionalmente um problema, explicar um sinal, nomear um c
 - a peça deve reduzir ruído e aumentar entendimento
 - evitar dramatização desnecessária
 - a CTA deve parecer continuidade lógica da explicação
-- quando aplicado a Stories, usar linguagem curta, leve e observacional
+- quando aplicado a Stories, usar linguagem curta, leve, observacional e em primeira pessoa sempre que fizer sentido
+- em Stories, tratar a peça como sequencia conectada de 1 a 10 telas, com inicio, meio e fim
+- o texto deve soar como postagem real do Boris, nao como conselho em tom imperativo
+- a situacao precisa se relacionar ao contexto de WhatsApp, grupos, mensagens, leitura ou operacao
 
 ### Papel editorial
 

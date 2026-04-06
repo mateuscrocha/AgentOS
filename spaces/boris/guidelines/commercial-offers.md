@@ -135,6 +135,32 @@ Usar esta regua como ancora comercial inicial:
 - se a conta exigir muito mais esforco, tratar como proposta customizada
 - em contas de 100 grupos ou mais, o setup deve ser tratado como negociacao estrategica e nunca como automatismo
 
+## Tabela comercial pronta para proposta
+
+Usar esta tabela quando for preciso responder rapido com uma ancora comercial completa.
+
+| Faixa de grupos | Mensalidade por grupo | Total mensal de referencia | Setup de referencia | Modelo recomendado |
+|---|---|---|---|---|
+| 1 grupo | R$ 350 | R$ 350 | R$ 0 a R$ 1.500 | oferta padrao |
+| 10 grupos | R$ 320 | R$ 3.200 | R$ 3.000 | oferta padrao com volume |
+| 20 grupos | R$ 300 | R$ 6.000 | R$ 6.000 | oferta padrao com volume |
+| 30 grupos | R$ 285 | R$ 8.550 | R$ 6.000 | oferta padrao com volume |
+| 50 grupos | R$ 270 | R$ 13.500 | R$ 12.000 | proposta ampliada |
+| 100 grupos | R$ 250 | R$ 25.000 | R$ 20.000+ | proposta customizada estrategica |
+
+### Como apresentar
+
+- primeiro ancorar pelo numero de grupos
+- depois mostrar o valor por grupo
+- em seguida mostrar o total mensal
+- por fim explicar o setup como custo de entrada e organizacao inicial
+
+### Exemplo de leitura
+
+- conta pequena: pode entrar no plano padrao, com ou sem setup leve
+- conta media: entra em desconto por volume com setup separado
+- conta grande: pede proposta mais estruturada, mesmo que a logica por grupo continue servindo de ancora
+
 ## Regras comerciais
 
 - Se existir conflito entre memoria solta, conversa antiga e este arquivo, este arquivo vale mais como referencia operacional.

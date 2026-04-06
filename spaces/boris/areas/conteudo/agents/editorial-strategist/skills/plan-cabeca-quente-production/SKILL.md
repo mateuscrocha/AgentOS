@@ -43,3 +43,9 @@ Plano de produção com:
 1. `Cabeça quente` multimodal deve preservar coerência entre dor, imagem e voz.
 2. Se houver imagem e áudio, a persona deve ser resolvida antes da execução.
 3. Quando houver mais de um asset, preferir roteamento via `boris-content-orchestrator`.
+4. Se o usuario pedir para `gerar uma peça` de `cabeça quente`, assumir por padrao pacote completo:
+   - imagem principal
+   - imagem de CTA
+   - audio da persona
+   - audio do Boris
+5. So reduzir a entrega quando o usuario pedir explicitamente uma versao parcial.

@@ -42,6 +42,16 @@ Estrutura padrao:
 - priorizar estrutura, leitura e criterio
 - a CTA deve parecer continuidade logica da explicacao
 
+## Stories do Instagram
+
+Quando `cabeca fria` for usada em Stories:
+
+- tratar como sequencia curta de 4 a 6 telas
+- usar uma ideia principal por tela
+- priorizar observacao, contraste e clareza rapida
+- evitar cara de aula longa ou legenda quebrada em varias telas
+- manter o CTA como continuacao natural da leitura
+
 ## Producao
 
 Quando for criar uma nova peca:

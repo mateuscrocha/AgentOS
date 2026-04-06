@@ -67,12 +67,30 @@ Nao deve reinventar a execucao de imagem e audio quando ja existe skill madura p
    - aplicar a regra de resposta do Boris como continuidade real do caso
    - manter 1.5s de silencio inicial por padrao nos audios finais
 
+### Regra de entrega padrao
+
+Quando o usuario pedir para `gerar`, `criar` ou `fazer` uma peca de `cabeça quente`, assumir entrega completa por padrao:
+
+- 1 imagem principal
+- 1 imagem de CTA com Boris
+- 1 audio da persona
+- 1 audio do Boris
+
+Nao assumir que imagem isolada basta.
+Se a entrega for parcial, isso deve vir explicitamente do usuario.
+
 ### Regras visuais
 
 - linguagem premium cartoon editorial
 - persona humana no mesmo universo visual do Boris
 - evitar realismo fotografico por padrao
 - prever frame ou imagem final de CTA quando a peca pedir fechamento visual
+- posicao de Boris e das personas nao deve ficar congelada em um layout fixo
+- a composicao deve variar de acordo com a tese, a tensao da cena, quem puxa a fala e onde os overlays precisam respirar
+- lado esquerdo, lado direito, escala relativa, distancia entre personagens e areas vazias devem ser decididos por tema, nao por habito
+- quando a peca for fundo de video com mensagens ou baloes adicionados depois, a imagem base deve sair limpa, sem baloes renderizados
+- baloes, mensagens e elementos de conversa entram na etapa de edicao, nao na geracao da arte-base, salvo pedido explicito em contrario
+- regra operacional: em pecas de conversa entre persona e Boris, a arte gerada nao deve trazer os baloezinhos de mensagem; eles entram depois no aplicativo de edicao
 
 ### Regras de audio
 
@@ -80,6 +98,7 @@ Nao deve reinventar a execucao de imagem e audio quando ja existe skill madura p
 - dor concreta e recente
 - nomear Boris naturalmente quando fizer sentido
 - Boris responde como Boris, nao como narrador
+- em `cabeça quente`, audio faz parte da entrega padrao da peca completa
 
 ## Cabeça Fria
 
@@ -107,6 +126,8 @@ Nao deve reinventar a execucao de imagem e audio quando ja existe skill madura p
 - composicao mais calma, limpa e legivel
 - para Stories, seguir padrao aprovado de overlay e leitura rapida
 - menos tensao dramatica que `cabeça quente`
+- mesmo em `cabeça fria`, evitar fixar Boris e personas sempre na mesma posicao
+- variar distribuicao espacial e area livre conforme a explicacao e o formato pedirem
 
 ### Regras de audio
 
@@ -131,3 +152,5 @@ Quando o pedido envolver:
 - tese + imagem: `editorial-strategist` + `boris-image-agent`
 - tese + audio: `editorial-strategist` + `boris-audio-agent`
 - tese + imagem + audio + pasta de producao: `boris-content-orchestrator` coordenando os especialistas
+
+Para `cabeça quente`, salvo instrucao em contrario do usuario, usar sempre o ultimo caso.

@@ -16,8 +16,8 @@ Ele define como pedidos de conteudo devem ser interpretados, quais skills entram
 
 ## Fonte oficial de dores
 
-A fonte oficial para gerar conteudo editorial passa a ser a lista `PRINCIPAIS DORES DO MERCADO` em [agente-boris-conteudo.md](/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/agente-boris-conteudo.md).
-O mapa expandido e reutilizavel de dores do ecossistema Bóris agora vive em [boris-pain-library.md](/Users/eu.rochamateus/Documents/Codex/Bóris - Linha Editorial/editorial/strategy/boris-pain-library.md).
+A fonte oficial para gerar conteudo editorial passa a ser a lista `PRINCIPAIS DORES DO MERCADO` em [agente-boris-conteudo.md](/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/agente-boris-conteudo.md).
+O mapa expandido e reutilizavel de dores do ecossistema Bóris agora vive em [boris-pain-library.md](/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/editorial/editorial/strategy/boris-pain-library.md).
 
 Hoje, essa base tem 10 dores:
 
@@ -146,7 +146,7 @@ Usar:
 - `ckm:brand`
 
 Entregar:
-- exatamente no formato definido em [agente-boris-conteudo.md](/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/agente-boris-conteudo.md)
+- exatamente no formato definido em [agente-boris-conteudo.md](/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/agente-boris-conteudo.md)
 
 ### Se o usuario pedir campanha
 Usar:
@@ -252,13 +252,10 @@ Toda entrega deve buscar este nivel:
 
 ## Arquivos-base deste workspace
 
-- [agente-boris-conteudo.md](/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/agente-boris-conteudo.md): regra mestra de estrategia e formato de saida.
-- [skills/boris-content-orchestrator/SKILL.md](/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/skills/boris-content-orchestrator/SKILL.md): skill local que organiza pedidos por pasta e roteia a execucao para outros skills.
-- [producao/README.md](/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/producao/README.md): convencao oficial de organizacao dos packs.
-- [producao/2026-03-20-grupo-ativo-engana/README.md](/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/producao/2026-03-20-grupo-ativo-engana/README.md): exemplo de pack fechado.
-- [producao/2026-03-20-grupo-ativo-engana/01-roteiro-canva-ready.md](/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/producao/2026-03-20-grupo-ativo-engana/01-roteiro-canva-ready.md): referencia de roteiro curto.
-- [producao/2026-03-20-grupo-ativo-engana/04-locucao-final.md](/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/producao/2026-03-20-grupo-ativo-engana/04-locucao-final.md): referencia de locucao.
-- [producao/2026-03-20-grupo-ativo-engana/02-prompts-geracao-boris.md](/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/producao/2026-03-20-grupo-ativo-engana/02-prompts-geracao-boris.md): referencia de prompts do personagem.
+- [agente-boris-conteudo.md](/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/agente-boris-conteudo.md): regra mestra de estrategia e formato de saida.
+- [skills/boris-content-orchestrator/SKILL.md](/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/skills/boris-content-orchestrator/SKILL.md): skill local que organiza pedidos por pasta e roteia a execucao para outros skills.
+- [producao/README.md](/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/producao/README.md): convencao oficial de organizacao dos packs.
+- [producao/2026-03-20-grupo-ativo-engana/README.md](/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/producao/2026-03-20-grupo-ativo-engana/README.md): exemplo de pack fechado.
 
 ## Estrutura fisica de producao
 

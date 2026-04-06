@@ -8,11 +8,14 @@ Regra operacional:
 - Sempre alternar poses do Boris para evitar repetição visual.
 - Sempre escolher a persona antes de gerar a cena.
 - Alternar entre personagens homens e mulheres conforme a biblioteca abaixo.
+- Sempre respeitar a definicao consolidada de persona em `spaces/boris/guidelines/persona-system.md`, especialmente faixa etaria aparente, apresentacao, estilo e sinais de rotina.
 
 ## Biblioteca Oficial De 6 Personagens
 
 ### 1. Marina
 - Persona: Gestora de Comunidade
+- Faixa etaria aparente: 30 a 38
+- Apresentacao: mulher adulta, madura, organizada, acessivel
 - Perfil: organiza grupos, acompanha conversas e sustenta engajamento
 - Dor principal: excesso de mensagens e pressão para responder tudo
 - Sinais visuais: smartphone, ícones de grupo, mensagens, coordenação de pessoas
@@ -20,6 +23,8 @@ Regra operacional:
 
 ### 2. Rafael
 - Persona: Customer Success
+- Faixa etaria aparente: 32 a 42
+- Apresentacao: homem adulto, consultivo, confiavel
 - Perfil: onboarding, follow-up, retenção, acompanhamento de clientes
 - Dor principal: clientes cobrando atenção ao mesmo tempo
 - Sinais visuais: notebook, headset opcional, follow-up, contexto de cliente
@@ -27,6 +32,8 @@ Regra operacional:
 
 ### 3. Lívia
 - Persona: Social Media
+- Faixa etaria aparente: 24 a 32
+- Apresentacao: mulher adulta jovem, agil, criativa, ritmada
 - Perfil: conteúdo, calendário, aprovações, comentários e performance
 - Dor principal: muita demanda, urgência e pressão por resultado
 - Sinais visuais: smartphone, comentários, likes, calendário editorial
@@ -34,6 +41,8 @@ Regra operacional:
 
 ### 4. Diego
 - Persona: Suporte
+- Faixa etaria aparente: 28 a 38
+- Apresentacao: homem adulto, tecnico, paciente, resolutivo
 - Perfil: tickets, fila de atendimento, problemas urgentes e resposta rápida
 - Dor principal: volume alto e sensação de apagar incêndio o dia todo
 - Sinais visuais: headset, alertas, fila, mensagens urgentes
@@ -41,6 +50,8 @@ Regra operacional:
 
 ### 5. Camila
 - Persona: Gestora de Alunos / Student Success
+- Faixa etaria aparente: 29 a 39
+- Apresentacao: mulher adulta, calorosa, didatica e proxima
 - Perfil: dúvidas de alunos, engajamento, continuidade e acompanhamento
 - Dor principal: excesso de perguntas e necessidade de presença constante
 - Sinais visuais: smartphone ou caderno, grupo de alunos, perguntas, contexto educacional
@@ -48,6 +59,8 @@ Regra operacional:
 
 ### 6. Bruno
 - Persona: Infoprodutor / Operação Comercial via WhatsApp
+- Faixa etaria aparente: 27 a 36
+- Apresentacao: homem adulto jovem, comercial, direto e leve
 - Perfil: leads, vendas, lançamentos, follow-up e operação pulverizada
 - Dor principal: muita conversa e pouca organização
 - Sinais visuais: smartphone, leads, mensagens, pressão comercial

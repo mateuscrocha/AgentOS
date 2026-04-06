@@ -10,6 +10,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
 ### Adicionado
 - **Runtime Codex primário** — criado `CODEX.md` e a árvore `.Codex/` (`agents/`, `commands/`, `skills/agent-bootstrap`) para tornar o Codex o runtime principal do AgentOS
+- **Regra global de idioma** — criado `docs/language.md` e adicionada regra explícita de português brasileiro como idioma padrão do projeto, salvo override explícito do usuário
+- **Space pessoal inicial** — criado `spaces/pessoal/` com memória, guidelines e a área `dia` para começar a gerenciar projetos pessoais e a rotina diária dentro do AgentOS
 
 ### Alterado
 - **Source of truth de runtime** — `KERNEL.md`, `README.md`, `docs/architecture.md`, `system/protocols/sync.md`, `system/scripts/setup.py`, `system/scripts/sync.py`, `system/scripts/validate.py` e hooks agora tratam `.Codex/` como runtime canônico para sync e operação
@@ -18,6 +20,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 - **Biblioteca do Boris reorganizada** — `spaces/boris/resources/` deixou de usar nomes `legacy-*` e passou a expor blocos oficiais `content/`, `editorial/`, `audio/`, `leads/` e `skills/`, com referências internas atualizadas
 - **Índices e guidelines do Boris limpos** — documentação do space agora trata o acervo importado como biblioteca operacional local, sem depender da noção de legado
 - **Teste de produção real** — campanha `cabeça quente` e asset visual `visual-boris-cta.png` foram gerados dentro da nova árvore de `spaces/boris/resources/content/producao`
+- **Idioma e prosódia do Boris formalizados** — `spaces/boris/guidelines/language-and-locution.md` e guidelines do space agora tratam português brasileiro, acentuação e locução emocional como regra herdável
 ## [0.9.0] - 2026-03-30
 
 ### Adicionado

@@ -134,7 +134,7 @@ export const VOICE_PRESETS = {
     similarity_boost: 0.8,
     style: 0.2,
     use_speaker_boost: true,
-    speed: 1.04,
+    speed: 1.02,
     output_gain_db: 3
   },
   institucional: {
@@ -165,6 +165,8 @@ export function resolvePreset(name = "padrao") {
 }
 
 export function preparePortugueseText(text) {
+  // Boris audio rule: keep Brazilian Portuguese punctuation/accent support intact
+  // so the TTS has enough prosodic information to sound emotional and natural.
   return text
     .replace(/\s+/g, " ")
     .replace(/\s+([,.;:!?])/g, "$1")

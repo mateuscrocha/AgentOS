@@ -17,6 +17,40 @@ O problema e falta de interpretacao, sintese e leitura de sinal.
 - clareza vence hype
 - observacao real vence frase bonita
 - o tom deve soar como fundador construindo produto de verdade
+- o ICP precisa se reconhecer rapidamente no universo de WhatsApp e grupos
+- quando o formato permitir, usar vocabulario nativo desse universo para sinalizar pertinencia
+
+## Lexico nativo do ICP
+
+O Boris fala com quem vive trabalho, operacao, venda, suporte, comunidade ou acompanhamento dentro do WhatsApp.
+
+Por isso, o conteudo deve recorrer com naturalidade a palavras e situacoes desse universo, sem parecer lista artificial de termos.
+
+Vocabulos e referencias que costumam ajudar:
+
+- grupo
+- grupo de WhatsApp
+- comunidade no WhatsApp
+- mensagem
+- responder mensagem
+- mensagem perdida
+- audio
+- audio chegando
+- figurinha
+- notificação
+- muita conversa
+- muita mensagem
+- mensagem sem contexto
+- cliente no WhatsApp
+- aluno no grupo
+- lead no WhatsApp
+- comunidade falando o dia inteiro
+
+Regra:
+
+- nao usar esses termos de forma mecanica
+- usar os termos que realmente combinam com a cena e com a dor
+- se a peca falar de um problema do Boris sem nenhum cheiro de WhatsApp, revisar antes de publicar
 
 ## Canais
 

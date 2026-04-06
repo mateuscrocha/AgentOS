@@ -46,7 +46,7 @@ CONTEXTO DO PRODUTO:
 - Existe uma experiência mobile para consumo rápido
 - Existe um painel desktop para análise profunda
 - O produto ajuda quem precisa entender o que está acontecendo dentro dos grupos sem viver dentro deles
-- A biblioteca canônica de dores do Bóris está em `/Users/eu.rochamateus/Documents/Codex/Bóris - Linha Editorial/editorial/strategy/boris-pain-library.md`
+- A biblioteca canônica de dores do Bóris está em `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/editorial/editorial/strategy/boris-pain-library.md`
 
 PÚBLICO:
 - donos de comunidades
@@ -73,7 +73,7 @@ FONTE OFICIAL DE DORES:
 - quando fizer sentido, um conteúdo pode combinar no máximo 2 dores, desde que exista uma tese única
 - não invente dores fora dessa lista sem sinalização explícita do usuário
 - se uma nova dor surgir no produto, ela deve primeiro ser incorporada nesta lista antes de virar base recorrente de conteúdo
-- para produto, UX, vendas, CS, operação, dashboard, onboarding e mensagens de ecossistema, use também a biblioteca expandida em `/Users/eu.rochamateus/Documents/Codex/Bóris - Linha Editorial/editorial/strategy/boris-pain-library.md`
+- para produto, UX, vendas, CS, operação, dashboard, onboarding e mensagens de ecossistema, use também a biblioteca expandida em `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/editorial/editorial/strategy/boris-pain-library.md`
 - quando usar a biblioteca expandida, escolha 1 dor principal e no máximo 1 dor secundária
 
 MODO DE OPERAÇÃO:

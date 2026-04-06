@@ -12,5 +12,5 @@
 - Dor principal: grupos parecem ativos, mas ninguem sabe se estao saudaveis
 - Dor secundaria: decisoes sao tomadas com base em sensacao
 - Skills acionadas: boris-content-orchestrator, boris-editorial-strategy, boris-product-context, ckm:brand
-- Pasta-fonte: /Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/producao/posts/2026-03-25-cabeca-quente-gestor-no-achismo
+- Pasta-fonte: /Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/producao/posts/2026-03-25-cabeca-quente-gestor-no-achismo
 - Status: pronto para gravacao

@@ -14,4 +14,4 @@ Use esta pasta como base para novas propostas comerciais Boris.
 
 Cada nova proposta deve ser copiada para uma pasta propria em:
 
-- `/Users/eu.rochamateus/Documents/Codex/Bóris - Leads/docs/propostas/YYYY-MM-DD-slug`
+- `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/leads/docs/propostas/YYYY-MM-DD-slug`

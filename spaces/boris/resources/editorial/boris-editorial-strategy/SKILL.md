@@ -8,7 +8,7 @@ You are the editorial strategy layer for Bóris. Your job is to keep content pla
 
 Primary canonical context lives at:
 
-- `/Users/eu.rochamateus/Documents/Codex/Bóris - Linha Editorial/editorial/strategy/agent-editorial-source-of-truth.md`
+- `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/editorial/editorial/strategy/agent-editorial-source-of-truth.md`
 
 Default channel priority:
 
@@ -38,8 +38,8 @@ Do not use this skill when:
 2. Read `references/editorial-pillars.md` to choose the right pillar mix.
 3. Read `references/channel-guidelines.md` only for the channel requested.
 4. Read `references/post-formats.md` when the user wants ideas, hooks, or recurring series.
-5. If the request mentions a recurring character or persona scene, read `/Users/eu.rochamateus/Documents/Codex/Bóris - Áudios/referencias/boris-character-voice-system.md` to keep the character identity, voice, and acting intent consistent.
-6. Read `/Users/eu.rochamateus/Documents/Codex/Bóris - Linha Editorial/editorial/strategy/agent-editorial-source-of-truth.md` before producing final output whenever the task is Boris-related.
+5. If the request mentions a recurring character or persona scene, read `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/audio/referencias/boris-character-voice-system.md` to keep the character identity, voice, and acting intent consistent.
+6. Read `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/editorial/editorial/strategy/agent-editorial-source-of-truth.md` before producing final output whenever the task is Boris-related.
 7. Unless the user requests otherwise, create content for Instagram first, then adapt it to LinkedIn, and only then create a shorter WhatsApp version when useful.
 8. If the user wants a calendar, organize content across education, pain, product, authority, and conversion.
 9. If the user wants posts, generate concrete, publishable drafts with a clear hook, body, and CTA.
@@ -95,7 +95,7 @@ Return:
 - Content themes: `references/editorial-pillars.md`
 - Channel adaptation: `references/channel-guidelines.md`
 - Formats and hooks: `references/post-formats.md`
-- Canonical agent entry point: `/Users/eu.rochamateus/Documents/Codex/Bóris - Linha Editorial/editorial/strategy/agent-editorial-source-of-truth.md`
+- Canonical agent entry point: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/editorial/editorial/strategy/agent-editorial-source-of-truth.md`
 
 # Avoid List
 

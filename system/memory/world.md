@@ -33,12 +33,13 @@
 ## Spaces
 
 - `boris`
+- `pessoal`
 
 ## Estatísticas
 
-- Spaces: 1
-- Areas: 5
-- Agentes do usuário: 5
+- Spaces: 2
+- Areas: 6
+- Agentes do usuário: 6
 - Times: 0
 - Skills do usuário: 24
 
@@ -61,6 +62,6 @@ O sistema possui protocolo de sincronização entre runtimes (`.Codex/` → `.ge
 
 ## Última Alteração
 
-- **Data:** 2026-04-03
-- **O que mudou:** O acervo do Boris foi reorganizado em uma estrutura oficial limpa sob `spaces/boris/resources/{content,editorial,audio,leads,skills}`, com referências internas corrigidas, índices novos e uma peça real de teste gerada dentro da nova árvore.
+- **Data:** 2026-04-06
+- **O que mudou:** Criação do agente `day-manager` no space `pessoal/dia`, com loaders em `.Codex/agents/` e `.gemini/agents/` para gestão do dia a dia.
 - **Agente:** kernel

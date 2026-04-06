@@ -80,6 +80,14 @@ When the asset belongs to the `Cabeça Quente` series:
 - If the user approves a WhatsApp-inspired wallpaper treatment, preserve the same balance of: light base, subtle pattern, premium editorial softness, and text-safe negative space.
 - Treat the approved WhatsApp-style background as the default visual system for this recurring line unless the user explicitly changes direction.
 - Avoid visual boredom across the series: keep the same visual system, but vary persona, posture, acting beat, and scene emphasis from piece to piece.
+- Do not freeze Bóris and the personas into one default left-right arrangement.
+- Decide character placement from the theme of the piece: who is speaking, who is reacting, where the tension lives, and where overlays or balloons need breathing room.
+- Vary side assignment, spacing, scale, body direction, and empty zones across the series when the theme changes.
+- In conversation scenes, define intentionally who occupies each side instead of reusing a fixed template.
+- If the asset is meant for message overlays, treat negative space as part of the composition logic and adapt the subjects around it.
+- If the asset is meant for message overlays, do not pre-render chat balloons, chat bubbles, message cards, WhatsApp UI cards, or fake conversation snippets into the base image unless the user explicitly asks for that.
+- Default rule for Boris campaign backgrounds: generate the clean background plate only, and assume overlays/messages will be added later in the editing tool.
+- In Boris conversation pieces, the base image should show only the characters, background language, and breathing room for later composition. The little message balloons are not part of the generated art by default.
 
 ## Mandatory Prompt Constraints
 - Use `assets/boris-body-reference.png` in every run.
@@ -90,6 +98,7 @@ When the asset belongs to the `Cabeça Quente` series:
 - Add tail, cauda, or rabo to the avoid list unless the user explicitly asks for a different character design.
 - Vary pose, gesture, object interaction, and body angle when the request would otherwise look repetitive.
 - Use a pose that matches the use case: explaining, greeting, reading, holding objects, walking, typing, celebrating, observing, presenting, or reacting.
+- Vary composition as well as pose: side placement, crop, distance between subjects, and central empty area should respond to the theme instead of repeating one locked layout.
 - Add an `Avoid:` line to prevent drift, random text, watermark, and anatomy artifacts.
 - Iterate with one targeted change per run.
 - If the same persona has just been used in the immediately previous post of the same batch, prefer another official persona before generating a new frame unless the user explicitly wants repetition.
@@ -123,6 +132,9 @@ When the asset belongs to the `Cabeça Quente` series:
 - Default to a single Bóris in the composition.
 - Only duplicate or multiply Bóris when the concept explicitly depends on repetition, cloning, scale, or multiple simultaneous actions.
 - Vary Bóris pose, arm position, body angle, and gesture across different assets so the mascot does not repeat the same wave or pointing stance.
+- When Bóris shares the frame with a persona, do not assume Bóris always stays on the same side.
+- Place Bóris where the storytelling works best for that specific piece: response side, support side, contrast side, or quieter side.
+- Keep composition decisions theme-driven, not template-driven.
 
 ## Subject Modes
 - `Bóris`: use only the Bóris reference and preserve mascot identity.

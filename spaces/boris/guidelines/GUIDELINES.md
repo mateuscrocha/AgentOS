@@ -20,7 +20,12 @@ Escopo raiz do space. Estas guidelines são herdadas por todas as areas, times e
 | `commercial-offers.md` | Fonte canônica compartilhada para ofertas, preços, custos e regras comerciais do Boris |
 | `editorial-foundation.md` | Tese editorial, canais, pilares e guardrails de conteúdo |
 | `editorial-lines.md` | Regras explícitas das linhas `cabeça quente` e `cabeça fria` |
+| `pain-activation-matrix.md` | Matriz prática que conecta dores do Boris a ICP, linhas editoriais, formatos e usos em produto/comercial/CS |
+| `cabeca-fria-stories.md` | Configuração operacional da linha `cabeça fria` para Stories do Instagram |
+| `cabeca-fria-scenario-library.md` | Biblioteca de cenários do dia a dia para variar a `cabeça fria` e conectá-la às dores das personas |
+| `language-and-locution.md` | Regra herdável de português brasileiro, acentuação e prosódia nas entregas do Boris |
 | `multimodal-production.md` | Como imagem e áudio das linhas editoriais usam a biblioteca especialista do Boris |
+| `persona-system.md` | Definição oficial das personas, com aparência, faixa etária, função e encaixe de voz |
 | `../resources/README.md` | Índice da biblioteca operacional do Boris dentro do AgentOS |
 
 ## Cross-References

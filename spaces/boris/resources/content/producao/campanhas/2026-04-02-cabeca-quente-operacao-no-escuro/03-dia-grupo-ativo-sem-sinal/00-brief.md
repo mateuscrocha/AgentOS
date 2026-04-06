@@ -2,6 +2,7 @@
 
 - Tipo: post
 - Linha editorial: cabeça quente
+- Persona oficial: Bruno
 - Tese central: grupo ativo nao e grupo entendido; movimento sem leitura continua deixando risco, silencio e queda de interesse invisiveis
 - Objetivo: fechar a campanha reforcando a tese do Boris de que atividade sem contexto vira ruido
 - Formato principal: vídeo curto vertical ou carrossel de diagnostico

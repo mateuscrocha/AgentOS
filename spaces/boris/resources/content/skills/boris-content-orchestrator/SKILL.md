@@ -14,7 +14,7 @@ It does not replace specialist skills. It coordinates them.
 When a new content request arrives, do four things in order:
 
 1. Classify the request as `post`, `campaign`, or `material`.
-2. Create or update one production folder in `/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/producao`.
+2. Create or update one production folder in `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/producao`.
 3. Route the work only through existing skills that match the asset type.
 4. Return outputs that are ready to use and easy to find later.
 
@@ -40,9 +40,9 @@ If more than one skill applies, use the smallest set that cleanly covers the req
 
 Always keep production organized under these roots:
 
-- `/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/producao/posts`
-- `/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/producao/campanhas`
-- `/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/producao/materiais`
+- `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/producao/posts`
+- `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/producao/campanhas`
+- `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/producao/materiais`
 
 Folder naming convention:
 
@@ -122,8 +122,8 @@ Use this for standalone support assets such as:
 
 For every request:
 
-1. Read the editorial rules in `/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/agente-boris-conteudo.md`.
-2. Read the operational rules in `/Users/eu.rochamateus/Documents/Codex/Bóris - Conteúdo/manual-operacao-editorial-boris.md`.
+1. Read the editorial rules in `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/agente-boris-conteudo.md`.
+2. Read the operational rules in `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content/manual-operacao-editorial-boris.md`.
 3. Decide whether this is `post`, `campaign`, or `material`.
 4. Create or reuse the correct production folder.
 5. Select the specialist skills.

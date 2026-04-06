@@ -35,3 +35,22 @@
 | editorial-strategist | boris/conteudo | Lidera estratégia editorial, calendário e alinhamento de conteúdo do Boris | Ativo |
 | operations-manager | boris/operacoes | Organiza processos, rituais e execução operacional do Boris | Ativo |
 | support-manager | boris/suporte | Estrutura atendimento, base de conhecimento e resolução de demandas do Boris | Ativo |
+| day-manager | pessoal/dia | Organiza prioridades, agenda operacional e fechamento do dia pessoal | Ativo |
+
+## Spaces do Usuário
+
+| Space | Áreas | Propósito | Status |
+|---|---|---|---|
+| boris | produto, comercial, conteudo, operacoes, suporte | Operação principal do Boris no AgentOS | Ativo |
+| pessoal | dia | Projetos pessoais e gestão do dia a dia | Ativo |
+
+## Áreas do Usuário
+
+| Space | Área | Propósito | Status |
+|---|---|---|---|
+| boris | produto | Evolução do produto, UX, roadmap e prioridades | Ativo |
+| boris | comercial | Oferta, vendas, pipeline e materiais comerciais | Ativo |
+| boris | conteudo | Estratégia editorial, campanhas e execução criativa | Ativo |
+| boris | operacoes | Rotinas internas, processos e automações | Ativo |
+| boris | suporte | Atendimento, base de conhecimento e resolução de demandas | Ativo |
+| pessoal | dia | Planejamento diário, prioridades, foco e fechamento do dia | Ativo |

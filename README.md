@@ -2,6 +2,10 @@
 
 Sistema operacional de agentes de IA construído para rodar com o Codex como runtime principal. O AgentOS fornece uma infraestrutura completa para criar, organizar e orquestrar agentes especializados em namespaces isolados, com memória persistente, skills reutilizáveis e protocolos de comunicação formalizados.
 
+## Idioma Padrão
+
+Por padrão, todo texto produzido neste projeto deve sair em **português brasileiro**, com acentuação e pontuação corretas, salvo pedido explícito do usuário para outro idioma.
+
 ---
 
 ## Arquitetura
@@ -187,6 +191,7 @@ A documentacao completa esta em `docs/`:
 | [`docs/system-agents.md`](docs/system-agents.md) | Referencia de cada agente de sistema |
 | [`docs/commands.md`](docs/commands.md) | Referencia completa de comandos |
 | [`docs/protocols.md`](docs/protocols.md) | Protocolos de comunicacao e memoria |
+| [`docs/language.md`](docs/language.md) | Regra global de idioma e qualidade de texto |
 | [`docs/creating-projects.md`](docs/creating-projects.md) | Guia de criacao de spaces, areas e agentes |
 | [`docs/memory-system.md`](docs/memory-system.md) | Sistema de memoria e escopos |
 | [`docs/development-guide.md`](docs/development-guide.md) | Guia de desenvolvimento e extensao |
