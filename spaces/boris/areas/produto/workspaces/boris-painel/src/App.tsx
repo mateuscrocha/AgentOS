@@ -38,10 +38,10 @@ const Auth = lazy(() => import("./pages/Auth"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const NoAccess = lazy(() => import("./pages/NoAccess"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-const DevTestUsers = lazy(() => import("./pages/DevTestUsers"));
+const DevTestUsers = lazy(() => import("./pages/dev/DevTestUsers"));
 const Users = lazy(() => import("./pages/Users"));
 const Alerts = lazy(() => import("./pages/Alerts"));
-const CRMScreenshotSandbox = lazy(() => import("./pages/CRMScreenshotSandbox"));
+const CRMScreenshotSandbox = lazy(() => import("./pages/dev/CRMScreenshotSandbox"));
 
 installConsoleErrorNoiseFilter();
 
@@ -123,6 +123,7 @@ function AppRoutes() {
       <Route path="/auth" element={<Auth />} />
       <Route path="/signup" element={<Onboarding />} />
       <Route path="/onboarding" element={<Navigate to="/signup" replace />} />
+      {/* Internal development tools */}
       <Route path="/dev/crm-sandbox" element={<CRMScreenshotSandbox />} />
       <Route path="/no-access" element={<NoAccess />} />
       <Route path="/dev/test-users" element={<DevTestUsers />} />
