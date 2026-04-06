@@ -43,6 +43,49 @@ const Users = lazy(() => import("./pages/Users"));
 const Alerts = lazy(() => import("./pages/Alerts"));
 const CRMScreenshotSandbox = lazy(() => import("./pages/dev/CRMScreenshotSandbox"));
 
+const legacyRedirects = [
+  { path: "/dashboard", to: "/" },
+  { path: "/system/overview", to: "/" },
+  { path: "/overview", to: "/" },
+  { path: "/organization", to: "/system/organizations" },
+  { path: "/system/support", to: "/system/activity" },
+  { path: "/system/crm", to: "/system/crm/pipeline" },
+  { path: "/onboarding", to: "/signup" },
+] as const;
+
+const systemCrmRoutes = [
+  "/system/crm/pipeline",
+  "/system/crm/companies",
+  "/system/crm/contacts",
+  "/system/crm/tasks",
+] as const;
+
+const organizationRoutes = [
+  "/organization/:orgId",
+  "/organization/:orgId/groups",
+  "/organization/:orgId/dashboard",
+  "/organization/:orgId/keywords",
+  "/organization/:orgId/profile",
+] as const;
+
+const groupRoutes = [
+  { path: "/groups/:groupId", element: <Group /> },
+  { path: "/groups/:groupId/members", element: <GroupMembers /> },
+  { path: "/groups/:groupId/support", element: <GroupSupport /> },
+  { path: "/groups/:groupId/messages", element: <GroupMessages /> },
+  { path: "/groups/:groupId/summaries", element: <GroupSummaries /> },
+  { path: "/groups/:groupId/polls", element: <GroupPolls /> },
+  { path: "/groups/:groupId/polls/:pollId", element: <GroupPoll /> },
+  { path: "/groups/:groupId/events", element: <GroupEvents /> },
+  { path: "/groups/:groupId/dashboard", element: <Group /> },
+  { path: "/groups/:groupId/edit", element: <GroupEdit /> },
+] as const;
+
+const internalDevRoutes = [
+  { path: "/dev/crm-sandbox", element: <CRMScreenshotSandbox /> },
+  { path: "/dev/test-users", element: <DevTestUsers /> },
+] as const;
+
 installConsoleErrorNoiseFilter();
 
 function ActivityTrackingBoundary() {
@@ -74,60 +117,49 @@ function AppRoutes() {
     <Suspense fallback={<div className="p-4 sm:p-6"><PageSkeleton /></div>}>
       <ActivityTrackingBoundary />
       <Routes key={location.pathname}>
-      {/* Auth and protected routes */}
-      <Route path="/" element={<Index />} />
-      {/* Legacy redirects */}
-      <Route path="/dashboard" element={<Navigate to="/" replace />} />
-      <Route path="/system/overview" element={<Navigate to="/" replace />} />
-      {/* System Admin home */}
-      <Route path="/system" element={<Index />} />
-      <Route path="/overview" element={<Navigate to="/" replace />} />
-      <Route path="/system/organizations" element={<SystemOrganizations />} />
-      <Route path="/organization" element={<Navigate to="/system/organizations" replace />} />
-      <Route path="/system/groups" element={<SystemGroups />} />
-      <Route path="/system/support" element={<Navigate to="/system/activity" replace />} />
-      <Route path="/system/users" element={<Users />} />
-      <Route path="/system/events" element={<SystemEvents />} />
-      <Route path="/system/activity" element={<SystemActivity />} />
-      <Route path="/system/trends" element={<SystemTrends />} />
-      <Route path="/system/crm" element={<Navigate to="/system/crm/pipeline" replace />} />
-      <Route path="/system/crm/pipeline" element={<SystemCRM />} />
-      <Route path="/system/crm/companies" element={<SystemCRM />} />
-      <Route path="/system/crm/contacts" element={<SystemCRM />} />
-      <Route path="/system/crm/tasks" element={<SystemCRM />} />
-      <Route path="/system/settings" element={<Settings />} />
-      <Route path="/system/alerts" element={<Alerts />} />
-      <Route path="/system/alert-definitions" element={<Alerts />} />
-      <Route path="/alerts" element={<Alerts />} />
-      <Route path="/alert-definitions" element={<Alerts />} />
-      <Route path="/org/:orgId/*" element={<LegacyOrgAliasRedirect />} />
-      <Route path="/organization/:orgId" element={<Org />} />
-      <Route path="/organization/:orgId/groups" element={<Org />} />
-      <Route path="/organization/:orgId/dashboard" element={<Org />} />
-      <Route path="/organization/:orgId/keywords" element={<Org />} />
-      <Route path="/organization/:orgId/profile" element={<Org />} />
-      {/* Group Admin routes (legacy + standardized aliases) */}
-      <Route path="/group/:groupId/*" element={<LegacyGroupAliasRedirect />} />
-      <Route path="/groups/:groupId" element={<Group />} />
-      <Route path="/groups/:groupId/members" element={<GroupMembers />} />
-      <Route path="/groups/:groupId/support" element={<GroupSupport />} />
-      <Route path="/groups/:groupId/messages" element={<GroupMessages />} />
-      <Route path="/groups/:groupId/summaries" element={<GroupSummaries />} />
-      <Route path="/groups/:groupId/polls" element={<GroupPolls />} />
-      <Route path="/groups/:groupId/polls/:pollId" element={<GroupPoll />} />
-      <Route path="/groups/:groupId/events" element={<GroupEvents />} />
-      <Route path="/groups/:groupId/dashboard" element={<Group />} />
-      <Route path="/groups/:groupId/edit" element={<GroupEdit />} />
-      <Route path="/account" element={<Account />} />
-      <Route path="/settings" element={<Settings />} />
-      <Route path="/auth" element={<Auth />} />
-      <Route path="/signup" element={<Onboarding />} />
-      <Route path="/onboarding" element={<Navigate to="/signup" replace />} />
-      {/* Internal development tools */}
-      <Route path="/dev/crm-sandbox" element={<CRMScreenshotSandbox />} />
-      <Route path="/no-access" element={<NoAccess />} />
-      <Route path="/dev/test-users" element={<DevTestUsers />} />
-      <Route path="*" element={<NotFound />} />
+        <Route path="/" element={<Index />} />
+        <Route path="/system" element={<Index />} />
+        <Route path="/system/organizations" element={<SystemOrganizations />} />
+        <Route path="/system/groups" element={<SystemGroups />} />
+        <Route path="/system/users" element={<Users />} />
+        <Route path="/system/events" element={<SystemEvents />} />
+        <Route path="/system/activity" element={<SystemActivity />} />
+        <Route path="/system/trends" element={<SystemTrends />} />
+        <Route path="/system/settings" element={<Settings />} />
+        <Route path="/system/alerts" element={<Alerts />} />
+        <Route path="/system/alert-definitions" element={<Alerts />} />
+        <Route path="/alerts" element={<Alerts />} />
+        <Route path="/alert-definitions" element={<Alerts />} />
+
+        {systemCrmRoutes.map((path) => (
+          <Route key={path} path={path} element={<SystemCRM />} />
+        ))}
+
+        <Route path="/org/:orgId/*" element={<LegacyOrgAliasRedirect />} />
+        {organizationRoutes.map((path) => (
+          <Route key={path} path={path} element={<Org />} />
+        ))}
+
+        <Route path="/group/:groupId/*" element={<LegacyGroupAliasRedirect />} />
+        {groupRoutes.map(({ path, element }) => (
+          <Route key={path} path={path} element={element} />
+        ))}
+
+        <Route path="/account" element={<Account />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/signup" element={<Onboarding />} />
+        <Route path="/no-access" element={<NoAccess />} />
+
+        {internalDevRoutes.map(({ path, element }) => (
+          <Route key={path} path={path} element={element} />
+        ))}
+
+        {legacyRedirects.map(({ path, to }) => (
+          <Route key={path} path={path} element={<Navigate to={to} replace />} />
+        ))}
+
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
   );
