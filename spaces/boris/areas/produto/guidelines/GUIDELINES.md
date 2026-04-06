@@ -16,6 +16,7 @@ Herda de `spaces/boris/guidelines/`.
 | Documento | Descrição |
 |---|---|
 | `workspace-boris-painel.md` | Define o papel do workspace do painel, limites entre código e documentação do AgentOS, e regras de operação local |
+| `boris-painel-architecture.md` | Mapeia a arquitetura atual do painel, pontos saudáveis, sinais de legado e prioridades de organização |
 
 ## Cross-References
 
