@@ -1,0 +1,31 @@
+project_id = "ceugwdfpbvziiumnxknt"
+
+[functions.validate-whatsapp-group]
+verify_jwt = false
+
+[functions.provision-onboarding]
+verify_jwt = false
+
+[functions.provision-group]
+verify_jwt = true
+
+[functions.import-manual-messages]
+verify_jwt = true
+
+[functions.crm-sync-stripe]
+verify_jwt = true
+
+[functions.billing-sync-stripe-organizations]
+verify_jwt = false
+
+[functions.generate-group-summary]
+verify_jwt = false
+
+[functions.generate-group-topics-keywords]
+verify_jwt = false
+
+[functions.run-group-ai-daily-jobs]
+verify_jwt = false
+
+[functions.incoming-provider-event]
+verify_jwt = false

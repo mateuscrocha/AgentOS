@@ -1,0 +1,3 @@
+ALTER ROLE anon SET TIME ZONE 'UTC';
+ALTER ROLE authenticated SET TIME ZONE 'UTC';
+ALTER ROLE service_role SET TIME ZONE 'UTC';
