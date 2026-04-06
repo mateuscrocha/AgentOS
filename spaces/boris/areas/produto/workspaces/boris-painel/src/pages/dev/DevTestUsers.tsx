@@ -4,7 +4,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import AccessDenied from "./AccessDenied";
+import AccessDenied from "../AccessDenied";
 import { Copy, User, Shield, Users, Eye, CheckCircle, AlertCircle } from "lucide-react";
 import { notify } from "@/components/ui/sonner";
 
