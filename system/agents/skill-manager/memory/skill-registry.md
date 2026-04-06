@@ -44,4 +44,4 @@
 
 | Skill | Agente | Descrição |
 |---|---|---|
-| — | — | — |
+| run-daily-checkin | day-manager | Organiza um check-in diário com prioridades, compromissos, capturas e próximo passo |

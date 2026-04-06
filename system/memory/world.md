@@ -41,7 +41,7 @@
 - Areas: 6
 - Agentes do usuário: 6
 - Times: 0
-- Skills do usuário: 24
+- Skills do usuário: 25
 
 ## Hooks
 
@@ -63,5 +63,5 @@ O sistema possui protocolo de sincronização entre runtimes (`.Codex/` → `.ge
 ## Última Alteração
 
 - **Data:** 2026-04-06
-- **O que mudou:** Criação do agente `day-manager` no space `pessoal/dia`, com loaders em `.Codex/agents/` e `.gemini/agents/` para gestão do dia a dia.
+- **O que mudou:** Criação da skill `run-daily-checkin` para o agente `day-manager`, formalizando o ritual de abertura e priorização do dia no space `pessoal/dia`.
 - **Agente:** kernel

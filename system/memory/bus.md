@@ -47,3 +47,4 @@
 | 2026-04-03 | doc-manager | guidelines.updated | space:boris | {docs: ["guidelines/language-and-locution.md", "guidelines/GUIDELINES.md"], motivo: "formalizar portugues brasileiro, acentuacao e prosodia como regra herdavel do Boris"} |
 | 2026-04-06 11:51 | agent-manager | space.created | space:pessoal | {areas: ["dia"], files: ["SPACE.md", "memory/world.md", "memory/handoff.md", "guidelines/GUIDELINES.md", "guidelines/gestao-do-dia.md"], status: "initialized"} |
 | 2026-04-06 11:51 | agent-manager | agent.created | space:pessoal/dia | {agent: "day-manager", runtimes: [".Codex", ".gemini"], files: ["AGENT.md", "memory/history.md"], status: "initialized"} |
+| 2026-04-06 11:51 | skill-manager | skill.created | space:pessoal/dia/day-manager | {skill: "run-daily-checkin", status: "initialized"} |
