@@ -69,16 +69,38 @@ npm run test:screenshot
 
 Use `.env.example` como base para o ambiente local.
 
-Variaveis importantes:
+Preencha por contexto:
+
+Frontend build:
 
 - `VITE_APP_URL`
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY` ou `VITE_SUPABASE_ANON_KEY`
+- `VITE_STRIPE_PUBLISHABLE_KEY`
+- `VITE_STRIPE_PRICE_ID_DEFAULT`
+
+Edge Functions e backend:
+
+- `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `STRIPE_SECRET_KEY`
+- `ZAPI_BASE_URL`
 - `ZAPI_INSTANCE`
 - `ZAPI_TOKEN`
 - `ZAPI_CLIENT_TOKEN`
+- `MATEUS_PHONE` ou `MATEUS_PHONE_E164`
+- `GROUP_AI_CRON_API_KEY`
+- `OPENAI_API_KEY`
+
+Testes locais:
+
+- `TEST_BASE_URL`
+- `TEST_WEBHOOK_URL`
+- `TEST_EMAIL`
+- `TEST_PASSWORD`
+- `PLAYWRIGHT_BASE_URL`
+- `PLAYWRIGHT_PORT`
 
 ## Observacoes de operacao
 
