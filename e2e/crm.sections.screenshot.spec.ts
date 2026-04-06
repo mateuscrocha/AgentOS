@@ -26,8 +26,9 @@ test("captura screenshots das secoes principais do CRM real", async ({ page }, t
 
   for (const section of sections) {
     await page.goto(section.path);
-    await expect(page.getByRole("heading", { name: "CRM" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "CRM" }).first()).toBeVisible();
     await page.waitForLoadState("networkidle").catch(() => {});
+    await page.waitForTimeout(700);
     await page.screenshot({
       fullPage: true,
       path: testInfo.outputPath(section.file),

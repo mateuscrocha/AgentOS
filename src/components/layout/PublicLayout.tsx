@@ -10,25 +10,22 @@ interface PublicLayoutProps {
 
 export function PublicLayout({ children, progress = 0, contentClassName }: PublicLayoutProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex flex-col">
-      {/* Progress bar */}
-      <div className="fixed top-0 left-0 right-0 h-1 bg-muted z-50">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-background via-background to-amber-50/30">
+      <div className="fixed left-0 right-0 top-0 z-50 h-1 bg-slate-200/80">
         <motion.div
-          className="h-full bg-primary"
+          className="h-full bg-amber-500"
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
         />
       </div>
 
-      {/* Main content */}
-      <main className="flex-1 flex items-center justify-center p-4 pt-8">
+      <main className="flex flex-1 items-center justify-center p-4 pt-8">
         <div className={cn("w-full max-w-lg", contentClassName)}>
           {children}
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="py-4 text-center text-sm text-muted-foreground">
         <p>Bóris © {new Date().getFullYear()}</p>
       </footer>

@@ -84,6 +84,48 @@ function formatWhatsappSummary(text: string) {
   return formatted.trim();
 }
 
+function cleanupGeneratedSummary(text: string) {
+  let cleaned = formatWhatsappSummary(text);
+  const lines = cleaned.split("\n");
+
+  while (lines.length > 0 && !lines[lines.length - 1].trim()) {
+    lines.pop();
+  }
+
+  const genericClosers = [
+    /^esse (resumo|registro|apanhado|texto|conteudo|conteúdo)/i,
+    /^esse foi/i,
+    /^esses foram/i,
+    /^fiquem atentos/i,
+    /^se algu[eé]m tiver/i,
+    /^o papo /i,
+    /^a energia /i,
+    /^sigamos nesse ritmo/i,
+    /^vamos (seguir|pra cima)/i,
+  ];
+
+  while (lines.length > 0) {
+    const last = lines[lines.length - 1].trim();
+    if (!last) {
+      lines.pop();
+      continue;
+    }
+    if (genericClosers.some((pattern) => pattern.test(last))) {
+      lines.pop();
+      continue;
+    }
+    break;
+  }
+
+  const joined = lines.join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\n[ \t]*🔗 \*(Informações adicionais|Conteúdos compartilhados|Links e conteúdos úteis|Links Compartilhados)\*:[ \t]*\n[ \t]*(Nenhum link|Não houve links)[^]*$/i, "")
+    .replace(/\n[ \t]*🌐 \*(Informações adicionais|Conteúdos compartilhados|Links e conteúdos úteis|Links Compartilhados)\*:[ \t]*\n[ \t]*- \(?(Nenhum link|Não houve links)[^]*$/i, "")
+    .trim();
+
+  return joined;
+}
+
 function truncate(text: string, limit: number) {
   return text.length > limit ? text.slice(0, limit) : text;
 }
@@ -361,7 +403,7 @@ export function createGenerateGroupSummaryHandler(deps: Deps = {}) {
         fetchImpl,
       });
 
-      const summaryText = formatWhatsappSummary(aiResponse.outputText);
+      const summaryText = cleanupGeneratedSummary(aiResponse.outputText);
 
       const summaryMetadata = {
         summary_type: summaryType,

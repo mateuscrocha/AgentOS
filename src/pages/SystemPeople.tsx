@@ -1,12 +1,10 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { BorisTable } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
-import { EmptyState } from "@/components/ui/empty-state";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
 import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
-import { Users } from "lucide-react";
+import { CalendarRange, Building2, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,6 +47,7 @@ export default function SystemPeople() {
   const currentRange = getDateRange(selectedPeriod, customRange);
   const currentStartISO = currentRange.from.toISOString();
   const currentEndISO = currentRange.to.toISOString();
+  const periodLabel = `${formatDateSimpleBR(currentRange.from)} — ${formatDateSimpleBR(currentRange.to)}`;
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["system-people", page, debouncedSearch, selectedPeriod, customRange?.from?.toISOString(), customRange?.to?.toISOString()],
@@ -134,6 +133,10 @@ export default function SystemPeople() {
     return <AccessDenied />;
   }
 
+  const visiblePeople = data?.items.length ?? 0;
+  const visibleGroups = new Set((data?.items ?? []).flatMap((person) => person.groups)).size;
+  const visibleOrganizations = new Set((data?.items ?? []).flatMap((person) => person.organizations)).size;
+
   const columns = [
     {
       key: "name",
@@ -189,9 +192,52 @@ export default function SystemPeople() {
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Pessoas" }]}
           title="Pessoas"
-          description="Visão consolidada de pessoas no sistema"
-          filters={(
-            <div className="flex flex-wrap items-center gap-2">
+          description="Leitura consolidada da base de pessoas, grupos e organizações no recorte selecionado."
+        />
+
+        <section className="grid gap-4 lg:grid-cols-4">
+          <div className="rounded-[28px] border border-amber-200/70 bg-white px-5 py-5 shadow-subtle">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
+              <Users className="h-4 w-4" />
+              Pessoas visíveis
+            </div>
+            <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{visiblePeople.toLocaleString("pt-BR")}</div>
+            <p className="mt-2 text-sm text-slate-600">Quantidade exibida na página atual após aplicar os filtros.</p>
+          </div>
+          <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-subtle">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <Building2 className="h-4 w-4" />
+              Organizações
+            </div>
+            <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{visibleOrganizations.toLocaleString("pt-BR")}</div>
+            <p className="mt-2 text-sm text-slate-600">Organizações representadas entre as pessoas listadas.</p>
+          </div>
+          <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-subtle">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <Users className="h-4 w-4" />
+              Grupos
+            </div>
+            <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{visibleGroups.toLocaleString("pt-BR")}</div>
+            <p className="mt-2 text-sm text-slate-600">Grupos que aparecem no recorte atual da listagem.</p>
+          </div>
+          <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-subtle">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <CalendarRange className="h-4 w-4" />
+              Período
+            </div>
+            <div className="mt-3 text-base font-semibold tracking-[-0.02em] text-slate-950">{periodLabel}</div>
+            <p className="mt-2 text-sm text-slate-600">Janela usada para consolidar a leitura desta tela.</p>
+          </div>
+        </section>
+
+        <section className="rounded-[30px] border border-slate-200 bg-white p-4 shadow-subtle sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">Filtros</p>
+              <h2 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">Refine a leitura da base</h2>
+              <p className="text-sm text-slate-600">Ajuste período e busca para analisar a composição de pessoas com mais precisão.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
               <PeriodFilter
                 value={selectedPeriod}
                 customRange={customRange}
@@ -202,48 +248,34 @@ export default function SystemPeople() {
                 placeholder="Buscar por nome"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-64"
+                className="w-full min-w-[240px] bg-slate-50 lg:w-72"
               />
             </div>
-          )}
-          showClearFilters={selectedPeriod !== '7d' || !!customRange || !!search}
-          onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setSearch(""); setPage(1); }}
-          filteredKpis={(
-            <StatsCard
-              title="Pessoas no período"
-              value={data?.count ?? '—'}
-              icon={Users}
-              variant="kpi"
-              numericValue
-              help={{
-                whatIs: "Quantidade de pessoas retornadas pela consulta no período e filtros selecionados.",
-                howToInterpret: "Mostra a abrangência da visão atual de pessoas na janela analisada.",
-                whatToObserve: "Compare ao mudar período/filtros para entender alcance e variação da base observada.",
-              }}
-            />
-          )}
-        />
+          </div>
+        </section>
 
         <ListSectionHeader
           title="Lista de pessoas"
-          count={typeof data?.count === "number" ? data.count.toLocaleString("pt-BR") : "—"}
+          count={visiblePeople.toLocaleString("pt-BR")}
           statusLabel={search ? ADMIN_MICROCOPY.listStatus.filtered : ADMIN_MICROCOPY.listStatus.periodRecords}
           isLoading={isLoading}
         />
 
-        <BorisTable
-          columns={columns as any}
-          data={data?.items ?? []}
-          keyExtractor={(p) => p.personKey}
-          page={page}
-          pageSize={PAGE_SIZE}
-          totalCount={data?.count}
-          onPageChange={setPage}
-          loading={isLoading}
-          error={!!error}
-          emptyIcon={Users}
-          emptyMessage="Não há pessoas registradas."
-        />
+        <div className="rounded-[30px] border border-slate-200 bg-white p-3 shadow-subtle sm:p-4">
+          <BorisTable
+            columns={columns as any}
+            data={data?.items ?? []}
+            keyExtractor={(p) => p.personKey}
+            page={page}
+            pageSize={PAGE_SIZE}
+            totalCount={data?.count}
+            onPageChange={setPage}
+            loading={isLoading}
+            error={!!error}
+            emptyIcon={Users}
+            emptyMessage="Não há pessoas registradas."
+          />
+        </div>
       </div>
     </AdminLayout>
   );

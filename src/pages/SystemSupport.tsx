@@ -8,12 +8,12 @@ import { BorisTable } from "@/components/ui/boris-table";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
 import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
 import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { UserInline } from "@/components/ui/UserInline";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
@@ -138,9 +138,6 @@ const SYSTEM_SUPPORT_KPI_HELP = {
     howToInterpret: "Usado para contexto de volume e leitura de esforço.",
   },
 } as const;
-
-const SUPPORT_KPI_CARD = "rounded-[26px] shadow-subtle";
-const SUPPORT_KPI_VALUE = "text-2xl sm:text-3xl";
 
 function formatRelativeMinutes(ms: number | null) {
   if (!ms || !Number.isFinite(ms)) return "Sem leitura";
@@ -793,23 +790,55 @@ export default function SystemSupport() {
 
   return (
     <AdminLayout title="Atendimento" subtitle="Central de Comando › Atendimento">
-      <div className="space-y-8 animate-fade-in">
+      <div className="space-y-6 animate-fade-in lg:space-y-7">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Atendimento" }]}
           title="Atendimento"
           description="Visão operacional por atendente e grupos vinculados para os KPIs de atendimento."
-          filters={(
-            <div className="flex flex-wrap items-center gap-2">
-              <PeriodFilter
-                value={selectedPeriod}
-                customRange={customRange}
-                onChange={(period, range) => {
-                  setSelectedPeriod(period);
-                  setCustomRange(period === "custom" ? range : undefined);
+        />
+
+        <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Filtros</p>
+              <p className="text-sm text-slate-600">Refine a leitura por período, organização e busca por atendente, telefone ou grupo.</p>
+            </div>
+            {!!search || orgFilter !== "all" || selectedPeriod !== "30d" || !!customRange ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearch("");
+                  setOrgFilter("all");
+                  setSelectedPeriod("30d");
+                  setCustomRange(undefined);
                 }}
-              />
+                className="border-amber-200 bg-white text-amber-950 hover:border-amber-400 hover:bg-amber-50"
+              >
+                Limpar filtros
+              </Button>
+            ) : null}
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-[1.1fr_260px_1fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Período</div>
+              <div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3">
+                <PeriodFilter
+                  value={selectedPeriod}
+                  customRange={customRange}
+                  onChange={(period, range) => {
+                    setSelectedPeriod(period);
+                    setCustomRange(period === "custom" ? range : undefined);
+                  }}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Organização</div>
               <Select value={orgFilter} onValueChange={setOrgFilter}>
-                <SelectTrigger className="w-[240px] bg-card border-border">
+                <SelectTrigger className="h-10 border-slate-200 bg-slate-50">
                   <SelectValue placeholder="Organização" />
                 </SelectTrigger>
                 <SelectContent>
@@ -819,119 +848,143 @@ export default function SystemSupport() {
                   ))}
                 </SelectContent>
               </Select>
-              <input
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Busca</div>
+              <Input
                 type="text"
                 placeholder="Buscar atendente, telefone ou grupo"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-72 px-3 py-2 rounded-lg border border-border bg-card text-sm"
+                className="h-10 border-slate-200 bg-slate-50"
               />
             </div>
-          )}
-          showClearFilters={!!search || orgFilter !== "all" || selectedPeriod !== "30d" || !!customRange}
-          onClearFilters={() => {
-            setSearch("");
-            setOrgFilter("all");
-            setSelectedPeriod("30d");
-            setCustomRange(undefined);
-          }}
-          filteredKpis={(
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              <StatsCard
-                title="Atendentes ativos"
-                value={attendants.length}
-                icon={Headset}
-                variant="kpi"
-                help={SYSTEM_SUPPORT_KPI_HELP.attendants}
-                className={`${SUPPORT_KPI_CARD} border-sky-500/15 bg-gradient-to-br from-sky-500/[0.08] via-card to-card`}
-                valueClassName={`${SUPPORT_KPI_VALUE} text-sky-950 dark:text-sky-100`}
-                numericValue
-              />
-              <StatsCard
-                title="Grupos vinculados"
-                value={totalAssignedGroups}
-                icon={Layers}
-                variant="kpi"
-                help={SYSTEM_SUPPORT_KPI_HELP.groups}
-                className={`${SUPPORT_KPI_CARD} border-indigo-500/15 bg-gradient-to-br from-indigo-500/[0.08] via-card to-card`}
-                valueClassName={`${SUPPORT_KPI_VALUE} text-indigo-950 dark:text-indigo-100`}
-                numericValue
-              />
-              <StatsCard
-                title={`Grupos inativos (${INACTIVITY_DAYS}d)`}
-                value={inactive7dAssignedGroups}
-                icon={Clock3}
-                variant="kpi"
-                help={SYSTEM_SUPPORT_KPI_HELP.inactive}
-                className={`${SUPPORT_KPI_CARD} border-amber-500/15 bg-gradient-to-br from-amber-500/[0.10] via-card to-card`}
-                valueClassName={`${SUPPORT_KPI_VALUE} text-amber-950 dark:text-amber-100`}
-                numericValue
-              />
-              <StatsCard
-                title="Média grupos"
-                value={avgGroupsPerAttendant.toFixed(1).replace(".", ",")}
-                icon={Activity}
-                variant="kpi"
-                help={SYSTEM_SUPPORT_KPI_HELP.avgGroups}
-                className={`${SUPPORT_KPI_CARD} border-teal-500/15 bg-gradient-to-br from-teal-500/[0.08] via-card to-card`}
-                valueClassName={`${SUPPORT_KPI_VALUE} text-teal-950 dark:text-teal-100`}
-                numericValue
-              />
-              <StatsCard
-                title={`TMR útil (${periodLabel})`}
-                value={formatRelativeMinutes(avgResponseMs30d)}
-                icon={Clock3}
-                variant="kpi"
-                help={SYSTEM_SUPPORT_KPI_HELP.tmr}
-                className={`${SUPPORT_KPI_CARD} border-violet-500/15 bg-gradient-to-br from-violet-500/[0.08] via-card to-card`}
-                valueClassName={`${SUPPORT_KPI_VALUE} text-violet-950 dark:text-violet-100`}
-                description={`${answeredInteractions30d.toLocaleString("pt-BR")} interações • horário comercial`}
-                numericValue
-              />
-              <StatsCard
-                title={`SLA ${RESPONSE_SLA_BUSINESS_MINUTES}min (útil)`}
-                value={`${(slaPct30d ?? 0).toFixed(1).replace(".", ",")}%`}
-                icon={CheckCircle2}
-                variant="kpi"
-                help={SYSTEM_SUPPORT_KPI_HELP.sla}
-                className={`${SUPPORT_KPI_CARD} border-emerald-500/15 bg-gradient-to-br from-emerald-500/[0.08] via-card to-card`}
-                valueClassName={`${SUPPORT_KPI_VALUE} text-emerald-950 dark:text-emerald-100`}
-                description={`${answeredWithinSla30d.toLocaleString("pt-BR")} respostas no SLA`}
-                numericValue
-              />
-              <StatsCard
-                title="Pendências abertas"
-                value={openPendingInteractions.toLocaleString("pt-BR")}
-                icon={Headset}
-                variant="kpi"
-                help={SYSTEM_SUPPORT_KPI_HELP.pending}
-                className={`${SUPPORT_KPI_CARD} border-rose-500/15 bg-gradient-to-br from-rose-500/[0.08] via-card to-card`}
-                valueClassName={`${SUPPORT_KPI_VALUE} text-rose-950 dark:text-rose-100`}
-                description={`${openPendingSlaBreached.toLocaleString("pt-BR")} fora do SLA`}
-                numericValue
-              />
-              <StatsCard
-                title={`Msgs atendentes (${periodLabel})`}
-                value={supportMessages30d.toLocaleString("pt-BR")}
-                icon={Activity}
-                variant="kpi"
-                help={SYSTEM_SUPPORT_KPI_HELP.messages}
-                className={`${SUPPORT_KPI_CARD} border-cyan-500/15 bg-gradient-to-br from-cyan-500/[0.08] via-card to-card`}
-                valueClassName={`${SUPPORT_KPI_VALUE} text-cyan-950 dark:text-cyan-100`}
-                description="Amostral em grupos vinculados"
-                numericValue
-              />
-            </div>
-          )}
-        />
+          </div>
+        </div>
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            {
+              label: "Atendentes ativos",
+              value: attendants.length.toLocaleString("pt-BR"),
+              note: SYSTEM_SUPPORT_KPI_HELP.attendants.howToInterpret,
+              detail: `${totalAssignedGroups.toLocaleString("pt-BR")} grupos vinculados no recorte.`,
+              icon: Headset,
+              tone: "amber",
+            },
+            {
+              label: "Grupos vinculados",
+              value: totalAssignedGroups.toLocaleString("pt-BR"),
+              note: SYSTEM_SUPPORT_KPI_HELP.groups.howToInterpret,
+              detail: `${inactive7dAssignedGroups.toLocaleString("pt-BR")} grupos frios no recorte.`,
+              icon: Layers,
+              tone: "slate",
+            },
+            {
+              label: `TMR útil (${periodLabel})`,
+              value: formatRelativeMinutes(avgResponseMs30d),
+              note: `${answeredInteractions30d.toLocaleString("pt-BR")} interações no horário comercial`,
+              detail: SYSTEM_SUPPORT_KPI_HELP.tmr.howToInterpret,
+              icon: Clock3,
+              tone: "amber",
+            },
+            {
+              label: `SLA ${RESPONSE_SLA_BUSINESS_MINUTES}min`,
+              value: `${(slaPct30d ?? 0).toFixed(1).replace(".", ",")}%`,
+              note: `${answeredWithinSla30d.toLocaleString("pt-BR")} respostas dentro do SLA`,
+              detail: SYSTEM_SUPPORT_KPI_HELP.sla.howToInterpret,
+              icon: CheckCircle2,
+              tone: "emerald",
+            },
+            {
+              label: `Grupos inativos (${INACTIVITY_DAYS}d)`,
+              value: inactive7dAssignedGroups.toLocaleString("pt-BR"),
+              note: SYSTEM_SUPPORT_KPI_HELP.inactive.howToInterpret,
+              detail: "Sinal de carteira fria ou pausada.",
+              icon: PauseCircle,
+              tone: "amber",
+            },
+            {
+              label: "Média de grupos",
+              value: avgGroupsPerAttendant.toFixed(1).replace(".", ","),
+              note: SYSTEM_SUPPORT_KPI_HELP.avgGroups.howToInterpret,
+              detail: "Leitura de balanceamento operacional.",
+              icon: Activity,
+              tone: "slate",
+            },
+            {
+              label: "Pendências abertas",
+              value: openPendingInteractions.toLocaleString("pt-BR"),
+              note: `${openPendingSlaBreached.toLocaleString("pt-BR")} fora do SLA`,
+              detail: SYSTEM_SUPPORT_KPI_HELP.pending.howToInterpret,
+              icon: MessageCircleWarning,
+              tone: "rose",
+            },
+            {
+              label: `Msgs atendentes (${periodLabel})`,
+              value: supportMessages30d.toLocaleString("pt-BR"),
+              note: "Amostral em grupos vinculados",
+              detail: SYSTEM_SUPPORT_KPI_HELP.messages.howToInterpret,
+              icon: Radio,
+              tone: "amber",
+            },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.label}
+                className={cn(
+                  "rounded-[24px] border p-5 shadow-sm",
+                  item.tone === "emerald"
+                    ? "border-emerald-200/70 bg-gradient-to-b from-white to-emerald-50/50"
+                    : item.tone === "rose"
+                      ? "border-rose-200/70 bg-gradient-to-b from-white to-rose-50/50"
+                      : item.tone === "slate"
+                        ? "border-slate-200 bg-gradient-to-b from-white to-slate-50/60"
+                        : "border-amber-200/70 bg-gradient-to-b from-white to-amber-50/60",
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className={cn(
+                    "text-sm font-medium",
+                    item.tone === "emerald"
+                      ? "text-emerald-800"
+                      : item.tone === "rose"
+                        ? "text-rose-800"
+                        : item.tone === "slate"
+                          ? "text-slate-700"
+                          : "text-amber-800",
+                  )}>
+                    {item.label}
+                  </p>
+                  <div className={cn(
+                    "rounded-full p-2",
+                    item.tone === "emerald"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : item.tone === "rose"
+                        ? "bg-rose-100 text-rose-700"
+                        : item.tone === "slate"
+                          ? "bg-slate-100 text-slate-600"
+                          : "bg-amber-100 text-amber-700",
+                  )}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-950">{item.value}</div>
+                <p className="mt-2 text-sm text-slate-600">{item.note}</p>
+                <p className="mt-1 text-sm text-slate-500">{item.detail}</p>
+              </div>
+            );
+          })}
+        </section>
 
         {(supportQuery.data?.sequenceSampleCapped || supportQuery.data?.supportMessagesSampleCapped || supportQuery.data?.demandClusterSampleCapped) ? (
-          <div className="rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-xs leading-relaxed text-warning">
+          <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800 shadow-sm">
             Métricas de atendimento do período usam amostragem para manter performance em bases maiores. TMR é aproximado e considera horário comercial (seg-sex, 08h-18h SP).
           </div>
         ) : null}
 
-        <section className="rounded-[28px] border border-border/70 bg-card p-5 shadow-subtle">
+        <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
           <ExecutiveSectionHeader
             eyebrow="Operação ao vivo"
             title="Resumo Agora"
@@ -990,7 +1043,7 @@ export default function SystemSupport() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-border/60 bg-card p-5">
+        <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
           <ExecutiveSectionHeader
             eyebrow="Qualitativo"
             title="Clusterização de demandas (MVP)"
@@ -1000,7 +1053,7 @@ export default function SystemSupport() {
           />
           <div className="mt-3 flex flex-wrap gap-2">
             {demandClusters.filter((c) => c.count > 0).slice(0, 8).map((cluster) => (
-              <div key={cluster.key} className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm">
+              <div key={cluster.key} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm">
                 <span className="font-medium text-foreground">{cluster.label}</span>
                 <span className="text-muted-foreground tabular-nums">
                   {cluster.count.toLocaleString("pt-BR")} ({cluster.pct.toFixed(0).replace(".", ",")}%)

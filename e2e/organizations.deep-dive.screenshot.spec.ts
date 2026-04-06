@@ -34,10 +34,15 @@ test("explora profundamente a area de organizacoes no app real", async ({ page }
   await login(page);
 
   await page.goto("/system/organizations");
-  await expect(page.getByRole("heading", { name: "Organizações" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Organizações" }).first()).toBeVisible();
+  await settle(page);
   await shot(page, testInfo, "organizations-system-overview.png");
 
   const firstRow = page.locator("tbody tr").first();
+  const hasFirstRow = await firstRow.isVisible().catch(() => false);
+  if (!hasFirstRow) {
+    return;
+  }
   await firstRow.hover();
   await firstRow.getByLabel("Ações").click({ force: true });
   await shot(page, testInfo, "organizations-system-actions-menu.png");

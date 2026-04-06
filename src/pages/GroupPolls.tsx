@@ -298,7 +298,7 @@ export default function GroupPolls() {
 
   return (
     <AdminLayout title="Enquetes" subtitle={`${groupInfo?.groupName ? `${groupInfo.groupName} — ` : ""}${pollsData?.count ?? 0} no período selecionado`}>
-      <div className="mx-auto max-w-[1480px] animate-fade-in space-y-6 bg-gradient-to-b from-background via-background to-warning/[0.06] pb-8 sm:pb-10">
+      <div className="mx-auto max-w-[1480px] animate-fade-in space-y-6 pb-8 sm:pb-10">
         <GroupPageTop
           breadcrumbItems={[
             { label: "Central de Comando", href: "/" },
@@ -324,7 +324,7 @@ export default function GroupPolls() {
                   setPage(1);
                 }}
                 placeholder="Buscar pergunta…"
-                className="h-10 w-[240px] max-w-[50vw] border-border/80 bg-background sm:h-9"
+                className="h-10 w-[240px] max-w-[50vw] border-slate-200 bg-slate-50 sm:h-9"
                 aria-label="Buscar por texto da pergunta"
               />
               {searchTooShort ? (
@@ -366,7 +366,7 @@ export default function GroupPolls() {
         ) : isLoading ? (
           <div className="space-y-4" aria-label="Carregando enquetes">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="overflow-hidden rounded-[var(--radius-xl)] border border-border/80 bg-card/95 shadow-subtle">
+              <div key={i} className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
                 <div className="p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1 space-y-2">
@@ -380,7 +380,7 @@ export default function GroupPolls() {
                   </div>
 
                   <div className="mt-4 space-y-3">
-                    <div className="rounded-[var(--radius-lg)] border border-primary/20 bg-primary/[0.07] px-3.5 py-3 shadow-subtle">
+                    <div className="rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 px-3.5 py-3 shadow-sm">
                       <Skeleton className="h-3 w-32" />
                       <div className="mt-2 flex items-center justify-between gap-3">
                         <Skeleton className="h-4 w-2/3" />
@@ -478,7 +478,7 @@ export default function GroupPolls() {
                           {showQuestionToggle ? (
                             <button
                               type="button"
-                              className="mt-2 text-xs font-medium text-primary hover:underline underline-offset-2"
+                              className="mt-2 text-xs font-medium text-amber-700 hover:underline underline-offset-2"
                               aria-expanded={isQuestionExpanded}
                               onClick={(e) => {
                                 e.preventDefault();
@@ -504,7 +504,7 @@ export default function GroupPolls() {
                           variant="ghost"
                           size="sm"
                           onClick={() => navigate(`/groups/${groupId}/polls/${p.id}`)}
-                          className="shrink-0 text-primary hover:bg-primary/10"
+                          className="shrink-0 text-amber-700 hover:bg-amber-50"
                           aria-label="Abrir detalhes da enquete"
                         >
                           <span className="hidden sm:inline">Entender respostas</span>
@@ -519,18 +519,18 @@ export default function GroupPolls() {
                       ) : (
                         <div className="mt-4 space-y-3">
                           {winner ? (
-                            <div className="rounded-[var(--radius-lg)] border border-primary/20 bg-primary/[0.07] px-3.5 py-3 shadow-subtle">
+                            <div className="rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 px-3.5 py-3 shadow-sm">
                               <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0">
-                                  <div className="text-xs font-semibold uppercase tracking-wide text-primary">Resultado principal</div>
+                                  <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">Resultado principal</div>
                                   <div className="mt-1 flex items-center gap-2">
                                     <div className="text-sm font-semibold text-foreground break-words">{winner.optionText}</div>
-                                    <Badge variant="secondary" className="h-6 border border-primary/15 bg-primary px-2 text-[11px] text-primary-foreground">
+                                    <Badge variant="secondary" className="h-6 border border-amber-200 bg-amber-600 px-2 text-[11px] text-white">
                                       {hasTie ? "Empate" : "Mais votada"}
                                     </Badge>
                                   </div>
                                 </div>
-                                <div className="shrink-0 text-xs text-primary tabular-nums font-medium">
+                                <div className="shrink-0 text-xs text-amber-800 tabular-nums font-medium">
                                   {winner.votesCount} voto(s){hasTie ? " (empatada)" : ""}
                                 </div>
                               </div>
@@ -546,13 +546,13 @@ export default function GroupPolls() {
                                   key={`${p.id}-${opt.optionIndex}`}
                                   className={cn(
                                     "rounded-[var(--radius-md)] border px-3 py-3 shadow-subtle",
-                                    isWinner ? "border-primary/15 bg-primary/[0.05]" : "border-border/50 bg-background/65",
+                                    isWinner ? "border-amber-200 bg-amber-50/70" : "border-slate-200 bg-slate-50/60",
                                   )}
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <span className={cn("text-sm", isWinner ? "text-primary font-medium" : "text-foreground")}>{opt.optionText}</span>
+                                        <span className={cn("text-sm", isWinner ? "text-amber-800 font-medium" : "text-foreground")}>{opt.optionText}</span>
                                       </div>
                                     </div>
                                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{opt.votesCount} • {pct}%</span>
@@ -565,7 +565,7 @@ export default function GroupPolls() {
                                       <div
                                         className={cn(
                                           "h-full rounded-full transition-[width] duration-500 ease-out",
-                                          isWinner ? "bg-primary" : "bg-foreground/20",
+                                          isWinner ? "bg-amber-500" : "bg-foreground/20",
                                         )}
                                         style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
                                       />
@@ -584,7 +584,7 @@ export default function GroupPolls() {
             </div>
 
             {(pollsData.count ?? 0) > PAGE_SIZE ? (
-              <div className="rounded-[var(--radius-xl)] border border-border/80 bg-card/95 px-4 py-3 shadow-subtle">
+              <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
                 {(() => {
                   const totalPages = Math.max(1, Math.ceil((pollsData.count ?? 0) / PAGE_SIZE));
                   const items = buildPagination(page, totalPages);

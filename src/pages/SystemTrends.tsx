@@ -6,7 +6,6 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } fro
 
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ExecutiveSectionHeader } from "@/components/dashboard/ExecutiveSectionHeader";
 import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
 import { BorisTable } from "@/components/ui/boris-table";
@@ -281,7 +280,7 @@ export default function SystemTrends() {
 
   return (
     <AdminLayout title="System Trends" subtitle="Tendências transversais do ecossistema">
-      <div className="space-y-6">
+      <div className="space-y-6 lg:space-y-7">
         <AdminPageHeader
           title="Trends do sistema"
           description="Veja ritmo, temas, dores e grupos impactados em um único recorte sistêmico."
@@ -290,40 +289,6 @@ export default function SystemTrends() {
             { label: "Trends" },
           ]}
         />
-
-        <div className="rounded-2xl border border-border/80 bg-card/95 p-4 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="text-sm font-medium text-card-foreground">Recorte analítico</div>
-              <div className="text-xs text-muted-foreground">{filterSummary}</div>
-              <div className="text-xs text-muted-foreground">{comparisonSummary}</div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
-              <Select value={orgFilter} onValueChange={setOrgFilter}>
-                <SelectTrigger className="w-full min-w-[200px]">
-                  <SelectValue placeholder="Organização" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as organizações</SelectItem>
-                  {(organizationsQuery.data ?? []).map((org) => (
-                    <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={(value: "all" | "active" | "inactive") => setStatusFilter(value)}>
-                <SelectTrigger className="w-full min-w-[200px]">
-                  <SelectValue placeholder="Status do grupo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="active">Ativos</SelectItem>
-                  <SelectItem value="inactive">Inativos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
 
         {trendsQuery.isLoading ? (
           <LoadingState message="Carregando tendências do sistema..." />
@@ -337,46 +302,111 @@ export default function SystemTrends() {
           <EmptyState title="Nenhum grupo no recorte" message="Ajuste os filtros para ver tendências do sistema." />
         ) : (
           <>
+            <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4">
+                <p className="text-sm font-semibold text-slate-950">Filtros</p>
+                <p className="text-sm text-slate-600">Monte o recorte por período, organização e status dos grupos analisados.</p>
+              </div>
+              <div className="grid gap-3 lg:grid-cols-[1.1fr_260px_220px]">
+                <div className="space-y-2">
+                  <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Período</div>
+                  <div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3">
+                    <PeriodFilter value={selectedPeriod} customRange={customRange} onChange={handlePeriodChange} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Organização</div>
+                  <Select value={orgFilter} onValueChange={setOrgFilter}>
+                    <SelectTrigger className="h-10 border-slate-200 bg-slate-50">
+                      <SelectValue placeholder="Organização" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as organizações</SelectItem>
+                      {(organizationsQuery.data ?? []).map((org) => (
+                        <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Status do grupo</div>
+                  <Select value={statusFilter} onValueChange={(value: "all" | "active" | "inactive") => setStatusFilter(value)}>
+                    <SelectTrigger className="h-10 border-slate-200 bg-slate-50">
+                      <SelectValue placeholder="Status do grupo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os status</SelectItem>
+                      <SelectItem value="active">Ativos</SelectItem>
+                      <SelectItem value="inactive">Inativos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="mt-4 rounded-2xl border border-amber-100 bg-gradient-to-r from-amber-50 via-white to-white px-4 py-3">
+                <p className="text-sm font-medium text-slate-950">Recorte analítico</p>
+                <p className="mt-1 text-xs text-slate-600">{filterSummary}</p>
+                <p className="text-xs text-slate-500">{comparisonSummary}</p>
+              </div>
+            </div>
+
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatsCard
-                title="Mensagens no recorte"
-                value={formatCompactCount(data.currentTotalMessages)}
-                change={`${formatDeltaLabel(data.currentTotalMessages, data.previousTotalMessages)} vs período anterior`}
-                changeType={getDeltaTone(data.currentTotalMessages, data.previousTotalMessages)}
-                description={`${new Intl.NumberFormat("pt-BR").format(data.previousTotalMessages)} mensagens no período anterior equivalente.`}
-                icon={MessageSquareText}
-                variant="kpi"
-              />
-              <StatsCard
-                title="Hora mais movimentada"
-                value={peakHour?.hour ?? "—"}
-                change={peakHour ? `${new Intl.NumberFormat("pt-BR").format(peakHour.messages)} mensagens nesta faixa` : "Sem dados"}
-                changeType="neutral"
-                description="Maior concentração horária dentro do período atual."
-                icon={Clock3}
-                variant="kpi"
-              />
-              <StatsCard
-                title="Dia mais movimentado"
-                value={peakWeekday?.weekday ?? "—"}
-                change={peakWeekday ? `${new Intl.NumberFormat("pt-BR").format(peakWeekday.messages)} mensagens neste dia` : "Sem dados"}
-                changeType="neutral"
-                description="Dia da semana com maior volume no recorte atual."
-                icon={BarChart3}
-                variant="kpi"
-              />
-              <StatsCard
-                title="Tema mais aquecido"
-                value={topKeyword?.label ?? "—"}
-                change={topKeyword ? `${formatAbsoluteDelta(topKeyword.deltaCount, "citações")} vs anterior` : "Sem dados"}
-                changeType={topKeyword && topKeyword.deltaCount > 0 ? "positive" : "neutral"}
-                description={topKeyword ? `${topKeyword.previousCount} citações no período anterior.` : "Palavra-chave com maior aceleração entre grupos."}
-                icon={Sparkles}
-                variant="kpi"
-              />
+              {[
+                {
+                  label: "Mensagens no recorte",
+                  value: formatCompactCount(data.currentTotalMessages),
+                  note: `${formatDeltaLabel(data.currentTotalMessages, data.previousTotalMessages)} vs período anterior`,
+                  detail: `${new Intl.NumberFormat("pt-BR").format(data.previousTotalMessages)} mensagens no período anterior equivalente.`,
+                  icon: MessageSquareText,
+                  tone: getDeltaTone(data.currentTotalMessages, data.previousTotalMessages),
+                },
+                {
+                  label: "Hora mais movimentada",
+                  value: peakHour?.hour ?? "—",
+                  note: peakHour ? `${new Intl.NumberFormat("pt-BR").format(peakHour.messages)} mensagens nesta faixa` : "Sem dados",
+                  detail: "Maior concentração horária dentro do período atual.",
+                  icon: Clock3,
+                  tone: "neutral" as const,
+                },
+                {
+                  label: "Dia mais movimentado",
+                  value: peakWeekday?.weekday ?? "—",
+                  note: peakWeekday ? `${new Intl.NumberFormat("pt-BR").format(peakWeekday.messages)} mensagens neste dia` : "Sem dados",
+                  detail: "Dia da semana com maior volume no recorte atual.",
+                  icon: BarChart3,
+                  tone: "neutral" as const,
+                },
+                {
+                  label: "Tema mais aquecido",
+                  value: topKeyword?.label ?? "—",
+                  note: topKeyword ? `${formatAbsoluteDelta(topKeyword.deltaCount, "citações")} vs anterior` : "Sem dados",
+                  detail: topKeyword ? `${topKeyword.previousCount} citações no período anterior.` : "Palavra-chave com maior aceleração entre grupos.",
+                  icon: Sparkles,
+                  tone: topKeyword && topKeyword.deltaCount > 0 ? "positive" as const : "neutral" as const,
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} className="rounded-[24px] border border-amber-200/70 bg-gradient-to-b from-white to-amber-50/60 p-5 shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-amber-800">{item.label}</p>
+                      <div className="rounded-full bg-amber-100 p-2 text-amber-700">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-950">{item.value}</div>
+                    <p className={cn(
+                      "mt-2 text-sm",
+                      item.tone === "positive" ? "text-emerald-700" : item.tone === "negative" ? "text-rose-700" : "text-slate-600",
+                    )}>
+                      {item.note}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">{item.detail}</p>
+                  </div>
+                );
+              })}
             </section>
             <section className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-              <div className="rounded-2xl border border-border/80 bg-card/95 p-5 shadow-sm">
+              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
                 <ExecutiveSectionHeader
                   eyebrow="Ritmo"
                   title="Pulso temporal do sistema"
@@ -384,7 +414,7 @@ export default function SystemTrends() {
                 />
                 <div className="mt-5">
                   <ChartContainer
-                    config={{ messages: { label: "Mensagens", color: "hsl(var(--primary))" } }}
+                    config={{ messages: { label: "Mensagens", color: "#d97706" } }}
                     className="h-[280px] w-full"
                   >
                     <AreaChart data={data.dailySeries}>
@@ -404,7 +434,7 @@ export default function SystemTrends() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border/80 bg-card/95 p-5 shadow-sm">
+              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
                 <ExecutiveSectionHeader
                   eyebrow="Distribuição"
                   title="Dias mais aquecidos"
@@ -412,7 +442,7 @@ export default function SystemTrends() {
                 />
                 <div className="mt-5">
                   <ChartContainer
-                    config={{ messages: { label: "Mensagens", color: "hsl(var(--primary))" } }}
+                    config={{ messages: { label: "Mensagens", color: "#d97706" } }}
                     className="h-[280px] w-full"
                   >
                     <BarChart data={data.weekdaySeries}>
@@ -428,14 +458,14 @@ export default function SystemTrends() {
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.3fr_1fr]">
-              <div className="rounded-2xl border border-border/80 bg-card/95 p-5 shadow-sm">
+              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
                 <ListSectionHeader
                   title="Horários mais movimentados"
                   description="Volume agregado por hora no fuso do produto."
                 />
                 <div className="mt-5">
                   <ChartContainer
-                    config={{ messages: { label: "Mensagens", color: "hsl(var(--primary))" } }}
+                    config={{ messages: { label: "Mensagens", color: "#d97706" } }}
                     className="h-[280px] w-full"
                   >
                     <BarChart data={data.hourSeries}>
@@ -447,7 +477,7 @@ export default function SystemTrends() {
                         {data.hourSeries.map((entry) => (
                           <Cell
                             key={entry.hour}
-                            fill={entry.hour === peakHour?.hour ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.35)"}
+                            fill={entry.hour === peakHour?.hour ? "#d97706" : "rgba(217, 119, 6, 0.35)"}
                           />
                         ))}
                       </Bar>
@@ -456,15 +486,15 @@ export default function SystemTrends() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border/80 bg-card/95 p-5 shadow-sm">
+              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
                 <ListSectionHeader
                   title="Sinais executivos"
                   description="Resumo do que merece atenção agora."
                 />
                 <div className="mt-4 space-y-3">
-                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-start gap-3">
-                      <div className="rounded-lg bg-primary/10 p-2 text-primary"><TrendingUp className="h-4 w-4" /></div>
+                      <div className="rounded-lg bg-amber-100 p-2 text-amber-700"><TrendingUp className="h-4 w-4" /></div>
                       <div>
                         <div className="text-sm font-semibold text-card-foreground">Ritmo do sistema</div>
                         <p className="mt-1 text-sm text-muted-foreground">
@@ -473,9 +503,9 @@ export default function SystemTrends() {
                       </div>
                     </div>
                   </div>
-                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-start gap-3">
-                      <div className="rounded-lg bg-primary/10 p-2 text-primary"><Lightbulb className="h-4 w-4" /></div>
+                      <div className="rounded-lg bg-amber-100 p-2 text-amber-700"><Lightbulb className="h-4 w-4" /></div>
                       <div>
                         <div className="text-sm font-semibold text-card-foreground">Tema em alta</div>
                         <p className="mt-1 text-sm text-muted-foreground">
@@ -484,9 +514,9 @@ export default function SystemTrends() {
                       </div>
                     </div>
                   </div>
-                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-start gap-3">
-                      <div className="rounded-lg bg-primary/10 p-2 text-primary"><Flame className="h-4 w-4" /></div>
+                      <div className="rounded-lg bg-amber-100 p-2 text-amber-700"><Flame className="h-4 w-4" /></div>
                       <div>
                         <div className="text-sm font-semibold text-card-foreground">Dor dominante</div>
                         <p className="mt-1 text-sm text-muted-foreground">
@@ -500,14 +530,14 @@ export default function SystemTrends() {
             </section>
 
             <section className="grid gap-6 xl:grid-cols-2">
-              <div className="rounded-2xl border border-border/80 bg-card/95 p-5 shadow-sm">
+              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
                 <ExecutiveSectionHeader
                   eyebrow="Temas"
                   title="Palavras e sinais em alta"
                   description="Termos que mais aceleraram no período atual."
                 />
                 {keywordBlacklist.length > 0 && (
-                  <div className="mt-4 rounded-xl border border-border/70 bg-secondary/20 p-3">
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                       <Ban className="h-3.5 w-3.5" />
                       Blacklist ativa
@@ -518,7 +548,7 @@ export default function SystemTrends() {
                           key={word}
                           type="button"
                           onClick={() => handleRemoveKeywordFromBlacklist(word)}
-                          className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-card px-2 py-1 text-[12px] font-medium text-card-foreground transition-colors hover:bg-secondary"
+                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-medium text-card-foreground transition-colors hover:bg-amber-50"
                         >
                           <span>{word}</span>
                           <X className="h-3 w-3 text-muted-foreground" />
@@ -531,7 +561,7 @@ export default function SystemTrends() {
                   {data.topKeywords.length === 0 ? (
                     <EmptyState title="Sem palavras em alta" message="Não houve volume suficiente para montar ranking de termos." />
                   ) : data.topKeywords.map((item) => (
-                    <div key={item.key} className="rounded-xl border border-border/70 p-4">
+                    <div key={item.key} className="rounded-xl border border-slate-200 bg-white p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
@@ -563,7 +593,7 @@ export default function SystemTrends() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border/80 bg-card/95 p-5 shadow-sm">
+              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
                 <ExecutiveSectionHeader
                   eyebrow="Dores"
                   title="Demandas em alta"
@@ -573,7 +603,7 @@ export default function SystemTrends() {
                   {data.topPains.length === 0 ? (
                     <EmptyState title="Sem dores em alta" message="Não houve volume textual suficiente para detectar pressão sistêmica no recorte." />
                   ) : data.topPains.map((item) => (
-                    <div key={item.key} className="rounded-xl border border-border/70 p-4">
+                    <div key={item.key} className="rounded-xl border border-slate-200 bg-white p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
@@ -595,7 +625,7 @@ export default function SystemTrends() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border/80 bg-card/95 p-5 shadow-sm">
+            <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
               <ExecutiveSectionHeader
                 eyebrow="Impacto"
                 title="Grupos que puxam a tendência"

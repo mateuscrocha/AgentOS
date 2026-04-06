@@ -220,7 +220,7 @@ describe("GroupEdit — ajustes de UI", () => {
       );
     });
 
-    expect(container.textContent).toContain("Acesso Negado");
+    expect(container.textContent).toContain("Acesso restrito");
     expect(container.textContent).toContain("SYSTEM_ADMIN");
     expect(insertEventMock).toHaveBeenCalled();
 

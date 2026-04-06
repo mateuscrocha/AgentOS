@@ -466,7 +466,7 @@ export default function Onboarding() {
       <div className="w-full max-w-4xl mx-auto">
         <div className="mb-6 flex flex-col items-center">
           <img src="/admin-logo.png" alt="Central de Comando do Bóris" className="mb-1 h-20 w-auto sm:h-24" />
-          <div className="mb-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-primary">
+          <div className="mb-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-amber-700">
             Setup em {steps.length} etapas
           </div>
           <h1 className="text-center text-[2rem] font-bold tracking-tight text-foreground">Crie sua conta</h1>
@@ -476,13 +476,13 @@ export default function Onboarding() {
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-4 rounded-[28px] border border-border/80 bg-card/95 p-5 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.38)] backdrop-blur sm:p-6">
+          <div className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-subtle sm:p-6">
             {globalError ? (
               <Alert
                 variant={errorDetails?.tone === "warning" ? "default" : "destructive"}
                 className={
                   errorDetails?.tone === "warning"
-                    ? "border-warning/30 bg-warning/5 [&>svg]:text-warning"
+                    ? "border-amber-200 bg-amber-50 [&>svg]:text-amber-700"
                     : "bg-destructive/10 border-destructive/20"
                 }
               >
@@ -503,7 +503,7 @@ export default function Onboarding() {
                       <button
                         type="button"
                         className={`text-sm font-medium underline-offset-4 hover:underline ${
-                          errorDetails?.tone === "warning" ? "text-warning" : "text-primary"
+                          errorDetails?.tone === "warning" ? "text-amber-700" : "text-amber-700"
                         }`}
                         onClick={() => inviteLinkInputRef.current?.focus()}
                       >
@@ -525,16 +525,16 @@ export default function Onboarding() {
               </Alert>
             ) : null}
 
-            <div className="space-y-4 rounded-2xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/20 p-4 sm:p-5">
+            <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
                     Etapa {currentStepIndex + 1} de {steps.length}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold tracking-tight text-foreground">{currentStep.title}</h2>
                   <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">{currentStep.description}</p>
                 </div>
-                <div className="min-w-[88px] rounded-2xl border border-border/70 bg-background/80 px-3 py-2 text-right">
+                <div className="min-w-[88px] rounded-2xl border border-slate-200 bg-white px-3 py-2 text-right">
                   <p className="text-lg font-semibold leading-none text-foreground">{progress}%</p>
                   <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">concluído</p>
                 </div>
@@ -542,7 +542,7 @@ export default function Onboarding() {
 
               <div className="h-2 overflow-hidden rounded-full bg-muted/80">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary via-primary to-primary/80 transition-all duration-300 ease-out"
+                  className="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-500 to-amber-400 transition-all duration-300 ease-out"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -572,7 +572,7 @@ export default function Onboarding() {
             </div>
 
             {currentStep.id === "profile" ? (
-              <div className="grid gap-4 rounded-2xl border border-border/60 bg-background/70 p-4 sm:grid-cols-2">
+              <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
                 <Field
                   label="Nome completo"
                   icon={<Users className="h-4 w-4" />}
@@ -625,7 +625,7 @@ export default function Onboarding() {
             ) : null}
 
             {currentStep.id === "access" ? (
-              <div className="grid gap-4 rounded-2xl border border-border/60 bg-background/70 p-4 sm:grid-cols-2">
+              <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
                 <Field label="Senha" icon={<Lock className="h-4 w-4" />} error={fieldErrors.password}>
                   <Input
                     type="password"
@@ -651,7 +651,7 @@ export default function Onboarding() {
             ) : null}
 
             {currentStep.id === "group" ? (
-              <div className="space-y-4 rounded-2xl border border-border/60 bg-background/70 p-4">
+              <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
                 <Field label="Link do grupo do WhatsApp" icon={<ArrowRight className="h-4 w-4" />} error={fieldErrors.inviteLink}>
                   <Input
                     ref={inviteLinkInputRef}
@@ -663,7 +663,7 @@ export default function Onboarding() {
                   />
                 </Field>
 
-                <div className="rounded-xl border border-primary/15 bg-gradient-to-br from-primary/5 via-background to-background p-4">
+                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-foreground">Resumo da criação</p>
@@ -671,7 +671,7 @@ export default function Onboarding() {
                         Ao concluir, vamos preparar estes itens para o seu primeiro acesso.
                       </p>
                     </div>
-                    <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                    <div className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
                       {isResumingOnboarding ? "Quase pronto" : "Último passo"}
                     </div>
                   </div>
@@ -695,7 +695,7 @@ export default function Onboarding() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-muted-foreground">
                   <p className="font-medium text-foreground">Antes de finalizar</p>
                   <p className="mt-1">
                     {isResumingOnboarding
@@ -706,8 +706,8 @@ export default function Onboarding() {
               </div>
             ) : null}
 
-            <div className="flex flex-col gap-4 border-t border-border/70 pt-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="max-w-sm rounded-2xl border border-border/60 bg-background/60 px-4 py-3">
+            <div className="flex flex-col gap-4 border-t border-slate-200 pt-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="max-w-sm rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
                 <p className="text-sm font-medium text-card-foreground">{footerCopy.title}</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">{footerCopy.description}</p>
               </div>
@@ -719,7 +719,7 @@ export default function Onboarding() {
                       type="button"
                       size="lg"
                       variant="outline"
-                      className="min-w-[140px] border-border/70 bg-background/80"
+                      className="min-w-[140px] border-amber-200 bg-white text-slate-700 hover:bg-amber-50"
                       disabled={isSubmitting}
                       onClick={() => setCurrentStepIndex((index) => Math.max(index - 1, 0))}
                     >
@@ -728,12 +728,12 @@ export default function Onboarding() {
                   ) : null}
 
                   {isLastStep ? (
-                    <Button type="submit" size="lg" className="min-w-[220px] shadow-[0_14px_30px_-18px_rgba(251,146,60,0.9)]" disabled={isSubmitting}>
+                    <Button type="submit" size="lg" className="min-w-[220px] bg-amber-600 text-white hover:bg-amber-700 shadow-[0_14px_30px_-18px_rgba(251,146,60,0.9)]" disabled={isSubmitting}>
                       {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                       {isSubmitting ? "Criando acesso..." : isResumingOnboarding ? "Concluir cadastro" : "Criar conta e entrar"}
                     </Button>
                   ) : (
-                    <Button type="button" size="lg" className="min-w-[220px] shadow-[0_14px_30px_-18px_rgba(251,146,60,0.9)]" disabled={isSubmitting} onClick={handleStepAdvance}>
+                    <Button type="button" size="lg" className="min-w-[220px] bg-amber-600 text-white hover:bg-amber-700 shadow-[0_14px_30px_-18px_rgba(251,146,60,0.9)]" disabled={isSubmitting} onClick={handleStepAdvance}>
                       Continuar
                     </Button>
                   )}
@@ -792,9 +792,9 @@ type StepChipProps = {
 
 function SummaryCard({ icon, title, description }: SummaryCardProps) {
   return (
-    <div className="rounded-lg border border-border/70 bg-background/85 p-3 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <span className="text-primary">{icon}</span>
+        <span className="text-amber-700">{icon}</span>
         <span>{title}</span>
       </div>
       <p className="mt-2 text-sm leading-5 text-muted-foreground">{description}</p>
@@ -808,10 +808,10 @@ function StepChip({ index, title, isCurrent, isCompleted, disabled, onClick }: S
       type="button"
       className={`min-h-[88px] rounded-2xl border px-3 py-3 text-left transition ${
         isCurrent
-          ? "border-primary/50 bg-primary/8 shadow-[0_12px_24px_-20px_rgba(251,146,60,0.9)]"
+          ? "border-amber-200 bg-amber-50 shadow-[0_12px_24px_-20px_rgba(251,146,60,0.9)]"
           : isCompleted
             ? "border-success/30 bg-success/10"
-            : "border-border/70 bg-background/80 hover:border-border"
+            : "border-slate-200 bg-white hover:border-slate-300"
       }`}
       onClick={onClick}
       disabled={disabled}
@@ -820,7 +820,7 @@ function StepChip({ index, title, isCurrent, isCompleted, disabled, onClick }: S
         <div
           className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
             isCurrent
-              ? "bg-primary text-primary-foreground"
+              ? "bg-amber-600 text-white"
               : isCompleted
                 ? "bg-success/20 text-success"
                 : "bg-muted text-muted-foreground"

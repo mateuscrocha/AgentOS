@@ -41,6 +41,8 @@ export const systemOrganizationsQueryKeys = {
   groupCounts: (orgIds: string[]) => [...systemOrganizationsQueryKeys.all, "group-counts", ...orgIds] as const,
 };
 
+let organizationsOverviewRpcAvailable: boolean | null = null;
+
 async function fetchOverviewFallback() {
   const [orgsTotal, orgsActive, orgsInactive, orgsSuspended, groupsTotal] = await Promise.all([
     supabase.from("organizations").select("id", { count: "exact", head: true }),
@@ -65,12 +67,20 @@ async function fetchOverviewFallback() {
 async function fetchOverview() {
   const rpc = (supabase as any).rpc;
   if (typeof rpc !== "function") return fetchOverviewFallback();
+  if (organizationsOverviewRpcAvailable === false) return fetchOverviewFallback();
 
   const { data, error } = await rpc.call(supabase, "get_system_organizations_overview_counts");
   if (error) {
+    const code = String((error as { code?: string } | null)?.code ?? "");
+    const message = String((error as { message?: string } | null)?.message ?? "");
+    if (code === "42883" || /get_system_organizations_overview_counts/i.test(message)) {
+      organizationsOverviewRpcAvailable = false;
+    }
     // Fallback while migration is not applied yet.
     return fetchOverviewFallback();
   }
+
+  organizationsOverviewRpcAvailable = true;
 
   const row = Array.isArray(data) ? data[0] : data;
   return {

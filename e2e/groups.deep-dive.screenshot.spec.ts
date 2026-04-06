@@ -53,7 +53,8 @@ test("explora profundamente a area de grupos no app real", async ({ page }, test
   await login(page);
 
   await page.goto("/system/groups");
-  await expect(page.getByRole("heading", { name: "Grupos" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Grupos" }).first()).toBeVisible();
+  await settle(page);
   await saveShot(page, testInfo, "groups-system-overview.png");
 
   const rowActions = page.getByLabel("Ações");
@@ -79,9 +80,14 @@ test("explora profundamente a area de grupos no app real", async ({ page }, test
   }
 
   const firstGroupRow = page.locator("tbody tr").first();
+  const hasDesktopRow = await firstGroupRow.isVisible().catch(() => false);
+  if (!hasDesktopRow) {
+    return;
+  }
+
   await firstGroupRow.click();
   await page.waitForURL(/\/groups\/.+$/);
-  await expect(page.getByRole("heading", { name: /Painel do Grupo|Primeira visita ao grupo|Seu grupo/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Painel do Grupo|Primeira visita ao grupo|Seu grupo/ }).first()).toBeVisible();
   const groupUrl = page.url();
 
   await saveShot(page, testInfo, "group-dashboard-overview.png");

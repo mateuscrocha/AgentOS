@@ -794,9 +794,9 @@ const Index = () => {
         }}
         description="Total de mensagens enviadas nos últimos 30 dias"
         variant="kpi"
-        className="bg-card"
-        titleClassName="text-primary/80"
-        valueClassName="font-mono text-primary"
+        className="border-amber-200/70 bg-white"
+        titleClassName="text-amber-700"
+        valueClassName="font-mono text-amber-700"
         numericValue
       />
       <StatsCard
@@ -813,7 +813,7 @@ const Index = () => {
         }}
         description="Pessoas que enviaram pelo menos 1 mensagem nos últimos 30 dias"
         variant="kpi"
-        className="bg-card"
+        className="border-slate-200 bg-white"
         titleClassName="text-muted-foreground/80"
         valueClassName="font-mono"
         numericValue
@@ -832,9 +832,9 @@ const Index = () => {
         }}
         description="Percentual de membros que participaram com mensagem nos últimos 30 dias"
         variant="kpi"
-        className="bg-card"
-        titleClassName="text-primary/80"
-        valueClassName="font-mono text-primary"
+        className="border-amber-200/70 bg-white"
+        titleClassName="text-amber-700"
+        valueClassName="font-mono text-amber-700"
         numericValue
       />
       <StatsCard
@@ -851,7 +851,7 @@ const Index = () => {
         }}
         description="Organizações com atividade recente"
         variant="kpi"
-        className="bg-card"
+        className="border-slate-200 bg-white"
         titleClassName="text-muted-foreground/80"
         valueClassName="font-mono"
         numericValue
@@ -968,11 +968,11 @@ const Index = () => {
           <div className="border-b border-slate-200/80 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.14),transparent_34%),linear-gradient(180deg,rgba(255,251,235,0.9),transparent)] px-5 py-5 sm:px-6 sm:py-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/80">Operação</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">Operação</div>
                 <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-slate-950">Resumo das últimas 24h</h2>
                 <p className="mt-1 text-sm text-slate-600">O que mudou agora e quais grupos merecem investigação primeiro.</p>
               </div>
-              <Badge variant="outline" className="h-6 w-fit border-primary/20 bg-primary/[0.04] px-2.5 text-[11px] font-medium text-primary/85">
+              <Badge variant="outline" className="h-6 w-fit border-amber-200 bg-amber-50 px-2.5 text-[11px] font-medium text-amber-700">
                 Atualização contínua
               </Badge>
             </div>
@@ -980,7 +980,7 @@ const Index = () => {
           <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
             <div className="grid gap-4 sm:grid-cols-3">
               {executiveHighlights.map((item) => (
-                <div key={item.label} className="rounded-[24px] border border-border/70 bg-background/80 px-4 py-4 shadow-subtle">
+                <div key={item.label} className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-subtle">
                   <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted-foreground">
                     {item.label}
                   </p>
@@ -994,7 +994,7 @@ const Index = () => {
               ))}
             </div>
 
-            <div className="rounded-[28px] border border-border/60 bg-card/95 p-4 shadow-subtle lg:flex lg:max-h-[760px] lg:flex-col">
+            <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-subtle lg:flex lg:max-h-[760px] lg:flex-col">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted-foreground">Grupos mais movimentados</p>
@@ -1008,7 +1008,7 @@ const Index = () => {
               {pulseSummaryLoading ? (
                 <div className="mt-3 space-y-2" aria-live="polite" aria-busy="true">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="rounded-lg border border-border bg-card/50 p-2.5">
+                    <div key={i} className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                       <Skeleton className="h-3 w-8/12" />
                       <Skeleton className="mt-2 h-3 w-6/12" />
                     </div>
@@ -1029,8 +1029,8 @@ const Index = () => {
                     {formatNumberBR(pulseMeta.totalMessages)} mensagens em {formatNumberBR(pulseMeta.activeGroups)} grupos ativos.
                   </p>
                   {topGroupHeadline ? (
-                    <div className="mt-3 rounded-2xl border border-primary/15 bg-primary/[0.05] px-4 py-3">
-                      <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-primary/80">Prioridade agora</p>
+                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                      <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.06em] text-amber-700">Prioridade agora</p>
                       <p className="mt-1 text-sm font-semibold text-card-foreground">{topGroupHeadline.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Lidera o ranking com {formatNumberBR(Number(topGroupHeadline.count || 0))} mensagens nas últimas 24h.
@@ -1062,9 +1062,9 @@ const Index = () => {
                                   <span>{share}% do volume captado</span>
                                 </div>
                                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/70">
-                                  <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${Math.min(Math.max(share, 6), 100)}%` }} />
+                                  <div className="h-full rounded-full bg-amber-500 transition-[width]" style={{ width: `${Math.min(Math.max(share, 6), 100)}%` }} />
                                 </div>
-                                <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+                                <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700">
                                   <span>Investigar grupo</span>
                                   <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
                                 </div>
@@ -1090,11 +1090,11 @@ const Index = () => {
           <div className="fixed bottom-5 right-5 z-30">
             <Button
               type="button"
-              variant="secondary"
+              variant="outline"
               size="icon"
               aria-label="Voltar ao topo"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="ripple-surface shadow-sm transition-transform hover:scale-[1.03] active:scale-[0.98] h-11 w-11"
+              className="ripple-surface h-11 w-11 border-amber-200 bg-white text-slate-700 shadow-sm transition-transform hover:scale-[1.03] hover:bg-amber-50 active:scale-[0.98]"
             >
               <ArrowUp className="h-4 w-4" aria-hidden="true" />
             </Button>

@@ -312,23 +312,23 @@ export function AdminSidebar() {
           className={cn(
             "relative min-h-10 rounded-[var(--radius-md)] px-2.5 text-[13px] font-medium",
             "before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-transparent",
-            showThisHint && "before:bg-primary/40",
-            "data-[active=true]:before:bg-primary",
-            "data-[active=true]:bg-primary/10 data-[active=true]:text-foreground",
+            showThisHint && "before:bg-amber-300",
+            "data-[active=true]:before:bg-amber-500",
+            "data-[active=true]:bg-amber-50 data-[active=true]:text-foreground",
             isCrmTone &&
               "text-sky-700/90 hover:bg-sky-500/8 hover:text-sky-900 dark:text-sky-300 dark:hover:bg-sky-500/12 dark:hover:text-sky-100",
             isCrmTone &&
               "data-[active=true]:before:bg-sky-500 data-[active=true]:bg-sky-500/14 data-[active=true]:text-sky-950 dark:data-[active=true]:bg-sky-500/18 dark:data-[active=true]:text-sky-50",
-            showThisHint && "bg-primary/5 ring-1 ring-primary/20",
+            showThisHint && "bg-amber-50 ring-1 ring-amber-200",
             showThisHint && groupsHintPulse && "animate-pulse",
             item.disabled && "cursor-not-allowed opacity-50",
           )}
         >
           {item.disabled ? (
             <>
-              <item.icon className={cn(active && (isCrmTone ? "text-sky-600 dark:text-sky-300" : "text-primary"))} />
+              <item.icon className={cn(active && (isCrmTone ? "text-sky-600 dark:text-sky-300" : "text-amber-700"))} />
               {item.featureBadge ? (
-                <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary group-data-[collapsible=icon]:hidden">
+                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 group-data-[collapsible=icon]:hidden">
                   {item.featureBadge}
                 </span>
               ) : null}
@@ -336,9 +336,9 @@ export function AdminSidebar() {
             </>
           ) : (
             <NavLink to={item.href} onClick={handleNavClick}>
-              <item.icon className={cn(active && (isCrmTone ? "text-sky-600 dark:text-sky-300" : "text-primary"))} />
+              <item.icon className={cn(active && (isCrmTone ? "text-sky-600 dark:text-sky-300" : "text-amber-700"))} />
               {item.featureBadge ? (
-                <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary group-data-[collapsible=icon]:hidden">
+                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 group-data-[collapsible=icon]:hidden">
                   {item.featureBadge}
                 </span>
               ) : null}
@@ -346,12 +346,12 @@ export function AdminSidebar() {
               {showThisHint || item.badge ? (
                 <span className="ml-auto flex items-center gap-2 group-data-[collapsible=icon]:hidden">
                   {showThisHint ? (
-                    <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
                       Comece por aqui
                     </span>
                   ) : null}
                   {item.badge ? (
-                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground shadow-subtle">
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1.5 text-[11px] font-semibold text-white shadow-subtle">
                       {item.badge}
                     </span>
                   ) : null}
@@ -467,11 +467,11 @@ export function AdminSidebar() {
                         className={cn(
                           "relative min-h-10 rounded-[var(--radius-md)] px-2.5 text-[13px] font-medium",
                           "before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-transparent",
-                          adminHasActiveItem && "before:bg-primary",
-                          adminHasActiveItem && "bg-primary/10 text-foreground",
+                          adminHasActiveItem && "before:bg-amber-500",
+                          adminHasActiveItem && "bg-amber-50 text-foreground",
                         )}
                       >
-                        <Shield className={cn(adminHasActiveItem && "text-primary")} />
+                        <Shield className={cn(adminHasActiveItem && "text-amber-700")} />
                         <span className="group-data-[collapsible=icon]:hidden">Administração</span>
                         <ChevronDown
                           className={cn(

@@ -890,13 +890,13 @@ const Org = () => {
 
     return (
       <section className="space-y-5">
-        <div className="overflow-hidden rounded-[28px] border border-border/80 bg-card/95 shadow-subtle">
+        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
           {!compactGroupsLayout ? (
             <>
-              <div className="border-b border-border/70 bg-gradient-to-r from-secondary/40 via-background to-secondary/10 px-5 py-5 sm:px-6">
+              <div className="border-b border-slate-200 bg-gradient-to-r from-amber-50 via-white to-slate-50 px-5 py-5 sm:px-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 space-y-2">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-800">
                       <FolderOpen className="h-3.5 w-3.5" />
                       Operacao de grupos
                     </div>
@@ -924,23 +924,23 @@ const Org = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 border-b border-border/70 bg-background/60 p-5 sm:grid-cols-2 xl:grid-cols-4 sm:p-6">
-                <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+              <div className="grid grid-cols-1 gap-3 border-b border-slate-200 bg-slate-50/60 p-5 sm:grid-cols-2 xl:grid-cols-4 sm:p-6">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Total de grupos</div>
                   <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{formatNumberBR(list.length)}</div>
                   <div className="mt-1 text-xs text-muted-foreground">Estrutura conectada nesta organização</div>
                 </div>
-                <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Ativos</div>
                   <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-success">{formatNumberBR(activeCount)}</div>
                   <div className="mt-1 text-xs text-muted-foreground">{formatNumberBR(inactiveCount)} inativos ou pausados</div>
                 </div>
-                <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Integrantes</div>
                   <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{formatNumberBR(membersTotal)}</div>
                   <div className="mt-1 text-xs text-muted-foreground">Soma estimada da base listada</div>
                 </div>
-                <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Visão atual</div>
                   <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-card-foreground">{formatNumberBR(sorted.length)}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
@@ -982,7 +982,7 @@ const Org = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-secondary/15 p-3 sm:p-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
                 <Input
                   type="text"
@@ -2925,7 +2925,7 @@ const Org = () => {
               {adminSummarySection}
             </div>
 
-            <section className="scroll-mt-32 rounded-[28px] border border-border/70 bg-card p-5 shadow-subtle" id="org-live-summary">
+            <section className="scroll-mt-32 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm" id="org-live-summary">
               <ExecutiveSectionHeader
                 eyebrow="Operação ao vivo"
                 title="Resumo Agora"
@@ -2969,10 +2969,10 @@ const Org = () => {
                     }, null);
 
                     return (
-                      <div className="rounded-[24px] border border-primary/15 bg-primary/[0.05] p-4">
+                      <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                           <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/85">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-800">
                               Leitura imediata
                             </p>
                             <p className="mt-1 text-sm font-medium text-card-foreground">
@@ -2986,7 +2986,7 @@ const Org = () => {
                                 : "Use os cards abaixo para entender rapidamente onde existe fila, acompanhamento ou ociosidade."}
                             </p>
                           </div>
-                          <div className="rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium text-muted-foreground">
+                          <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600">
                             {supportNowFilteredItems.length.toLocaleString("pt-BR")} grupos monitorados agora
                           </div>
                         </div>
@@ -3029,7 +3029,7 @@ const Org = () => {
                     })}
                   </div>
 
-                  <div className="rounded-[24px] border border-border/70 bg-background/50 p-4">
+                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div>
                         <div className="text-sm font-semibold text-card-foreground">Fila operacional</div>
@@ -3055,8 +3055,8 @@ const Org = () => {
                           className={cn(
                             "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors",
                             supportNowFilter === filter.key
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
+                              ? "border-amber-600 bg-amber-600 text-white"
+                              : "border-slate-200 bg-white text-muted-foreground hover:text-foreground",
                           )}
                         >
                           <span>{filter.label}</span>
@@ -3078,8 +3078,8 @@ const Org = () => {
                       ) : null}
                     </div>
 
-                    <div className="mt-4 overflow-hidden rounded-[20px] border border-border/70 bg-card">
-                      <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] gap-3 border-b border-border/70 bg-secondary/25 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    <div className="mt-4 overflow-hidden rounded-[20px] border border-slate-200 bg-white">
+                      <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                         <div>Grupo</div>
                         <div>Status</div>
                         <div>Espera / atividade</div>
@@ -3123,7 +3123,7 @@ const Org = () => {
                                 key={item.groupId}
                                 type="button"
                                 onClick={() => navigate(`/groups/${item.groupId}/support`)}
-                                className="grid w-full grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] gap-3 border-b border-border/60 px-4 py-3 text-left transition-colors hover:bg-secondary/20"
+                                className="grid w-full grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] gap-3 border-b border-slate-200 px-4 py-3 text-left transition-colors hover:bg-amber-50/40"
                               >
                                 <div className="min-w-0">
                                   <div className="truncate text-sm font-medium text-foreground">{item.groupName}</div>
@@ -3134,7 +3134,7 @@ const Org = () => {
                                     "inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-[11px] font-medium",
                                     item.slaBreached
                                       ? "border-destructive/20 bg-destructive/10 text-destructive"
-                                      : meta?.accent ?? "border-border/70 bg-background text-muted-foreground",
+                                      : meta?.accent ?? "border-slate-200 bg-white text-muted-foreground",
                                   )}>
                                     <span className="truncate">{meta?.title ?? item.status}</span>
                                   </div>
@@ -3146,7 +3146,7 @@ const Org = () => {
                                   <span className="font-medium tabular-nums">{item.assignedAttendants.toLocaleString("pt-BR")}</span>
                                   <span className="ml-1 text-xs text-muted-foreground">atend.</span>
                                 </div>
-                                <div className="text-xs font-medium text-primary">Abrir</div>
+                                <div className="text-xs font-medium text-amber-700">Abrir</div>
                               </button>
                             );
                           })}

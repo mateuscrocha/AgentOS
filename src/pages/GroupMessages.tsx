@@ -239,7 +239,7 @@ const GroupMessages = () => {
           showClearFilters={hasActiveFilters}
           onClearFilters={clearAllFilters}
           rightActions={canEditGroup(groupId as string, groupInfo?.orgId) ? (
-            <Button onClick={() => setImportOpen(true)} variant="secondary">
+            <Button onClick={() => setImportOpen(true)} variant="outline" className="border-amber-200 bg-white text-amber-950 hover:border-amber-400 hover:bg-amber-50">
               <Upload className="h-4 w-4 mr-2" />
               Importar mensagens
             </Button>
@@ -277,9 +277,9 @@ const GroupMessages = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-[var(--radius-xl)] border border-border/60 bg-gradient-to-br from-emerald-50/60 via-background to-teal-50/40 p-3 shadow-subtle sm:p-4 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/10">
+            <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
               <div
-                className="space-y-3 rounded-[var(--radius-lg)] border border-white/40 p-2 sm:p-3 dark:border-white/5"
+                className="space-y-3 rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50/50 p-2 sm:p-3"
                 style={{
                   backgroundImage:
                     "radial-gradient(circle at 1px 1px, rgba(120,120,120,0.09) 1px, transparent 0)",
@@ -305,7 +305,7 @@ const GroupMessages = () => {
               if (totalPages <= 1) return null;
               const items = buildPagination(page, totalPages);
               return (
-                <div className="rounded-[var(--radius-lg)] border border-success/20 bg-card/95 px-4 py-3 shadow-subtle">
+                <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="text-sm text-muted-foreground">
                       Página <span className="font-medium text-foreground tabular-nums">{page}</span> de{" "}

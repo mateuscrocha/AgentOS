@@ -73,8 +73,8 @@ const sectionMeta: Array<{ id: Section; label: string; href: string }> = [
 ];
 
 const crmIconButtonClassName =
-  "text-sky-700 hover:bg-sky-50 hover:text-sky-900 disabled:text-slate-400 disabled:hover:bg-transparent";
-const crmIconClassName = "h-4 w-4 text-sky-700";
+  "text-amber-700 hover:bg-amber-50 hover:text-amber-900 disabled:text-slate-400 disabled:hover:bg-transparent";
+const crmIconClassName = "h-4 w-4 text-amber-700";
 const crmTableBadgeClassName =
   "inline-flex min-h-6 items-center rounded-full px-2.5 py-1 text-[10.5px] font-semibold leading-none tracking-[-0.01em] whitespace-nowrap shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]";
 const crmMiniBadgeClassName =
@@ -246,7 +246,6 @@ export default function SystemCRM() {
   const section = getSectionFromPath(location.pathname);
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isSystemAdmin, isLoading: rolesLoading } = useUserRoles();
-  const crm = useCRM(isAuthenticated && isSystemAdmin);
 
   const [search, setSearch] = useState("");
   const [billingFilter, setBillingFilter] = useState<
@@ -265,6 +264,14 @@ export default function SystemCRM() {
   const [timelineDefaults, setTimelineDefaults] = useState<Partial<CRMTimelineItem>>({});
 
   const [drawerTarget, setDrawerTarget] = useState<DrawerTarget>(null);
+  const needsReferenceData =
+    accountDialogOpen || contactDialogOpen || timelineDialogOpen || Boolean(drawerTarget);
+  const crm = useCRM({
+    enabled: isAuthenticated && isSystemAdmin,
+    section,
+    loadDrawerRelations: !!drawerTarget,
+    loadReferenceData: needsReferenceData,
+  });
   const [bulkStripeSyncPending, setBulkStripeSyncPending] = useState(false);
   const [expandedPipelineAccountId, setExpandedPipelineAccountId] = useState<string | null>(null);
   const pipelineScrollRef = useRef<HTMLDivElement | null>(null);
@@ -502,7 +509,7 @@ export default function SystemCRM() {
         <>
           <Button
             variant="outline"
-            className="border-sky-200 bg-white/90 text-sky-900 hover:border-sky-400 hover:bg-sky-50"
+            className="border-amber-200 bg-white/90 text-amber-950 hover:border-amber-400 hover:bg-amber-50"
             onClick={() => void handleBulkStripeSync()}
             disabled={bulkStripeSyncPending}
           >
@@ -510,7 +517,7 @@ export default function SystemCRM() {
             Atualizar mensalidades
           </Button>
           <Button
-            className="border border-sky-600 bg-sky-600 text-white shadow-none hover:bg-sky-700"
+            className="border border-amber-600 bg-amber-600 text-white shadow-none hover:bg-amber-700"
             onClick={() => { setEditingAccount(null); setAccountDialogOpen(true); }}
             data-testid="crm-new-lead-button"
           >
@@ -523,7 +530,7 @@ export default function SystemCRM() {
         <>
           <Button
             variant="outline"
-            className="border-sky-200 bg-white/90 text-sky-900 hover:border-sky-400 hover:bg-sky-50"
+            className="border-amber-200 bg-white/90 text-amber-950 hover:border-amber-400 hover:bg-amber-50"
             onClick={() => void handleBulkStripeSync()}
             disabled={bulkStripeSyncPending}
           >
@@ -531,7 +538,7 @@ export default function SystemCRM() {
             Atualizar mensalidades
           </Button>
           <Button
-            className="border border-sky-600 bg-sky-600 text-white shadow-none hover:bg-sky-700"
+            className="border border-amber-600 bg-amber-600 text-white shadow-none hover:bg-amber-700"
             onClick={() => { setEditingAccount(null); setAccountDialogOpen(true); }}
             data-testid="crm-new-lead-button"
           >
@@ -542,7 +549,7 @@ export default function SystemCRM() {
       ) : null}
       {section === "contacts" ? (
         <Button
-          className="border border-sky-600 bg-sky-600 text-white shadow-none hover:bg-sky-700"
+          className="border border-amber-600 bg-amber-600 text-white shadow-none hover:bg-amber-700"
           onClick={() => { setEditingContact(null); setContactDefaults({}); setContactDialogOpen(true); }}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -551,7 +558,7 @@ export default function SystemCRM() {
       ) : null}
       {section === "tasks" ? (
         <Button
-          className="border border-sky-600 bg-sky-600 text-white shadow-none hover:bg-sky-700"
+          className="border border-amber-600 bg-amber-600 text-white shadow-none hover:bg-amber-700"
           onClick={() => {
             setEditingTimelineItem(null);
             setTimelineDefaults({ item_type: "task" });
@@ -958,9 +965,9 @@ export default function SystemCRM() {
             { label: "Sem vínculo Stripe", value: billableWithoutStripeCount, note: "Contas faturáveis sem contexto Stripe" },
             { label: "Tarefas abertas", value: crm.metrics.openTasks, note: "Follow-ups pendentes do time" },
           ].map((item) => (
-            <div key={item.label} className="rounded-[24px] border border-sky-200/70 bg-gradient-to-b from-white to-sky-50/50 p-5 shadow-sm">
-              <p className="text-sm font-medium text-sky-700/90">{item.label}</p>
-              <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-sky-950">
+            <div key={item.label} className="rounded-[24px] border border-amber-200/70 bg-gradient-to-b from-white to-amber-50/60 p-5 shadow-sm">
+              <p className="text-sm font-medium text-amber-800">{item.label}</p>
+              <div className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-950">
                 {item.value.toLocaleString("pt-BR")}
               </div>
               <p className="mt-2 text-sm text-slate-600">{item.note}</p>
@@ -1002,7 +1009,7 @@ export default function SystemCRM() {
                   className={cn(
                     "h-9 border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white",
                     billingFilter === option.value &&
-                      "border-sky-600 bg-sky-600 text-white hover:border-sky-700 hover:bg-sky-700",
+                      "border-amber-600 bg-amber-600 text-white hover:border-amber-700 hover:bg-amber-700",
                   )}
                   onClick={() => setBillingFilter(option.value as typeof billingFilter)}
                 >
@@ -1017,8 +1024,8 @@ export default function SystemCRM() {
         </div>
 
         {(billableWithoutStripeCount > 0 || crm.metrics.accountsWithoutContacts > 0) ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-[24px] border border-sky-100 bg-gradient-to-r from-sky-50 via-white to-white px-4 py-3 text-xs shadow-sm">
-            <span className="font-medium uppercase tracking-[0.12em] text-sky-700">Pendências</span>
+          <div className="flex flex-wrap items-center gap-2 rounded-[24px] border border-amber-100 bg-gradient-to-r from-amber-50 via-white to-white px-4 py-3 text-xs shadow-sm">
+            <span className="font-medium uppercase tracking-[0.12em] text-amber-800">Pendências</span>
             {billableWithoutStripeCount > 0 ? (
               <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-900">
                 {billableWithoutStripeCount} sem vínculo Stripe
@@ -1044,13 +1051,13 @@ export default function SystemCRM() {
           <>
           {section === "pipeline" ? (
             <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-gradient-to-r from-sky-50 via-white to-white px-4 py-3">
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-gradient-to-r from-amber-50 via-white to-white px-4 py-3">
                 <div>
-                  <p className="text-sm font-semibold text-sky-950">Pipeline</p>
-                  <p className="text-xs text-sky-700/70">Priorize a próxima ação e as pendências que travam avanço.</p>
+                  <p className="text-sm font-semibold text-slate-950">Pipeline</p>
+                  <p className="text-xs text-amber-800/80">Priorize a próxima ação e as pendências que travam avanço.</p>
                 </div>
                 {billingFilter !== "all" ? (
-                  <Badge variant="outline" className="border-sky-200 bg-white/90 text-sky-900">
+                  <Badge variant="outline" className="border-amber-200 bg-white/90 text-amber-950">
                     Filtro ativo
                   </Badge>
                 ) : null}
@@ -1064,11 +1071,11 @@ export default function SystemCRM() {
                 onMouseLeave={stopPipelineGrabScroll}
                 onClickCapture={handlePipelineClickCapture}
               >
-                <div className="flex min-w-max gap-3">
+                <div className="flex min-w-max gap-4">
                   {pipelineColumns.map((column) => (
                     <section
                       key={column.stage}
-                      className="flex h-[calc(100vh-24rem)] min-h-[26rem] max-h-[44rem] w-[20rem] min-w-[20rem] flex-col rounded-[24px] border border-slate-200 bg-slate-50/60 shadow-sm"
+                      className="flex h-[calc(100vh-23rem)] min-h-[28rem] max-h-[46rem] w-[20rem] min-w-[20rem] flex-col rounded-[24px] border border-slate-200 bg-slate-50/60 shadow-sm"
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={() => {
                         if (!draggedAccountId) return;
@@ -1090,7 +1097,7 @@ export default function SystemCRM() {
                         setDraggedAccountId(null);
                       }}
                     >
-                      <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3.5 py-3">
+                      <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3.5">
                         <div>
                           <p className="text-sm font-semibold text-slate-900">{CRM_STAGE_META[column.stage].label}</p>
                           <p className="text-[11px] text-slate-500">{column.items.length} contas</p>
@@ -1099,7 +1106,7 @@ export default function SystemCRM() {
                       </div>
 
                       <ScrollArea className="min-w-0 flex-1">
-                        <div className="flex min-w-0 flex-col gap-2.5 p-2.5">
+                        <div className="flex min-w-0 flex-col gap-3 p-3">
                           {column.items.length === 0 ? (
                             <div className="flex min-h-[160px] items-center justify-center rounded-[var(--radius-md)] border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
                               Nenhuma conta nesta etapa.
@@ -1126,11 +1133,11 @@ export default function SystemCRM() {
                                     setExpandedPipelineAccountId((current) => (current === account.id ? null : account.id))
                                   }
                                   className={cn(
-                                    "w-full min-w-0 max-w-full overflow-hidden rounded-[20px] border bg-white p-3.5 shadow-sm transition-all hover:shadow-md",
-                                    isExpanded ? "border-sky-300 shadow-md ring-1 ring-sky-100" : "border-slate-200 hover:border-sky-300",
+                                    "w-full min-w-0 max-w-full overflow-hidden rounded-[20px] border bg-white p-4 shadow-sm transition-all hover:shadow-md",
+                                    isExpanded ? "border-amber-300 shadow-md ring-1 ring-amber-100" : "border-slate-200 hover:border-amber-300",
                                   )}
                                 >
-                                  <div className="mb-3 flex items-start justify-between gap-2.5">
+                                  <div className="mb-3.5 flex items-start justify-between gap-3">
                                     <div className="min-w-0 flex-1 basis-0">
                                       <div className="flex min-w-0 items-start justify-between gap-3">
                                         <div className="min-w-0 w-0 max-w-full flex-1">
@@ -1145,7 +1152,7 @@ export default function SystemCRM() {
                                               {account.lead_source_detail || account.inbound_channel || account.source}
                                             </p>
                                           ) : null}
-                                          <p className="mt-2 text-[11px] text-slate-500">
+                                          <p className="mt-2.5 text-[11px] text-slate-500">
                                             Proxima acao: <span className="font-medium text-slate-700">{formatDateTime(account.next_action_at)}</span>
                                           </p>
                                         </div>
@@ -1163,7 +1170,7 @@ export default function SystemCRM() {
                                         </div>
                                       </div>
 
-                                      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1">
+                                      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
                                         <Badge variant="outline" className={cn("border", crmMiniBadgeClassName, type.className)}>
                                           {type.shortLabel}
                                         </Badge>
@@ -1182,9 +1189,9 @@ export default function SystemCRM() {
 
                                   {isExpanded ? (
                                     <>
-                                      <div className="grid min-w-0 gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-                                        <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
-                                          <div className={cn("rounded-2xl border px-3 py-2", nextAction.className)}>
+                                      <div className="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5">
+                                        <div className="grid grid-cols-2 gap-2.5 text-[11px] text-slate-600">
+                                          <div className={cn("rounded-2xl border px-3 py-2.5", nextAction.className)}>
                                             <p className="text-[10px] uppercase tracking-[0.08em] opacity-70">Próxima ação</p>
                                             <div className="mt-1 flex items-center gap-2">
                                               <CalendarClock className="h-3.5 w-3.5 shrink-0 opacity-70" />
@@ -1193,15 +1200,15 @@ export default function SystemCRM() {
                                               </p>
                                             </div>
                                           </div>
-                                          <div className="rounded-2xl bg-white px-2.5 py-1.5">
+                                          <div className="rounded-2xl bg-white px-3 py-2">
                                             <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">Responsável</p>
                                             <p className="mt-1 truncate text-sm font-semibold text-slate-950">{ownerName}</p>
                                           </div>
-                                          <div className="rounded-2xl bg-white px-2.5 py-1.5">
+                                          <div className="rounded-2xl bg-white px-3 py-2">
                                             <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">Último contato</p>
                                             <p className="mt-1 truncate text-sm font-semibold text-slate-950">{formatDateTime(account.last_contact_at)}</p>
                                           </div>
-                                          <div className="rounded-2xl bg-white px-2.5 py-1.5">
+                                          <div className="rounded-2xl bg-white px-3 py-2">
                                             <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">Fonte</p>
                                             <p className="mt-1 truncate text-sm font-semibold text-slate-950">
                                               {account.lead_source_category
@@ -1210,15 +1217,15 @@ export default function SystemCRM() {
                                             </p>
                                           </div>
                                         </div>
-                                        <div className={cn("grid min-w-0 gap-1.5", shouldShowFinancial ? "grid-cols-2" : "grid-cols-1")}>
+                                        <div className={cn("grid min-w-0 gap-2.5", shouldShowFinancial ? "grid-cols-2" : "grid-cols-1")}>
                                           {shouldShowFinancial ? (
-                                            <div className="min-w-0 rounded-2xl bg-white px-2.5 py-1.5">
+                                            <div className="min-w-0 rounded-2xl bg-white px-3 py-2">
                                               <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">Mensalidade</p>
                                               <p className="mt-1 truncate text-sm font-semibold text-slate-950">{formatCurrency(monthlyValue)}</p>
                                               <p className="mt-1 truncate text-[11px] text-slate-500">{finance?.label || "Sem cobrança"}</p>
                                             </div>
                                           ) : null}
-                                          <div className="min-w-0 rounded-2xl bg-white px-2.5 py-1.5">
+                                          <div className="min-w-0 rounded-2xl bg-white px-3 py-2">
                                             <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">Situação</p>
                                             <p className="mt-1 truncate text-sm font-semibold text-slate-950">
                                               {billing?.label || type.label}
@@ -1228,9 +1235,9 @@ export default function SystemCRM() {
                                       </div>
 
                                       {(account.need || account.next_step || account.quick_notes) ? (
-                                        <div className="mt-2.5 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                                        <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-3.5 py-3.5">
                                           <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Leitura rápida</p>
-                                          <div className="mt-2 space-y-2 text-[12px] text-slate-600">
+                                          <div className="mt-2.5 space-y-2.5 text-[12px] text-slate-600">
                                             {account.need ? (
                                               <p><span className="font-medium text-slate-800">Necessidade:</span> {account.need}</p>
                                             ) : null}
@@ -1244,12 +1251,12 @@ export default function SystemCRM() {
                                         </div>
                                       ) : null}
 
-                                      <div className="mt-2.5 flex min-w-0 items-center justify-between gap-2">
+                                      <div className="mt-3 flex min-w-0 items-center justify-between gap-2.5">
                                         <Button
                                           variant="default"
                                           size="sm"
                                           aria-label={`Abrir contexto de ${account.name}`}
-                                          className="h-8 rounded-full bg-sky-600 px-3 text-xs font-medium text-white hover:bg-sky-700"
+                                          className="h-8 rounded-full bg-amber-600 px-3 text-xs font-medium text-white hover:bg-amber-700"
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             openAccountDrawer(account);
@@ -1262,7 +1269,7 @@ export default function SystemCRM() {
                                             variant="ghost"
                                             size="icon"
                                             aria-label={`Editar ${account.name}`}
-                                            className={cn(crmIconButtonClassName, "h-8 w-8 rounded-full bg-white hover:bg-sky-50")}
+                                            className={cn(crmIconButtonClassName, "h-8 w-8 rounded-full bg-white hover:bg-amber-50")}
                                             onClick={(event) => {
                                               event.stopPropagation();
                                               setEditingAccount(account);

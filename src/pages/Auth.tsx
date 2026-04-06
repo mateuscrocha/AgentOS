@@ -281,18 +281,20 @@ const Auth = () => {
   return (
     <PublicLayout contentClassName="max-w-md">
       <div className="w-full">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <img src="/admin-logo.png" alt="Central de Comando do Bóris" className="h-24 w-auto mb-2" />
-          <h1 className="text-2xl font-bold text-foreground">Central de Controle</h1>
-          <p className="text-sm text-muted-foreground mt-1">{isRecovery ? "Defina sua nova senha" : "Entre na sua conta"}</p>
+        <div className="mb-8 flex flex-col items-center">
+          <img src="/admin-logo.png" alt="Central de Comando do Bóris" className="mb-2 h-24 w-auto" />
+          <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-amber-700">
+            Acesso ao painel
+          </div>
+          <h1 className="mt-3 text-2xl font-bold tracking-[-0.03em] text-slate-950">Central de Controle</h1>
+          <p className="mt-1 text-sm text-slate-600">{isRecovery ? "Defina sua nova senha" : "Entre na sua conta"}</p>
           {provisioningPendingOnboarding ? (
-            <p className="mt-2 text-sm text-primary">Concluindo seu onboarding e preparando seu primeiro acesso...</p>
+            <p className="mt-2 text-sm text-amber-700">Concluindo seu onboarding e preparando seu primeiro acesso...</p>
           ) : null}
           {!isRecovery ? (
             <button
               type="button"
-              className="mt-3 text-sm text-primary underline-offset-4 hover:underline"
+              className="mt-3 text-sm text-amber-700 underline-offset-4 hover:underline"
               onClick={() => navigate("/signup")}
             >
               Primeira vez aqui? Cadastre sua organização
@@ -300,10 +302,8 @@ const Auth = () => {
           ) : null}
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-            {/* Error message */}
+          <div className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-6 shadow-subtle">
             {error && (
               <div
                 ref={globalErrorRef}
@@ -320,16 +320,15 @@ const Auth = () => {
               <div
                 role="status"
                 aria-live="polite"
-                className="p-3 rounded-lg bg-primary/10 border border-primary/20"
+                className="rounded-lg border border-amber-200 bg-amber-50 p-3"
               >
-                <p className="text-sm text-foreground">{infoMessage}</p>
+                <p className="text-sm text-slate-700">{infoMessage}</p>
               </div>
             )}
 
-            {/* Email */}
             {!isRecovery && (
               <div>
-                <label htmlFor="email" className="text-sm font-medium text-card-foreground mb-1.5 block">
+                <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-900">
                   Email
                 </label>
                 <div className="relative">
@@ -352,7 +351,7 @@ const Auth = () => {
                     autoComplete="username"
                     aria-invalid={Boolean(fieldErrors.email)}
                     aria-describedby={fieldErrors.email ? "email-error" : undefined}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
                   />
                 </div>
                 {fieldErrors.email && (
@@ -363,10 +362,9 @@ const Auth = () => {
               </div>
             )}
 
-            {/* Password / Recovery */}
             {!isRecovery ? (
               <div>
-                <label htmlFor="password" className="text-sm font-medium text-card-foreground mb-1.5 block">
+                <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-900">
                   Senha
                 </label>
                 <div className="relative">
@@ -389,7 +387,7 @@ const Auth = () => {
                     autoComplete="current-password"
                     aria-invalid={Boolean(fieldErrors.password)}
                     aria-describedby={fieldErrors.password ? "password-error" : undefined}
-                    className="w-full pl-10 pr-11 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-11 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
                   />
                   <button
                     type="button"
@@ -410,7 +408,7 @@ const Auth = () => {
                     type="button"
                     onClick={handleForgotPassword}
                     disabled={resetLoading || loading}
-                    className="text-sm text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-sm text-amber-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {resetLoading ? "Enviando..." : "Esqueci minha senha"}
                   </button>
@@ -419,7 +417,7 @@ const Auth = () => {
             ) : (
               <div className="space-y-3">
                 <div>
-                  <label htmlFor="new-password" className="text-sm font-medium text-card-foreground mb-1.5 block">
+                  <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium text-slate-900">
                     Nova senha
                   </label>
                   <div className="relative">
@@ -444,7 +442,7 @@ const Auth = () => {
                       autoComplete="new-password"
                       aria-invalid={Boolean(fieldErrors.newPassword)}
                       aria-describedby={fieldErrors.newPassword ? "new-password-error" : undefined}
-                      className="w-full pl-10 pr-11 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-11 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
                     />
                     <button
                       type="button"
@@ -463,7 +461,7 @@ const Auth = () => {
                   <p className="mt-1 text-sm text-muted-foreground">{APP_PASSWORD_HINT}</p>
                 </div>
                 <div>
-                  <label htmlFor="confirm-password" className="text-sm font-medium text-card-foreground mb-1.5 block">
+                  <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium text-slate-900">
                     Confirmar nova senha
                   </label>
                   <div className="relative">
@@ -488,7 +486,7 @@ const Auth = () => {
                       autoComplete="new-password"
                       aria-invalid={Boolean(fieldErrors.confirmPassword)}
                       aria-describedby={fieldErrors.confirmPassword ? "confirm-password-error" : undefined}
-                      className="w-full pl-10 pr-11 py-2.5 rounded-lg border border-border bg-secondary/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-11 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
                     />
                     <button
                       type="button"
@@ -508,23 +506,21 @@ const Auth = () => {
               </div>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
-                disabled={loading || resetLoading || provisioningPendingOnboarding}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              disabled={loading || resetLoading || provisioningPendingOnboarding}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-                {loading || provisioningPendingOnboarding ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {provisioningPendingOnboarding ? "Concluindo..." : isRecovery ? "Atualizando..." : "Entrando..."}
-                  </>
-                ) : (
+              {loading || provisioningPendingOnboarding ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {provisioningPendingOnboarding ? "Concluindo..." : isRecovery ? "Atualizando..." : "Entrando..."}
+                </>
+              ) : (
                 isRecovery ? "Definir nova senha" : "Entrar"
               )}
             </button>
           </div>
-          
         </form>
       </div>
     </PublicLayout>

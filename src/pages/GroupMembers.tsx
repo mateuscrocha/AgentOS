@@ -396,7 +396,7 @@ const GroupMembers = () => {
       subtitle={`${(totalMembersCount ?? 0).toLocaleString("pt-BR")} membros${filteredCountLabel}`}
     >
       <TooltipProvider>
-        <div className="mx-auto max-w-[1480px] animate-fade-in space-y-6 bg-gradient-to-b from-background via-background to-info/5 pb-8 sm:pb-10">
+        <div className="mx-auto max-w-[1480px] animate-fade-in space-y-6 pb-8 sm:pb-10">
           <GroupPageTop
             breadcrumbItems={[
               { label: "Central de Comando", href: "/" },
@@ -488,7 +488,7 @@ const GroupMembers = () => {
                   />
                 ) : null}
 
-                <div className="hidden rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-3 shadow-subtle sm:flex sm:flex-col sm:items-start sm:gap-3">
+                <div className="hidden rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:flex sm:flex-col sm:items-start sm:gap-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Filter className="h-4 w-4" />
                     <span>Função no grupo</span>
@@ -501,8 +501,8 @@ const GroupMembers = () => {
                         className={cn(
                           "px-3 py-2 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                           roleFilter === opt.key
-                            ? "bg-primary text-primary-foreground border-transparent"
-                            : "bg-card/95 border-border/80 text-foreground hover:bg-secondary/35"
+                            ? "bg-amber-600 text-white border-transparent"
+                            : "bg-white border-slate-200 text-foreground hover:bg-amber-50"
                         )}
                         onClick={() => {
                           setRoleFilter(opt.key);
@@ -517,8 +517,8 @@ const GroupMembers = () => {
                   {hasActiveFilters ? (
                     <Button
                       type="button"
-                      variant="secondary"
-                      className="h-10 rounded-xl"
+                      variant="outline"
+                      className="h-10 rounded-xl border-amber-200 bg-white text-amber-950 hover:border-amber-400 hover:bg-amber-50"
                       onClick={() => {
                         setSearch("");
                         setRoleFilter("all");
@@ -531,7 +531,7 @@ const GroupMembers = () => {
                 </div>
 
                 <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
-                  <DrawerContent className="border-border bg-card">
+                  <DrawerContent className="border-slate-200 bg-white">
                     <DrawerHeader className="text-left">
                       <DrawerTitle>Filtrar membros</DrawerTitle>
                       <DrawerDescription>Refine por função para navegar mais rápido.</DrawerDescription>
@@ -547,8 +547,8 @@ const GroupMembers = () => {
                               className={cn(
                                 "px-3 py-2 rounded-xl text-sm font-medium transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                                 roleFilter === opt.key
-                                  ? "bg-primary text-primary-foreground border-transparent"
-                                  : "bg-card/90 border-border/80 text-foreground hover:bg-secondary/25"
+                                  ? "bg-amber-600 text-white border-transparent"
+                                  : "bg-white border-slate-200 text-foreground hover:bg-amber-50"
                               )}
                               onClick={() => {
                                 setRoleFilter(opt.key);
@@ -565,7 +565,8 @@ const GroupMembers = () => {
                       {hasActiveFilters ? (
                         <Button
                           type="button"
-                          variant="secondary"
+                          variant="outline"
+                          className="border-amber-200 bg-white text-amber-950 hover:border-amber-400 hover:bg-amber-50"
                           onClick={() => {
                             setSearch("");
                             setRoleFilter("all");
@@ -577,7 +578,7 @@ const GroupMembers = () => {
                         </Button>
                       ) : null}
                       <DrawerClose asChild>
-                        <Button type="button">Ver resultados</Button>
+                        <Button type="button" className="bg-amber-600 text-white hover:bg-amber-700">Ver resultados</Button>
                       </DrawerClose>
                     </DrawerFooter>
                   </DrawerContent>
@@ -591,7 +592,7 @@ const GroupMembers = () => {
               setPage(1);
             }}
             rightActions={
-              <Button type="button" variant="secondary" className="h-10 rounded-xl" onClick={handleExportMembers} disabled={isExporting || isLoading}>
+              <Button type="button" variant="outline" className="h-10 rounded-xl border-amber-200 bg-white text-amber-950 hover:border-amber-400 hover:bg-amber-50" onClick={handleExportMembers} disabled={isExporting || isLoading}>
                 {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Baixar membros
               </Button>
@@ -609,7 +610,7 @@ const GroupMembers = () => {
                 howToInterpret: "Mostra o tamanho atual da base do grupo, independentemente de atividade recente.",
                 whatToObserve: "Compare com ‘Admins’ e com métricas de atividade para entender distribuição e engajamento.",
               }}
-              className="border-info/20"
+              className="rounded-[24px] border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white shadow-sm"
               isLoading={overviewLoading}
             />
             <StatsCard
@@ -622,7 +623,7 @@ const GroupMembers = () => {
                 howToInterpret: "Indica o tamanho da camada de gestão/liderança no grupo.",
                 whatToObserve: "Observe a proporção de admins sobre o total para evitar excesso ou falta de cobertura.",
               }}
-              className="border-info/20"
+              className="rounded-[24px] border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white shadow-sm"
               isLoading={overviewLoading}
             />
             <StatsCard
@@ -635,7 +636,7 @@ const GroupMembers = () => {
                 howToInterpret: "Mede intensidade média de participação entre quem falou no período.",
                 whatToObserve: "Se subir com menos ativos, pode indicar concentração da conversa em poucas pessoas.",
               }}
-              className="border-info/20"
+              className="rounded-[24px] border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white shadow-sm"
               isLoading={overviewLoading}
             />
           </div>
@@ -666,7 +667,7 @@ const GroupMembers = () => {
                 return (
                   <article
                     key={m.id}
-                    className="cursor-pointer rounded-[24px] border border-slate-200/90 bg-white px-4 py-4 shadow-[0_22px_45px_-38px_rgba(15,23,42,0.35)] transition-[transform,background-color,box-shadow,border-color] hover:border-info/30 hover:bg-white hover:shadow-[0_30px_60px_-42px_rgba(14,165,233,0.28)] hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-5"
+                    className="cursor-pointer rounded-[24px] border border-slate-200/90 bg-white px-4 py-4 shadow-[0_22px_45px_-38px_rgba(15,23,42,0.35)] transition-[transform,background-color,box-shadow,border-color] hover:border-amber-300 hover:bg-white hover:shadow-[0_30px_60px_-42px_rgba(245,158,11,0.24)] hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-5"
                     onClick={() => setSelectedMemberId(m.id)}
                     role="button"
                     tabIndex={0}
@@ -706,7 +707,7 @@ const GroupMembers = () => {
                               {m.last_seen_message_at ? `Última atividade em ${formatDateSimpleBR(m.last_seen_message_at)}` : "Sem atividade recente"}
                             </span>
                             {m.joined_at ? (
-                              <span className="rounded-full border border-info/20 bg-info/10 px-2.5 py-1 font-medium text-info">
+                              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-medium text-amber-800">
                                 Entrou em {formatDateSimpleBR(m.joined_at)}
                               </span>
                             ) : null}
@@ -742,7 +743,7 @@ const GroupMembers = () => {
               if (totalPages <= 1) return null;
               const items = buildPagination(page, totalPages);
               return (
-                <div className="rounded-[var(--radius-lg)] border border-info/20 bg-card/95 px-4 py-3 shadow-subtle">
+                <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="text-sm text-muted-foreground">
                       Página <span className="font-medium text-foreground tabular-nums">{page}</span> de{" "}

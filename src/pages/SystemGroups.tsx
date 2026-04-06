@@ -75,6 +75,7 @@ interface OrganizationOption { id: string; name: string; }
 
 const PAGE_SIZE = 10;
 const WHATSAPP_INVITE_HOST_RE = /^(?:https?:\/\/)?chat\.whatsapp\.com\/[A-Za-z0-9]+$/i;
+let groupsOverviewRpcAvailable: boolean | null = null;
 
 function normalizeWhatsAppInviteLink(value: string): string {
   const trimmed = (value ?? "").trim();
@@ -290,19 +291,24 @@ export default function SystemGroups() {
         return code === "42883" || /function .*get_system_groups_overview/i.test(message);
       };
 
-      const { data: rpcData, error: rpcError } = await (supabase as any).rpc("get_system_groups_overview");
-      if (!rpcError) {
-        const payload = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-        return {
-          total: Number(payload?.total ?? 0),
-          active: Number(payload?.active ?? 0),
-          inactive: Number(payload?.inactive ?? 0),
-          avgMembers: Number(payload?.avg_members ?? payload?.avgMembers ?? 0),
-        };
-      }
+      if (groupsOverviewRpcAvailable !== false) {
+        const { data: rpcData, error: rpcError } = await (supabase as any).rpc("get_system_groups_overview");
+        if (!rpcError) {
+          groupsOverviewRpcAvailable = true;
+          const payload = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+          return {
+            total: Number(payload?.total ?? 0),
+            active: Number(payload?.active ?? 0),
+            inactive: Number(payload?.inactive ?? 0),
+            avgMembers: Number(payload?.avg_members ?? payload?.avgMembers ?? 0),
+          };
+        }
 
-      if (!isMissingGroupsOverviewRpcError(rpcError)) {
-        throw rpcError;
+        if (!isMissingGroupsOverviewRpcError(rpcError)) {
+          throw rpcError;
+        }
+
+        groupsOverviewRpcAvailable = false;
       }
 
       const [total, active, inactive] = await Promise.all([
@@ -844,7 +850,7 @@ export default function SystemGroups() {
         </section>
 
         <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <DrawerContent className="border-border bg-card">
+          <DrawerContent className="border-slate-200 bg-white">
             <DrawerHeader className="text-left">
               <DrawerTitle>Filtrar grupos</DrawerTitle>
               <DrawerDescription>Encontre mais rápido usando busca, organização, status e ordenação.</DrawerDescription>
@@ -856,7 +862,7 @@ export default function SystemGroups() {
               {hasActiveFilters && (
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="outline"
                   onClick={() => {
                     handleClearFilters();
                     setFiltersOpen(false);
@@ -887,7 +893,7 @@ export default function SystemGroups() {
           {isLoading ? (
             <div className="space-y-3">
               {[...Array(4)].map((_, idx) => (
-                <div key={idx} className="rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-4 shadow-subtle">
+                <div key={idx} className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-4 shadow-subtle">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1 space-y-2">
                       <Skeleton className="h-5 w-2/3" />
@@ -1019,7 +1025,7 @@ export default function SystemGroups() {
         </section>
 
         <AlertDialog open={!!removeGroup} onOpenChange={(open) => !open && setRemoveGroup(null)}>
-          <AlertDialogContent className="border-border bg-card">
+          <AlertDialogContent className="border-slate-200 bg-white">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Arquivar grupo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
@@ -1056,7 +1062,7 @@ export default function SystemGroups() {
         </AlertDialog>
 
         <AlertDialog open={!!editInviteGroup} onOpenChange={(open) => !open && setEditInviteGroup(null)}>
-          <AlertDialogContent className="border-border bg-card">
+          <AlertDialogContent className="border-slate-200 bg-white">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Editar link de convite</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
@@ -1102,7 +1108,7 @@ export default function SystemGroups() {
         </AlertDialog>
 
         <AlertDialog open={!!cascadeGroup} onOpenChange={(open) => !open && setCascadeGroup(null)}>
-          <AlertDialogContent className="border-border bg-card">
+          <AlertDialogContent className="border-slate-200 bg-white">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Excluir grupo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRoles } from "@/hooks/use-user-roles";
@@ -9,6 +10,7 @@ import { UserCircle, Mail, Shield, Key, LogOut, Save, AlertCircle, Loader2, Eye,
  
 import { notify } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { z } from "zod";
@@ -181,68 +183,73 @@ const Account = () => {
   }
 
   return (
-    <AdminLayout 
-      title="Minha Conta" 
+    <AdminLayout
+      title="Minha Conta"
       subtitle="Gerencie suas informações pessoais e segurança"
     >
-      <div className="space-y-6 animate-fade-in max-w-4xl">
-        {/* Profile header */}
-        <div className="flex items-center gap-4 p-6 rounded-xl border border-border bg-card">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
-            <UserCircle className="h-10 w-10 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-semibold text-card-foreground">
-              {profile?.name || user?.email?.split('@')[0] || 'Usuário'}
-            </h2>
-            <p className="text-sm text-muted-foreground">{user?.email || 'Não autenticado'}</p>
-            <div className="flex gap-2 mt-2">
-              {isAuthenticated && (
-                <>
-                  <span className="px-2 py-0.5 rounded-full bg-success/10 text-success text-xs font-medium">
-                    Autenticado
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                    {getRoleDisplay()}
-                  </span>
-                </>
-              )}
+      <div className="max-w-4xl space-y-6 animate-fade-in lg:space-y-7">
+        <AdminPageHeader
+          breadcrumbItems={[{ label: "Painel", href: "/" }, { label: "Minha conta" }]}
+          title="Minha conta"
+          description="Gerencie seus dados pessoais, credenciais de acesso e informações da sessão atual."
+        />
+
+        <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-[24px] bg-amber-100">
+              <UserCircle className="h-10 w-10 text-amber-700" />
             </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-semibold text-slate-950">
+                {profile?.name || user?.email?.split('@')[0] || 'Usuário'}
+              </h2>
+              <p className="text-sm text-slate-600">{user?.email || 'Não autenticado'}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {isAuthenticated && (
+                  <>
+                    <Badge variant="outline" className="h-7 border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-medium text-emerald-700">
+                      Autenticado
+                    </Badge>
+                    <Badge variant="outline" className="h-7 border-amber-200 bg-amber-50 px-2.5 text-[11px] font-medium text-amber-800">
+                      {getRoleDisplay()}
+                    </Badge>
+                  </>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="flex items-center gap-2 border-rose-200 bg-white text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
           </div>
-          <Button 
-            variant="destructive"
-            onClick={handleLogout}
-            className="flex items-center gap-2"
-          >
-            <LogOut className="h-4 w-4" />
-            Sair
-          </Button>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Personal info - editable */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Mail className="h-5 w-5 text-muted-foreground" />
-              <h3 className="font-semibold text-card-foreground">Informações Pessoais</h3>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100">
+                <Mail className="h-5 w-5 text-slate-600" />
+              </div>
+              <h3 className="font-semibold text-slate-950">Informações pessoais</h3>
             </div>
-            
+
             <div className="space-y-4">
-              {/* ID - read only */}
               <div>
-                <Label className="text-muted-foreground text-xs">ID</Label>
-                <p className="text-sm text-card-foreground font-mono">
+                <Label className="text-xs text-slate-500">ID</Label>
+                <p className="font-mono text-sm text-slate-950">
                   {user?.id || '-'}
                 </p>
               </div>
 
-              {/* Email - read only */}
               <div>
-                <Label className="text-muted-foreground text-xs">Email</Label>
-                <p className="text-sm text-card-foreground">{user?.email || '-'}</p>
+                <Label className="text-xs text-slate-500">Email</Label>
+                <p className="text-sm text-slate-950">{user?.email || '-'}</p>
               </div>
 
-              {/* Name - editable */}
               <div className="space-y-2">
                 <Label htmlFor="name">Nome</Label>
                 <div className="flex gap-2">
@@ -251,12 +258,13 @@ const Account = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Seu nome"
-                    className={nameError ? "border-destructive" : ""}
+                    className={nameError ? "border-destructive" : "border-slate-200 bg-slate-50"}
                   />
-                  <Button 
-                    onClick={handleSaveName} 
+                  <Button
+                    onClick={handleSaveName}
                     disabled={savingName || name === profile?.name}
                     size="sm"
+                    className="bg-amber-600 text-white hover:bg-amber-700"
                   >
                     {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   </Button>
@@ -269,39 +277,36 @@ const Account = () => {
                 )}
               </div>
 
-              {/* Role - read only */}
               <div>
-                <Label className="text-muted-foreground text-xs">Role Global</Label>
-                <p className="text-sm text-card-foreground">{getRoleDisplay()}</p>
+                <Label className="text-xs text-slate-500">Role global</Label>
+                <p className="text-sm text-slate-950">{getRoleDisplay()}</p>
               </div>
 
-              {/* Created at - read only */}
               <div>
-                <Label className="text-muted-foreground text-xs">Criado em</Label>
-                <p className="text-sm text-card-foreground">
+                <Label className="text-xs text-slate-500">Criado em</Label>
+                <p className="text-sm text-slate-950">
                   {user?.created_at ? formatDateSimpleBR(user.created_at) : '-'}
                 </p>
               </div>
             </div>
           </div>
-          
-          {/* Security - password change */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Shield className="h-5 w-5 text-muted-foreground" />
-              <h3 className="font-semibold text-card-foreground">Segurança</h3>
+
+          <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100">
+                <Shield className="h-5 w-5 text-amber-700" />
+              </div>
+              <h3 className="font-semibold text-slate-950">Segurança</h3>
             </div>
-            
+
             <div className="space-y-4">
-              {/* Password error */}
               {passwordError && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <div className="flex items-center gap-2 rounded-2xl border border-destructive/20 bg-destructive/10 p-3">
                   <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
                   <p className="text-sm text-destructive">{passwordError}</p>
                 </div>
               )}
 
-              {/* New password */}
               <div className="space-y-2">
                 <Label htmlFor="newPassword">Nova Senha</Label>
                 <div className="relative">
@@ -314,7 +319,7 @@ const Account = () => {
                     minLength={10}
                     maxLength={72}
                     autoComplete="new-password"
-                    className="pr-10"
+                    className="border-slate-200 bg-slate-50 pr-10"
                   />
                   <button
                     type="button"
@@ -339,30 +344,30 @@ const Account = () => {
                   minLength={10}
                   maxLength={72}
                   autoComplete="new-password"
+                  className="border-slate-200 bg-slate-50"
                 />
               </div>
 
-              <Button 
-                onClick={handleChangePassword} 
+              <Button
+                onClick={handleChangePassword}
                 disabled={savingPassword || !newPassword || !confirmPassword}
-                className="w-full"
+                className="w-full bg-amber-600 text-white hover:bg-amber-700"
               >
                 {savingPassword && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 <Key className="h-4 w-4 mr-2" />
                 Alterar Senha
               </Button>
 
-              {/* Session info */}
-              <div className="pt-4 border-t border-border space-y-2">
+              <div className="space-y-2 border-t border-slate-200 pt-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Último login</span>
-                  <span className="text-card-foreground">
+                  <span className="text-slate-950">
                     {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString('pt-BR', { timeZone: SAO_PAULO_TZ }) : '-'}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Método de acesso</span>
-                  <span className="text-card-foreground">
+                  <span className="text-slate-950">
                     {formatProviderLabel(user?.app_metadata?.provider || 'email')}
                   </span>
                 </div>

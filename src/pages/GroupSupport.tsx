@@ -997,11 +997,11 @@ const GroupSupport = () => {
           )}
         />
 
-        <section className="overflow-hidden rounded-[32px] border border-border/80 bg-card/95 shadow-subtle">
-          <div className="bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_36%),linear-gradient(135deg,hsl(var(--secondary)/0.34),transparent_74%)] px-5 py-6 sm:px-6 lg:px-7">
+        <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
+          <div className="bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.14),transparent_36%),linear-gradient(135deg,rgba(255,247,237,0.9),transparent_74%)] px-5 py-6 sm:px-6 lg:px-7">
             <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
               <div className="max-w-3xl space-y-3">
-                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-800">
                   <Headset className="h-3.5 w-3.5" />
                   Sala de operação
                 </div>
@@ -1017,7 +1017,7 @@ const GroupSupport = () => {
               </div>
               <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[640px]">
                 {supportOverviewCards.map((card) => (
-                  <div key={card.label} className="rounded-2xl border border-border/70 bg-background/85 p-4">
+                  <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{card.label}</div>
                     <div className="mt-2 truncate text-xl font-semibold tracking-[-0.03em] text-foreground sm:text-2xl">{card.value}</div>
                     <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{card.detail}</div>
@@ -1028,8 +1028,8 @@ const GroupSupport = () => {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[32px] border border-border/70 bg-card/95 shadow-subtle">
-          <div className="border-b border-border/70 px-5 py-5 sm:px-6">
+        <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
             <ExecutiveSectionHeader
               eyebrow="Indicadores"
               title="Painel operacional do atendimento"
@@ -1044,8 +1044,8 @@ const GroupSupport = () => {
               icon={Headset}
               variant="kpi"
               help={GROUP_SUPPORT_KPI_HELP.attendants}
-              className={`${GROUP_SUPPORT_KPI_CARD} border-sky-500/15 bg-gradient-to-br from-sky-500/[0.08] via-card to-card`}
-              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-sky-950 dark:text-sky-100`}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-slate-950`}
               description="Pessoas marcadas para contagem de atendimento"
             />
             <StatsCard
@@ -1054,8 +1054,8 @@ const GroupSupport = () => {
               icon={MessageSquare}
               variant="kpi"
               help={GROUP_SUPPORT_KPI_HELP.supportMessages}
-              className={`${GROUP_SUPPORT_KPI_CARD} border-cyan-500/15 bg-gradient-to-br from-cyan-500/[0.08] via-card to-card`}
-              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-cyan-950 dark:text-cyan-100`}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-slate-950`}
               description="Volume total enviado por suportes ativos"
             />
             <StatsCard
@@ -1064,8 +1064,8 @@ const GroupSupport = () => {
               icon={Activity}
               variant="kpi"
               help={GROUP_SUPPORT_KPI_HELP.participation}
-              className={`${GROUP_SUPPORT_KPI_CARD} border-teal-500/15 bg-gradient-to-br from-teal-500/[0.08] via-card to-card`}
-              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-teal-950 dark:text-teal-100`}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-slate-950`}
               description={`${(kpis?.totalMessages30d ?? 0).toLocaleString("pt-BR")} mensagens no grupo`}
             />
             <StatsCard
@@ -1074,8 +1074,8 @@ const GroupSupport = () => {
               icon={Clock3}
               variant="kpi"
               help={GROUP_SUPPORT_KPI_HELP.tmr}
-              className={`${GROUP_SUPPORT_KPI_CARD} border-violet-500/15 bg-gradient-to-br from-violet-500/[0.08] via-card to-card`}
-              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-violet-950 dark:text-violet-100`}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-slate-950`}
               description={`${(kpis?.answeredInteractions ?? 0).toLocaleString("pt-BR")} interações respondidas • horário comercial`}
             />
             <StatsCard
@@ -1084,8 +1084,8 @@ const GroupSupport = () => {
               icon={CheckCircle2}
               variant="kpi"
               help={GROUP_SUPPORT_KPI_HELP.sla}
-              className={`${GROUP_SUPPORT_KPI_CARD} border-emerald-500/15 bg-gradient-to-br from-emerald-500/[0.08] via-card to-card`}
-              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-emerald-950 dark:text-emerald-100`}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-white`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-emerald-800`}
               description={`${(kpis?.answeredWithinSla ?? 0).toLocaleString("pt-BR")} respostas no SLA`}
             />
             <StatsCard
@@ -1094,8 +1094,8 @@ const GroupSupport = () => {
               icon={MessageSquare}
               variant="kpi"
               help={GROUP_SUPPORT_KPI_HELP.pending}
-              className={`${GROUP_SUPPORT_KPI_CARD} border-rose-500/15 bg-gradient-to-br from-rose-500/[0.08] via-card to-card`}
-              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-rose-950 dark:text-rose-100`}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-rose-200/70 bg-gradient-to-br from-rose-50 via-white to-white`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-rose-800`}
               description={`${(kpis?.openPendingSlaBreached ?? 0).toLocaleString("pt-BR")} fora do SLA`}
             />
             <StatsCard
@@ -1104,8 +1104,8 @@ const GroupSupport = () => {
               icon={isGroupInactive ? Clock3 : CheckCircle2}
               variant="kpi"
               help={GROUP_SUPPORT_KPI_HELP.inactivity}
-              className={`${GROUP_SUPPORT_KPI_CARD} border-amber-500/15 bg-gradient-to-br from-amber-500/[0.10] via-card to-card`}
-              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-amber-950 dark:text-amber-100`}
+              className={`${GROUP_SUPPORT_KPI_CARD} border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white`}
+              valueClassName={`${GROUP_SUPPORT_KPI_VALUE} text-amber-800`}
               description={
                 lastMessageAt
                   ? `Última mensagem há ${(inactiveDays ?? 0).toLocaleString("pt-BR")} dia(s)`
@@ -1116,7 +1116,7 @@ const GroupSupport = () => {
         </section>
 
         {(kpis?.sequenceSampleCapped || kpis?.supportMessageSampleCapped || kpis?.demandClusterSampleCapped) && (
-          <div className="rounded-2xl border border-warning/30 bg-warning/5 p-3 text-xs text-warning">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
             Alguns indicadores aproximados usam amostragem da janela recente para manter performance em grupos com alto volume. TMR considera horário comercial (seg-sex, 08h-18h SP).
           </div>
         )}

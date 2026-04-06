@@ -174,7 +174,7 @@ const ROLE_META: Record<MemberRoleKey, { label: string; badgeClass: string }> = 
   },
   ADMIN: {
     label: "Admin",
-    badgeClass: "border-primary/25 bg-primary/10 text-primary",
+    badgeClass: "border-amber-200 bg-amber-50 text-amber-700",
   },
 };
 
@@ -885,7 +885,7 @@ export default function GroupEdit() {
 
   return (
     <AdminLayout title="Configurações do grupo" subtitle="Ajustes simples para o funcionamento do grupo no Bóris.">
-      <div className="animate-fade-in -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-8 sm:pb-10 bg-gradient-to-b from-background via-background to-primary/5 space-y-4">
+      <div className="animate-fade-in -mx-4 space-y-4 px-4 pb-8 pt-4 sm:-mx-6 sm:px-6 sm:pb-10 sm:pt-6">
         <GroupPageTop
           breadcrumbItems={breadcrumbItems}
           group={{
@@ -934,7 +934,7 @@ export default function GroupEdit() {
                   </div>
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="outline"
                     className="h-9 rounded-xl"
                     onClick={() => setShowTechnicalOptions((v) => !v)}
                   >
@@ -1019,7 +1019,7 @@ export default function GroupEdit() {
                   connectionStatus.variant === "success"
                     ? "bg-success/10"
                     : connectionStatus.variant === "warning"
-                    ? "bg-warning/10"
+                    ? "bg-amber-50"
                     : "bg-destructive/10",
                 )}
               >
@@ -1049,7 +1049,7 @@ export default function GroupEdit() {
             </div>
 
             <div className="mt-5 space-y-4">
-              <div className="rounded-[20px] border border-border/70 bg-secondary/10 px-4 py-3 text-sm text-muted-foreground">
+              <div className="rounded-[20px] border border-amber-200/70 bg-amber-50 px-4 py-3 text-sm text-slate-600">
                 {connectionStatusHint}
               </div>
 
@@ -1090,10 +1090,10 @@ export default function GroupEdit() {
                   </div>
                   <Button
                     type="button"
-                    variant="secondary"
-                    className="h-9 rounded-xl"
-                    onClick={() => setShowWhatsAppAdmins((v) => !v)}
-                  >
+                      variant="outline"
+                      className="h-9 rounded-xl"
+                      onClick={() => setShowWhatsAppAdmins((v) => !v)}
+                    >
                     {showWhatsAppAdmins ? "Ocultar" : "Ver lista"}
                   </Button>
                 </div>
@@ -1108,7 +1108,7 @@ export default function GroupEdit() {
                       {orderedSpecialMembers.map((m) => {
                         const role = ROLE_META[m.roleKey];
                         return (
-                          <div key={m.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border/70 bg-card/85">
+                          <div key={m.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
                             <div className="min-w-0">
                               <div className="text-sm font-medium text-card-foreground truncate">{m.fullName}</div>
                               <div className="text-xs text-muted-foreground truncate">{m.username || m.whatsapp}</div>
@@ -1162,13 +1162,13 @@ export default function GroupEdit() {
                 <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/60 p-4">
                   <div className="text-sm font-semibold text-card-foreground">Última execução analítica</div>
                   <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg border border-border/60 bg-secondary/20 p-3">
+                    <div className="rounded-lg border border-slate-200 bg-white p-3">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Resumo</div>
                       <div className="mt-1 text-sm font-medium text-card-foreground">
                         {latestSummary?.summary_date ? String(latestSummary.summary_date) : "Nunca executado"}
                       </div>
                     </div>
-                    <div className="rounded-lg border border-border/60 bg-secondary/20 p-3">
+                    <div className="rounded-lg border border-slate-200 bg-white p-3">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Tópicos/keywords</div>
                       <div className="mt-1 text-sm font-medium text-card-foreground">
                         {latestTopicsSnapshot?.topic_date ? String(latestTopicsSnapshot.topic_date) : "Nunca executado"}
@@ -1187,7 +1187,7 @@ export default function GroupEdit() {
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant="outline"
                       className="rounded-xl"
                       onClick={() => runSummaryNowMutation.mutate()}
                       disabled={runSummaryNowMutation.isPending}
@@ -1196,7 +1196,7 @@ export default function GroupEdit() {
                     </Button>
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant="outline"
                       className="rounded-xl"
                       onClick={() => sendSummaryNowMutation.mutate()}
                       disabled={sendSummaryNowMutation.isPending}
@@ -1205,7 +1205,7 @@ export default function GroupEdit() {
                     </Button>
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant="outline"
                       className="rounded-xl"
                       onClick={() => runTopicsNowMutation.mutate()}
                       disabled={runTopicsNowMutation.isPending}
@@ -1215,13 +1215,13 @@ export default function GroupEdit() {
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-2 text-[11px] text-muted-foreground sm:grid-cols-3">
-                  <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2">
+                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                     <span className="font-medium text-foreground">Gerar resumo agora</span> cria uma leitura para revisão interna sem publicar no grupo.
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2">
+                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                     <span className="font-medium text-foreground">Enviar resumo no grupo</span> gera e publica o resumo imediatamente, mesmo fora do horário automático.
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2">
+                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                     <span className="font-medium text-foreground">Gerar tópicos/keywords agora</span> atualiza a leitura analítica sem enviar mensagem no grupo.
                   </div>
                 </div>
@@ -1233,15 +1233,15 @@ export default function GroupEdit() {
                     <div className="text-sm font-semibold text-card-foreground">Central de automações</div>
                     <div className="mt-0.5 text-xs text-muted-foreground">As opções abaixo alimentam diretamente o backend do Bóris.</div>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs text-muted-foreground">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
                     <span className="font-semibold text-foreground">{activeAutomationsCount}</span>
                     <span>{activeAutomationsCount === 1 ? "automação ativa" : "automações ativas"}</span>
                   </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                  <div className="rounded-[20px] border border-border/70 bg-background/80 px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ativas agora</div>
+                  <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Ativas agora</div>
                     <div className="mt-1 text-2xl font-semibold text-foreground">{activeAutomationsCount}</div>
                     <div className="mt-1 text-xs text-muted-foreground">Total de rotinas ligadas neste grupo.</div>
                   </div>
@@ -1257,7 +1257,7 @@ export default function GroupEdit() {
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-[20px] border border-border/70 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
+                <div className="mt-4 rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
                   Ligue primeiro o que precisa rodar no dia a dia, ajuste o horário do resumo quando necessário e deixe as ações manuais para testes ou disparos pontuais.
                 </div>
 
@@ -1267,7 +1267,7 @@ export default function GroupEdit() {
                     const enabled = !!automationsEnabled[key];
                     const isPreparedOnly = info.availability === "prepared";
                     return (
-                      <div key={key} className="rounded-xl border border-border/70 bg-card/85 p-4">
+                      <div key={key} className="rounded-xl border border-slate-200 bg-white p-4">
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
@@ -1276,8 +1276,8 @@ export default function GroupEdit() {
                                 className={cn(
                                   "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
                                   enabled
-                                    ? "border-primary/25 bg-primary/10 text-primary"
-                                    : "border-border/80 bg-secondary/30 text-muted-foreground",
+                                    ? "border-amber-200 bg-amber-50 text-amber-700"
+                                    : "border-slate-200 bg-slate-100 text-slate-500",
                                 )}
                               >
                                 {enabled ? "Ligado" : "Desligado"}
@@ -1342,6 +1342,7 @@ export default function GroupEdit() {
                                 </div>
                               </div>
                             ) : null}
+
                           </div>
 
                           <Switch
@@ -1366,7 +1367,7 @@ export default function GroupEdit() {
               </div>
               <Button
                 type="button"
-                variant="secondary"
+                variant="outline"
                 className="h-10 rounded-xl"
                 onClick={() => setShowSensitiveActions((v) => !v)}
               >
@@ -1393,7 +1394,7 @@ export default function GroupEdit() {
                 </div>
               </div>
             ) : (
-              <div className="mt-4 rounded-xl border border-border/70 bg-secondary/10 px-4 py-3 text-sm text-muted-foreground">
+              <div className="mt-4 rounded-xl border border-amber-200/70 bg-amber-50 px-4 py-3 text-sm text-slate-600">
                 A maioria das pessoas não precisa mexer nessas opções no dia a dia.
               </div>
             )}
@@ -1420,7 +1421,7 @@ export default function GroupEdit() {
         </div>
 
         <AlertDialog open={confirmRemoveOpen} onOpenChange={setConfirmRemoveOpen}>
-          <AlertDialogContent className="bg-card border-border">
+          <AlertDialogContent className="border-slate-200 bg-white">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Arquivar grupo</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">

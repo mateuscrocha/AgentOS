@@ -1,5 +1,5 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Activity, AlertTriangle, Calendar, FileText, Filter, Search, Shield, UserCog, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -7,7 +7,6 @@ import { useUserRoles } from "@/hooks/use-user-roles";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminPageHeader } from "@/components/layout/AdminPageHeader";
 import { ListSectionHeader } from "@/components/dashboard/ListSectionHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ADMIN_MICROCOPY } from "@/components/dashboard/admin-microcopy";
 import { BorisTable, type BorisColumn } from "@/components/ui/boris-table";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +39,6 @@ import {
 } from "@/lib/system-events";
 
 const PAGE_SIZE = 100;
-const MAX_EVENTS = 2000;
 
 const ENTITY_TYPES = [
   { value: "all", label: "Todas as entidades" },
@@ -103,15 +101,19 @@ export default function SystemEvents() {
   const periodLabel = `${formatDateSimpleBR(currentRange.from)} — ${formatDateSimpleBR(currentRange.to)}`;
 
   const eventsQuery = useQuery({
-    queryKey: ["system-events", currentStartISO, currentEndISO],
+    queryKey: ["system-events", currentStartISO, currentEndISO, entityType, eventType, page],
     queryFn: async () => {
-      const { data, error, count } = await supabase
+      let query = supabase
         .from("events")
         .select("*", { count: "exact" })
         .gte("created_at", currentStartISO)
         .lte("created_at", currentEndISO)
-        .order("created_at", { ascending: false })
-        .range(0, MAX_EVENTS - 1);
+        .order("created_at", { ascending: false });
+
+      if (entityType !== "all") query = query.eq("entity_type", entityType);
+      if (eventType !== "all") query = query.eq("event_type", eventType);
+
+      const { data, error, count } = await query.range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
       if (error) throw error;
       return {
@@ -120,11 +122,12 @@ export default function SystemEvents() {
       };
     },
     enabled: isSystemAdmin,
+    placeholderData: keepPreviousData,
   });
 
   const allEvents = eventsQuery.data?.events ?? [];
   const totalEventsInPeriod = eventsQuery.data?.total ?? 0;
-  const hasTruncation = totalEventsInPeriod > allEvents.length;
+  const hasLocalOnlyFilters = quickFilter !== "all" || !!deferredSearch.trim();
 
   const eventTypes = useMemo(() => {
     return [...new Set(allEvents.map((event) => event.event_type).filter(Boolean))].sort((a, b) => a.localeCompare(b));
@@ -134,23 +137,21 @@ export default function SystemEvents() {
     const search = deferredSearch.trim().toLowerCase();
 
     return allEvents.filter((event) => {
-      if (entityType !== "all" && event.entity_type !== entityType) return false;
-      if (eventType !== "all" && event.event_type !== eventType) return false;
       if (!matchesAuditQuickFilter(event, quickFilter)) return false;
       if (search && !buildSystemEventSearchText(event).includes(search)) return false;
       return true;
     });
-  }, [allEvents, entityType, eventType, quickFilter, deferredSearch]);
+  }, [allEvents, quickFilter, deferredSearch]);
 
   const overview = useMemo(() => buildAuditOverview(filteredEvents), [filteredEvents]);
   const dailySeries = useMemo(() => buildDailyAuditSeries(filteredEvents, currentRange.from, currentRange.to), [filteredEvents, currentRange.from, currentRange.to]);
   const activeBarMax = Math.max(1, ...dailySeries.map((item) => item.count));
 
-  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / PAGE_SIZE));
-  const pagedEvents = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredEvents.slice(start, start + PAGE_SIZE);
-  }, [filteredEvents, page]);
+  const totalPages = Math.max(
+    1,
+    Math.ceil((hasLocalOnlyFilters ? filteredEvents.length : totalEventsInPeriod) / PAGE_SIZE),
+  );
+  const pagedEvents = hasLocalOnlyFilters ? filteredEvents : allEvents;
 
   useEffect(() => {
     setPage(1);
@@ -205,7 +206,7 @@ export default function SystemEvents() {
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={severityBadgeClass(severity)}>{labelSeverity(severity)}</Badge>
               <Badge variant="outline" className={outcomeBadgeClass(outcome)}>{labelOutcome(outcome)}</Badge>
-              <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">{humanizeEventType(event.event_type)}</Badge>
+              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">{humanizeEventType(event.event_type)}</Badge>
             </div>
             <div>
               <p className="text-sm font-medium text-card-foreground">{getEventSummary(event)}</p>
@@ -270,15 +271,93 @@ export default function SystemEvents() {
 
   return (
     <AdminLayout title="Eventos do Sistema" subtitle="Auditoria e observabilidade">
-      <div className="space-y-8">
+      <div className="space-y-6 lg:space-y-7">
         <AdminPageHeader
           breadcrumbItems={[{ label: "Central de Comando", href: "/" }, { label: "Eventos" }]}
           title="Auditoria do Sistema"
-          description="Monitore acessos, falhas e ações sensíveis em uma superfície de investigação operacional."
-          filters={(
-            <div className="flex w-full flex-wrap gap-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+          description="Monitore acessos, falhas e ações sensíveis com leitura direta para investigação operacional."
+        />
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {[
+            {
+              label: "Eventos no recorte",
+              value: overview.total.toLocaleString("pt-BR"),
+              note: "Volume de auditoria após os filtros ativos.",
+              icon: Activity,
+            },
+            {
+              label: "Falhas detectadas",
+              value: overview.failures.toLocaleString("pt-BR"),
+              note: "Erros, bloqueios ou negações registradas.",
+              icon: AlertTriangle,
+            },
+            {
+              label: "Ações sensíveis",
+              value: overview.sensitive.toLocaleString("pt-BR"),
+              note: "Mudanças administrativas e operações críticas.",
+              icon: Shield,
+            },
+            {
+              label: "Atores únicos",
+              value: overview.uniqueActors.toLocaleString("pt-BR"),
+              note: "Usuários ou processos distintos no período.",
+              icon: Users,
+            },
+            {
+              label: "Ações admin",
+              value: overview.adminActions.toLocaleString("pt-BR"),
+              note: "Alterações ligadas a papéis e gestão.",
+              icon: UserCog,
+            },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.label} className="rounded-[24px] border border-amber-200/70 bg-gradient-to-b from-white to-amber-50/60 p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-amber-800">{item.label}</p>
+                  <div className="rounded-full bg-amber-100 p-2 text-amber-700">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className={cn(
+                  "mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-950",
+                  item.label === "Falhas detectadas" && overview.failures > 0 && "text-rose-700",
+                )}>
+                  {item.value}
+                </div>
+                <p className="mt-2 text-sm text-slate-600">{item.note}</p>
+              </div>
+            );
+          })}
+        </section>
+
+        <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Filtros</p>
+              <p className="text-sm text-slate-600">Refine o recorte por período, entidade, tipo e sinais prioritários.</p>
+            </div>
+            {activeFilters.length > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={clearAllFilters}
+                className="border-amber-200 bg-white text-amber-950 hover:border-amber-400 hover:bg-amber-50"
+              >
+                Limpar filtros
+              </Button>
+            ) : null}
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-[1.1fr_1fr_220px_260px]">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+                <Calendar className="h-3.5 w-3.5" />
+                Período
+              </div>
+              <div className="flex min-h-10 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3">
                 <PeriodFilter
                   value={selectedPeriod}
                   customRange={customRange}
@@ -287,128 +366,96 @@ export default function SystemEvents() {
                     setCustomRange(period === "custom" ? range : undefined);
                   }}
                 />
-                <span className="text-xs text-muted-foreground">{ADMIN_MICROCOPY.labels.selectedPeriod}: {periodLabel}</span>
+                <span className="text-xs text-slate-500">{ADMIN_MICROCOPY.labels.selectedPeriod}: {periodLabel}</span>
               </div>
+            </div>
 
-              <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-md border border-input bg-background px-3">
-                <Search className="h-4 w-4 text-muted-foreground" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+                <Search className="h-3.5 w-3.5" />
+                Busca
+              </div>
+              <div className="flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3">
+                <Search className="h-4 w-4 text-slate-400" />
                 <Input
                   value={searchTerm}
                   onChange={(event) => startTransition(() => setSearchTerm(event.target.value))}
-                  placeholder="Buscar por usuário, alvo, IP, código ou resumo"
-                  className="border-0 px-0 shadow-none focus-visible:ring-0"
+                  placeholder="Usuário, alvo, IP, código ou resumo"
+                  className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
                 />
               </div>
-
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select value={entityType} onValueChange={setEntityType}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ENTITY_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <Select value={eventType} onValueChange={setEventType}>
-                  <SelectTrigger className="w-[220px]">
-                    <SelectValue placeholder="Tipo de evento" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os tipos</SelectItem>
-                    {eventTypes.map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
-          )}
-          showClearFilters={activeFilters.length > 0}
-          onClearFilters={clearAllFilters}
-          filteredKpis={(
-            <>
-              <StatsCard
-                title="Eventos no recorte"
-                value={overview.total.toLocaleString("pt-BR")}
-                icon={Activity}
-                variant="kpi"
-                numericValue
-                description="Volume de auditoria após os filtros ativos."
-              />
-              <StatsCard
-                title="Falhas detectadas"
-                value={overview.failures.toLocaleString("pt-BR")}
-                icon={AlertTriangle}
-                variant="kpi"
-                numericValue
-                valueClassName={overview.failures > 0 ? "text-destructive" : undefined}
-                description="Eventos com padrão de erro, bloqueio ou negação."
-              />
-              <StatsCard
-                title="Ações sensíveis"
-                value={overview.sensitive.toLocaleString("pt-BR")}
-                icon={Shield}
-                variant="kpi"
-                numericValue
-                description="Operações administrativas, autenticação e alteração de papéis."
-              />
-              <StatsCard
-                title="Atores únicos"
-                value={overview.uniqueActors.toLocaleString("pt-BR")}
-                icon={Users}
-                variant="kpi"
-                numericValue
-                description="Usuários ou processos distintos no recorte atual."
-              />
-              <StatsCard
-                title="Ações admin"
-                value={overview.adminActions.toLocaleString("pt-BR")}
-                icon={UserCog}
-                variant="kpi"
-                numericValue
-                description="Mudanças ligadas a papéis e contexto administrativo."
-              />
-            </>
-          )}
-        />
 
-        <div className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {QUICK_FILTERS.map((option) => {
-              const active = quickFilter === option.value;
-              return (
-                <Button
-                  key={option.value}
-                  type="button"
-                  variant={active ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setQuickFilter(option.value)}
-                  className={cn("rounded-full", active && "shadow-none")}
-                >
-                  {option.label}
-                </Button>
-              );
-            })}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+                <Filter className="h-3.5 w-3.5" />
+                Entidade
+              </div>
+              <Select value={entityType} onValueChange={setEntityType}>
+                <SelectTrigger className="h-10 border-slate-200 bg-slate-50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ENTITY_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+                <FileText className="h-3.5 w-3.5" />
+                Tipo de evento
+              </div>
+              <Select value={eventType} onValueChange={setEventType}>
+                <SelectTrigger className="h-10 border-slate-200 bg-slate-50">
+                  <SelectValue placeholder="Tipo de evento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  {eventTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <FilterChips items={activeFilters} onClearAll={clearAllFilters} clearLabel="Limpar tudo" />
+
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {QUICK_FILTERS.map((option) => {
+                const active = quickFilter === option.value;
+                return (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setQuickFilter(option.value)}
+                    className={cn(
+                      "rounded-full border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white",
+                      active && "border-amber-600 bg-amber-600 text-white hover:border-amber-700 hover:bg-amber-700",
+                    )}
+                  >
+                    {option.label}
+                  </Button>
+                );
+              })}
+            </div>
+            <FilterChips items={activeFilters} onClearAll={clearAllFilters} clearLabel="Limpar tudo" />
+          </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-          <Card className="border-border/80 bg-card/95">
+          <Card className="rounded-[24px] border-slate-200 bg-white shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Alertas recentes</CardTitle>
               <CardDescription>Priorize eventos sensíveis e falhas antes de entrar no log completo.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {overview.recentAlerts.length === 0 ? (
-                <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-muted-foreground">
                   Nenhum alerta relevante no recorte atual.
                 </div>
               ) : (
@@ -417,7 +464,7 @@ export default function SystemEvents() {
                     key={alert.id}
                     type="button"
                     onClick={() => setSelectedEvent(filteredEvents.find((event) => event.id === alert.id) ?? null)}
-                    className="flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-4 py-3 text-left transition-colors hover:bg-secondary/30"
+                    className="flex w-full items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition-colors hover:bg-amber-50/50"
                   >
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -434,7 +481,7 @@ export default function SystemEvents() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/95">
+          <Card className="rounded-[24px] border-slate-200 bg-white shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Ritmo do período</CardTitle>
               <CardDescription>Picos de volume ajudam a contextualizar incidentes e campanhas.</CardDescription>
@@ -447,7 +494,7 @@ export default function SystemEvents() {
                       <div
                         className={cn(
                           "w-6 rounded-t-md",
-                          item.count > 0 ? "bg-primary/80" : "bg-secondary",
+                          item.count > 0 ? "bg-amber-500/80" : "bg-slate-200",
                         )}
                         style={{ height: `${Math.max(8, (item.count / activeBarMax) * 100)}%` }}
                         title={`${item.label}: ${item.count}`}
@@ -458,21 +505,19 @@ export default function SystemEvents() {
                   </div>
                 ))}
               </div>
-              {hasTruncation ? (
-                <p className="mt-4 text-xs text-warning">
-                  O painel resumiu os primeiros {MAX_EVENTS.toLocaleString("pt-BR")} eventos do período. Refine os filtros para investigar com precisão.
-                </p>
-              ) : null}
+              <p className="mt-4 text-xs text-slate-500">
+                A linha do tempo usa paginação no banco para manter a investigação mais rápida em períodos longos.
+              </p>
             </CardContent>
           </Card>
         </div>
 
         <ListSectionHeader
           title="Linha do tempo de auditoria"
-          count={filteredEvents.length.toLocaleString("pt-BR")}
+          count={(hasLocalOnlyFilters ? filteredEvents.length : totalEventsInPeriod).toLocaleString("pt-BR")}
           statusLabel={
-            hasTruncation
-              ? "recorte carregado parcialmente para manter a investigação responsiva"
+            hasLocalOnlyFilters
+              ? "busca rápida aplicada sobre a página carregada"
               : activeFilters.length > 0
                 ? ADMIN_MICROCOPY.listStatus.filtered
                 : ADMIN_MICROCOPY.listStatus.periodRecords
@@ -480,27 +525,29 @@ export default function SystemEvents() {
           isLoading={eventsQuery.isLoading}
         />
 
-        <BorisTable
-          columns={columns as BorisColumn<AuditEvent>[]}
-          data={pagedEvents}
-          keyExtractor={(event) => event.id}
-          onRowClick={(event) => setSelectedEvent(event)}
-          page={page}
-          pageSize={PAGE_SIZE}
-          totalCount={filteredEvents.length}
-          onPageChange={setPage}
-          loading={eventsQuery.isLoading}
-          error={eventsQuery.error ? true : false}
-          emptyIcon={FileText}
-          emptyMessage="Nenhum evento corresponde aos filtros atuais."
-          density="comfortable"
-          rowClassName={(event) => {
-            const severity = getAuditSeverity(event);
-            if (severity === "high") return "bg-destructive/[0.03]";
-            if (severity === "medium") return "bg-warning/[0.03]";
-            return undefined;
-          }}
-        />
+        <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+          <BorisTable
+            columns={columns as BorisColumn<AuditEvent>[]}
+            data={pagedEvents}
+            keyExtractor={(event) => event.id}
+            onRowClick={(event) => setSelectedEvent(event)}
+            page={page}
+            pageSize={PAGE_SIZE}
+            totalCount={hasLocalOnlyFilters ? filteredEvents.length : totalEventsInPeriod}
+            onPageChange={setPage}
+            loading={eventsQuery.isLoading}
+            error={eventsQuery.error ? true : false}
+            emptyIcon={FileText}
+            emptyMessage="Nenhum evento corresponde aos filtros atuais."
+            density="comfortable"
+            rowClassName={(event) => {
+              const severity = getAuditSeverity(event);
+              if (severity === "high") return "bg-destructive/[0.03]";
+              if (severity === "medium") return "bg-warning/[0.03]";
+              return undefined;
+            }}
+          />
+        </div>
 
         <Sheet open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
           <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
@@ -517,7 +564,7 @@ export default function SystemEvents() {
                     <Badge variant="outline" className={outcomeBadgeClass(getAuditOutcome(selectedEvent))}>
                       {labelOutcome(getAuditOutcome(selectedEvent))}
                     </Badge>
-                    <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
+                    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
                       {humanizeEventType(selectedEvent.event_type)}
                     </Badge>
                   </div>

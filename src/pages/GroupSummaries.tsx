@@ -193,11 +193,11 @@ function DiaryContent({
         <div className="flex flex-col gap-5">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary" className="rounded-full border border-primary/15 bg-primary/[0.08] px-3 text-primary hover:bg-primary/[0.08]">
+              <Badge variant="secondary" className="rounded-full border border-amber-200 bg-amber-50 px-3 text-amber-800 hover:bg-amber-50">
                 Visão do período
               </Badge>
               {selectedKeyword ? (
-                <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/80 px-3">
+                <Badge variant="secondary" className="rounded-full border border-slate-200 bg-white px-3">
                   Filtro ativo: {cleanInlineLabel(selectedKeyword)}
                 </Badge>
               ) : null}
@@ -212,7 +212,7 @@ function DiaryContent({
             </div>
           </div>
 
-          <div className="grid gap-3 border-t border-border/70 pt-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2 xl:grid-cols-4">
             {periodMetrics.map((item) => (
               <div key={item.label} className="space-y-1">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -247,7 +247,7 @@ function DiaryContent({
                         <div
                           className={cn(
                             "absolute left-0 top-4 h-4 w-4 rounded-full border-2 bg-background",
-                            isActive ? "border-primary bg-primary/15" : "border-border/80",
+                            isActive ? "border-amber-500 bg-amber-100" : "border-border/80",
                           )}
                         />
                         <button
@@ -255,8 +255,8 @@ function DiaryContent({
                           onClick={() => onSelectDay(day.id)}
                           className={cn(
                             "mb-3 w-full min-w-0 max-w-full rounded-[var(--radius-lg)] border px-3 py-3 text-left shadow-subtle transition-colors",
-                            "border-border/40 bg-background/70 hover:bg-secondary/25",
-                            isActive && "border-primary/25 bg-primary/[0.05]",
+                            "border-slate-200 bg-white hover:bg-amber-50/60",
+                            isActive && "border-amber-200 bg-amber-50/70",
                           )}
                         >
                           <div className="min-w-0 text-sm font-medium text-card-foreground whitespace-normal break-words">
@@ -275,11 +275,11 @@ function DiaryContent({
 
             <div className="mt-4">
               {hasMoreDays ? (
-                <Button variant="secondary" className="w-full" onClick={onLoadMore}>
+                <Button variant="outline" className="w-full border-amber-200 bg-white text-slate-700 hover:bg-amber-50" onClick={onLoadMore}>
                   Carregar mais (+30)
                 </Button>
               ) : (
-                <div className="rounded-[var(--radius-lg)] border border-border/70 bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
+                <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-muted-foreground">
                   Todos os dias disponíveis já estão carregados.
                 </div>
               )}
@@ -293,7 +293,7 @@ function DiaryContent({
         <div className="space-y-7">
           <div className="md:hidden">
             <Select value={openSummaryId || ""} onValueChange={onSelectDay}>
-              <SelectTrigger className="w-full rounded-[var(--radius-lg)] border-border/80 bg-card/95 shadow-subtle">
+              <SelectTrigger className="w-full rounded-[var(--radius-lg)] border-slate-200 bg-white shadow-sm">
                 <SelectValue placeholder="Selecione um dia" />
               </SelectTrigger>
               <SelectContent>
@@ -321,7 +321,7 @@ function DiaryContent({
 
                 <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:min-w-[360px]">
                   {selectedDayMetrics.map((item) => (
-                    <div key={item.label} className="rounded-[var(--radius-md)] border border-border/60 bg-background/70 px-3 py-3 shadow-subtle">
+                    <div key={item.label} className="rounded-[var(--radius-md)] border border-slate-200 bg-white px-3 py-3 shadow-subtle">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                         {item.label}
                       </div>
@@ -333,22 +333,22 @@ function DiaryContent({
 
               <div className="flex flex-wrap gap-2">
                 {selectedPrimaryTopic ? (
-                  <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/90 px-3 py-1 text-foreground hover:bg-background/90">
+                  <Badge variant="secondary" className="rounded-full border border-slate-200 bg-white px-3 py-1 text-foreground hover:bg-white">
                     Tema principal: {cleanInlineLabel(selectedPrimaryTopic.topic.title || "")}
                   </Badge>
                 ) : null}
                 {selectedSummary?.painsCount ? (
-                  <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/90 px-3 py-1 hover:bg-background/90">
+                  <Badge variant="secondary" className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-white">
                     {selectedSummary.painsCount} dores
                   </Badge>
                 ) : null}
                 {selectedSummary?.desiresCount ? (
-                  <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/90 px-3 py-1 hover:bg-background/90">
+                  <Badge variant="secondary" className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-white">
                     {selectedSummary.desiresCount} oportunidades
                   </Badge>
                 ) : null}
                 {selectedSummary?.keywords.length ? (
-                  <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/90 px-3 py-1 hover:bg-background/90">
+                  <Badge variant="secondary" className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-white">
                     {selectedSummary.keywords.length} termos capturados
                   </Badge>
                 ) : null}
@@ -395,7 +395,7 @@ function DiaryContent({
                   />
                 ))
               ) : (
-                <Card className="rounded-[var(--radius-lg)] border border-dashed border-border/80 bg-muted/20 p-5 shadow-subtle">
+                <Card className="rounded-[var(--radius-lg)] border border-dashed border-slate-200 bg-slate-50 p-5 shadow-subtle">
                   <div className="space-y-2">
                     <div className="text-sm font-medium text-foreground">Nenhum tópico identificado neste dia</div>
                     <div className="text-sm leading-relaxed text-muted-foreground">
@@ -411,7 +411,7 @@ function DiaryContent({
 
               {visibleTopics.hiddenCount > 0 ? (
                 <div className="flex items-center gap-3">
-                  <Button variant="secondary" onClick={onToggleShowAllTopics}>
+                  <Button variant="outline" className="border-amber-200 bg-white text-slate-700 hover:bg-amber-50" onClick={onToggleShowAllTopics}>
                     {visibleTopics.showAll
                       ? "Mostrar menos"
                       : `Mostrar mais (${visibleTopics.hiddenCount})`}
@@ -439,7 +439,7 @@ function DiaryContent({
                   <div className="flex flex-wrap items-center gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="secondary" onClick={onCopyPlain} className="gap-2">
+                        <Button variant="outline" onClick={onCopyPlain} className="gap-2 border-amber-200 bg-white text-slate-700 hover:bg-amber-50">
                           {plainCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                           Texto limpo
                         </Button>
@@ -449,7 +449,7 @@ function DiaryContent({
 
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="secondary" onClick={onCopyRaw} className="gap-2">
+                        <Button variant="outline" onClick={onCopyRaw} className="gap-2 border-amber-200 bg-white text-slate-700 hover:bg-amber-50">
                           {rawCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                           Texto original
                         </Button>
@@ -459,8 +459,8 @@ function DiaryContent({
                   </div>
                 </div>
 
-                <div className="rounded-[var(--radius-lg)] border border-border/70 bg-background px-6 py-6 shadow-subtle sm:px-8 sm:py-8">
-                  <div className="mx-auto max-w-[78ch] border-l border-border/60 pl-5 sm:pl-7">
+                <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-white px-6 py-6 shadow-subtle sm:px-8 sm:py-8">
+                  <div className="mx-auto max-w-[78ch] border-l border-amber-200 pl-5 sm:pl-7">
                     <div className="mb-6 space-y-2">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         {selectedDateLabel}
@@ -476,7 +476,7 @@ function DiaryContent({
                 </div>
 
                 {selectedPrimaryTopic ? (
-                  <div className="rounded-[var(--radius-lg)] border border-border/70 bg-muted/15 px-5 py-4 shadow-subtle">
+                  <div className="rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 px-5 py-4 shadow-subtle">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Tese central do dia
                     </div>
@@ -514,7 +514,7 @@ function DiaryContent({
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       {selectedKeyword ? (
-                        <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/80 px-3">
+                        <Badge variant="secondary" className="rounded-full border border-slate-200 bg-white px-3">
                           {cleanInlineLabel(selectedKeyword)}
                         </Badge>
                       ) : null}
@@ -523,7 +523,7 @@ function DiaryContent({
                   </button>
                 </CollapsibleTrigger>
 
-                <CollapsibleContent className="border-t border-border/70 px-5 py-5">
+                <CollapsibleContent className="border-t border-slate-200 px-5 py-5">
                   {keywordList.length === 0 ? (
                     <div className="text-sm text-muted-foreground">Sem palavras-chave neste período.</div>
                   ) : (
@@ -563,7 +563,7 @@ function DiaryContent({
                               <span
                                 className={cn(
                                   "ml-2 text-[11px]",
-                                  isActive ? "text-primary-foreground/80" : "text-muted-foreground",
+                                  isActive ? "text-white/80" : "text-muted-foreground",
                                 )}
                               >
                                 {daysCount}

@@ -180,7 +180,7 @@ export default function GroupEvents() {
       header: "Tipo",
       sortable: true,
       render: (event) => (
-        <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
           {event.event_type}
         </span>
       ),
@@ -255,22 +255,62 @@ export default function GroupEvents() {
           onClearFilters={() => { setSelectedPeriod('7d'); setCustomRange(undefined); setEventType('all'); setPage(1); }}
         />
 
-        {/* KPIs removidos: mantemos apenas descrição textual no header */}
+        <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-slate-950">Filtros</p>
+            <p className="text-sm text-slate-600">Refine o recorte por período e tipo de evento para investigar o histórico do grupo.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+                <Calendar className="h-3.5 w-3.5" />
+                Período
+              </div>
+              <div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3">
+                <PeriodFilter
+                  value={selectedPeriod}
+                  customRange={customRange}
+                  onChange={(p, r) => { setSelectedPeriod(p); setCustomRange(p === 'custom' ? r : undefined); setPage(1); }}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+                <FileText className="h-3.5 w-3.5" />
+                Tipo de evento
+              </div>
+              <Select value={eventType} onValueChange={setEventType}>
+                <SelectTrigger className="h-10 border-slate-200 bg-slate-50">
+                  <SelectValue placeholder="Tipo de evento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  {eventTypes?.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
 
-        {/* Events Table */}
-        <BorisTable
-          columns={columns as any}
-          data={eventsData?.events ?? []}
-          keyExtractor={(event) => event.id}
-          onRowClick={(event) => setSelectedEvent(event)}
-          page={page}
-          pageSize={PAGE_SIZE}
-          totalCount={eventsData?.total}
-          onPageChange={setPage}
-          loading={eventsLoading}
-          emptyIcon={FileText}
-          emptyMessage="Nenhum evento encontrado no período selecionado."
-        />
+        <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+          <BorisTable
+            columns={columns as any}
+            data={eventsData?.events ?? []}
+            keyExtractor={(event) => event.id}
+            onRowClick={(event) => setSelectedEvent(event)}
+            page={page}
+            pageSize={PAGE_SIZE}
+            totalCount={eventsData?.total}
+            onPageChange={setPage}
+            loading={eventsLoading}
+            emptyIcon={FileText}
+            emptyMessage="Nenhum evento encontrado no período selecionado."
+          />
+        </div>
 
         {/* Event Detail Drawer */}
         <Sheet open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>

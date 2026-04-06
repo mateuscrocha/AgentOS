@@ -127,6 +127,13 @@ export type CRMTimelineItem = {
   updated_at: string;
 };
 
+type UseCRMArgs = {
+  enabled: boolean;
+  section: CRMSection;
+  loadDrawerRelations?: boolean;
+  loadReferenceData?: boolean;
+};
+
 export type CRMProfileOption = {
   id: string;
   name: string | null;
@@ -487,8 +494,18 @@ async function syncAutoNextStepTask(params: {
   if (error) throw error;
 }
 
-export function useCRM(enabled: boolean) {
+export function useCRM({
+  enabled,
+  section,
+  loadDrawerRelations = false,
+  loadReferenceData = false,
+}: UseCRMArgs) {
   const queryClient = useQueryClient();
+  const loadContacts = section === "pipeline" || section === "companies" || section === "contacts" || loadDrawerRelations;
+  const loadOpportunities = section === "tasks" || loadDrawerRelations;
+  const loadTimeline = section === "tasks" || loadDrawerRelations;
+  const loadOrganizations = loadReferenceData;
+  const loadProfiles = loadReferenceData;
 
   const accountsQuery = useQuery({
     queryKey: ["crm", "accounts"],
@@ -527,7 +544,7 @@ export function useCRM(enabled: boolean) {
       if (error) throw error;
       return (data ?? []) as CRMContact[];
     },
-    enabled,
+    enabled: enabled && loadContacts,
   });
 
   const opportunitiesQuery = useQuery({
@@ -541,7 +558,7 @@ export function useCRM(enabled: boolean) {
       if (error) throw error;
       return (data ?? []) as CRMOpportunity[];
     },
-    enabled,
+    enabled: enabled && loadOpportunities,
   });
 
   const timelineQuery = useQuery({
@@ -555,7 +572,7 @@ export function useCRM(enabled: boolean) {
       if (error) throw error;
       return (data ?? []) as CRMTimelineItem[];
     },
-    enabled,
+    enabled: enabled && loadTimeline,
   });
 
   const organizationsQuery = useQuery({
@@ -569,7 +586,7 @@ export function useCRM(enabled: boolean) {
       if (error) throw error;
       return (data ?? []) as CRMOrganizationBilling[];
     },
-    enabled,
+    enabled: enabled && loadOrganizations,
   });
 
   const profilesQuery = useQuery({
@@ -584,7 +601,7 @@ export function useCRM(enabled: boolean) {
       if (error) throw error;
       return (data ?? []) as CRMProfileOption[];
     },
-    enabled,
+    enabled: enabled && loadProfiles,
   });
 
   const refreshAll = async () => {
@@ -1026,25 +1043,30 @@ export function useCRM(enabled: boolean) {
     metrics,
     isLoading:
       accountsQuery.isLoading ||
-      contactsQuery.isLoading ||
-      opportunitiesQuery.isLoading ||
-      timelineQuery.isLoading ||
-      profilesQuery.isLoading ||
-      organizationsQuery.isLoading,
+      (loadOrganizations && organizationsQuery.isLoading) ||
+      (loadProfiles && profilesQuery.isLoading) ||
+      (loadContacts && contactsQuery.isLoading) ||
+      (section === "tasks" && opportunitiesQuery.isLoading) ||
+      (section === "tasks" && timelineQuery.isLoading),
     isFetching:
       accountsQuery.isFetching ||
-      contactsQuery.isFetching ||
-      opportunitiesQuery.isFetching ||
-      timelineQuery.isFetching ||
-      profilesQuery.isFetching ||
-      organizationsQuery.isFetching,
+      (loadOrganizations && organizationsQuery.isFetching) ||
+      (loadProfiles && profilesQuery.isFetching) ||
+      (loadContacts && contactsQuery.isFetching) ||
+      ((section === "tasks" || loadDrawerRelations) && opportunitiesQuery.isFetching) ||
+      ((section === "tasks" || loadDrawerRelations) && timelineQuery.isFetching),
     error:
       accountsQuery.error ||
-      contactsQuery.error ||
-      opportunitiesQuery.error ||
-      timelineQuery.error ||
-      profilesQuery.error ||
-      organizationsQuery.error,
+      (loadOrganizations ? organizationsQuery.error : null) ||
+      (loadProfiles ? profilesQuery.error : null) ||
+      (loadContacts ? contactsQuery.error : null) ||
+      ((section === "tasks" || loadDrawerRelations) ? opportunitiesQuery.error : null) ||
+      ((section === "tasks" || loadDrawerRelations) ? timelineQuery.error : null),
+    drawerDataLoading:
+      loadDrawerRelations && (
+        (loadOpportunities && opportunitiesQuery.isLoading) ||
+        (loadTimeline && timelineQuery.isLoading)
+      ),
     saveAccountMutation,
     deleteAccountMutation,
     moveAccountStageMutation,

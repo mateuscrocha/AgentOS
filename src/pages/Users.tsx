@@ -922,11 +922,11 @@ export default function Users() {
   const renderListTable = (rows: UserRow[]) => {
     const sorted = sortRows(rows);
     return (
-      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border/80 bg-card/95 shadow-subtle">
+      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-slate-200 bg-white shadow-subtle">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border bg-muted/30">
+              <tr className="border-b border-slate-200 bg-slate-50/80">
                 <th className={cn(headerCls, "w-[320px]")}> 
                   <button onClick={() => toggleSort('name')} className="inline-flex items-center gap-2 hover:text-card-foreground transition-colors">
                     <span>Nome</span>
@@ -950,7 +950,7 @@ export default function Users() {
                 <th className={cn(headerCls, "w-12")}></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-slate-200">
               {sorted.map((row) => {
                 const profile = row.profile;
                 const isRecent = !!recentlyChanged[profile.id];
@@ -958,7 +958,7 @@ export default function Users() {
                 return (
                   <tr
                     key={profile.id}
-                    className={cn("h-11 transition-colors", isRecent && "bg-primary/[0.04]", "hover:bg-muted/40")}
+                    className={cn("h-11 transition-colors", isRecent && "bg-amber-50/70", "hover:bg-slate-50")}
                   >
                     <td className={cellCls}>
                       <div className="flex items-start gap-3">
@@ -972,7 +972,7 @@ export default function Users() {
                           <div className="flex items-center gap-2">
                           <span className="font-semibold text-card-foreground truncate">{profile.name || 'Sem nome'}</span>
                           {isRecent && (
-                              <Badge className="border-transparent bg-primary/10 text-primary hover:bg-primary/10">Atualizado</Badge>
+                              <Badge className="border-transparent bg-amber-100 text-amber-700 hover:bg-amber-100">Atualizado</Badge>
                           )}
                         </div>
                         </div>
@@ -995,14 +995,14 @@ export default function Users() {
 
   const renderLoading = () => {
     return (
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className="border-b border-border p-4 flex gap-4">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="flex gap-4 border-b border-slate-200 p-4">
           {Array.from({ length: 7 }).map((_, i) => (
             <Skeleton key={i} className="h-4 w-24" />
           ))}
         </div>
         {Array.from({ length: 6 }).map((_, rowIdx) => (
-          <div key={rowIdx} className="border-b border-border p-4 flex gap-4 last:border-0">
+          <div key={rowIdx} className="flex gap-4 border-b border-slate-200 p-4 last:border-0">
             {Array.from({ length: 6 }).map((_, colIdx) => (
               <Skeleton key={colIdx} className="h-4 w-24" />
             ))}

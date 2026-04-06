@@ -860,34 +860,34 @@ export default function SystemActivity() {
           {selectedOrg ? (
             <div className="space-y-5">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border border-border/70 bg-secondary/20 p-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <div className="text-xs text-muted-foreground">Último login</div>
                   <div className="mt-1 text-sm font-medium">{selectedOrg.last_login_at ? formatDateTimeBR(selectedOrg.last_login_at) : "—"}</div>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-secondary/20 p-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <div className="text-xs text-muted-foreground">Última atividade</div>
                   <div className="mt-1 text-sm font-medium">{selectedOrg.last_activity_at ? formatDateTimeBR(selectedOrg.last_activity_at) : "—"}</div>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-secondary/20 p-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <div className="text-xs text-muted-foreground">Logins</div>
                   <div className="mt-1 text-lg font-semibold">{selectedOrg.logins.toLocaleString("pt-BR")}</div>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-secondary/20 p-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <div className="text-xs text-muted-foreground">Páginas visitadas</div>
                   <div className="mt-1 text-lg font-semibold">{selectedOrg.page_views.toLocaleString("pt-BR")}</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-                <div className="rounded-lg border border-border/70 bg-card p-4">
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
                   <div className="text-xs text-muted-foreground">Usuários ativos</div>
                   <div className="mt-1 text-xl font-semibold">{selectedOrg.admins_active}</div>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-card p-4">
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
                   <div className="text-xs text-muted-foreground">Dias com uso</div>
                   <div className="mt-1 text-xl font-semibold">{selectedOrg.active_days}</div>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-card p-4">
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
                   <div className="text-xs text-muted-foreground">Ações registradas</div>
                   <div className="mt-1 text-xl font-semibold">{selectedOrg.actions_count}</div>
                 </div>
@@ -910,7 +910,7 @@ export default function SystemActivity() {
           {selectedUser ? (
             <div className="space-y-5">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border border-border/70 bg-secondary/20 p-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <div className="text-xs text-muted-foreground">Status</div>
                   <div className="mt-1">
                     <StatusTag variant={getUserActivityStatusVariant(selectedUser.activity_status)}>
@@ -918,21 +918,21 @@ export default function SystemActivity() {
                     </StatusTag>
                   </div>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-secondary/20 p-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <div className="text-xs text-muted-foreground">Primeiro login</div>
                   <div className="mt-1 text-sm font-medium">{selectedUser.first_login_at ? formatDateTimeBR(selectedUser.first_login_at) : "—"}</div>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-secondary/20 p-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <div className="text-xs text-muted-foreground">Último login</div>
                   <div className="mt-1 text-sm font-medium">{selectedUser.last_login_at ? formatDateTimeBR(selectedUser.last_login_at) : "—"}</div>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-secondary/20 p-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <div className="text-xs text-muted-foreground">Última atividade</div>
                   <div className="mt-1 text-sm font-medium">{selectedUser.last_seen_at ? formatDateTimeBR(selectedUser.last_seen_at) : "—"}</div>
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border/70 bg-card p-4">
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <div className="text-sm font-semibold text-card-foreground">Páginas mais acessadas</div>
                 <div className="mt-2 text-sm text-muted-foreground">
                   {selectedUser.top_pages.length > 0 ? selectedUser.top_pages.map((page) => getPageLabel(page)).join(" • ") : "Sem navegação registrada no período."}
@@ -942,7 +942,7 @@ export default function SystemActivity() {
               <div className="space-y-3">
                 <div className="text-sm font-semibold text-card-foreground">Timeline do usuário</div>
                 {(userTimelineQuery.data ?? []).map((event, index) => (
-                  <div key={`${event.created_at}:${index}`} className="rounded-lg border border-border/70 bg-secondary/20 p-3">
+                  <div key={`${event.created_at}:${index}`} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-card-foreground">
@@ -958,7 +958,7 @@ export default function SystemActivity() {
                   </div>
                 ))}
                 {!userTimelineQuery.isLoading && !(userTimelineQuery.data ?? []).length ? (
-                  <div className="rounded-lg border border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-muted-foreground">
                     Nenhum evento do usuário no período selecionado.
                   </div>
                 ) : null}

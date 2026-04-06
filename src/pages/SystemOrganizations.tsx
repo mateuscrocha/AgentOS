@@ -427,7 +427,7 @@ export default function SystemOrganizations() {
         </div>
 
         <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <DrawerContent className="border-border bg-card">
+          <DrawerContent className="border-slate-200 bg-white">
             <DrawerHeader className="text-left">
               <DrawerTitle>Filtrar organizações</DrawerTitle>
               <DrawerDescription>Encontre mais rápido usando busca e ordenação.</DrawerDescription>
@@ -439,7 +439,7 @@ export default function SystemOrganizations() {
               {hasActiveFilters && (
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="outline"
                   onClick={() => {
                     clearFilters();
                     setFiltersOpen(false);
@@ -459,7 +459,7 @@ export default function SystemOrganizations() {
           {orgsLoading ? (
             <div className="space-y-3">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="rounded-[var(--radius-lg)] border border-border/70 bg-card/95 p-4 shadow-subtle">
+                <div key={i} className="rounded-[var(--radius-lg)] border border-slate-200 bg-white p-4 shadow-subtle">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-2">
                       <Skeleton className="h-5 w-48" />
@@ -543,10 +543,10 @@ export default function SystemOrganizations() {
                             </div>
                           </div>
                           <div className="mt-3 rounded-2xl border border-amber-200/70 bg-amber-50/70 px-3 py-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">Próxima ação</div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-700">Próxima ação</div>
                             <div className="mt-1 text-sm font-medium text-slate-950">{nextActionLabel}</div>
                           </div>
-                          <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+                          <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700">
                             <span>Abrir organização</span>
                             <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                           </div>
@@ -562,7 +562,7 @@ export default function SystemOrganizations() {
               </ul>
 
               {typeof orgsData?.count === "number" && orgsData.count > PAGE_SIZE && (
-                <div className="flex items-center justify-between rounded-[var(--radius-lg)] border border-border/70 bg-card/95 px-4 py-3 shadow-subtle">
+                <div className="flex items-center justify-between rounded-[var(--radius-lg)] border border-slate-200 bg-white px-4 py-3 shadow-subtle">
                   <p className="text-xs text-muted-foreground">
                     Página {page} de {Math.max(1, Math.ceil(orgsData.count / PAGE_SIZE))}
                   </p>
@@ -637,7 +637,7 @@ export default function SystemOrganizations() {
         </div>
 
         <AlertDialog open={!!cascadeOrg} onOpenChange={(open) => !open && setCascadeOrg(null)}>
-          <AlertDialogContent className="border-border bg-card">
+          <AlertDialogContent className="border-slate-200 bg-white">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-card-foreground">Excluir organização</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">

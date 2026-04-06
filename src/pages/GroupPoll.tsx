@@ -398,19 +398,19 @@ export default function GroupPoll() {
           actions={(
             <>
               <NavLink to={`/groups/${groupId}/polls`} className="ml-auto">
-                <Button variant="outline" size="sm">Voltar às enquetes</Button>
+                <Button variant="outline" size="sm" className="border-amber-200 bg-white text-amber-950 hover:border-amber-400 hover:bg-amber-50">Voltar às enquetes</Button>
               </NavLink>
               <NavLink to={`/groups/${groupId}/messages`}>
-                <Button variant="ghost" size="sm">Mensagens</Button>
+                <Button variant="ghost" size="sm" className="text-amber-700 hover:bg-amber-50">Mensagens</Button>
               </NavLink>
             </>
           )}
         />
 
-        <div className="rounded-xl border border-warning/20 bg-card/95 overflow-hidden shadow-sm">
-          <div className="flex items-center gap-3 p-5 border-b border-border/80">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <Activity className="h-6 w-6 text-primary" />
+        <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center gap-3 border-b border-slate-200 bg-gradient-to-r from-amber-50 via-white to-white p-5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100">
+              <Activity className="h-6 w-6 text-amber-700" />
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl md:text-2xl font-semibold text-card-foreground">{poll?.question || "Enquete"}</h1>
@@ -494,7 +494,7 @@ export default function GroupPoll() {
                       variant="outline"
                       size="sm"
                       onClick={() => void copyWhatsAppResult()}
-                      className="shrink-0"
+                      className="shrink-0 border-amber-200 bg-white text-amber-950 hover:border-amber-400 hover:bg-amber-50"
                       aria-label="Copiar resultado para WhatsApp"
                     >
                       {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
@@ -507,7 +507,7 @@ export default function GroupPoll() {
                     <p className="text-sm text-muted-foreground">Sem dados para o gráfico</p>
                   </div>
                 ) : (
-                  <ChartContainer config={{ value: { label: "Votos", color: "hsl(var(--primary))" } }} className="h-[260px] w-full">
+                  <ChartContainer config={{ value: { label: "Votos", color: "#d97706" } }} className="h-[260px] w-full">
                     <BarChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} className="text-muted-foreground" axisLine={false} tickLine={false} />
@@ -519,14 +519,14 @@ export default function GroupPoll() {
                           (item?.payload as { fullName?: string } | undefined)?.fullName || "Opção",
                         ]}
                       />
-                      <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                      <Bar dataKey="value" fill="#d97706" radius={[4, 4, 0, 0]}>
                         {chartData.map((entry, idx) => {
                           const isWinner = topValue > 0 && entry.value === topValue;
                           return (
                             <Cell
                               key={`cell-${idx}`}
                               fillOpacity={isWinner ? 1 : 0.35}
-                              stroke={isWinner ? "hsl(var(--primary))" : "transparent"}
+                              stroke={isWinner ? "#d97706" : "transparent"}
                               strokeWidth={isWinner ? 1 : 0}
                             />
                           );
@@ -546,7 +546,7 @@ export default function GroupPoll() {
                       return (
                         <div key={opt.optionIndex} className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className={isWinner ? "text-sm text-primary font-medium" : "text-sm text-card-foreground"}>{opt.optionText}</span>
+                            <span className={isWinner ? "text-sm text-amber-800 font-medium" : "text-sm text-card-foreground"}>{opt.optionText}</span>
                             <span className="text-xs text-muted-foreground">{opt.votesCount} voto(s) • {pct}%</span>
                           </div>
                           <div className="h-2 rounded-full bg-muted/60 overflow-hidden">
@@ -554,7 +554,7 @@ export default function GroupPoll() {
                               <div className="h-full w-full rounded-full border border-dashed border-foreground/20" />
                             ) : (
                               <div
-                                className={isWinner ? "h-full rounded-full bg-primary transition-[width] duration-500 ease-out" : "h-full rounded-full bg-foreground/20 transition-[width] duration-500 ease-out"}
+                                className={isWinner ? "h-full rounded-full bg-amber-500 transition-[width] duration-500 ease-out" : "h-full rounded-full bg-foreground/20 transition-[width] duration-500 ease-out"}
                                 style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
                               />
                             )}
@@ -570,7 +570,7 @@ export default function GroupPoll() {
                     <AccordionTrigger>
                       <div className="flex items-center gap-2">
                         <span>Votos por pessoa</span>
-                        <Badge variant="secondary" className="h-5 px-2 text-[11px]">
+                        <Badge variant="secondary" className="h-5 border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-700">
                           {pollVotesByPerson?.length ?? 0}
                         </Badge>
                       </div>
@@ -579,7 +579,7 @@ export default function GroupPoll() {
                       {pollVotesByPersonLoading ? (
                         <div className="space-y-2">
                           {Array.from({ length: 5 }).map((_, i) => (
-                            <div key={i} className="flex items-start gap-3 rounded-lg border border-border/70 bg-card/80 px-3 py-2">
+                            <div key={i} className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                               <Skeleton className="h-8 w-8 rounded-full" />
                               <div className="flex-1 space-y-2">
                                 <Skeleton className="h-3 w-40" />
@@ -593,7 +593,7 @@ export default function GroupPoll() {
                       ) : (
                         <div className="space-y-2">
                           {pollVotesByPerson.map((v: any, idx: number) => (
-                            <div key={`${v.personId || idx}-${v.createdAt}`} className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-card/80 px-3 py-2">
+                            <div key={`${v.personId || idx}-${v.createdAt}`} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <div className="flex items-center gap-2 min-w-0">
@@ -625,7 +625,7 @@ export default function GroupPoll() {
                                 </div>
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   {(v.votedOptions as string[]).map((o: string, i: number) => (
-                                    <span key={`${o}-${i}`} className="text-[11px] px-2 py-0.5 rounded border border-border/60 bg-secondary text-secondary-foreground">{o}</span>
+                                    <span key={`${o}-${i}`} className="text-[11px] px-2 py-0.5 rounded border border-slate-200 bg-white text-slate-700">{o}</span>
                                   ))}
                                 </div>
                               </div>
