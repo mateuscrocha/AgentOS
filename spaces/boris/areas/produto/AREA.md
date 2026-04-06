@@ -11,6 +11,12 @@ created: 2026-04-02
 
 Conduzir discovery, roadmap, experiência do usuário, prioridades e decisões de produto do Boris.
 
+## Workspaces
+
+| Workspace | Papel | Status |
+|---|---|---|
+| `workspaces/boris-painel/` | Aplicação principal do produto Boris Painel, importada com histórico Git preservado | Ativo |
+
 ## Agentes
 
 | Agente | Papel | Status |

@@ -15,7 +15,7 @@ Herda de `spaces/boris/guidelines/`.
 
 | Documento | Descrição |
 |---|---|
-| _Nenhum documento adicionado ainda_ | _Adicione arquivos .md neste diretório_ |
+| `workspace-boris-painel.md` | Define o papel do workspace do painel, limites entre código e documentação do AgentOS, e regras de operação local |
 
 ## Cross-References
 
@@ -23,7 +23,7 @@ _Referencie guidelines de outros escopos quando necessário._
 
 | Referência | Caminho | Motivo |
 |---|---|---|
-| — | — | — |
+| Workspace do produto | `spaces/boris/areas/produto/workspaces/boris-painel/README.md` | Fonte local sobre stack, ambiente e execução do aplicativo principal |
 
 ## Como Usar
 

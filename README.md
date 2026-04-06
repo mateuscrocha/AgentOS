@@ -23,6 +23,7 @@ spaces/{space}/
 ├── memory/
 └── areas/{area}/
     ├── AREA.md
+    ├── workspaces/
     ├── memory/
     ├── agents/{agente}/
     │   ├── AGENT.md
@@ -35,6 +36,8 @@ spaces/{space}/
 ```
 
 A hierarquia é: **Space > Area > Team > Agent**.
+
+Quando uma area possui um aplicativo ou repositorio principal, ele pode viver em `workspaces/` dentro da propria area, mantendo codigo executavel separado de `guidelines/` e `memory/`.
 
 Agentes de spaces diferentes não se comunicam diretamente. A comunicação entre escopos ocorre via handoffs formalizados.
 

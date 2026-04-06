@@ -63,5 +63,5 @@ O sistema possui protocolo de sincronização entre runtimes (`.Codex/` → `.ge
 ## Última Alteração
 
 - **Data:** 2026-04-06
-- **O que mudou:** Criação da skill `run-daily-checkin` para o agente `day-manager`, formalizando o ritual de abertura e priorização do dia no space `pessoal/dia`.
+- **O que mudou:** Importação do repositório principal do Boris Painel para `spaces/boris/areas/produto/workspaces/boris-painel/`, conectando a área `produto` ao código do app com histórico preservado.
 - **Agente:** kernel

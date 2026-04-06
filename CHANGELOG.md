@@ -12,6 +12,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 - **Runtime Codex primário** — criado `CODEX.md` e a árvore `.Codex/` (`agents/`, `commands/`, `skills/agent-bootstrap`) para tornar o Codex o runtime principal do AgentOS
 - **Regra global de idioma** — criado `docs/language.md` e adicionada regra explícita de português brasileiro como idioma padrão do projeto, salvo override explícito do usuário
 - **Space pessoal inicial** — criado `spaces/pessoal/` com memória, guidelines e a área `dia` para começar a gerenciar projetos pessoais e a rotina diária dentro do AgentOS
+- **Workspace do Boris Painel importado** — o app principal foi trazido para `spaces/boris/areas/produto/workspaces/boris-painel/` com histórico Git preservado, conectando a área `produto` ao código real do sistema
 
 ### Alterado
 - **Source of truth de runtime** — `KERNEL.md`, `README.md`, `docs/architecture.md`, `system/protocols/sync.md`, `system/scripts/setup.py`, `system/scripts/sync.py`, `system/scripts/validate.py` e hooks agora tratam `.Codex/` como runtime canônico para sync e operação
