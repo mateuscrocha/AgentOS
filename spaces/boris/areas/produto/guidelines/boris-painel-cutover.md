@@ -19,27 +19,26 @@ O repositorio historico em:
 
 `/Users/eu.rochamateus/Documents/Codex/Bóris - Painel`
 
-passa a ser tratado como referencia legada de transicao, nao como origem principal de trabalho.
+passa a ser absorvido operacionalmente pelo workspace do AgentOS via `git submodule`, nao como pasta local separada de uso diario.
 
 ## Regra operacional
 
 - novas alteracoes no painel devem partir do workspace dentro do AgentOS
 - validacoes locais devem rodar a partir do workspace importado
-- `.env` local do workspace importado pode ser mantido alinhado ao ambiente antigo enquanto durar a transicao
+- o caminho `spaces/boris/areas/produto/workspaces/boris-painel/` e o unico checkout local que precisa ser usado no dia a dia
 - documentacao funcional e tecnica do app deve ser atualizada primeiro no workspace importado
 
-## Quando usar o repo legado
+## Como o Git fica organizado
 
-O repo legado so deve ser usado temporariamente para:
-
-- consultar historico local ainda nao absorvido pelo AgentOS
-- comparar estado antigo durante a transicao
-- recuperar algum arquivo ou configuracao que nao tenha sido trazido
+- o AgentOS versiona apenas o ponteiro do submodulo
+- o codigo do painel, seus commits e seu remoto vivem em `mateuscrocha/boris-admin-core`
+- o workspace do painel dentro do AgentOS deve apontar para o branch `main` desse repositorio
+- a pasta local antiga fora do AgentOS deixa de ser necessaria apos a migracao
 
 ## Proibicoes praticas
 
-- nao abrir novas frentes de implementacao no repo legado
-- nao tratar o repo legado e o workspace importado como duas fontes ativas em paralelo
+- nao abrir novas frentes de implementacao na pasta local antiga fora do AgentOS
+- nao tratar a pasta antiga e o workspace importado como duas fontes ativas em paralelo
 - nao manter divergencia deliberada entre os dois
 
 ## Estado atual do cutover

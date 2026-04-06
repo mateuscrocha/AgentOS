@@ -19,9 +19,9 @@ Ele concentra:
 
 ## Operacao
 
-- o repositorio foi importado com historico Git preservado via `git subtree`
+- o workspace oficial dentro do AgentOS agora e um `git submodule` apontando para `https://github.com/mateuscrocha/boris-admin-core`
 - alteracoes no painel devem acontecer dentro do workspace
-- o workspace dentro do AgentOS e a origem principal de trabalho; o repo historico externo fica apenas como referencia legada de transicao
+- o caminho dentro do AgentOS continua sendo a origem principal de trabalho local, mas os commits do app pertencem ao repositorio proprio do painel
 - documentacao estavel de produto, fluxo, decisao ou operacao deve ser promovida para `guidelines/` quando deixar de ser apenas detalhe de implementacao
 
 ## Limites

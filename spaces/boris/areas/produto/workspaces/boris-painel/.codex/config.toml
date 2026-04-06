@@ -1,3 +1,0 @@
-[mcp_servers.supabase]
-type = "http"
-url = "https://mcp.supabase.com/mcp?project_ref=ceugwdfpbvziiumnxknt&features=database,functions,docs"

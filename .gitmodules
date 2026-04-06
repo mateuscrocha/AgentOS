@@ -1,0 +1,4 @@
+[submodule "spaces/boris/areas/produto/workspaces/boris-painel"]
+	path = spaces/boris/areas/produto/workspaces/boris-painel
+	url = https://github.com/mateuscrocha/boris-admin-core
+	branch = main
