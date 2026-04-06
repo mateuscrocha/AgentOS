@@ -21,6 +21,7 @@ Ele concentra:
 
 - o repositorio foi importado com historico Git preservado via `git subtree`
 - alteracoes no painel devem acontecer dentro do workspace
+- o workspace dentro do AgentOS e a origem principal de trabalho; o repo historico externo fica apenas como referencia legada de transicao
 - documentacao estavel de produto, fluxo, decisao ou operacao deve ser promovida para `guidelines/` quando deixar de ser apenas detalhe de implementacao
 
 ## Limites

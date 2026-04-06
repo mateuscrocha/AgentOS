@@ -15,6 +15,8 @@ Este repositorio foi importado para:
 
 `spaces/boris/areas/produto/workspaces/boris-painel/`
 
+Este workspace agora e a origem principal de operacao do Boris Painel dentro do AgentOS.
+
 Camadas de responsabilidade:
 
 - codigo executavel do produto: este workspace
