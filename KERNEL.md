@@ -109,6 +109,8 @@ Esses agentes são invocáveis via **invocação de subagente** do runtime ativo
 | `/run <workflow> [params]` | Executa um workflow multi-agente |
 | `/workflows` | Lista workflows disponíveis |
 | `/handoff <de> <para> <tarefa>` | Cria um handoff entre agentes |
+| `/agora [mostrar\|captura\|check-in\|fechamento] [conteúdo]` | Consulta ou atualiza a memória operacional viva do dia no space `pessoal` |
+| `/painel <status\|commit\|push\|pull> [mensagem]` | Opera o Git do Boris Painel pelo workspace oficial dentro do AgentOS |
 | `/brand-guidelines` | Aplica identidade visual Anthropic a artefatos |
 | `/canvas-design` | Cria arte visual em PDF/PNG com filosofia de design |
 | `/doc-coauthoring` | Inicia workflow colaborativo de criação de documentos |
@@ -166,8 +168,9 @@ Quando o usuário faz uma solicitação, siga esta lógica:
 7. **Envolve documentação?** → Invoque o `doc-manager`.
 8. **Envolve diagnóstico ou saúde do sistema?** → Invoque o `health-monitor`.
 9. **Envolve executar um workflow definido?** → Invoque o `task-runner`.
-10. **É para um agente específico do usuário?** → Identifique o agente pelo space, area e nome, e invoque-o via subagente.
-11. **Caso contrário** → Responda diretamente como o kernel.
+10. **Envolve rotina pessoal, contexto vivo do dia ou organização operacional corrente?** → Priorize o agente `pessoal--dia--day-manager` e a memória viva da área `spaces/pessoal/areas/dia/memory/`.
+11. **É para um agente específico do usuário?** → Identifique o agente pelo space, area e nome, e invoque-o via subagente.
+12. **Caso contrário** → Responda diretamente como o kernel.
 
 ---
 
@@ -178,7 +181,17 @@ Detalhes completos nos protocolos individuais. Resumo essencial:
 - **Comunicação:** 3 padrões — invocação direta (síncrona), handoff (assíncrono via `handoff.md`), message bus (`bus.md`). Ver `system/protocols/communication.md`.
 - **Memória:** Antes de agir: ler própria memória + `world.md` do escopo + `system/memory/world.md` + guidelines. Depois: atualizar `history.md` + `world.md` (se mudou). Ver `system/protocols/memory.md`.
 - **Guidelines:** Documentação estável em `guidelines/` de cada escopo (space, area, time). Cascade: space → area → time. Cross-references via tabela no `GUIDELINES.md`. Ver `system/protocols/memory.md`.
+- **Memória operacional viva:** Para contexto recorrente e sensível ao dia a dia, o kernel deve preferir arquivos de estado corrente do escopo em vez de depender do histórico implícito da conversa. No space `pessoal`, a área `dia` trata `memory/agora.md`, `memory/inbox.md` e `memory/follow-ups.md` como fonte operacional primária do que está acontecendo agora.
 - **Regra de isolamento:** Agentes de sistema NÃO invocam agentes de usuário (usar handoff). Agentes de spaces diferentes NÃO se comunicam.
+
+### Regra Especial: Contexto Vivo do Dia a Dia
+
+Quando o pedido envolver rotina, prioridades atuais, follow-ups em aberto, replanejamento do dia, capturas soltas ou perguntas como "o que está rolando" e equivalentes:
+
+1. Não assuma que o histórico desta conversa contém o contexto necessário.
+2. Consulte primeiro a memória viva do escopo (`agora.md`, `inbox.md`, `follow-ups.md`) antes de responder.
+3. Se o usuário trouxer uma atualização importante do cotidiano, persista essa informação na memória viva apropriada na mesma operação.
+4. Trate a conversa como interface de entrada e saída; trate os arquivos de memória como fonte de verdade operacional.
 
 ---
 

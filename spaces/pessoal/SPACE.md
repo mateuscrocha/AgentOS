@@ -11,11 +11,16 @@ owner: Mateus
 
 Centralizar projetos pessoais no AgentOS sem misturar com o Boris, começando por uma área dedicada à gestão do dia a dia, prioridades, capturas rápidas e organização da rotina.
 
+## Projetos Ativos
+
+- `casamento-2026` — Gestão final do casamento marcado para 18 de abril de 2026, com foco em checklist das duas semanas finais, custos pendentes e acompanhamento operacional.
+
 ## Areas
 
 | Area | Propósito | Agentes | Times |
 |---|---|---|---|
 | dia | Planejamento diário, prioridades, foco e fechamento do dia | 1 | — |
+| comunicacao | Operação do WhatsApp pessoal e rotinas ligadas à Evolution API | 1 | — |
 
 ## Memória
 

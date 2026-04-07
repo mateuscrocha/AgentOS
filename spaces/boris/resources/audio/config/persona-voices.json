@@ -1,12 +1,13 @@
 {
   "source": {
     "editorial_personas_file": "/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/editorial/editorial/strategy/boris-persona-visual-system.md",
-    "generated_on": "2026-03-25",
+    "generated_on": "2026-04-06",
     "notes": [
       "Mapa operacional baseado na biblioteca oficial de 6 personagens do Boris.",
       "Selecao limitada as vozes brasileiras disponiveis hoje na conta do ElevenLabs.",
-      "A conta ainda tem pouca variedade de vozes masculinas brasileiras; Rafael, Diego e Bruno podem soar proximos em certos usos.",
-      "Toda locucao deve ser escrita em portugues brasileiro corretamente acentuado e interpretada com emocao, intencao e variacao natural de fala."
+      "A biblioteca oficial atual usa seis personas femininas.",
+      "Toda locucao deve ser escrita em portugues brasileiro corretamente acentuado e interpretada com emocao, intencao e variacao natural de fala.",
+      "Ainda vale ampliar o casting feminino brasileiro para substituir a Renata por uma voz consultiva sem tradeoff de accent."
     ]
   },
   "personas": {
@@ -24,19 +25,19 @@
       "recommended_preset": "calmo",
       "performance_note": "Tom acolhedor, organizado e presente. Deve soar como quem segura o caos sem dramatizar, mas com mais intencao, respiracao real e menos leitura reta."
     },
-    "rafael": {
-      "character_name": "Rafael",
+    "renata": {
+      "character_name": "Renata",
       "role": "Customer Success",
       "primary_voice": {
-        "name": "Eric",
-        "voice_id": "cjVigY5qzO86Huf0OWal"
+        "name": "Bella",
+        "voice_id": "hpp4J3VqNfWAUOO0d1Us"
       },
       "backup_voice": {
-        "name": "Joel",
-        "voice_id": "uOjV7aFQoCQBSZxYyOds"
+        "name": "Yasmin",
+        "voice_id": "lWq4KDY8znfkV0DrK8Vb"
       },
-      "recommended_preset": "calmo",
-      "performance_note": "Tom seguro, consultivo e humano. Deve transmitir acompanhamento, contexto e confianca, com menos frieza corporativa e mais proximidade. Voz escolhida para evitar repeticao entre personas."
+      "recommended_preset": "institucional",
+      "performance_note": "Tom seguro, consultivo e humano. Deve transmitir acompanhamento, contexto e confianca sem esfriar a relacao. Voz escolhida para evitar repeticao com a Marina."
     },
     "livia": {
       "character_name": "Livia",
@@ -52,16 +53,16 @@
       "recommended_preset": "energetico",
       "performance_note": "Tom agil, claro e com senso de ritmo. Energia de quem decide rapido sem perder clareza, com mais ataque e variacao de entonacao."
     },
-    "diego": {
-      "character_name": "Diego",
+    "daniela": {
+      "character_name": "Daniela",
       "role": "Suporte",
       "primary_voice": {
-        "name": "Joel",
-        "voice_id": "uOjV7aFQoCQBSZxYyOds"
+        "name": "Yasmin",
+        "voice_id": "lWq4KDY8znfkV0DrK8Vb"
       },
       "backup_voice": {
-        "name": "Flavio Francisco",
-        "voice_id": "x6uRgOliu4lpcrqMH3s1"
+        "name": "Paula",
+        "voice_id": "xPnmQf6Ow3GGYWWURFPi"
       },
       "recommended_preset": "padrao",
       "performance_note": "Tom estavel e calmo em contexto de pressao. Deve acalmar sem parecer lento, e nunca soar neutro ou apatico demais."
@@ -77,29 +78,28 @@
         "name": "Carla",
         "voice_id": "oJebhZNaPllxk6W0LSBA"
       },
-      "recommended_preset": "energetico",
+      "recommended_preset": "calmo",
       "performance_note": "Tom caloroso, paciente e didatico. Deve soar proxima e confiavel, com mais emocao e implicacao quando a cena pedir desgaste ou cuidado ferido."
     },
-    "bruno": {
-      "character_name": "Bruno",
+    "bianca": {
+      "character_name": "Bianca",
       "role": "Infoprodutor / Operacao Comercial via WhatsApp",
       "primary_voice": {
-        "name": "Liam",
-        "voice_id": "TX3LPaxmHKxFdv7VOQHJ"
+        "name": "Matilda",
+        "voice_id": "XrExE9yKIg1WjnnlVkGX"
       },
       "backup_voice": {
-        "name": "Flavio Francisco",
-        "voice_id": "x6uRgOliu4lpcrqMH3s1"
+        "name": "Jenifer",
+        "voice_id": "GOkMqfyKMLVUcYfO2WbB"
       },
       "recommended_preset": "energetico",
-      "performance_note": "Tom comercial mais jovem, leve e claro. Deve soar presente, interessado e com vontade de resolver, sem peso excessivo ou grave demais. Voz escolhida para evitar repeticao entre personas."
+      "performance_note": "Tom comercial mais jovem, leve e claro. Deve soar presente, confiante e vendedor, sem caricatura publicitaria."
     }
   },
   "gaps": {
     "recommended_new_voices": [
-      "1 voz masculina brasileira jovem com pegada comercial",
-      "1 voz masculina brasileira neutra para suporte e operacao",
-      "1 voz masculina brasileira consultiva para customer success"
+      "1 voz feminina brasileira madura e consultiva para substituir a Renata sem tradeoff de accent",
+      "1 voz feminina brasileira tecnica para suporte e operacao"
     ]
   }
 }

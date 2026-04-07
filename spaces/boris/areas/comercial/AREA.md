@@ -11,6 +11,8 @@ created: 2026-04-02
 
 Estruturar oferta, posicionamento, prospecção, pipeline, follow-up e fechamento comercial do Boris.
 
+Esta area absorve a metodologia comercial herdada da Enkrateia como base de processo, mas executa tudo no contexto, linguagem e operação do Boris.
+
 ## Agentes
 
 | Agente | Papel | Status |
@@ -34,3 +36,9 @@ Estruturar oferta, posicionamento, prospecção, pipeline, follow-up e fechament
 - Diretório: `spaces/boris/areas/comercial/guidelines/`
 - Herda de: `spaces/boris/guidelines/`
 - Adicione documentação específica desta area.
+
+## Biblioteca Operacional
+
+- Processos e migração: `spaces/boris/resources/comercial/processos/`
+- Leads e pipeline: `spaces/boris/resources/comercial/leads/`
+- Contas estratégicas e notas por oportunidade: `spaces/boris/resources/comercial/contas/`

@@ -65,8 +65,8 @@ O importante e que exista repertorio suficiente para:
   - operacao acordando cedo demais
 - Personas:
   - Marina
-  - Bruno
-  - Rafael
+  - Bianca
+  - Renata
 
 #### 2. Portaria do predio
 
@@ -76,8 +76,8 @@ O importante e que exista repertorio suficiente para:
   - mensagens ja acumuladas
 - Personas:
   - Marina
-  - Diego
-  - Bruno
+  - Daniela
+  - Bianca
 
 #### 3. Saida de casa
 
@@ -88,7 +88,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Camila
   - Marina
-  - Rafael
+  - Renata
 
 #### 4. Garagem
 
@@ -97,9 +97,9 @@ O importante e que exista repertorio suficiente para:
   - ansiedade de operacao
   - medo de algo importante ter ficado sem leitura
 - Personas:
-  - Bruno
-  - Rafael
-  - Diego
+  - Bianca
+  - Renata
+  - Daniela
 
 #### 5. Escada do predio
 
@@ -109,8 +109,8 @@ O importante e que exista repertorio suficiente para:
   - falta de priorizacao
 - Personas:
   - Livia
-  - Bruno
-  - Diego
+  - Bianca
+  - Daniela
 
 #### 6. Hall de entrada
 
@@ -119,7 +119,7 @@ O importante e que exista repertorio suficiente para:
   - comeco do dia sem contexto
   - muita coisa para organizar
 - Personas:
-  - Rafael
+  - Renata
   - Marina
   - Camila
 
@@ -131,7 +131,7 @@ O importante e que exista repertorio suficiente para:
   - fila invisivel de mensagens
 - Personas:
   - Livia
-  - Diego
+  - Daniela
   - Marina
 
 #### 8. Corredor antes de sentar
@@ -141,9 +141,9 @@ O importante e que exista repertorio suficiente para:
   - atropelo inicial
   - urgencia sem hierarquia
 - Personas:
-  - Bruno
+  - Bianca
   - Livia
-  - Diego
+  - Daniela
 
 ### Deslocamentos e caminho
 
@@ -154,9 +154,9 @@ O importante e que exista repertorio suficiente para:
   - conversa demais e pouca leitura
   - grupo continua na cabeca
 - Personas:
-  - Bruno
-  - Rafael
-  - Diego
+  - Bianca
+  - Renata
+  - Daniela
 
 #### 10. Semaforo
 
@@ -165,9 +165,9 @@ O importante e que exista repertorio suficiente para:
   - mente pulando entre assuntos
   - sensacao de atraso
 - Personas:
-  - Bruno
+  - Bianca
   - Marina
-  - Diego
+  - Daniela
 
 #### 11. App de transporte
 
@@ -177,7 +177,7 @@ O importante e que exista repertorio suficiente para:
   - operacao acompanhando o corpo
 - Personas:
   - Camila
-  - Rafael
+  - Renata
   - Marina
 
 #### 12. Banco de tras do carro
@@ -188,8 +188,8 @@ O importante e que exista repertorio suficiente para:
   - notificacao mental constante
 - Personas:
   - Camila
-  - Diego
-  - Rafael
+  - Daniela
+  - Renata
 
 #### 13. Ponto de onibus
 
@@ -200,7 +200,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Marina
   - Camila
-  - Bruno
+  - Bianca
 
 #### 14. Dentro do onibus
 
@@ -209,7 +209,7 @@ O importante e que exista repertorio suficiente para:
   - sobrecarga silenciosa
   - tudo embaralhado na mente
 - Personas:
-  - Diego
+  - Daniela
   - Marina
   - Camila
 
@@ -221,8 +221,8 @@ O importante e que exista repertorio suficiente para:
   - prioridade sumindo
 - Personas:
   - Livia
-  - Bruno
-  - Diego
+  - Bianca
+  - Daniela
 
 #### 16. Plataforma de trem
 
@@ -231,9 +231,9 @@ O importante e que exista repertorio suficiente para:
   - cliente ou grupo sem leitura clara
   - cabeca tentando antecipar problema
 - Personas:
-  - Rafael
+  - Renata
   - Marina
-  - Bruno
+  - Bianca
 
 #### 17. Caminhada curta na calcada
 
@@ -243,7 +243,7 @@ O importante e que exista repertorio suficiente para:
   - dificuldade de esvaziar a mente
 - Personas:
   - Camila
-  - Rafael
+  - Renata
   - Marina
 
 #### 18. Faixa de pedestre
@@ -254,8 +254,8 @@ O importante e que exista repertorio suficiente para:
   - falta de eixo
 - Personas:
   - Livia
-  - Diego
-  - Bruno
+  - Daniela
+  - Bianca
 
 ### Pausas e respiros
 
@@ -268,7 +268,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Marina
   - Camila
-  - Rafael
+  - Renata
 
 #### 20. Cafe no meio da tarde
 
@@ -279,7 +279,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Marina
   - Camila
-  - Diego
+  - Daniela
 
 #### 21. Fila do cafe
 
@@ -288,8 +288,8 @@ O importante e que exista repertorio suficiente para:
   - operacao reaparecendo no silencio
   - tudo ainda sem leitura
 - Personas:
-  - Rafael
-  - Bruno
+  - Renata
+  - Bianca
   - Marina
 
 #### 22. Copa da empresa
@@ -299,7 +299,7 @@ O importante e que exista repertorio suficiente para:
   - cansaco escondido
   - grupo ainda reverberando
 - Personas:
-  - Diego
+  - Daniela
   - Camila
   - Livia
 
@@ -311,7 +311,7 @@ O importante e que exista repertorio suficiente para:
   - ruido operacional continuo
 - Personas:
   - Marina
-  - Diego
+  - Daniela
   - Camila
 
 #### 24. Banco externo
@@ -321,7 +321,7 @@ O importante e que exista repertorio suficiente para:
   - peso mental de acompanhamento
   - dificuldade de desligar
 - Personas:
-  - Rafael
+  - Renata
   - Camila
   - Marina
 
@@ -332,9 +332,9 @@ O importante e que exista repertorio suficiente para:
   - cliente ativo sem clareza
   - grupo cheio sem contexto
 - Personas:
-  - Rafael
+  - Renata
   - Marina
-  - Diego
+  - Daniela
 
 #### 26. Sacada ou varanda
 
@@ -345,7 +345,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Camila
   - Marina
-  - Bruno
+  - Bianca
 
 ### Expediente e mesa
 
@@ -356,9 +356,9 @@ O importante e que exista repertorio suficiente para:
   - falta de visibilidade
   - acumulacao de conversa solta
 - Personas:
-  - Rafael
+  - Renata
   - Marina
-  - Diego
+  - Daniela
 
 #### 28. Mesa baguncada
 
@@ -368,8 +368,8 @@ O importante e que exista repertorio suficiente para:
   - muita demanda sem priorizacao
 - Personas:
   - Livia
-  - Diego
-  - Bruno
+  - Daniela
+  - Bianca
 
 #### 29. Notebook quase fechando
 
@@ -380,7 +380,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Marina
   - Camila
-  - Diego
+  - Daniela
 
 #### 30. Celular na mesa vibrando
 
@@ -390,7 +390,7 @@ O importante e que exista repertorio suficiente para:
   - incapacidade de ler o que importa
 - Personas:
   - Marina
-  - Diego
+  - Daniela
   - Livia
 
 #### 31. Segunda tela com dashboards
@@ -400,8 +400,8 @@ O importante e que exista repertorio suficiente para:
   - muitos dados e pouco contexto
   - grupo sem camada de inteligencia
 - Personas:
-  - Rafael
-  - Bruno
+  - Renata
+  - Bianca
   - Marina
 
 #### 32. Agenda aberta
@@ -412,8 +412,8 @@ O importante e que exista repertorio suficiente para:
   - cliente demais
   - sem profundidade suficiente
 - Personas:
-  - Rafael
-  - Bruno
+  - Renata
+  - Bianca
   - Camila
 
 #### 33. Caderno de anotacoes
@@ -425,7 +425,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Camila
   - Marina
-  - Diego
+  - Daniela
 
 #### 34. Fone de ouvido e tela aberta
 
@@ -434,9 +434,9 @@ O importante e que exista repertorio suficiente para:
   - fila longa
   - muito contexto fragmentado
 - Personas:
-  - Diego
+  - Daniela
   - Livia
-  - Rafael
+  - Renata
 
 ### Reunioes e acompanhamento
 
@@ -447,8 +447,8 @@ O importante e que exista repertorio suficiente para:
   - chegar sem contexto
   - risco sem leitura clara
 - Personas:
-  - Rafael
-  - Bruno
+  - Renata
+  - Bianca
   - Camila
 
 #### 36. Depois da call
@@ -458,8 +458,8 @@ O importante e que exista repertorio suficiente para:
   - o cliente falou, mas o sinal ficou difuso
   - ficou coisa aberta
 - Personas:
-  - Rafael
-  - Bruno
+  - Renata
+  - Bianca
   - Marina
 
 #### 37. Sala de reuniao vazia
@@ -469,8 +469,8 @@ O importante e que exista repertorio suficiente para:
   - atividade sem entendimento
   - follow-up sem eixo
 - Personas:
-  - Rafael
-  - Diego
+  - Renata
+  - Daniela
   - Marina
 
 #### 38. Tela de calendario
@@ -480,9 +480,9 @@ O importante e que exista repertorio suficiente para:
   - muito acompanhamento ao mesmo tempo
   - cliente ativo sem profundidade
 - Personas:
-  - Rafael
+  - Renata
   - Camila
-  - Bruno
+  - Bianca
 
 #### 39. Entrada em reuniao online
 
@@ -491,9 +491,9 @@ O importante e que exista repertorio suficiente para:
   - improvisar leitura
   - falta de consolidacao
 - Personas:
-  - Rafael
-  - Bruno
-  - Diego
+  - Renata
+  - Bianca
+  - Daniela
 
 #### 40. Saida da reuniao online
 
@@ -502,7 +502,7 @@ O importante e que exista repertorio suficiente para:
   - tarefa e sinal misturados
   - contexto incompleto
 - Personas:
-  - Rafael
+  - Renata
   - Marina
   - Camila
 
@@ -517,7 +517,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Marina
   - Livia
-  - Bruno
+  - Bianca
 
 #### 42. Evento de comunidade
 
@@ -538,7 +538,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Marina
   - Livia
-  - Diego
+  - Daniela
 
 #### 44. Corredor de evento
 
@@ -548,8 +548,8 @@ O importante e que exista repertorio suficiente para:
   - grupo seguindo no fundo da mente
 - Personas:
   - Marina
-  - Rafael
-  - Bruno
+  - Renata
+  - Bianca
 
 #### 45. Auditório vazio depois do movimento
 
@@ -570,7 +570,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Marina
   - Camila
-  - Diego
+  - Daniela
 
 ### Educacional
 
@@ -618,7 +618,7 @@ O importante e que exista repertorio suficiente para:
   - organizar duvidas dispersas
 - Personas:
   - Camila
-  - Rafael
+  - Renata
 
 ### Conteudo e criacao
 
@@ -666,7 +666,7 @@ O importante e que exista repertorio suficiente para:
   - resposta rapida sem leitura real
 - Personas:
   - Livia
-  - Bruno
+  - Bianca
 
 ### Suporte
 
@@ -677,7 +677,7 @@ O importante e que exista repertorio suficiente para:
   - incendio atras de incendio
   - ticket critico perdido
 - Personas:
-  - Diego
+  - Daniela
 
 #### 58. Headset e cadeira
 
@@ -686,7 +686,7 @@ O importante e que exista repertorio suficiente para:
   - calma sob pressao
   - cansaco de operar no ruído
 - Personas:
-  - Diego
+  - Daniela
 
 #### 59. Alerta na tela
 
@@ -695,7 +695,7 @@ O importante e que exista repertorio suficiente para:
   - urgencia demais apaga o sinal
   - tudo parece critico
 - Personas:
-  - Diego
+  - Daniela
 
 #### 60. Turno de suporte quase acabando
 
@@ -704,7 +704,7 @@ O importante e que exista repertorio suficiente para:
   - o dia termina, a fila mental nao
   - cansaco acumulado
 - Personas:
-  - Diego
+  - Daniela
 
 #### 61. Checklist tecnico
 
@@ -713,8 +713,8 @@ O importante e que exista repertorio suficiente para:
   - depender demais de memoria humana
   - contexto espalhado
 - Personas:
-  - Diego
-  - Rafael
+  - Daniela
+  - Renata
 
 ### Comercial
 
@@ -725,7 +725,7 @@ O importante e que exista repertorio suficiente para:
   - conversa demais e fechamento de menos
   - timing perdido
 - Personas:
-  - Bruno
+  - Bianca
 
 #### 63. Corredor apos pitch
 
@@ -734,8 +734,8 @@ O importante e que exista repertorio suficiente para:
   - contato sem leitura
   - muita conversa sem proximo passo claro
 - Personas:
-  - Bruno
-  - Rafael
+  - Bianca
+  - Renata
 
 #### 64. Antes de mandar mensagem para lead
 
@@ -744,7 +744,7 @@ O importante e que exista repertorio suficiente para:
   - nao saber o que priorizar
   - incerteza sobre sinal comercial
 - Personas:
-  - Bruno
+  - Bianca
 
 #### 65. Depois de varias mensagens sem resposta
 
@@ -753,7 +753,7 @@ O importante e que exista repertorio suficiente para:
   - follow-up pulverizado
   - volume sem criterio
 - Personas:
-  - Bruno
+  - Bianca
 
 #### 66. Revisando funil no fim do dia
 
@@ -762,8 +762,8 @@ O importante e que exista repertorio suficiente para:
   - muito lead, pouca visibilidade
   - urgencia comercial embaralhada
 - Personas:
-  - Bruno
-  - Rafael
+  - Bianca
+  - Renata
 
 ### Customer success
 
@@ -774,7 +774,7 @@ O importante e que exista repertorio suficiente para:
   - cliente aparentemente ativo, mas travado
   - falta de leitura de risco
 - Personas:
-  - Rafael
+  - Renata
 
 #### 68. Check-in com cliente
 
@@ -783,7 +783,7 @@ O importante e que exista repertorio suficiente para:
   - muito cliente ao mesmo tempo
   - acompanhamento sem profundidade
 - Personas:
-  - Rafael
+  - Renata
 
 #### 69. Revisando saude da conta
 
@@ -792,7 +792,7 @@ O importante e que exista repertorio suficiente para:
   - dado sem contexto
   - risco escondido no grupo
 - Personas:
-  - Rafael
+  - Renata
 
 #### 70. Depois de onboarding confuso
 
@@ -801,7 +801,7 @@ O importante e que exista repertorio suficiente para:
   - cliente ativo nao e cliente acompanhado
   - muita atividade sem clareza
 - Personas:
-  - Rafael
+  - Renata
   - Camila
 
 ### Vida real e fronteiras pessoais
@@ -815,7 +815,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Marina
   - Camila
-  - Diego
+  - Daniela
 
 #### 72. Sofa de casa
 
@@ -826,7 +826,7 @@ O importante e que exista repertorio suficiente para:
 - Personas:
   - Camila
   - Marina
-  - Bruno
+  - Bianca
 
 ## Rotacao recomendada
 

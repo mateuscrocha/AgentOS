@@ -29,7 +29,7 @@ Use this skill when the user asks to:
 - generate audio for Boris or an editorial persona
 - choose or revise a voice in ElevenLabs
 - create campaign, batch, or single-line narration
-- map scripts to Marina, Rafael, Livia, Diego, Camila, or Bruno
+- map scripts to Marina, Renata, Livia, Daniela, Camila, or Bianca
 - keep Boris character audio consistent across projects
 
 ## Workflow
@@ -99,11 +99,11 @@ Avoid:
 
 ## Official Persona Rules
 - Marina -> Paula -> `calmo`
-- Rafael -> Flavio Francisco -> `institucional`
+- Renata -> Paula -> `institucional`
 - Livia -> Jenifer -> `energetico`
-- Diego -> Joel -> `padrao`
+- Daniela -> Yasmin -> `padrao`
 - Camila -> Amanda Kelly -> `calmo`
-- Bruno -> Boris -> `anuncio`
+- Bianca -> Carla -> `energetico`
 
 Use backup voices only for explicit A/B tests, temporary substitutions, or account limitations.
 Also allow temporary overrides when the official voice is too grave, unclear, or otherwise hurts intelligibility for the specific piece.

@@ -33,15 +33,16 @@
 ## Spaces
 
 - `boris`
+- `empresa`
 - `pessoal`
 
 ## Estatísticas
 
-- Spaces: 2
-- Areas: 6
-- Agentes do usuário: 6
+- Spaces: 3
+- Areas: 7
+- Agentes do usuário: 7
 - Times: 0
-- Skills do usuário: 25
+- Skills do usuário: 27
 
 ## Hooks
 
@@ -60,8 +61,17 @@ O sistema possui protocolo de sincronização entre runtimes (`.Codex/` → `.ge
 - **Hooks:** PostToolUse detecta mudanças em KERNEL.md, agents e commands e avisa sobre sync pendente
 - **Direção:** Unidirecional — `.Codex/` é source of truth, `.gemini/` é derivado
 
+## Contexto Operacional Vivo
+
+O sistema agora formaliza uma camada de memória viva para o cotidiano no space `pessoal`:
+- `spaces/pessoal/areas/dia/memory/agora.md` — snapshot do momento atual
+- `spaces/pessoal/areas/dia/memory/inbox.md` — capturas rápidas ainda não triadas
+- `spaces/pessoal/areas/dia/memory/follow-ups.md` — dependências externas ativas
+
+Essa camada existe para reduzir dependência do histórico de conversa em assuntos operacionais recorrentes.
+
 ## Última Alteração
 
-- **Data:** 2026-04-06
-- **O que mudou:** Importação do repositório principal do Boris Painel para `spaces/boris/areas/produto/workspaces/boris-painel/`, conectando a área `produto` ao código do app com histórico preservado.
+- **Data:** 2026-04-07
+- **O que mudou:** O sistema passou a formalizar memória operacional viva para o dia a dia no space `pessoal`, além do novo comando `/agora` no runtime Codex.
 - **Agente:** kernel

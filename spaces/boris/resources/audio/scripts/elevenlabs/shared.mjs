@@ -5,6 +5,11 @@ import { fileURLToPath } from "node:url";
 
 const currentFilePath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(currentFilePath), "../..");
+const PERSONA_ALIASES = {
+  rafael: "renata",
+  diego: "daniela",
+  bruno: "bianca"
+};
 
 export function loadEnvFile() {
   const envPath = path.join(projectRoot, ".env");
@@ -205,9 +210,10 @@ export function applyOutputGain(outputPath, gainDb = 0) {
 }
 
 function normalizePersonaKey(value) {
-  return String(value)
+  const normalized = String(value)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+  return PERSONA_ALIASES[normalized] || normalized;
 }

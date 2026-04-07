@@ -15,7 +15,10 @@ Herda de `spaces/boris/guidelines/`.
 
 | Documento | Descrição |
 |---|---|
-| _Nenhum documento adicionado ainda_ | _Adicione arquivos .md neste diretório_ |
+| `processo-comercial-boris.md` | Estrutura operacional do comercial do Boris, adaptada da base metodológica da Enkrateia |
+| `cadencia-follow-up.md` | Regras de cadência, timing, gatilhos e critérios para follow-up comercial |
+| `qualificacao-e-avanco.md` | Critérios para qualificar, avançar, pausar ou perder oportunidades no pipeline |
+| `pipeline-oficial-boris.md` | Mapeamento oficial entre pipeline do CRM atual do Boris e vocabulário herdado do legado |
 
 ## Cross-References
 
@@ -23,7 +26,8 @@ _Referencie guidelines de outros escopos quando necessário._
 
 | Referência | Caminho | Motivo |
 |---|---|---|
-| — | — | — |
+| Biblioteca comercial operacional | `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/comercial/README.md` | Centraliza processos, leads, contas e checklist de migração do legado comercial |
+| Contexto comercial Boris | `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/skills/boris-commercial-mentor/references/boris-commercial-context.md` | Mantém alinhamento entre a metodologia adaptada e a estratégia comercial já consolidada |
 
 ## Como Usar
 

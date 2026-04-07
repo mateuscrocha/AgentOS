@@ -11,7 +11,7 @@ created: 2026-04-06
 
 ## O que esta skill faz
 
-Conduz a abertura do dia com foco em clareza operacional, transformando tarefas soltas, compromissos e preocupações em um plano curto e executável.
+Conduz a abertura do dia com foco em clareza operacional, usando o Google Calendar como base dos compromissos fixos e transformando tarefas soltas, reuniões e preocupações em um plano curto e executável.
 
 ## Quando usar
 
@@ -21,10 +21,11 @@ Conduz a abertura do dia com foco em clareza operacional, transformando tarefas 
 
 ## Processo
 
-1. Levantar compromissos fixos, restrições de tempo e contexto do dia.
-2. Separar o que é prioridade real, o que é desejável e o que deve ficar apenas como captura.
-3. Escolher até 3 prioridades executáveis para hoje.
-4. Organizar uma visão simples com prioridades, compromissos, capturas e próximo passo imediato.
+1. Ler ou confirmar os compromissos fixos do dia, preferindo o Google Calendar quando disponível.
+2. Levantar restrições de tempo e contexto do dia.
+3. Separar o que é prioridade real, o que é desejável e o que deve ficar apenas como captura.
+4. Escolher até 3 prioridades executáveis para hoje.
+5. Organizar uma visão simples com prioridades, compromissos, capturas e próximo passo imediato.
 
 ## Inputs
 
@@ -45,3 +46,4 @@ Check-in diário organizado, com:
 2. Nunca promover tudo à mesma prioridade.
 3. Se o dia estiver lotado, reduzir escopo antes de otimizar agenda.
 4. Sempre distinguir o que precisa ser feito hoje do que só precisa ser lembrado.
+5. Se houver acesso ao Google Calendar, usar os eventos do calendário como base dos compromissos fixos.

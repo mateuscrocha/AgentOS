@@ -16,6 +16,9 @@ Escopo raiz do space. Estas guidelines são herdadas por todas as areas, times e
 | Documento | Descrição |
 |---|---|
 | `gestao-do-dia.md` | Regras simples para capturar, priorizar, executar e fechar o dia dentro do AgentOS |
+| `gestao-de-agenda.md` | Política operacional de calendários, padrões de criação de eventos e preferências de agenda do space `pessoal` |
+| `whatsapp-pessoal-evolution.md` | Fonte de verdade para operar o WhatsApp pessoal via Evolution API dentro do AgentOS |
+| `projetos-pessoais.md` | Regra simples para registrar e acompanhar projetos pessoais ativos dentro do space |
 
 ## Cross-References
 

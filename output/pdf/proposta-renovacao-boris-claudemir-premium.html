@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Proposta Comercial Bóris</title>
+  <style>
+    :root {
+      --paper: #f4f1eb;
+      --ink: #171717;
+      --muted: #6d6d6d;
+      --line: rgba(23, 23, 23, 0.12);
+      --accent: #f07a00;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    body {
+      font-family: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: #fffdf9;
+      padding: 22mm 20mm 20mm 20mm;
+      position: relative;
+    }
+
+    .page::before {
+      content: "";
+      position: absolute;
+      inset: 14mm;
+      border: 1px solid rgba(23, 23, 23, 0.04);
+      pointer-events: none;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      margin-bottom: 22mm;
+    }
+
+    .brand-lockup {
+      display: inline-flex;
+      align-items: center;
+      gap: 5mm;
+    }
+
+    header img {
+      width: 22mm;
+      height: 22mm;
+      object-fit: contain;
+      display: block;
+    }
+
+    .brand-word {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #424242;
+      font-weight: 600;
+    }
+
+    .eyebrow {
+      margin: 0 0 10mm 0;
+      font-size: 10.5px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 132mm;
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      font-size: 32px;
+      line-height: 1.04;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #181818;
+    }
+
+    .lede {
+      margin: 9mm 0 15mm 0;
+      max-width: 132mm;
+      font-size: 13.7px;
+      line-height: 1.82;
+      color: #2a2a2a;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10mm;
+      padding: 8mm 0 10mm 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 18mm;
+    }
+
+    .meta-item span {
+      display: block;
+    }
+
+    .meta-label {
+      margin-bottom: 3mm;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .meta-value {
+      font-size: 13.2px;
+      line-height: 1.5;
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .section {
+      display: grid;
+      grid-template-columns: 36mm 1fr;
+      gap: 8mm;
+      padding: 7mm 0;
+      border-bottom: 1px solid rgba(23, 23, 23, 0.08);
+    }
+
+    .section:last-of-type {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 10.5px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding-top: 1mm;
+    }
+
+    .section-body {
+      font-size: 13.3px;
+      line-height: 1.86;
+      color: #202020;
+    }
+
+    .section-body p {
+      margin: 0;
+    }
+
+    .section-body p + p {
+      margin-top: 5mm;
+    }
+
+    .list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .list li {
+      margin: 0 0 3.5mm 0;
+      position: relative;
+      padding-left: 14px;
+    }
+
+    .list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .approval {
+      margin-top: 16mm;
+      padding: 8mm 0 0 0;
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12mm;
+    }
+
+    .approval-box {
+      min-height: 24mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      border-bottom: 1px solid rgba(23, 23, 23, 0.16);
+      padding-bottom: 3mm;
+    }
+
+    .approval-label {
+      margin-top: 3mm;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    footer {
+      margin-top: 18mm;
+      padding-top: 8mm;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12mm;
+    }
+
+    .signature {
+      font-size: 12px;
+      line-height: 1.7;
+      color: #1f1f1f;
+    }
+
+    .signature strong {
+      display: block;
+      font-size: 12.5px;
+      color: var(--ink);
+    }
+
+    .footnote {
+      max-width: 58mm;
+      font-size: 10.5px;
+      line-height: 1.7;
+      color: var(--muted);
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="brand-lockup">
+        <img src="../../spaces/boris/areas/produto/workspaces/boris-painel/public/boris1.png" alt="Bóris" />
+        <span class="brand-word">Bóris</span>
+      </div>
+    </header>
+
+    <p class="eyebrow">Proposta comercial</p>
+    <h1>Renovação da solução Bóris para continuidade da operação pelos próximos 6 meses.</h1>
+
+    <p class="lede">
+      Esta proposta formaliza a renovação já alinhada em conversa, com foco em manter a continuidade
+      da solução, o suporte ao uso e o acompanhamento da operação de forma simples, objetiva e pronta
+      para encaminhamento interno.
+    </p>
+
+    <section class="meta">
+      <div class="meta-item">
+        <span class="meta-label">Cliente</span>
+        <span class="meta-value">Claudemir Gomes</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Investimento</span>
+        <span class="meta-value">R$ 750,00</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Vigência</span>
+        <span class="meta-value">6 meses</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Data</span>
+        <span class="meta-value">06 de abril de 2026</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title">Objeto</div>
+      <div class="section-body">
+        <p>
+          Renovação da solução Bóris para continuidade do atendimento, manutenção do acesso e suporte
+          à operação durante o período contratado.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title">Escopo</div>
+      <div class="section-body">
+        <ul class="list">
+          <li>continuidade de acesso à solução Bóris durante toda a vigência contratada</li>
+          <li>suporte para utilização da plataforma</li>
+          <li>acompanhamento da operação ao longo do período contratado</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title">Finalidade</div>
+      <div class="section-body">
+        <p>
+          Garantir a continuidade da operação com estabilidade, clareza e suporte, preservando o uso
+          da solução Bóris nas rotinas já estabelecidas e evitando interrupções no acompanhamento.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title">Ativação</div>
+      <div class="section-body">
+        <p>
+          A renovação poderá ser iniciada após a aprovação interna desta proposta.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title">Observação</div>
+      <div class="section-body">
+        <p>
+          Documento preparado em formato objetivo para facilitar avaliação, aprovação e encaminhamento
+          interno, preservando clareza nas condições comerciais e no escopo da renovação.
+        </p>
+      </div>
+    </section>
+
+    <section class="approval">
+      <div>
+        <div class="approval-box"></div>
+        <div class="approval-label">Responsável pela aprovação</div>
+      </div>
+      <div>
+        <div class="approval-box"></div>
+        <div class="approval-label">Data de aprovação</div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="signature">
+        <strong>Mateus Rocha</strong>
+        Bóris
+      </div>
+      <div class="footnote">
+        Documento preparado para encaminhamento interno, em formato direto e institucional.
+      </div>
+    </footer>
+  </main>
+</body>
+</html>

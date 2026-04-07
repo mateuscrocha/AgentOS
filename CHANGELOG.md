@@ -9,13 +9,19 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 ## [Unreleased]
 
 ### Adicionado
+- **Memória operacional viva do dia** — criados `spaces/pessoal/areas/dia/memory/agora.md`, `inbox.md` e `follow-ups.md` para persistir contexto cotidiano importante fora do histórico da conversa
+- **Comando `/agora`** — criado slash command no runtime Codex para consultar e atualizar o estado vivo do dia com `mostrar`, `captura`, `check-in` e `fechamento`
 - **Runtime Codex primário** — criado `CODEX.md` e a árvore `.Codex/` (`agents/`, `commands/`, `skills/agent-bootstrap`) para tornar o Codex o runtime principal do AgentOS
 - **Regra global de idioma** — criado `docs/language.md` e adicionada regra explícita de português brasileiro como idioma padrão do projeto, salvo override explícito do usuário
 - **Space pessoal inicial** — criado `spaces/pessoal/` com memória, guidelines e a área `dia` para começar a gerenciar projetos pessoais e a rotina diária dentro do AgentOS
+- **Space empresa inicial** — criado `spaces/empresa/` para centralizar dados institucionais, fiscais, cadastrais e operacionais da empresa separadamente do produto Bóris
 - **Workspace do Boris Painel importado** — o app principal foi trazido para `spaces/boris/areas/produto/workspaces/boris-painel/` com histórico Git preservado, conectando a área `produto` ao código real do sistema
 - **WhatsApp pessoal formalizado no AgentOS** — criada a área `spaces/pessoal/areas/comunicacao/`, o agente `whatsapp-manager`, a skill `send-personal-whatsapp` e a workspace local `workspaces/evolution-api-agent`, internalizando a estrutura antes mantida fora do repositório
+- **Comando `/painel`** — criado slash command para operar `status`, `commit`, `push` e `pull` do repo `boris-admin-core` a partir do workspace oficial dentro do AgentOS
+- **Memória oficial de reuniões do Bóris** — criada a guideline `spaces/boris/guidelines/meeting-intelligence.md` e o acervo `spaces/boris/resources/reunioes/` para consolidar transcrições, resumos, decisões e próximos passos de calls relevantes
 
 ### Alterado
+- **Kernel orientado a contexto vivo** — `KERNEL.md`, o loader `.Codex/agents/pessoal--dia--day-manager.md`, a guideline `spaces/pessoal/guidelines/gestao-do-dia.md` e o agente `day-manager` agora tratam a memória viva da área `pessoal/dia` como fonte operacional primária para rotina, prioridades e follow-ups
 - **Source of truth de runtime** — `KERNEL.md`, `README.md`, `docs/architecture.md`, `system/protocols/sync.md`, `system/scripts/setup.py`, `system/scripts/sync.py`, `system/scripts/validate.py` e hooks agora tratam `.Codex/` como runtime canônico para sync e operação
 - **Compatibilidade preservada** — `.gemini/` continua como runtime derivado; `.claude/` permanece apenas como legado/compatibilidade enquanto a migração não é concluída integralmente
 - **Comandos do runtime Codex** — loaders e comandos mínimos em `.Codex/` foram ajustados para registrar agentes e bootstrap no novo namespace

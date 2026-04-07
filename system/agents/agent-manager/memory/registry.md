@@ -36,12 +36,14 @@
 | operations-manager | boris/operacoes | Organiza processos, rituais e execução operacional do Boris | Ativo |
 | support-manager | boris/suporte | Estrutura atendimento, base de conhecimento e resolução de demandas do Boris | Ativo |
 | day-manager | pessoal/dia | Organiza prioridades, agenda operacional e fechamento do dia pessoal | Ativo |
+| whatsapp-manager | pessoal/comunicacao | Opera o WhatsApp pessoal via Evolution API e centraliza esse canal no AgentOS | Ativo |
 
 ## Spaces do Usuário
 
 | Space | Áreas | Propósito | Status |
 |---|---|---|---|
 | boris | produto, comercial, conteudo, operacoes, suporte | Operação principal do Boris no AgentOS | Ativo |
+| empresa | — | Informações institucionais, legais e operacionais da empresa | Ativo |
 | pessoal | dia | Projetos pessoais e gestão do dia a dia | Ativo |
 
 ## Áreas do Usuário
@@ -54,3 +56,4 @@
 | boris | operacoes | Rotinas internas, processos e automações | Ativo |
 | boris | suporte | Atendimento, base de conhecimento e resolução de demandas | Ativo |
 | pessoal | dia | Planejamento diário, prioridades, foco e fechamento do dia | Ativo |
+| pessoal | comunicacao | WhatsApp pessoal, Evolution API e rotinas de comunicação | Ativo |

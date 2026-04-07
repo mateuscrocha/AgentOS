@@ -44,11 +44,11 @@ Se houver limitacao tecnica de casting, registrar isso como excecao temporaria, 
 | Persona | Aparencia-base | Voz oficial | Status do casting |
 |---|---|---|---|
 | Marina | mulher adulta, organizada, acessivel, contexto de comunidade | Paula (`calmo`) | ok |
-| Rafael | homem adulto, consultivo, confiavel, contexto de CS | Eric (`calmo`) | ok com tradeoff de accent |
+| Renata | mulher adulta, consultiva, confiavel, contexto de CS | Bella (`institucional`) | ok com tradeoff de accent |
 | Livia | mulher adulta jovem, criativa, agil, contexto de conteudo | Jenifer (`energetico`) | ok |
-| Diego | homem adulto, tecnico, paciente, contexto de suporte | Joel (`padrao`) | ok |
+| Daniela | mulher adulta, tecnica, paciente, contexto de suporte | Yasmin (`padrao`) | ok |
 | Camila | mulher adulta, calorosa, didatica, contexto educacional | Amanda Kelly (`calmo`) | ok |
-| Bruno | homem adulto jovem, comercial, leve, contexto de leads e vendas | Liam (`energetico`) | ok com tradeoff de accent |
+| Bianca | mulher adulta jovem, comercial, leve, contexto de leads e vendas | Matilda (`energetico`) | ok com tradeoff de accent |
 
 ## Personas oficiais
 
@@ -65,6 +65,15 @@ Se houver limitacao tecnica de casting, registrar isso como excecao temporaria, 
   - roupa casual de trabalho ou smart casual
   - cabelo medio ou preso com praticidade
   - acessorios discretos
+- Aparencia detalhada para imagem:
+  - pele morena clara a media
+  - rosto oval suave e maduro
+  - olhos castanhos com expressao acolhedora e atenta
+  - sobrancelhas bem desenhadas, sem dureza
+  - cabelo castanho escuro, liso ou levemente ondulado, na altura dos ombros ou preso com praticidade
+  - maquiagem leve e natural
+  - paleta de roupa em bege, oliva, off-white, terracota suave ou azul acinzentado
+  - linguagem corporal de escuta, organizacao e cuidado
 - Sinais de rotina:
   - smartphone na mao
   - grupo, comentarios, fila de mensagens
@@ -78,31 +87,39 @@ Se houver limitacao tecnica de casting, registrar isso como excecao temporaria, 
   - a voz deve passar seguranca calma e presenca de rotina
   - a atuacao deve carregar tensao real de acompanhamento quando a cena pedir
 
-### Rafael
+### Renata
 
 - Funcao: customer success
 - Faixa etaria aparente: 32 a 42
-- Apresentacao: homem adulto, consultivo, confiavel e mais estruturado
+- Apresentacao: mulher adulta, consultiva, confiavel e mais estruturada
 - Papel editorial: onboarding, retencao, follow-up, leitura de risco e acompanhamento de cliente
 - Dor mais comum: muitos clientes ao mesmo tempo, cobranca por contexto e necessidade de acompanhar sem perder qualidade
 - Visual base:
-  - homem brasileiro
-  - estilo profissional leve
-  - camisa, polo ou look clean de acompanhamento comercial/CS
+  - mulher brasileira
+  - estilo profissional leve e seguro
+  - camisa, blazer leve ou look clean de acompanhamento comercial/CS
   - aparencia de quem conversa, orienta e acompanha
+- Aparencia detalhada para imagem:
+  - pele clara a morena clara
+  - rosto levemente alongado ou angular, com presenca serena
+  - olhos castanhos ou mel, expressao de leitura e acompanhamento
+  - cabelo castanho medio ou escuro, liso ou escovado, na altura do ombro ou preso de forma elegante
+  - visual mais estruturado, com alfaiataria soft, tricot fino ou camisa bem resolvida
+  - paleta em azul marinho, cinza quente, vinho fechado, creme ou verde profundo
+  - linguagem corporal de quem acompanha com criterio e explica com calma
 - Sinais de rotina:
   - notebook
   - CRM, follow-up, reuniao, checklist
   - contexto de cliente e relacao
 - Voz oficial:
-  - principal: Eric
-  - preset: `calmo`
-  - encaixe: masculina adulta, segura, consultiva e mais humana
+  - principal: Bella
+  - preset: `institucional`
+  - encaixe: feminina adulta, segura, consultiva e humana
 - Regra de encaixe:
-  - Rafael nao deve soar jovem demais, agressivo ou radiofonico
+  - Renata nao deve soar jovem demais, agressiva ou radiofonica
   - a voz precisa sustentar credibilidade e acompanhamento
   - a atuacao deve evitar frieza corporativa e manter calor humano
-  - como a conta tem poucas vozes masculinas brasileiras distintas, o casting atual privilegia singularidade entre personas e confiabilidade de timbre
+  - como o elenco feminino brasileiro atual ja esta todo ocupado por outras personas, o casting atual privilegia singularidade de timbre e clareza, mesmo com tradeoff leve de accent
 
 ### Livia
 
@@ -116,6 +133,14 @@ Se houver limitacao tecnica de casting, registrar isso como excecao temporaria, 
   - visual mais dinamico e criativo
   - smartphone, notebook, agenda ou contexto de criacao
   - aparencia viva e ritmada
+- Aparencia detalhada para imagem:
+  - pele clara, morena clara ou morena media
+  - rosto jovem e expressivo
+  - olhos vivos, sobrancelhas marcantes, expressao de decisao rapida
+  - cabelo castanho, preto ou iluminado, com corte moderno ou acabamento estiloso
+  - roupa criativa e atual, com sobreposicoes simples e textura visual leve
+  - paleta mais viva, como coral queimado, verde folha, azul mais aceso controlado, areia e preto suave
+  - linguagem corporal acelerada, inclinada para a acao
 - Sinais de rotina:
   - comentarios
   - calendario editorial
@@ -129,31 +154,39 @@ Se houver limitacao tecnica de casting, registrar isso como excecao temporaria, 
   - a voz precisa combinar com velocidade e energia de operacao criativa
   - a atuacao deve ter ataque e ritmo, sem virar locucao publicitaria artificial
 
-### Diego
+### Daniela
 
 - Funcao: suporte
 - Faixa etaria aparente: 28 a 38
-- Apresentacao: homem adulto, estavel, tecnico, paciente e resolutivo
+- Apresentacao: mulher adulta, estavel, tecnica, paciente e resolutiva
 - Papel editorial: fila de atendimento, suporte, problemas urgentes e pressao operacional
 - Dor mais comum: apagar incendio o dia inteiro e ainda precisar manter calma e clareza
 - Visual base:
-  - homem brasileiro
+  - mulher negra brasileira
   - estilo funcional e direto
   - headset opcional
   - leitura de quem escuta, responde e organiza
+- Aparencia detalhada para imagem:
+  - pele marrom media a escura
+  - rosto firme e simpatico, com foco sob pressao
+  - olhos castanhos e expressao concentrada
+  - cabelo castanho escuro ou preto, preso em rabo, coque funcional ou corte medio controlado
+  - roupa funcional limpa, como polo, camiseta lisa premium, camisa casual ou jaqueta leve
+  - paleta em chumbo, azul petróleo, verde escuro, areia e off-white
+  - linguagem corporal de triagem, resposta e raciocinio tecnico
 - Sinais de rotina:
   - alertas
   - tickets
   - fila de atendimento
   - mensagens urgentes
 - Voz oficial:
-  - principal: Joel
+  - principal: Yasmin
   - preset: `padrao`
-  - encaixe: masculina adulta, calma, estavel e resolutiva
+  - encaixe: feminina adulta, calma, estavel e resolutiva
 - Regra de encaixe:
-  - Diego nao deve soar vendedor, jovem demais ou teatral
+  - Daniela nao deve soar publicitaria, jovem demais ou teatral
   - a voz precisa parecer suporte sob pressao, mas com controle
-  - a atuacao nao deve ficar neutra demais; precisa soar presente e pensante
+  - a atuacao nao deve ficar neutra demais; precisa soar presente, pensante e tecnica
 
 ### Camila
 
@@ -163,10 +196,19 @@ Se houver limitacao tecnica de casting, registrar isso como excecao temporaria, 
 - Papel editorial: acompanhamento de alunos, continuidade, duvidas recorrentes e cuidado com experiencia
 - Dor mais comum: excesso de perguntas, necessidade de presenca constante e sensacao de acompanhar muita gente ao mesmo tempo
 - Visual base:
-  - mulher brasileira
+  - mulher brasileira gorda
   - estilo acolhedor e organizado
   - smartphone, caderno ou sinais de contexto educacional
   - leitura de quem ensina e acompanha
+- Aparencia detalhada para imagem:
+  - pele clara a morena media
+  - rosto acolhedor, expressivo e proximo
+  - olhos gentis e atentos
+  - cabelo castanho ou preto, com ondas leves, comprimento medio ou preso suavemente
+  - roupa acolhedora e organizada, como cardigan, tricot fino, camisa casual clara ou blusa de tecido leve
+  - paleta em rose queimado, areia, caramelo, azul suave, verde salvia e creme
+  - silhueta gorda visivel de forma natural e digna, sem caricatura e sem esconder o corpo
+  - linguagem corporal de didatica, cuidado e percepcao emocional
 - Sinais de rotina:
   - alunos
   - perguntas
@@ -179,50 +221,77 @@ Se houver limitacao tecnica de casting, registrar isso como excecao temporaria, 
 - Regra de encaixe:
   - Camila nao deve soar fria, excessivamente jovem ou publicitaria
   - a voz precisa passar proximidade e didatica
-  - a atuacao deve carregar mais emocao quando houver frustração, desgaste ou cuidado tardio
+  - a atuacao deve carregar mais emocao quando houver frustracao, desgaste ou cuidado tardio
 
-### Bruno
+### Bianca
 
 - Funcao: infoprodutor / operacao comercial via WhatsApp
 - Faixa etaria aparente: 27 a 36
-- Apresentacao: homem adulto jovem, comercial, direto, rapido e pragmatco
+- Apresentacao: mulher adulta jovem, comercial, direta, rapida e pragmatica
 - Papel editorial: leads, vendas, lancamentos, follow-up e operacao pulverizada
 - Dor mais comum: conversa demais, urgencia comercial, perda de timing e falta de organizacao no funil
 - Visual base:
-  - homem brasileiro
-  - estilo comercial mais leve e atual
+  - mulher brasileira
+  - estilo comercial atual, leve e confiante
   - smartphone, pressao de leads, energia de venda
   - aparencia de quem vive follow-up e operacao de conversao
+- Aparencia detalhada para imagem:
+  - pele clara, morena clara ou bronzeada leve
+  - rosto expressivo e confiante, com leitura de timing
+  - olhos vivos, sobrancelhas definidas e presenca comercial
+  - cabelo castanho, preto ou iluminado, liso ou ondulado, com acabamento atual
+  - visual smart casual mais afiado, com blazer leve, camisa ajustada, camiseta premium com terceira peca ou look comercial moderno
+  - paleta em preto suave, creme, terracota, vermelho fechado, azul profundo ou verde escuro
+  - linguagem corporal direta, rapida e interessada, com tensao de oportunidade escapando
 - Sinais de rotina:
   - leads
   - mensagens
   - funil
   - urgencia comercial
 - Voz oficial:
-  - principal: Liam
+  - principal: Matilda
   - preset: `energetico`
-  - encaixe pretendido: masculina adulta jovem, comercial, leve e clara
-- Observacao importante:
-  - hoje a conta ainda tem limitacao de vozes masculinas brasileiras; para evitar repeticao entre personas, Bruno usa uma voz multilíngue mais jovem
-  - essa voz resolve melhor a singularidade do casting, mas ainda nao e o ideal definitivo em sotaque
+  - encaixe pretendido: feminina adulta jovem, comercial, leve e clara
 - Regra de encaixe:
-  - Bruno nao deve soar grave demais, burocratico ou institucional demais
-  - quando houver nova voz masculina brasileira mais jovem, Bruno deve ser o primeiro candidato a upgrade
+  - Bianca nao deve soar grave demais, burocratica ou institucional demais
+  - quando houver nova voz feminina brasileira com mais ataque comercial e menos tradeoff de accent, Bianca deve ser a primeira candidata a upgrade
   - a atuacao deve soar viva, interessada e com vontade real de recuperar timing
 
 ## Regra de correspondencia entre voz e personagem
 
 - mulheres adultas devem soar como mulheres adultas, nao como vozes adolescentes ou publicitarias fora de contexto
-- homens de operacao e suporte devem soar adultos, inteligiveis e coerentes com o papel
+- personagens de operacao, suporte e comercial devem soar adultas, inteligiveis e coerentes com o papel
 - personagens mais jovens e dinamicos pedem mais ritmo, ataque e energia
 - personagens mais consultivos ou de cuidado pedem mais estabilidade, calor e controle
 - se a voz correta tecnicamente quebrar a coerencia de idade, sexo, estilo ou funcao, isso deve ser tratado como gap de casting
 
+## Regra de consistencia visual
+
+- ao gerar imagem, tratar cabelo, estrutura facial, faixa de pele, tipo de roupa e linguagem corporal como invariantes da persona
+- variar pose, enquadramento e microexpressao sem trocar a identidade-base
+- nao reduzir a persona a um placeholder generico como `mulher com celular`
+- cada persona precisa continuar reconhecivel mesmo sem texto, apenas por rosto, cabelo, roupa e energia
+- quando a persona tiver identidade racial ou corporal explicitamente definida, isso deve ser preservado como parte central da consistencia visual
+- quando existir retrato-base aprovado da persona, ele deve ser usado como referencia primaria de identidade visual
+
+## Retratos-Base Oficiais
+
+- Marina: `/Users/eu.rochamateus/Documents/Codex/AgentOS/output/imagegen/boris/personas-2026-04-06/marina.png`
+- Renata: `/Users/eu.rochamateus/Documents/Codex/AgentOS/output/imagegen/boris/personas-2026-04-06/renata.png`
+- Livia: `/Users/eu.rochamateus/Documents/Codex/AgentOS/output/imagegen/boris/personas-2026-04-06/livia.png`
+- Daniela: `/Users/eu.rochamateus/Documents/Codex/AgentOS/output/imagegen/boris/personas-2026-04-06/daniela.png`
+- Camila: `/Users/eu.rochamateus/Documents/Codex/AgentOS/output/imagegen/boris/personas-2026-04-06/camila.png`
+- Bianca: `/Users/eu.rochamateus/Documents/Codex/AgentOS/output/imagegen/boris/personas-2026-04-06/bianca.png`
+
+Uso:
+
+- tratar esses retratos como ancora oficial de rosto, cabelo, paleta e energia corporal
+- nao substituir a identidade-base por outra variacao se ja houver retrato aprovado
+
 ## Gaps atuais
 
-- falta uma voz masculina brasileira mais jovem e comercial para separar melhor Bruno sem tradeoff de sotaque
-- falta uma voz masculina brasileira consultiva para separar melhor Rafael sem tradeoff de sotaque
-- ainda vale revisar periodicamente se Rafael, Diego e Bruno estao suficientemente distintos no ouvido
+- falta uma voz feminina brasileira mais madura e consultiva para substituir a Renata sem tradeoff de accent
+- vale revisar periodicamente se Renata, Daniela e Bianca estao suficientemente distintas no ouvido
 
 ## Fontes canônicas relacionadas
 

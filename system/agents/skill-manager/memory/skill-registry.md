@@ -45,3 +45,5 @@
 | Skill | Agente | Descrição |
 |---|---|---|
 | run-daily-checkin | day-manager | Organiza um check-in diário com prioridades, compromissos, capturas e próximo passo |
+| review-calendar-day | day-manager | Lê o Google Calendar do dia e transforma eventos em visão prática de agenda, conflitos e janelas úteis |
+| send-personal-whatsapp | whatsapp-manager | Opera o WhatsApp pessoal com estrutura local do AgentOS, via workspace evolution-api-agent e perfil padrão pessoal |

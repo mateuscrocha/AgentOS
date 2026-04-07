@@ -1,0 +1,1 @@
+Botão de confirmação dentro do e-mail tá levando para um localhost.

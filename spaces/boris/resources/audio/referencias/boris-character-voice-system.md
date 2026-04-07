@@ -60,15 +60,15 @@ Para toda peca dialogada do Boris:
 - Atuacao: acolhedora, organizada, presente e natural; deve soar como uma pessoa real falando da rotina, com pausas leves e respiracao crivel
 - Ajuste de atuacao: manter acolhimento, mas com mais sentimento de rotina vivida; nao deixar a leitura morrer reta
 
-### Rafael
+### Renata
 - Funcao: Customer Success
-- Voz principal: Eric
-- Voice ID: `cjVigY5qzO86Huf0OWal`
-- Voz reserva: Joel
-- Preset recomendado: `calmo`
+- Voz principal: Bella
+- Voice ID: `hpp4J3VqNfWAUOO0d1Us`
+- Voz reserva: Yasmin
+- Preset recomendado: `institucional`
 - Atuacao: segura, consultiva e confiavel, mas ainda humana; evitar excesso de formalidade e usar variacao natural de ritmo
 - Ajuste de atuacao: trazer mais presenca e calor de acompanhamento real, sem cair em voz corporativa fria
-- Observacao de casting: escolhido para evitar repeticao entre personas; hoje a conta ainda tem poucas vozes masculinas brasileiras distintas
+- Observacao de casting: escolhido para evitar repeticao de voz com a Marina; ainda vale ampliar o casting feminino brasileiro consultivo para eliminar o tradeoff de accent
 
 ### Livia
 - Funcao: Social Media
@@ -79,11 +79,11 @@ Para toda peca dialogada do Boris:
 - Atuacao: agil, clara, ritmada e viva; pode variar mais a energia e o ataque das frases
 - Ajuste de atuacao: sustentar brilho e urgencia editorial sem soar artificial ou radiofonica
 
-### Diego
+### Daniela
 - Funcao: Suporte
-- Voz principal: Joel
-- Voice ID: `uOjV7aFQoCQBSZxYyOds`
-- Voz reserva: Flavio Francisco
+- Voz principal: Yasmin
+- Voice ID: `lWq4KDY8znfkV0DrK8Vb`
+- Voz reserva: Paula
 - Preset recomendado: `padrao`
 - Atuacao: estavel, calma e resolutiva, mas nunca reta demais; precisa soar como alguem pensando enquanto responde
 - Ajuste de atuacao: preservar estabilidade, mas com mais implicacao humana e menos neutralidade tecnica
@@ -97,19 +97,19 @@ Para toda peca dialogada do Boris:
 - Atuacao: calorosa, paciente, didatica e humana; usar pausas suaves e um leve peso emocional quando a rotina estiver puxada
 - Ajuste de atuacao: subir a carga emocional quando houver desgaste, frustracao ou cuidado ferido; evitar leitura mansa demais
 
-### Bruno
+### Bianca
 - Funcao: Infoprodutor / Operacao Comercial via WhatsApp
-- Voz principal: Liam
-- Voice ID: `TX3LPaxmHKxFdv7VOQHJ`
-- Voz reserva: Flavio Francisco
+- Voz principal: Matilda
+- Voice ID: `XrExE9yKIg1WjnnlVkGX`
+- Voz reserva: Jenifer
 - Preset recomendado: `energetico`
-- Atuacao: comercial, direta e mais jovem; precisa soar clara, leve e viva, sem confundir com a voz do proprio Boris nem cair num grave pesado demais
+- Atuacao: comercial, direta e mais jovem; precisa soar clara, leve e viva, com confianca e urgencia boa sem cair em propaganda caricata
 - Ajuste de atuacao: trazer mais urgencia, timing e vontade de resolver, sem perder leveza comercial
-- Observacao de casting: escolhido para evitar repeticao entre personas; hoje a conta ainda tem poucas vozes masculinas brasileiras distintas
+- Observacao de casting: escolhida para dar mais confianca e menos brilho infantil; ainda pode evoluir quando houver voz feminina brasileira mais assertiva para vendas
 
 ## Gaps atuais
 
-- Ainda faltam vozes masculinas brasileiras mais diferenciadas para separar melhor Rafael, Diego e Bruno sem recorrer a vozes multilíngues nao brasileiras.
+- Ainda vale ampliar o casting feminino brasileiro para substituir a Renata por uma voz consultiva sem tradeoff de accent.
 - Quando houver expansao do casting, atualizar primeiro `config/persona-voices.json` e depois este documento.
 
 ## Instrucoes para futuras skills e automacoes

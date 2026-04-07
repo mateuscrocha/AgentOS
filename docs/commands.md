@@ -1,6 +1,6 @@
 # Referência de Comandos
 
-O AgentOS é controlado por comandos que começam com `/`. O kernel (`CLAUDE.md`) intercepta esses comandos e os roteia para os agentes ou ações corretas.
+O AgentOS é controlado por comandos que começam com `/`. O kernel (`KERNEL.md`, com runtime principal em `CODEX.md`) intercepta esses comandos e os roteia para os agentes ou ações corretas.
 
 ---
 
@@ -186,6 +186,33 @@ Exibe o estado atual do AgentOS, incluindo:
 
 ---
 
+## `/agora [mostrar|captura|check-in|fechamento] [conteúdo]`
+
+**Ação:** Consulta ou atualiza a memória operacional viva do dia
+**Agente:** `pessoal--dia--day-manager`
+
+Usa a área `spaces/pessoal/areas/dia/` como base para manter o contexto importante do cotidiano persistido em arquivos, sem depender apenas do histórico da conversa.
+
+**Arquivos-base:**
+- `spaces/pessoal/areas/dia/memory/agora.md`
+- `spaces/pessoal/areas/dia/memory/inbox.md`
+- `spaces/pessoal/areas/dia/memory/follow-ups.md`
+
+**Uso:**
+```text
+/agora
+/agora mostrar
+/agora captura lembrar de cobrar o buffet
+/agora check-in hoje o foco é fechar pendências do casamento e organizar a tarde
+/agora fechamento conclui X, ficou Y, amanhã começo por Z
+```
+
+**Regra importante:**
+- atualizações importantes do dia devem ser persistidas nesses arquivos
+- a conversa é interface, não fonte única de verdade operacional
+
+---
+
 ## `/handoff <de> <para> <tarefa>`
 
 **Ação:** Cria um handoff entre agentes
@@ -204,6 +231,33 @@ Registra uma transferência formal de tarefa de um agente para outro, escrevendo
 - Agentes da mesma área → `spaces/{space}/areas/{area}/memory/handoff.md`
 - Agentes do mesmo space (áreas diferentes) → `spaces/{space}/memory/handoff.md`
 - Cross-boundary (sistema <> usuário) → `system/memory/handoff.md`
+
+---
+
+## `/painel <status|commit|push|pull> [mensagem]`
+
+**Ação:** Opera o Git do Boris Painel pelo workspace oficial dentro do AgentOS
+**Agente:** kernel
+
+Usa sempre o submódulo local em `spaces/boris/areas/produto/workspaces/boris-painel/`, sem depender da pasta antiga fora do AgentOS.
+
+**Uso:**
+```
+/painel status
+/painel commit ajusta rota de usuarios
+/painel push
+/painel pull
+```
+
+**O que cada ação faz:**
+- `status` — mostra branch, mudanças locais e remoto do painel
+- `commit` — roda `git add -A` e cria commit no repo `boris-admin-core`
+- `push` — envia `main` do repo do painel para o GitHub
+- `pull` — atualiza o painel com `pull --ff-only` e avisa se o AgentOS precisa registrar novo ponteiro do submódulo
+
+**Regra importante:**
+- Commit dentro de `/painel` afeta o repo `boris-admin-core`
+- Se o commit do painel mudar, o AgentOS pode precisar de um commit separado para atualizar a referência do submódulo
 
 ---
 

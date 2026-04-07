@@ -78,7 +78,7 @@ Operational note:
    - demo framing
    - pricing anchor
    - next-step message
-6. When using an official persona such as Bruno, keep the role, voice, and speaking intent aligned with the canonical voice system.
+6. When using an official persona such as Bianca, keep the role, voice, and speaking intent aligned with the canonical voice system.
 7. Recommend the clearest next move, with minimal complexity.
 
 # Reference Guide

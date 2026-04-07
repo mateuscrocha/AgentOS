@@ -25,6 +25,7 @@ Escopo raiz do space. Estas guidelines são herdadas por todas as areas, times e
 | `cabeca-fria-scenario-library.md` | Biblioteca de cenários do dia a dia para variar a `cabeça fria` e conectá-la às dores das personas |
 | `language-and-locution.md` | Regra herdável de português brasileiro, acentuação e prosódia nas entregas do Boris |
 | `multimodal-production.md` | Como imagem e áudio das linhas editoriais usam a biblioteca especialista do Boris |
+| `meeting-intelligence.md` | Regra oficial para transformar reuniões, transcrições e calls em memória acionável do Boris |
 | `persona-system.md` | Definição oficial das personas, com aparência, faixa etária, função e encaixe de voz |
 | `../resources/README.md` | Índice da biblioteca operacional do Boris dentro do AgentOS |
 

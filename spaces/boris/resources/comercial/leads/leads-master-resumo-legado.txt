@@ -1,0 +1,66 @@
+TOTAL 1994
+P1 508
+  - lead qualificado com contexto quente: 447
+  - base antiga com contato humano: 27
+  - subscriber antigo com contato direto: 19
+  - follow-up pendente: 15
+
+BL-00001 | Bianca levy |  | claudemir.ribeiro@comercialalvorada.com.br | 556196298903 | Base antiga do Bóris | postgres_member_super_admin / admin / manager | postgres_member_super_admin / manager | postgres_member_manager | postgres_member_admin / manager | Contato de grupo (manager) | postgres_subscriber | new | subscriber antigo com contato direto
+BL-00141 | ter amigos Tatiana |  |  | 12043616801 | Lead | qualified | lead qualificado com contexto quente
+BL-00151 | Anderson Cardoso |  |  | 14078154340 | Lead | qualified | lead qualificado com contexto quente
+BL-00152 | ARMADA Diego Almeida |  |  | 14323125338 | Lead | qualified | lead qualificado com contexto quente
+BL-00161 | Ihv Lucas Dantas |  | lucas.odantas@gmail.com | 17372174284 | Lead | Base antiga do Bóris | postgres_subscriber | postgres_member_super_admin / manager | qualified | lead qualificado com contexto quente
+BL-00221 | httr |  |  | 5511912345678 | Lead | qualified | lead qualificado com contexto quente
+BL-00225 | Caio Castro |  |  | 5511913199755 | Lead | qualified | lead qualificado com contexto quente
+BL-00226 | U Marcos Personal |  |  | 5511913595962 | Lead | Base antiga do Bóris | qualified | lead qualificado com contexto quente
+BL-00227 | ! Carlos luis |  |  | 5511914525522 | Lead | qualified | lead qualificado com contexto quente
+BL-00242 | grupos Alexandre Batista |  |  | 5511934165086 | Lead | qualified | lead qualificado com contexto quente
+BL-00245 | cdg Li Saito |  |  | 5511939614880 | Lead | Base antiga do Bóris | postgres_member_manager | qualified | lead qualificado com contexto quente
+BL-00248 | Mooca Lucas Bertoni |  |  | 5511940054005 | Lead | qualified | lead qualificado com contexto quente
+BL-00253 | SPPC🥰 Priscilla Negrao |  |  | 5511941425555 | Lead | Base antiga do Bóris | qualified | lead qualificado com contexto quente
+BL-00260 | TI💻1 Ivon Matos |  |  | 5511941906079 | Lead | qualified | lead qualificado com contexto quente
+BL-00263 | Bianca levy |  | financeiro@b2mamy.com.br | 5511942352721 | Contato de grupo (manager) | postgres_subscriber | new | subscriber antigo com contato direto
+BL-00267 | DglYRgTG RodrigoK |  |  | 5511942959122 | Lead | Base antiga do Bóris | qualified | lead qualificado com contexto quente
+BL-00268 | m Fabiola Oliveira |  |  | 5511944850914 | Lead | Base antiga do Bóris | postgres_member_admin / manager | qualified | lead qualificado com contexto quente
+BL-00271 | NPdq Danilo Florencio dos Santos |  |  | 5511945525583 | Base antiga do Bóris | new | base antiga com contato humano
+BL-00272 | LÉO Renato Martins |  |  | 5511946669911 | Lead | qualified | lead qualificado com contexto quente
+BL-00275 | Familia grecu Leonardo |  |  | 5511947227300 | Lead | qualified | lead qualificado com contexto quente
+BL-00276 | LIMITES Felipe Oliveira |  |  | 5511947361656 | Lead | Base antiga do Bóris | qualified | lead qualificado com contexto quente
+BL-00277 | ! Thiago Mariano |  |  | 5511947422418 | Lead | qualified | lead qualificado com contexto quente
+BL-00278 | Daniele Amorim |  |  | 5511947539196 | Lead | qualified | lead qualificado com contexto quente
+BL-00279 | Dvr Juliana azevedo |  |  | 5511947583346 | Lead | qualified | lead qualificado com contexto quente
+BL-00280 | B2GO Vanessa Tozzato |  |  | 5511947589643 | Lead | Base antiga do Bóris | qualified | lead qualificado com contexto quente
+
+P2 0
+
+
+P3 1486
+  - contato administrativo ou manager: 959
+  - grupo ou registro nao humano: 527
+
+BL-00002 |  |  |  | 120363023139888 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00003 |  |  |  | 120363024093787 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00004 |  |  |  | 120363024220810 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00005 |  |  |  | 120363024305988 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00006 |  |  |  | 120363029046433 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00007 |  |  |  | 120363029123216 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00008 |  |  |  | 120363032052129 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00009 |  |  |  | 120363038089805 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00010 | Marcelo e Claudio |  |  | 120363038464399 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00011 |  |  |  | 120363038753965 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00012 | Matheus e Guilherme |  |  | 120363040266546 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00013 |  |  |  | 120363040721788 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00014 | TRIAL Grupo da família |  |  | 120363041344682 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00015 |  |  |  | 120363041421719 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00016 |  |  |  | 120363042240122 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00017 |  |  |  | 120363043092174 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00018 |  |  |  | 120363043397859 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00019 | serve para conversas do dia a dia |  |  | 120363044091225 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00020 | Valdir |  |  | 120363044937041 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00021 |  |  |  | 120363045624055 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00022 | TRIAL Grupo dos pais do Mateus e da Gabriela que são namorados |  |  | 120363046088674 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00023 |  |  |  | 120363046610810 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00024 |  |  |  | 120363048481484 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00025 |  |  |  | 120363061339751 | Base antiga do Bóris | new | grupo ou registro nao humano
+BL-00026 |  |  |  | 120363063717103 | Base antiga do Bóris | new | grupo ou registro nao humano
+

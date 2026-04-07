@@ -471,6 +471,7 @@ O comando `/health` roda um diagnostico completo. Se ele encontrar problemas (co
 | Criar uma skill | `/new-skill <space/area/agente> <nome>` |
 | Criar um time | `/new-team <space> <area> <nome>` |
 | Passar tarefa entre agentes | `/handoff <de> <para> <tarefa>` |
+| Operar o Git do Boris Painel | `/painel <status\|commit\|push\|pull> [mensagem]` |
 | Diagnosticar problemas | `/health` |
 | Planejar sem executar | `/plan <descricao>` |
 | Executar um workflow | `/run <workflow>` |

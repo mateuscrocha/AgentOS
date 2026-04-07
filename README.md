@@ -2,6 +2,93 @@
 
 Sistema operacional de agentes de IA construído para rodar com o Codex como runtime principal. O AgentOS fornece uma infraestrutura completa para criar, organizar e orquestrar agentes especializados em namespaces isolados, com memória persistente, skills reutilizáveis e protocolos de comunicação formalizados.
 
+## Portal do AgentOS
+
+Se você abrir este repositório para se reorientar rápido, use este bloco como home de navegação.
+
+### Quero entender o que posso fazer
+
+- [`docs/manual-de-bolso.md`](docs/manual-de-bolso.md) — índice prático com mapa mental, exemplos de pedidos e comandos
+- [`docs/commands.md`](docs/commands.md) — referência operacional dos comandos
+- [`docs/system-agents.md`](docs/system-agents.md) — quem faz o quê entre os agentes do sistema
+- `KERNEL.md` — regras centrais, roteamento, protocolos e arquitetura do kernel
+
+### Quero começar pelo caminho mais curto
+
+1. Rode `/status`
+2. Leia [`docs/manual-de-bolso.md`](docs/manual-de-bolso.md)
+3. Se a dúvida for "qual comando usar?", abra [`docs/commands.md`](docs/commands.md)
+4. Se a dúvida for "qual agente deveria cuidar disso?", abra [`docs/system-agents.md`](docs/system-agents.md)
+
+### Quero navegar por intenção
+
+| Se você quer... | Comece por... |
+|---|---|
+| Ver o estado atual do sistema | `/status` |
+| Checar problemas de integridade | `/health` |
+| Planejar antes de executar | `/plan <descrição>` |
+| Criar um novo domínio de trabalho | `/new-space <nome>` |
+| Abrir uma frente dentro de um space | `/new-area <space> <nome>` |
+| Criar um novo agente | `/new-agent <space> <area> <nome>` |
+| Ensinar um procedimento a um agente | `/new-skill <space/area/agente> <nome>` |
+| Montar um time | `/new-team <space> <area> <nome>` |
+| Passar tarefa entre agentes | `/handoff <de> <para> <tarefa>` |
+| Registrar ou consultar o que está rolando agora | `/agora [mostrar\|captura\|check-in\|fechamento] [conteúdo]` |
+| Rodar um workflow | `/workflows` e depois `/run <workflow>` |
+| Trabalhar com docs, PPTX, XLSX, PDF ou frontend | comandos especializados como `/docx`, `/pptx`, `/xlsx`, `/pdf`, `/frontend-design` |
+
+### Quero saber o que já existe hoje
+
+**Spaces atuais**
+
+- `boris`
+- `empresa`
+- `pessoal`
+
+**Áreas atuais**
+
+- `boris/comercial`
+- `boris/conteudo`
+- `boris/operacoes`
+- `boris/produto`
+- `boris/suporte`
+- `pessoal/comunicacao`
+- `pessoal/dia`
+
+**Agentes de negócio já registrados**
+
+- `boris--comercial--sales-operator`
+- `boris--conteudo--editorial-strategist`
+- `boris--operacoes--operations-manager`
+- `boris--produto--product-manager`
+- `boris--suporte--support-manager`
+- `pessoal--comunicacao--whatsapp-manager`
+- `pessoal--dia--day-manager`
+
+### Quero exemplos práticos de pedidos
+
+```text
+Me mostra um panorama do AgentOS
+Cria um novo agente para revisar propostas comerciais
+Qual agente do Bóris deveria tocar essa demanda?
+Usa o product-manager do Bóris para estruturar essa tela
+Usa o editorial-strategist para transformar isso em pauta
+Usa o whatsapp-manager para preparar essa mensagem
+Usa /agora captura preciso lembrar de fechar orçamento do casamento
+Me ajuda a planejar essa operação antes de executar
+```
+
+### Quero lembrar as regras básicas sem abrir tudo
+
+- Use nomes em `kebab-case`
+- Pense em `space` como domínio, `area` como frente, `agent` como função e `skill` como procedimento
+- Quando a tarefa parecer grande ou ambígua, peça um plano antes
+- Quando o trabalho for estrutural, prefira comandos
+- Quando a demanda estiver aberta, prefira linguagem natural
+- O idioma padrão do projeto é português do Brasil
+
+---
+
 ## Idioma Padrão
 
 Por padrão, todo texto produzido neste projeto deve sair em **português brasileiro**, com acentuação e pontuação corretas, salvo pedido explícito do usuário para outro idioma.
@@ -138,6 +225,8 @@ Após a criação, o agente fica disponível no Codex como subagente. Use o Agen
 | `/run <workflow> [params]` | Executa um workflow multi-agente |
 | `/workflows` | Lista workflows disponíveis |
 | `/handoff <de> <para> <tarefa>` | Cria um handoff entre agentes |
+| `/agora [mostrar\|captura\|check-in\|fechamento] [conteúdo]` | Memoria operacional viva do dia |
+| `/painel <status\|commit\|push\|pull> [mensagem]` | Opera o Git do Boris Painel pelo workspace oficial dentro do AgentOS |
 | `/brand-guidelines` | Aplica identidade visual Anthropic |
 | `/canvas-design` | Cria arte visual em PDF/PNG |
 | `/doc-coauthoring` | Criação colaborativa de documentos |
@@ -188,6 +277,7 @@ A documentacao completa esta em `docs/`:
 
 | Arquivo | Conteudo |
 |---|---|
+| [`docs/manual-de-bolso.md`](docs/manual-de-bolso.md) | Guia de consulta rapida: o que pedir, por onde comecar e como se orientar no AgentOS |
 | [`docs/overview.md`](docs/overview.md) | Visao geral do AgentOS |
 | [`docs/architecture.md`](docs/architecture.md) | Arquitetura detalhada do sistema |
 | [`docs/getting-started.md`](docs/getting-started.md) | Tutorial passo a passo |
@@ -204,3 +294,7 @@ A documentacao completa esta em `docs/`:
 ## Versao
 
 **v0.9.0** — Instalado em 2026-03-20 | Atualizado em 2026-03-30
+
+## Capacidade Pessoal Registrada
+
+O AgentOS agora trata o WhatsApp pessoal de Mateus como uma capacidade operacional oficial no space `pessoal`, usando a skill local `send-personal-whatsapp` com perfil padrão `pessoal` e a workspace `spaces/pessoal/areas/comunicacao/workspaces/evolution-api-agent` como fonte de verdade da integração.
