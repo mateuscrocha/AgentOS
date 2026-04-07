@@ -23,6 +23,7 @@
 - apresentação `B2G — Como vender para o setor público em um cenário de inovação e IA`
 - leitura consolidada em `editais/2026-04-07-b2g-como-vender-para-o-setor-publico-cenario-inovacao-ia.md`
 - portal `InovaGov / ENAP` analisado em `analises/2026-04-07-inovagov-enap-portal.md`
+- manual `CPSI` traduzido para a realidade do Bóris em `analises/2026-04-07-cpsi-para-o-boris.md`
 
 ## Hipótese de Oportunidade
 

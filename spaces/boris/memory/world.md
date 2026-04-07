@@ -7,6 +7,7 @@
 - Agentes iniciais das áreas já criados
 - Biblioteca operacional local consolidada em `spaces/boris/resources/`
 - Reuniões relevantes do Bóris passam a ser tratadas como memória persistente oficial
+- A logo oficial do Bóris foi consolidada em `spaces/boris/resources/brand/assets/logos/icon-only/boris-logo-oficial.png`
 
 ## Prioridades Iniciais
 
@@ -16,6 +17,6 @@
 
 ## Última Alteração
 
-- **Data:** 2026-04-06
-- **O que mudou:** Foi formalizada a regra herdável de registrar reuniões e transcrições relevantes do Bóris como memória persistente, com armazenamento oficial em `spaces/boris/resources/reunioes/`.
+- **Data:** 2026-04-07
+- **O que mudou:** A PNG enviada pelo usuário foi registrada como a logo oficial do Bóris e consolidada em `spaces/boris/resources/brand/assets/logos/icon-only/boris-logo-oficial.png`, separada dos assets de personagem.
 - **Agente:** kernel

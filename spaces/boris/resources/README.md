@@ -4,6 +4,7 @@ Este diretório concentra a biblioteca operacional do `boris` dentro do AgentOS.
 
 ## Estrutura
 
+- `brand/`
 - `content/`
 - `editorial/`
 - `audio/`
@@ -20,6 +21,7 @@ Tudo que antes estava espalhado em pastas externas foi consolidado aqui, preserv
 
 ## Fontes principais dentro do AgentOS
 
+- Marca: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/brand`
 - Conteúdo: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/content`
 - Linha editorial: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/editorial`
 - Áudios: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/audio`
@@ -30,6 +32,7 @@ Tudo que antes estava espalhado em pastas externas foi consolidado aqui, preserv
 
 ## Papel de cada bloco
 
+- `brand/`: assets oficiais de marca, incluindo a logo oficial e futuras variações aprovadas
 - `content/`: produção, templates, referências operacionais e packs de conteúdo
 - `editorial/`: estratégia, pain library, assets editoriais, calendários e source of truth
 - `audio/`: sistema de vozes, scripts, campanhas e saídas de áudio

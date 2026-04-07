@@ -243,6 +243,70 @@ Sempre que avancar para o proximo lead, informar:
 
 - numero: `+55 11 94736-1656`
 - origem: base legado, `BL-00276`
-- status de hoje: em avaliacao
-- observacao: usuario informou que ja foi enviada uma leva de mensagens e ele nao respondeu
-- proximo passo: decidir entre um ultimo follow-up curto ou pausar por silencio
+- status de hoje: perdido
+- observacao: usuario decidiu tirar da fila e tratar como caso perdido apos silencio
+- proximo passo: nao retomar, salvo reentrada futura
+
+#### Vanessa Tozzato
+
+- numero: `+55 11 94758-9643`
+- origem: base legado, `BL-00280`
+- status de hoje: perdido
+- observacao: usuario decidiu tirar da fila e tratar como caso perdido
+- proximo passo: nao retomar, salvo reentrada futura
+
+#### Alberto Maia
+
+- numero: `+55 11 95056-7256`
+- origem: base legado, `BL-00294`
+- status de hoje: perdido
+- observacao: usuario decidiu tirar da fila e tratar como caso perdido
+- proximo passo: nao retomar, salvo reentrada futura
+
+#### U Marcos Personal
+
+- numero: `+55 11 91359-5962`
+- origem: base legado, `BL-00226`
+- status de hoje: pausado
+- observacao: em 2026-03-26 o contato informou que ainda nao tem nicho definido e que talvez faca sentido daqui 2 ou 3 meses
+- proximo passo: revisitar em janela futura, por volta do fim de junho de 2026
+
+#### Marilza Schausse
+
+- numero: `+55 82 9109-1903`
+- origem: base legado, `BL-01736`
+- status de hoje: mensagem enviada
+- observacao: follow-up de reativacao enviado em `2026-04-07` com nova abordagem de reapresentacao simples do Boris
+- proximo passo: revisar resposta amanha antes de qualquer nova insistencia
+
+#### ADS GROUP - TRÁFEGO PAGO
+
+- numero: `+55 21 96686-4118`
+- origem: base legado, `BL-00702`
+- status de hoje: mensagem enviada
+- observacao: mensagem enviada pelo perfil `pessoal` em `2026-04-07` com reapresentacao simples do Bóris e contexto de grupos de trafego pago, tecnologia e marketing
+- proximo passo: revisar resposta amanha antes de qualquer nova insistencia
+
+#### Lucas Dantas
+
+- numero: `+1 737 217 4284`
+- origem: base legado, `BL-00161`
+- status de hoje: perdido
+- observacao: usuario informou que faz muito tempo que ele nao responde mais
+- proximo passo: nao retomar, salvo reentrada futura
+
+#### Felipe Bedin
+
+- numero: `+55 51 98671-040`
+- origem: base legado, `BL-01129`
+- status de hoje: mensagem enviada
+- observacao: usuario informou que ja enviou hoje uma retomada mais pessoal, com contexto de cliente antigo do Bóris
+- proximo passo: revisar resposta amanha antes de qualquer nova insistencia
+
+#### Jefferson Cabral
+
+- numero: `+55 27 98151-0408`
+- origem: base legado, `BL-00841`
+- status de hoje: mensagem enviada
+- observacao: usuario informou que ja enviou mensagem hoje
+- proximo passo: revisar resposta amanha antes de qualquer nova insistencia
