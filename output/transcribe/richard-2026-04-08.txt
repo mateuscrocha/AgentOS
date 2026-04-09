@@ -1,0 +1,7 @@
+Olá, Matheus, tudo bem? Cara...
+Eu estou com uma demanda aqui, vamos ver se a sua solução aqui nos atende.
+Cara, a gente é de uma transportadora aqui e a gente tá com uma demanda de botar um agente de IA dentro de um grupo de WhatsApp.
+para ele poder monitorar aquela conversa e tomar algumas ações quando necessário.
+E aí esse agente de IA precisaria conversar com o nosso banco de dados aqui.
+para poder responder as dúvidas de clientes, enfim, que a informação vai estar dentro de um banco de dados, tá?
+Bem por cima assim, só pra você ver se a sua solução, você consegue atender isso ou customizar alguma coisa.

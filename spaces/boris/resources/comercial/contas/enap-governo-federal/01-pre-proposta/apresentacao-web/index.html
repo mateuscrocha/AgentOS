@@ -13,13 +13,21 @@
   <body>
     <div class="shell">
       <header class="topbar" data-topbar>
-        <a class="brand-lockup" href="#hero" aria-label="Ir para o início">
-          <img src="./assets/boris-logo-oficial.png" alt="Logo Bóris" class="brand-mark" />
+        <a class="brand-lockup" href="#hub" aria-label="Ir para o início">
+          <span class="brand-mark-shell">
+            <img src="./assets/boris-logo-oficial.png" alt="Logo Bóris" class="brand-mark" />
+          </span>
           <div>
-            <p class="eyebrow">Bóris · Setor Público</p>
-            <h1>Inteligência para transformar comunicação dispersa em contexto acionável.</h1>
+            <p class="eyebrow">Projeto ENAP · Bóris para Setor Público</p>
+            <h1>Inteligência para transformar comunicação dispersa em contexto acionável</h1>
+            <p class="header-meta">Subvenção · Visibilidade institucional · Caso de uso público</p>
           </div>
         </a>
+
+        <div class="topbar-status">
+          <span class="status-chip">Frente ativa</span>
+          <span class="status-chip status-chip-soft">Vanessa · ENAP</span>
+        </div>
 
         <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-menu-toggle>
           <span></span>
@@ -27,56 +35,153 @@
           <span></span>
         </button>
 
-        <nav class="site-nav" id="site-nav" aria-label="Navegação principal" data-nav>
-          <a href="#conversation">Proposta</a>
+        <nav class="site-nav mobile-nav" id="site-nav" aria-label="Navegação principal" data-nav>
+          <a href="#hub">Hub</a>
           <a href="#pain">Contexto</a>
           <a href="#public">Dores</a>
           <a href="#trends">Tendências</a>
           <a href="#service">Atendimento</a>
           <a href="#pilot">Piloto</a>
-          <a href="#questions">Avanço</a>
-          <a href="#path">Trilha</a>
+          <a href="#meetings">Reuniões</a>
+          <a href="#actions">Ações</a>
           <a class="nav-cta" href="#next">Encaminhamento</a>
         </nav>
       </header>
 
-      <main class="presentation" id="presentation">
-        <section class="panel hero-panel" id="hero" data-panel>
-          <div class="container hero-grid">
-            <div class="hero-visual">
-              <img src="./assets/boris-logo-oficial.png" alt="Logomarca do Bóris" class="hero-logo" />
+      <main class="app-shell">
+        <aside class="workspace-sidebar">
+          <div class="workspace-sidebar-inner">
+            <div class="workspace-section">
+              <p class="workspace-label">Projeto</p>
+              <h2>ENAP</h2>
+              <p class="workspace-copy">Base de trabalho da frente com Vanessa, Rede InovaGov, editais e visibilidade institucional.</p>
             </div>
 
-            <div class="panel-copy">
-              <p class="kicker">Bóris para ENAP · LIIA · InovaGov</p>
-              <h2>Pré-proposta para aplicar leitura inteligente a dores reais do setor público.</h2>
-              <p class="lead">
-                O Bóris pode atuar como uma camada de inteligência para ambientes com alto volume
-                textual, baixa estrutura e excesso de sinal disperso. Esta pré-proposta apresenta
-                dores plausíveis, hipóteses de aplicação e um formato inicial de teste orientado a
-                valor público observável.
-              </p>
+            <nav class="workspace-nav" aria-label="Navegação lateral">
+              <a href="#hub">Hub do projeto</a>
+              <a href="#pain">Contexto</a>
+              <a href="#public">Dores priorizadas</a>
+              <a href="#trends">Tendências</a>
+              <a href="#service">Atendimento</a>
+              <a href="#pilot">Piloto</a>
+              <a href="#meetings">Reuniões</a>
+              <a href="#actions">Próximas ações</a>
+              <a href="#next">Encaminhamento</a>
+            </nav>
 
-              <div class="hero-actions">
-                <a class="button primary" href="#public">Ver propostas</a>
-                <a class="button ghost" href="#next">Ver encaminhamento</a>
-              </div>
+            <div class="workspace-section workspace-section-soft">
+              <p class="workspace-label">Prioridade atual</p>
+              <ul class="workspace-bullets">
+                <li>`Start BSB`</li>
+                <li>`Semana de Inovação`</li>
+                <li>`Centelha`</li>
+              </ul>
             </div>
           </div>
-          <div class="hero-divider" aria-hidden="true"></div>
-        </section>
+        </aside>
 
-        <section class="panel content-panel" id="conversation" data-panel>
+        <div class="presentation" id="presentation">
+        <section class="panel content-panel first-panel" id="hub" data-panel>
           <div class="container section-stack">
+            <div class="project-summary">
+              <div class="summary-main">
+                <p class="section-label">Projeto ENAP</p>
+                <h2>Pré-proposta viva para transformar a frente ENAP em um caso de visibilidade, subvenção e uso público real.</h2>
+                <p class="section-subtext">
+                  Este app organiza a narrativa, os aprendizados das reuniões com a Vanessa, as
+                  dores priorizadas, os casos de uso e o plano de ação da frente. A intenção agora
+                  é navegar o projeto com clareza, não vender uma ideia em formato de landing.
+                </p>
+
+                <div class="summary-actions">
+                  <a class="button secondary" href="#public">Dores priorizadas</a>
+                  <a class="button secondary subtle" href="#actions">Próximas ações</a>
+                </div>
+              </div>
+
+              <aside class="summary-side">
+                <article class="summary-stat">
+                  <span class="summary-stat-label">Tese atual</span>
+                  <strong>Subvenção + visibilidade + caso de uso</strong>
+                </article>
+                <article class="summary-stat">
+                  <span class="summary-stat-label">Principal aposta</span>
+                  <strong>Start BSB e Semana de Inovação</strong>
+                </article>
+                <article class="summary-stat">
+                  <span class="summary-stat-label">Sinal mais aderente</span>
+                  <strong>Rede / Teia com grupos grandes e monitoramento fraco</strong>
+                </article>
+              </aside>
+            </div>
+
             <div class="section-intro">
-              <p class="section-label">Proposta inicial</p>
-              <h2>Esta one page apresenta três dores públicas em que o Bóris pode ser testado de forma objetiva.</h2>
+              <p class="section-label">Hub do projeto</p>
+              <h2>Esta frente agora funciona como um app do projeto ENAP, com visão geral, proposta, reuniões, ações e trilhas de avanço.</h2>
               <p class="section-subtext">
-                O objetivo não é apresentar o Bóris como uma solução genérica de IA, mas como uma
-                hipótese prática de apoio à leitura, priorização e coordenação em contextos nos
-                quais a informação já existe, porém ainda não se converte em contexto acionável no
-                tempo necessário.
+                A proposta aqui não é só apresentar uma ideia. É consolidar um espaço de trabalho
+                da frente ENAP para orientar narrativa, prioridades, aprendizados das reuniões e
+                os próximos movimentos de captação, visibilidade e caso de uso.
               </p>
+            </div>
+
+            <div class="project-overview">
+              <div class="project-grid">
+                <article class="hub-card">
+                  <span class="hub-kicker">00</span>
+                  <h3>Visão geral</h3>
+                  <p>Contexto da oportunidade, tese atual, perguntas estratégicas e leitura do momento.</p>
+                  <a href="#pain" class="text-link">Abrir contexto</a>
+                </article>
+                <article class="hub-card">
+                  <span class="hub-kicker">01</span>
+                  <h3>Pré-proposta</h3>
+                  <p>Material-base da frente para explicar dores, hipóteses, piloto e proposta de valor.</p>
+                  <a href="#public" class="text-link">Ver proposta</a>
+                </article>
+                <article class="hub-card">
+                  <span class="hub-kicker">02</span>
+                  <h3>Próximas ações</h3>
+                  <p>Plano de 30 dias com prioridade entre Start BSB, Semana de Inovação, Centelha e Rede.</p>
+                  <a href="#actions" class="text-link">Ver ações</a>
+                </article>
+                <article class="hub-card">
+                  <span class="hub-kicker">03</span>
+                  <h3>Reuniões</h3>
+                  <p>Registro das conversas com Vanessa, mudanças de direção e sinais concretos do ecossistema.</p>
+                  <a href="#meetings" class="text-link">Ver reuniões</a>
+                </article>
+                <article class="hub-card">
+                  <span class="hub-kicker">04</span>
+                  <h3>Editais e eventos</h3>
+                  <p>Materiais de subvenção, referências B2G e portas de visibilidade como o Agile Trends GOV.</p>
+                  <a href="#next" class="text-link">Ver encaminhamento</a>
+                </article>
+                <article class="hub-card">
+                  <span class="hub-kicker">05</span>
+                  <h3>Análises</h3>
+                  <p>Leituras estratégicas, hipóteses de entrada, riscos e posicionamento do Bóris.</p>
+                  <a href="#pilot" class="text-link">Ver hipótese de teste</a>
+                </article>
+              </div>
+
+              <aside class="project-sidebar">
+                <article class="project-panel">
+                  <span class="project-panel-label">Status atual</span>
+                  <h3>Frente ativa e priorizada</h3>
+                  <ul class="project-list">
+                    <li>aposta principal: `Start BSB`</li>
+                    <li>vitrine prioritária: `Semana de Inovação`</li>
+                    <li>aposta secundária: `Centelha`</li>
+                    <li>radar: `Microsoft` e `CPSI`</li>
+                  </ul>
+                </article>
+                <article class="project-panel">
+                  <span class="project-panel-label">Leitura da Vanessa</span>
+                  <h3>O Bóris está redondo o bastante para ganhar visibilidade e disputar subvenção.</h3>
+                  <p>O curto prazo não parece ser venda direta para governo federal. Parece ser visibilidade, edital e amadurecimento de caso de uso.</p>
+                </article>
+              </aside>
             </div>
 
             <div class="conversation-grid">
@@ -554,43 +659,111 @@
           </div>
         </section>
 
-        <section class="panel content-panel" id="questions" data-panel>
+        <section class="panel content-panel" id="meetings" data-panel>
           <div class="container section-stack">
             <div class="section-intro">
-              <p class="section-label">Condições para avançar</p>
-              <h2>Para essa pré-proposta evoluir, precisamos validar aderência, ambiente e trilha de entrada.</h2>
+              <p class="section-label">Reuniões e sinais</p>
+              <h2>As conversas com a Vanessa já mudaram a direção da frente e trouxeram sinais concretos de prioridade.</h2>
+              <p class="section-subtext">
+                O projeto deixou de ser uma exploração genérica sobre governo e passou a ter uma
+                ordem mais clara entre visibilidade, subvenção, caso de uso e radar de parceria.
+              </p>
+            </div>
+
+            <div class="meeting-timeline">
+              <article class="meeting-card">
+                <span class="meeting-date">07 abr</span>
+                <div class="meeting-body">
+                  <h3>Primeira reunião</h3>
+                  <p>Abriu o mapa do ecossistema ENAP, InovaGov, desafios, CPSI e subvenção econômica.</p>
+                  <ul>
+                    <li>trouxe CPSI para o radar</li>
+                    <li>apontou Semana de Inovação</li>
+                    <li>validou dor pública como ponto de entrada</li>
+                  </ul>
+                </div>
+              </article>
+              <article class="meeting-card">
+                <span class="meeting-date">09 abr</span>
+                <div class="meeting-body">
+                  <h3>Segunda reunião</h3>
+                  <p>Repriorizou a frente para Start BSB, Centelha, visibilidade e caso de uso da Rede.</p>
+                  <ul>
+                    <li>tirou CPSI do centro do curto prazo</li>
+                    <li>reforçou Semana de Inovação como vitrine</li>
+                    <li>colocou Microsoft e Rede InovaGov no radar</li>
+                  </ul>
+                </div>
+              </article>
             </div>
 
             <div class="question-grid">
               <article class="question-card">
-                <h3>O que precisamos confirmar</h3>
+                <h3>O que ficou mais forte</h3>
                 <ul>
-                  <li>Qual das três dores parece mais real para o ecossistema que vocês estão vendo hoje</li>
-                  <li>Se isso faz mais sentido dentro da ENAP, em outro órgão ou em uma rede mais ampla</li>
-                  <li>Qual caso de uso parece mais maduro para um primeiro teste</li>
+                  <li>subvenção como alavanca, não como caixa imediato</li>
+                  <li>Start BSB como melhor aposta local</li>
+                  <li>Semana de Inovação como porta de visibilidade</li>
+                  <li>Agile Trends GOV como evento aderente para networking e exposição</li>
                 </ul>
               </article>
               <article class="question-card">
-                <h3>O que pode virar próximo passo</h3>
+                <h3>O que ainda precisa amadurecer</h3>
                 <ul>
-                  <li>Se isso parece mais tema para vitrine institucional, desafio, piloto ou CPSI</li>
-                  <li>Se o melhor próximo passo é formular melhor o problema, desenhar teste ou aguardar oportunidade aberta</li>
-                  <li>O que deixaria uma proposta como essa mais madura aos olhos do setor público</li>
+                  <li>caso de uso formal para a Rede / Teia</li>
+                  <li>trilha prática com Microsoft ou parceiros</li>
+                  <li>momento certo para retomar CPSI com mais força</li>
                 </ul>
               </article>
             </div>
           </div>
         </section>
 
-        <section class="panel content-panel" id="path" data-panel>
+        <section class="panel content-panel" id="actions" data-panel>
           <div class="container section-stack">
             <div class="section-intro">
-              <p class="section-label">Rota sugerida</p>
-              <h2>Começar por uma dor bem recortada, testar com clareza e construir legitimidade institucional a partir daí.</h2>
+              <p class="section-label">Próximas ações</p>
+              <h2>O plano atual do projeto é ganhar visibilidade, preparar subvenção e consolidar um caso de uso público claro.</h2>
               <p class="section-subtext">
-                A melhor porta de entrada parece ser uma trilha de teste bem posicionada, com
-                escopo claro, ganho observável e aprendizado rápido.
+                O foco deste ciclo é concentrar energia nas frentes com melhor relação entre
+                esforço, chance real e valor estratégico.
               </p>
+            </div>
+
+            <div class="action-board">
+              <article class="action-column">
+                <div class="action-column-head">
+                  <span class="action-label">Principal</span>
+                  <h3>Fazer agora</h3>
+                </div>
+                <ul class="action-list">
+                  <li>preparar base para `Start BSB`</li>
+                  <li>acompanhar edital da `Semana de Inovação`</li>
+                  <li>refinar narrativa institucional do Bóris</li>
+                </ul>
+              </article>
+              <article class="action-column">
+                <div class="action-column-head">
+                  <span class="action-label">Secundário</span>
+                  <h3>Desenvolver em paralelo</h3>
+                </div>
+                <ul class="action-list">
+                  <li>mapear `Centelha` e estados possíveis</li>
+                  <li>formalizar o caso de uso da `Rede / Teia`</li>
+                  <li>usar `Agile Trends GOV` para networking assertivo</li>
+                </ul>
+              </article>
+              <article class="action-column">
+                <div class="action-column-head">
+                  <span class="action-label">Radar</span>
+                  <h3>Manter vivo</h3>
+                </div>
+                <ul class="action-list">
+                  <li>parceria ou canal via `Microsoft`</li>
+                  <li>consórcios como ponte futura</li>
+                  <li>`CPSI` como trilha de médio prazo</li>
+                </ul>
+              </article>
             </div>
 
             <div class="pathway">
@@ -666,6 +839,7 @@
             </footer>
           </div>
         </section>
+        </div>
       </main>
     </div>
 

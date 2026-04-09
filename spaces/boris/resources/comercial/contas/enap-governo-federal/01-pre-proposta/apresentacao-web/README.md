@@ -16,7 +16,7 @@ Para uso rápido, basta abrir `index.html` no navegador.
 Se quiser servir localmente:
 
 ```bash
-cd /Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/comercial/contas/enap-governo-federal/apresentacao-web
+cd /Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/comercial/contas/enap-governo-federal/01-pre-proposta/apresentacao-web
 python3 -m http.server 4173
 ```
 

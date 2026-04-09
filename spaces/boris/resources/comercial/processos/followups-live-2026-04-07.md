@@ -310,3 +310,53 @@ Sempre que avancar para o proximo lead, informar:
 - status de hoje: mensagem enviada
 - observacao: usuario informou que ja enviou mensagem hoje
 - proximo passo: revisar resposta amanha antes de qualquer nova insistencia
+
+## Atualizacao complementar — 2026-04-09
+
+### Novo lote de disparo legado executado
+
+Em `2026-04-09`, foi executado um novo bloco de disparo inicial para leads da base legado ainda nao trabalhados recentemente e sem conta aberta no CRM atual.
+
+Mensagem-base usada:
+
+```text
+Oi, [nome], tudo bem?
+
+Estou te chamando porque seu contato reapareceu aqui no meu contexto do Bóris com histórico ligado a grupo/comunidade, e resolvi retomar de forma direta.
+
+O Bóris evoluiu bastante e hoje está bem melhor para ler o que acontece nos grupos de WhatsApp e transformar isso em visão prática de operação.
+
+Se ainda fizer sentido olhar isso agora, eu te mostro rapidinho e você me diz se vale retomar.
+```
+
+### Leads disparados no lote
+
+- `BL-00225` — `Caio Castro` — `5511913199755` — mensagem enviada
+- `BL-00248` — `Lucas Bertoni` — `5511940054005` — mensagem enviada
+- `BL-00260` — `Ivon Matos` — `5511941906079` — mensagem enviada
+- `BL-00278` — `Daniele Amorim` — `5511947539196` — mensagem enviada
+- `BL-00279` — `Juliana Azevedo` — `5511947583346` — mensagem enviada
+
+### Reflexo operacional
+
+- os `5` leads foram puxados para o CRM atual como `new_lead`
+- todos ficaram com `next_action_at` em `2026-04-10 10:00`
+- a proxima leitura recomendada e revisar respostas antes de abrir novo follow-up nesses mesmos contatos
+
+### Novo lote 2 de disparo legado executado
+
+Em `2026-04-09`, foi executado um segundo bloco de disparo inicial para leads da base legado ainda nao trabalhados recentemente e sem conta aberta no CRM atual.
+
+### Leads disparados no lote 2
+
+- `BL-00242` — `Alexandre Batista` — `5511934165086` — mensagem enviada
+- `BL-00275` — `Leonardo` — `5511947227300` — mensagem enviada
+- `BL-00282` — `Nuno MP Souza` — `5511948413685` — mensagem enviada
+- `BL-00297` — `Gabriel Macedo` — `5511950959190` — mensagem enviada
+- `BL-00315` — `Eliana` — `5511957031031` — mensagem enviada
+
+### Reflexo operacional do lote 2
+
+- os `5` leads foram puxados para o CRM atual como `new_lead`
+- todos ficaram com `next_action_at` em `2026-04-10 10:00`
+- a proxima leitura recomendada e revisar respostas antes de abrir novo follow-up nesses mesmos contatos

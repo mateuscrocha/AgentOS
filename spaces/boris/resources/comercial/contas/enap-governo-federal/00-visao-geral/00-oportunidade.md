@@ -17,6 +17,12 @@
 - a plataforma `desafios.enap.gov.br` apareceu como canal importante do ecossistema
 - Vanessa prometeu compartilhar uma apresentação feita para o `BNDES Garagem`
 - o primeiro material recebido reforça que o `CPSI` e a formulação correta da dor pública são os eixos centrais de entrada
+- na segunda reunião, Vanessa repriorizou a frente e indicou `Start BSB` e `Centelha` como apostas mais concretas de curto prazo
+- ela deixou `CPSI` mais como trilha futura do que como mecanismo principal agora
+- ela reforçou `Semana de Inovação` como a principal porta de `visibilidade`
+- ela colocou no radar a possibilidade de canal/parceria via `Microsoft`
+- ela já indicou o Bóris para o pessoal da `Rede InovaGov`
+- surgiu uma dor concreta aderente ao produto: comunidades da rede operadas em grupos grandes de WhatsApp, com monitoramento ruim e processo manual
 
 ## Materiais Já Recebidos
 
@@ -29,6 +35,11 @@
 
 - pode existir um caminho indireto de entrada via capacitação, inovação, programa de fomento ou subvenção
 - a oportunidade talvez envolva enquadramento do Bóris como tecnologia aplicável a treinamento, gestão, acompanhamento operacional ou inteligência para operações públicas
+- o melhor caminho imediato parece combinar:
+- `visibilidade institucional`
+- `subvenção`
+- `networking estratégico`
+- `amadurecimento de caso de uso`
 - a análise precisa separar com clareza:
 - o que é edital de fomento
 - o que é programa de capacitação
@@ -54,11 +65,20 @@
 - o ciclo tende a exigir leitura institucional, documental e de elegibilidade antes de qualquer proposta comercial
 - o maior risco agora é misturar linguagem comercial com linguagem de edital sem entender o mecanismo real
 - o maior ativo agora é organizar bem a informação para decidir onde vale investir energia
+- subvenção aqui deve ser lida como `alavanca`, não como solução imediata de caixa
+- `CPSI` continua relevante, mas não deve ser o centro da tese de curto prazo
+- `Start BSB`, `Centelha` e `Semana de Inovação` passam a ser as apostas mais claras neste momento
 
 ## Próximos Passos
 
-1. Receber os PDFs e salvar em `editais/`
-2. Receber a apresentação prometida pela Vanessa
-3. Extrair nomes exatos de programas, órgãos, linhas e prazos
-4. Mapear critérios de elegibilidade, contrapartidas e tipo de recurso
-5. Construir uma tese objetiva de como o Bóris pode usufruir da oportunidade da melhor forma
+1. Preparar candidatura do Bóris para `Start BSB`
+2. Mapear oportunidades abertas ou próximas do `Centelha`
+3. Acompanhar saída do edital da `Semana de Inovação`
+4. Entrar no radar de eventos e networking citados pela Vanessa
+5. Investigar parceria/canal via `Microsoft`
+6. Transformar a dor operacional da Rede / Teia em caso de uso demonstrável
+
+## Plano Atual
+
+- plano operacional de 30 dias consolidado em:
+- `analises/2026-04-09-plano-de-acao-30-dias.md`

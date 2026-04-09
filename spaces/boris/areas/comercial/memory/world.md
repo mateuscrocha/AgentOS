@@ -26,9 +26,10 @@
 - Regra operacional ativa: a campanha sobre a base legado e as entradas novas por WhatsApp/indicacao/site andam em paralelo e precisam ser lidas como trilhos diferentes
 - Nova frente institucional em exploracao: `ENAP / governo federal / programas de subvenção`, organizada em `spaces/boris/resources/comercial/contas/enap-governo-federal/`
 - Essa frente passa a usar um dossie documental proprio para editais, transcricoes, analises e proximos passos
+- Nova oportunidade em exploracao no nicho de cerimonial e casamentos, ancorada provisoriamente em `André + Thai`, com potencial de uso imediato do Bóris para geração de tarefas a partir de conversas e potencial futuro de vertical de produto
 
 ## Última Alteração
 
-- Data: 2026-04-07
-- O que mudou: criada a base inicial da oportunidade institucional ENAP/governo federal dentro da biblioteca comercial, com estrutura pronta para receber editais, transcricoes e analises
+- Data: 2026-04-08
+- O que mudou: consolidada nova oportunidade comercial provisoria `André + Thai` na biblioteca do Boris, com registro de reuniao, leitura de dor operacional em cerimonial/casamentos e status atual de aguardando materiais para validar fase 1 com o Bóris
 - Agente responsável: kernel

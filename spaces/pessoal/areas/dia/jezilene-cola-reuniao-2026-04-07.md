@@ -125,3 +125,97 @@ Objetivo: explicar o Bóris como um todo, situar o momento atual e entender onde
 - Observar mais o encaixe humano do que o técnico.
 - Validar interesse real, disponibilidade e energia.
 - Sair da reunião com um próximo passo concreto, se fizer sentido.
+
+## Atualização pós segunda conversa
+
+### O que ficou mais claro sobre a Jezilene
+
+- Ela continua interessada de verdade no projeto.
+- Ela não se vê pronta para entrar por uma frente técnica complexa logo de cara.
+- Ela aprende melhor na prática, mexendo, vendo e perguntando.
+- Ela ficou impressionada com o tamanho e a sofisticação do que você construiu.
+- Ela sente o projeto como algo grande e, por isso, ainda não consegue enxergar sozinha onde entra.
+- Ela quer aprender IA dentro de um contexto real de trabalho, não por teoria.
+
+### Onde ela travou
+
+- Excesso de possibilidades ao mesmo tempo.
+- Dificuldade de visualizar um ponto de entrada imediato.
+- Sensação de que o projeto é grande demais para ela já chegar contribuindo com clareza.
+- Falta de repertório técnico para transformar o que viu em plano de ação próprio.
+
+### Leitura honesta
+
+- O problema dela agora não parece ser falta de interesse.
+- O problema parece ser excesso de abertura e pouca definição de porta de entrada.
+- Se você deixar muito aberto, ela tende a ficar sem saber por onde começar.
+- Ela parece precisar de um primeiro trilho simples, concreto e observável.
+
+### Melhor caminho de entrada agora
+
+- Primeiro explorar o produto por dentro.
+- Depois observar uma ou mais reuniões reais com clientes ou leads.
+- Depois conversar com alguns clientes para entender uso, dor, valor percebido e dúvidas.
+- A partir disso, começar a contribuir com leitura, organização e relacionamento.
+
+### Entrada sugerida para ela
+
+- Acesso ao painel do Bóris.
+- Acesso ao CRM para entender o funil e o contexto.
+- Participação como ouvinte em reuniões suas.
+- Missão inicial de exploração:
+- entender o produto
+- entender como você apresenta
+- entender o que os clientes falam
+- perceber o que confunde, encanta ou trava
+
+### Primeira tarefa que faz mais sentido
+
+- Dar acesso para ela entrar no Bóris e explorar com liberdade.
+- Depois colocar ela em uma ou duas reuniões suas.
+- Em seguida pedir para ela registrar:
+- o que ela entendeu do produto
+- o que ainda ficou confuso
+- o que ela percebeu de valor
+- quais dúvidas um cliente novo provavelmente teria
+- quais usos ela enxerga com mais força
+
+### Segunda tarefa possível
+
+- Depois dessa imersão inicial, ela pode fazer entrevistas leves com clientes mais aquecidos.
+- Objetivo:
+- entender como usam
+- o que valorizam
+- o que ignoram
+- o que confundem
+- o que gostariam que existisse
+
+### O que ficou combinado
+
+- Você vai dar acesso para ela ao painel e ao CRM.
+- Você vai mostrar mais do contexto prático amanhã.
+- Ela deve primeiro entender o funcionamento no dia a dia.
+- Depois ela pode participar de reuniões suas para observar.
+- A partir daí vocês definem um próximo passo mais concreto.
+
+### Alerta importante para você
+
+- Ela não respondeu bem a uma abertura excessiva do tipo “vê onde você quer entrar”.
+- Ela respondeu melhor quando a conversa caminhou para:
+- explorar o produto
+- observar reuniões
+- aprender vendo acontecer
+- entrar aos poucos
+
+### Sua melhor postura com ela agora
+
+- Menos universo.
+- Mais trilho.
+- Menos “tem mil possibilidades”.
+- Mais “começa por aqui”.
+- Menos abstração.
+- Mais experiência prática guiada.
+
+### Frase-guia para a próxima interação
+
+- “Neste primeiro momento, eu não preciso que você descubra seu lugar no Bóris sozinha. Eu preciso te colocar para ver o produto, ouvir clientes e sentir a operação. Depois disso, a gente entende juntas onde faz mais sentido você entrar.”

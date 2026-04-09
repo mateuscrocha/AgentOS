@@ -1,27 +1,38 @@
 # ENAP / Governo Federal
 
-Dossiê operacional da oportunidade institucional ligada a ENAP, programas de subvenção e possível entrada do Bóris em frentes de capacitação e governo federal.
+Pasta operacional da frente ENAP, organizada para concentrar visão estratégica, pré-proposta, próximas ações, reuniões, editais e análises do Bóris no ecossistema de inovação pública.
 
 ## Objetivo
 
 Organizar, no mesmo lugar:
 
 - contexto da oportunidade
-- hipóteses de encaixe do Bóris
-- editais e PDFs recebidos
-- transcrições e resumos de reunião
-- análise de elegibilidade, riscos e próximos passos
+- pré-proposta institucional
+- próximos passos do ciclo atual
+- reuniões com a Vanessa
+- editais e materiais recebidos
+- análises e leituras estratégicas
 
 ## Estrutura
 
-- `00-oportunidade.md`: leitura executiva da oportunidade
-- `01-perguntas-estrategicas.md`: questões que precisamos responder ao longo da análise
-- `editais/`: PDFs, resumos e fichas por edital
-- `reunioes/`: transcrições, resumos, decisões e follow-ups
-- `analises/`: memos de leitura, comparativos e teses de entrada
+- `00-visao-geral/`: base estratégica da oportunidade
+- `01-pre-proposta/`: materiais de apresentação e narrativa
+- `02-proximas-acoes/`: plano operacional e prioridades do ciclo
+- `03-reunioes/`: transcrições e resumos das conversas
+- `04-editais/`: PDFs, resumos e fichas por edital
+- `05-analises/`: leituras estratégicas, memos e teses de entrada
 
-## Próxima Entrada Esperada
+## Ordem sugerida de leitura
 
-- PDFs dos editais e materiais de subvenção
-- transcrição da reunião com a Vanessa da ENAP
-- qualquer contexto adicional sobre BNDES/BODs, contrapartidas, prazos e atores envolvidos
+1. `00-visao-geral/00-oportunidade.md`
+2. `02-proximas-acoes/2026-04-09-plano-de-acao-30-dias.md`
+3. `01-pre-proposta/apresentacao-web/index.html`
+4. `03-reunioes/`
+5. `05-analises/`
+
+## Uso prático
+
+- se quiser entender a frente: `00-visao-geral/`
+- se quiser apresentar a frente: `01-pre-proposta/`
+- se quiser executar: `02-proximas-acoes/`
+- se quiser revisar contexto: `03-reunioes/` e `05-analises/`
