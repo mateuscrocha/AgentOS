@@ -21,6 +21,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 - **Memória oficial de reuniões do Bóris** — criada a guideline `spaces/boris/guidelines/meeting-intelligence.md` e o acervo `spaces/boris/resources/reunioes/` para consolidar transcrições, resumos, decisões e próximos passos de calls relevantes
 
 ### Alterado
+- **Regra operacional do Google Calendar** — `KERNEL.md` e `AGENTS.md` agora determinam que tarefas de Google Calendar no AgentOS devem carregar por padrão as credenciais `GOOGLE_CALENDAR_*` do `.env` raiz do projeto principal antes de assumir ausência de configuração
 - **Kernel orientado a contexto vivo** — `KERNEL.md`, o loader `.Codex/agents/pessoal--dia--day-manager.md`, a guideline `spaces/pessoal/guidelines/gestao-do-dia.md` e o agente `day-manager` agora tratam a memória viva da área `pessoal/dia` como fonte operacional primária para rotina, prioridades e follow-ups
 - **Source of truth de runtime** — `KERNEL.md`, `README.md`, `docs/architecture.md`, `system/protocols/sync.md`, `system/scripts/setup.py`, `system/scripts/sync.py`, `system/scripts/validate.py` e hooks agora tratam `.Codex/` como runtime canônico para sync e operação
 - **Compatibilidade preservada** — `.gemini/` continua como runtime derivado; `.claude/` permanece apenas como legado/compatibilidade enquanto a migração não é concluída integralmente

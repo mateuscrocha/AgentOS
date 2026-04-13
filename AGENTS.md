@@ -49,6 +49,13 @@ Scripts em `system/scripts/hooks/`. Caminhos em `system/` que **são** editávei
 - A instância `boris_suporte` só deve ser usada quando o pedido for explicitamente ligado ao Boris ou suporte.
 - Sempre que o usuário pedir **uma mensagem de WhatsApp para revisar ou enviar**, a resposta deve trazer o texto da mensagem dentro de **bloco de código**, preservando claramente quebras de linha, formatação e versão final pronta para uso.
 
+## Google Calendar via `.env` Principal
+
+- Sempre que uma tarefa envolver Google Calendar no AgentOS, carregue primeiro as credenciais do arquivo `.env` na raiz do projeto principal.
+- Considere como fonte padrão as variáveis `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_REFRESH_TOKEN` e `GOOGLE_CALENDAR_DEFAULT_TIMEZONE`.
+- Use o calendário principal da conta por padrão. Calendários alternativos definidos no `.env` só devem ser usados quando o pedido mencionar explicitamente outro calendário.
+- Não conclua que faltam credenciais antes de verificar o `.env` raiz do projeto.
+
 ---
 
 ## Sync de Runtimes

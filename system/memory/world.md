@@ -70,8 +70,13 @@ O sistema agora formaliza uma camada de memória viva para o cotidiano no space 
 
 Essa camada existe para reduzir dependência do histórico de conversa em assuntos operacionais recorrentes.
 
+## Integrações Operacionais
+
+- Google Calendar deve usar por padrão as credenciais `GOOGLE_CALENDAR_*` carregadas do `.env` raiz do projeto principal.
+- O calendário principal da conta é o default operacional; calendários alternativos só entram quando o pedido explicitar esse destino.
+
 ## Última Alteração
 
-- **Data:** 2026-04-07
-- **O que mudou:** O sistema passou a formalizar memória operacional viva para o dia a dia no space `pessoal`, além do novo comando `/agora` no runtime Codex.
+- **Data:** 2026-04-09
+- **O que mudou:** O sistema passou a formalizar que integrações com Google Calendar devem usar por padrão as credenciais `GOOGLE_CALENDAR_*` do `.env` raiz do projeto principal.
 - **Agente:** kernel

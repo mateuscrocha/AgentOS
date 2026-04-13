@@ -117,6 +117,13 @@
 - necessidades de exportacao / compilacao
 - montar proposta comercial customizada apos validacao do piloto
 
+## Atualizacao Mais Recente
+
+- em `2026-04-09`, Guilherme pediu os dados do Antonio para o juridico
+- em `2026-04-09`, o usuario respondeu com posicao clara para nao travar a operacao: Antonio e socio, mas nao e socio ativo nem participa do dia a dia, e colocar ele para assinar geraria burocracia desnecessaria
+- foi sinalizado que o ideal e seguir a assinatura apenas pelo usuario como representante operacional
+- status atual: `aguardando retorno da Bilheteria Digital sobre o formato de assinatura/NDA`
+
 ## Leitura Comercial
 
 - nao tratar como demo generica

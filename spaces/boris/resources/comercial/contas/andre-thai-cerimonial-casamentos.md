@@ -53,14 +53,11 @@
 
 ## Próximo Passo Recomendado
 
-- responder o André agora dizendo que:
-- ontem você precisou ficar off
-- está retomando hoje
-- vai olhar o material enviado com calma e retorna
-- depois disso:
-- revisar os `2` links de grupo e o material já enviado
+- revisar os `2` grupos considerando agora o contraste entre:
+- um grupo em fase final
+- um grupo em fase inicial
 - decidir o melhor próximo passo para entrada do Bóris nesses grupos
-- mandar o e-mail para criação do login no `Assessoria VIP` no momento mais oportuno
+- validar na prática se faz sentido manter os `2` grupos ou concentrar a continuidade em apenas `1`
 - seguir coletando:
 - lista de atividades da assistente
 - materiais mais detalhados do fluxo atual
@@ -74,7 +71,15 @@
 - em `2026-04-08`, o André mandou `2` links de grupo para observação, explicou o estágio de cada grupo, enviou o Instagram da Thai (`@thaimarinseventos`) e pediu o e-mail para criação do login no `Assessoria VIP`
 - em `2026-04-09`, ele ainda mandou `Bom dia`
 - em `2026-04-09`, o usuário decidiu responder primeiro com uma retomada simples, explicando que ficou off ontem e que vai analisar o material hoje antes de devolver o próximo passo
-- status atual: `aguardando mensagem de retomada do usuário e depois leitura do material`
+- em `2026-04-09`, o usuário confirmou que essa mensagem de retomada já foi enviada
+- em `2026-04-09`, André mandou áudio reforçando que:
+- precisa do e-mail do usuário para criar o acesso no `Assessoria VIP`
+- trocou um dos convites por outro grupo que está começando agora, porque acha melhor observar tanto um grupo em fase inicial quanto um em fase final
+- em `2026-04-09`, foi enviado ao André no WhatsApp o e-mail oficial de trabalho para criação do usuário no `Assessoria VIP`: `eu@rochamateus.com.br`
+- em `2026-04-09`, André confirmou por WhatsApp que os `2` grupos válidos para leitura são os `2` últimos enviados na conversa e que o grupo anterior deve ser desconsiderado
+- em `2026-04-10`, André confirmou que conseguiu acessar o painel, adicionou o Bóris nos `2` grupos e avaliou que a etapa inicial deu certo
+- em `2026-04-10`, ele também sinalizou que talvez um grupo só já baste para a próxima etapa, mas os `2` grupos já estão ativos para leitura
+- status atual: `onboarding inicial concluido; aguardando leitura dos grupos e definicao da continuidade`
 
 ## Leitura Comercial
 

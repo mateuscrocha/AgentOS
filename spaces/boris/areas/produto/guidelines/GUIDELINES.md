@@ -16,7 +16,9 @@ Herda de `spaces/boris/guidelines/`.
 | Documento | Descrição |
 |---|---|
 | `workspace-boris-painel.md` | Define o papel do workspace do painel, limites entre código e documentação do AgentOS, e regras de operação local |
+| `workspace-boris-site.md` | Define o papel do workspace oficial do site do Bóris, suas fronteiras com o painel e regras de operação local |
 | `boris-painel-architecture.md` | Mapeia a arquitetura atual do painel, pontos saudáveis, sinais de legado e prioridades de organização |
+| `boris-site-architecture.md` | Mapeia a arquitetura atual do site do Bóris, superfícies públicas, integrações e pontos de atenção de governança |
 | `boris-painel-cutover.md` | Formaliza o cutover operacional para o workspace do painel dentro do AgentOS e define o papel do repo legado |
 
 ## Cross-References
@@ -26,6 +28,7 @@ _Referencie guidelines de outros escopos quando necessário._
 | Referência | Caminho | Motivo |
 |---|---|---|
 | Workspace do produto | `spaces/boris/areas/produto/workspaces/boris-painel/README.md` | Fonte local sobre stack, ambiente e execução do aplicativo principal |
+| Workspace do site | `spaces/boris/areas/produto/workspaces/boris-site/README.md` | Fonte local sobre stack, ambiente e execução do site institucional e comercial |
 
 ## Como Usar
 

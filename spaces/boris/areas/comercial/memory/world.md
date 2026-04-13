@@ -24,6 +24,7 @@
 - Regra operacional ativa: manter CRM atual, contexto da Enkrateia e consolidacao no AgentOS sempre sincronizados
 - Regra operacional ativa: para outreach e follow-up em WhatsApp, preferir a skill `evolution-whatsapp-sender`
 - Regra operacional ativa: a campanha sobre a base legado e as entradas novas por WhatsApp/indicacao/site andam em paralelo e precisam ser lidas como trilhos diferentes
+- Referencia operacional oficial do fundador para contato comercial: `eu@rochamateus.com.br`
 - Nova frente institucional em exploracao: `ENAP / governo federal / programas de subvenção`, organizada em `spaces/boris/resources/comercial/contas/enap-governo-federal/`
 - Essa frente passa a usar um dossie documental proprio para editais, transcricoes, analises e proximos passos
 - Nova oportunidade em exploracao no nicho de cerimonial e casamentos, ancorada provisoriamente em `André + Thai`, com potencial de uso imediato do Bóris para geração de tarefas a partir de conversas e potencial futuro de vertical de produto

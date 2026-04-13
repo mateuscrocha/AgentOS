@@ -8,6 +8,7 @@
 - Biblioteca operacional local consolidada em `spaces/boris/resources/`
 - Reuniões relevantes do Bóris passam a ser tratadas como memória persistente oficial
 - A logo oficial do Bóris foi consolidada em `spaces/boris/resources/brand/assets/logos/icon-only/boris-logo-oficial.png`
+- O link oficial publico do Bóris foi consolidado como `http://euboris.com.br`
 
 ## Prioridades Iniciais
 
@@ -17,6 +18,6 @@
 
 ## Última Alteração
 
-- **Data:** 2026-04-07
-- **O que mudou:** A PNG enviada pelo usuário foi registrada como a logo oficial do Bóris e consolidada em `spaces/boris/resources/brand/assets/logos/icon-only/boris-logo-oficial.png`, separada dos assets de personagem.
+- **Data:** 2026-04-09
+- **O que mudou:** O link oficial público do Bóris foi consolidado como `http://euboris.com.br` para uso comercial e institucional, mantendo também a logo oficial já registrada no space.
 - **Agente:** kernel

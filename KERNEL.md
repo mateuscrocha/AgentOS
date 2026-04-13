@@ -184,6 +184,15 @@ Detalhes completos nos protocolos individuais. Resumo essencial:
 - **Memória operacional viva:** Para contexto recorrente e sensível ao dia a dia, o kernel deve preferir arquivos de estado corrente do escopo em vez de depender do histórico implícito da conversa. No space `pessoal`, a área `dia` trata `memory/agora.md`, `memory/inbox.md` e `memory/follow-ups.md` como fonte operacional primária do que está acontecendo agora.
 - **Regra de isolamento:** Agentes de sistema NÃO invocam agentes de usuário (usar handoff). Agentes de spaces diferentes NÃO se comunicam.
 
+### Regra Especial: Google Calendar via `.env` Raiz
+
+Quando a tarefa envolver Google Calendar no AgentOS, a fonte padrão de credenciais deve ser sempre o arquivo `.env` na raiz do projeto principal.
+
+- Carregue preferencialmente as variáveis `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` e `GOOGLE_CALENDAR_REFRESH_TOKEN` a partir do `.env` raiz antes de criar, consultar, atualizar ou listar eventos.
+- Use `GOOGLE_CALENDAR_DEFAULT_TIMEZONE` como fuso padrão quando o pedido não trouxer override explícito.
+- Use o calendário principal da conta por padrão; IDs alternativos definidos no `.env` só devem ser usados quando o pedido indicar explicitamente outro calendário.
+- Se as variáveis não estiverem disponíveis no ambiente atual, tente carregá-las do `.env` raiz do projeto antes de concluir que faltam credenciais.
+
 ### Regra Especial: Contexto Vivo do Dia a Dia
 
 Quando o pedido envolver rotina, prioridades atuais, follow-ups em aberto, replanejamento do dia, capturas soltas ou perguntas como "o que está rolando" e equivalentes:

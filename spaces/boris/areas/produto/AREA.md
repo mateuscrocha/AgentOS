@@ -16,6 +16,7 @@ Conduzir discovery, roadmap, experiência do usuário, prioridades e decisões d
 | Workspace | Papel | Status |
 |---|---|---|
 | `workspaces/boris-painel/` | Aplicação principal do produto Boris Painel, importada com histórico Git preservado | Ativo |
+| `workspaces/boris-site/` | Site institucional e comercial do Bóris, com páginas públicas, manifesto, labs e captação | Ativo |
 
 ## Agentes
 

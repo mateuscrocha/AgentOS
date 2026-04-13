@@ -1,0 +1,7 @@
+interface:
+  display_name: "cPanel EasyPanel Ops"
+  short_description: "Opera domínios e DNS via cPanel"
+  default_prompt: "Use $cpanel-easypanel-ops para criar subdomínios e apontamentos DNS para o EasyPanel configurado no projeto."
+
+policy:
+  allow_implicit_invocation: true

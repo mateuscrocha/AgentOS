@@ -96,6 +96,14 @@ Saida esperada apos analisar uma transcricao:
 - CRM atual e metodologia herdada da Enkrateia devem permanecer sincronizados
 - nenhuma acao comercial relevante deve viver so no legado ou so no CRM sem reflexo operacional no AgentOS
 - ao executar outreach ou follow-up por WhatsApp, preferir a skill `evolution-whatsapp-sender`
+- toda vez que o usuario atualizar manualmente qualquer lead, conta, oportunidade ou proximo passo na conversa, essa mudanca deve ser sincronizada nos registros relevantes do AgentOS na mesma operacao
+
+Regra pratica de sincronizacao obrigatoria:
+
+- atualizar o CRM do painel quando houver registro correspondente
+- atualizar a nota local da conta em `spaces/boris/resources/comercial/contas/` quando o caso tiver relevancia propria
+- atualizar a memoria viva do dia em `spaces/pessoal/areas/dia/memory/` quando a mudanca afetar prioridade, follow-up, espera de resposta ou proximo passo operacional
+- evitar deixar a verdade espalhada ou divergente entre conversa, CRM e arquivos locais
 
 ## Onde Cada Tipo de Informacao Vai
 

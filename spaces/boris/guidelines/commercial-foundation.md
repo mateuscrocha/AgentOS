@@ -12,6 +12,8 @@ O gargalo e transformar interesse e prova contextual em processo comercial repet
 - follow-up disciplinado vale mais do que script bonito
 - a venda deve ser WhatsApp-first, leve, consultiva e com proximo passo claro
 - o processo comercial ainda precisa parar de depender tanto do fundador
+- o link oficial publico do Boris para compartilhamento comercial e institucional e `http://euboris.com.br`
+- o email de trabalho oficial para operacao comercial e institucional e `eu@rochamateus.com.br`
 
 ## Funil padrao
 
