@@ -54,7 +54,9 @@
 
 - em `2026-04-09`, Felippe respondeu no WhatsApp confirmando que vai olhar isso e pediu reenvio da confirmacao/link para o mesmo email: `felippe.alves@superaholdings.com.br`
 - em `2026-04-09`, o usuario confirmou que enviou o acesso do Bóris com `URL`, usuario e senha
-- proximo passo imediato: aguardar a confirmacao de entrada ou eventual erro de acesso
+- em `2026-04-14`, foi identificado que o check de acesso por WhatsApp saiu para o `Felipe` errado
+- o telefone correto do `Felippe / GM Promo` segue nao confirmado neste registro
+- proximo passo imediato: confirmar o numero correto antes de qualquer novo envio por WhatsApp
 - depois disso, aguardar a validacao interna com marketing, CS e diretoria
 - em seguida, marcar segunda reuniao com CS, farmer ou outro stakeholder operacional
 - desenhar piloto com grupos iniciais, criterio de sucesso e escopo

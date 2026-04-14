@@ -24,9 +24,10 @@
 
 ## Próximo Passo
 
-- aguardar o Guilherme indicar dia e horario
+- aguardar o Guilherme confirmar o horario sugerido
 - preferencia dele: `presencial`
 - como hoje e `2026-04-13`, a leitura correta de `semana que vem` passa a ser a semana de `2026-04-20`
+- em `2026-04-14`, foi enviada a preferencia por `quarta, 22/04/2026, às 15h`
 - objetivo da reuniao:
 - entender o fluxo atual do atendimento
 - mapear onde o Bóris pode gerar eficiencia
@@ -39,4 +40,5 @@
 - em áudio, explicou que opera uma contabilidade com centenas de grupos de WhatsApp e quer avaliar se o Bóris pode melhorar eficiencia, produtividade, controle e integração
 - também sinalizou que não está com urgência máxima e que a reunião pode ficar para a semana seguinte
 - em `2026-04-13`, o usuario respondeu propondo marcar a reuniao na semana de `2026-04-20`
-- status atual: `aguardando definicao de agenda`
+- em `2026-04-14`, o usuario respondeu que a melhor opção é `quarta, 22/04/2026, às 15h`
+- status atual: `aguardando confirmação final do horário`

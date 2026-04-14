@@ -33,6 +33,8 @@
 - O grupo em comum da Sabrina no WhatsApp aparece como `OUTLIER MENTORING <> Bóris`.
 - Novo lead qualificado registrado: `Guilherme Amorim / contabilidade`, com operação de `200` a `300` grupos de WhatsApp e interesse em reunião preferencialmente presencial.
 - A resposta ao Guilherme Amorim já foi enviada, propondo reunião na semana de `2026-04-20`.
+- Foram enviados hoje follow-ups para `Marcos Rocha` e `Richard Ribeiro`.
+- No caso do `Felippe / GM Promo`, foi identificado que o check por WhatsApp saiu para o `Felipe` errado.
 
 ## Foco Atual
 
@@ -55,6 +57,8 @@
 - [ ] Organizar a fila de follow-ups e comunicações para outro momento, sem executá-los hoje.
 - [ ] Agendar conversa com Guilherme Amorim para a semana de `2026-04-20`.
 - [ ] Aguardar o Guilherme Amorim indicar dia e horário para a reunião.
+- [ ] Ver amanhã se Marcos e Richard responderam aos follow-ups enviados hoje.
+- [ ] Confirmar o telefone correto do Felippe / GM Promo antes de novo envio por WhatsApp.
 
 ## Compromissos e Restrições
 
@@ -153,4 +157,10 @@
 - **Agente:** kernel
 - **Data:** 2026-04-13
 - **O que mudou:** A resposta ao Guilherme Amorim foi enviada propondo reunião na semana de 2026-04-20. O estado agora é aguardar definição de agenda.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** Foram enviados follow-ups para Marcos Rocha, Richard Ribeiro e Felippe / GM Promo. O próximo passo agora é revisar as respostas em 2026-04-15.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** Foi identificado que o check por WhatsApp do Felippe / GM Promo saiu para o contato errado. O próximo passo foi corrigido para confirmar o telefone certo antes de novo envio.
 - **Agente:** kernel
