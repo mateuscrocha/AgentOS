@@ -69,14 +69,15 @@ Além disso, no CRM atual houve revisão manual dos casos mais quentes, com:
 
 ### Casos pausados
 
-- Felipe Lucarelli: quatro tentativas sem resposta; sai da fila ativa por agora
 - Li Saito: contexto relacional mais sensível; não tratar como lead frio comum
 - U Marcos Personal: revisitar apenas no fim de junho, por timing declarado pelo contato
 
 ### Casos perdidos ou encerrados
 
+- Felipe Lucarelli: consolidado pelo usuário como perdido após a última rodada de contato
 - Carlos: respondeu que o momento mudou e que não faz sentido seguir agora
 - RodrigoK: informou que voltou para outra área de atuação e não prioriza mais esse contexto
+- Priscilla Negrao: consolidada pelo usuário como perdida após a última rodada de contato
 - Fabiola Oliveira: retirado da fila como perdido
 - Felipe Oliveira: retirado da fila como perdido após silêncio
 - Vanessa Tozzato: retirado da fila como perdido
@@ -95,7 +96,7 @@ Além disso, no CRM atual houve revisão manual dos casos mais quentes, com:
 
 - André Oliveira já avançou para reunião agendada
 - Guilherme Marra BD segue vivo e depende agora de formalização de NDA
-- Os casos de Interage, BerthaCapital, Thiago Mariano, Layla Ghedar, Priscilla Negrao, Marilza Schausse, ADS GROUP, Felipe Bedin e Jefferson Cabral ficaram em janela de revisão para checar resposta antes de qualquer nova insistência
+- Os casos de Interage, BerthaCapital, Thiago Mariano, Layla Ghedar, Marilza Schausse, ADS GROUP, Felipe Bedin e Jefferson Cabral ficaram em janela de revisão para checar resposta antes de qualquer nova insistência
 
 ## Pendências para 2026-04-08
 
@@ -116,7 +117,6 @@ Além disso, no CRM atual houve revisão manual dos casos mais quentes, com:
 
 - ADS GROUP - TRÁFEGO PAGO
 - Marilza Schausse
-- Priscilla Negrao
 - Felipe Bedin
 - Jefferson Cabral
 - Interage / Rodolpho Neri

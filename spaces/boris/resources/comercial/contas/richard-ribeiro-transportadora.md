@@ -24,25 +24,25 @@
 - integração/customização para consulta ao banco e respostas operacionais
 - ainda falta qualificação suficiente para cravar escopo
 
+## Desfecho Atual
+
+- em `2026-04-14`, Richard respondeu que já resolveu a demanda com outra solução
+- o usuário respondeu de forma elegante, reconhecendo que o Bóris provavelmente não seria a melhor solução para esse caso específico
+- a conversa foi encerrada sem atrito e com boa preservação de relação
+
 ## Estágio Recomendado
 
-- manter como `new_lead` até a conversa de qualificação
+- marcar como `closed_lost`
+- motivo principal: `resolveu com outra solução`
 
 ## Próximo Passo Recomendado
 
-- aguardar resposta do Richard à mensagem já enviada em `2026-04-09`
-- se ele responder, entender:
-- tipo de grupo
-- quem participa
-- que ações o agente deve tomar
-- que dados vivem no banco
-- qual grau de autonomia é esperado
-- decidir depois se o melhor caminho é:
-- Bóris puro
-- customização
-- solução híbrida
+- retirar da fila ativa
+- manter apenas como referência de aprendizagem comercial
+- se surgir caso parecido no futuro, tratar desde cedo como demanda possivelmente mais customizada que o encaixe ideal atual do Bóris
 
 ## Observação Operacional
 
 - o usuário informou em `2026-04-09` que a mensagem para o Richard já foi enviada
 - o CRM foi atualizado para estado de espera de resposta, com próxima checagem em `2026-04-10`
+- em `2026-04-14`, Richard informou que já resolveu com outra solução e a conta deixou de ser follow-up ativo

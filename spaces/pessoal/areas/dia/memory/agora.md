@@ -18,11 +18,16 @@
 - Um novo lote de `5` disparos de reativação da base legado foi executado hoje.
 - O Stripe foi resolvido e isso destravou o próximo passo do Claudemir: enviar o link de pagamento.
 - O link de pagamento do Claudemir já foi enviado; agora a conta entra em espera de confirmação para ativação.
+- Claudemir recebeu um ping leve de acompanhamento sobre o andamento do financeiro da renovação, com aceite da API em status `PENDING`.
 - A Bilheteria Digital já recebeu uma posição clara sobre o Antonio para não travar o jurídico.
+- A Bilheteria Digital avançou: o NDA foi assinado e a próxima etapa agora é receber os links de convite de alguns grupos iniciais para o piloto.
 - Marcos Rocha, do ecossistema Gran Cursos, entrou hoje como lead novo e muito qualificado via networking presencial.
 - A mensagem inicial para o Marcos Rocha já foi enviada; agora a conta entra em espera de resposta.
-- Li Saito / B2Mamy reabriu de forma concreta e pediu por email os links separados da comunidade e do Bakers.
-- A estrutura correta da B2Mamy no Stripe agora esta ajustada como `1` produto `Bóris` com `2` assinaturas, uma para `Comunidade B2Mamy` e outra para `Bakers`, ambas a `R$ 250,00/mês`.
+- Li Saito / B2Mamy agora já aparece com `2` grupos pagos e ativos no painel.
+- Os grupos confirmados da B2Mamy sao `Comunidade B2Mamy` e `Cleves`.
+- O usuario confirmou em `2026-04-15` que a mensagem para a Li foi enviada.
+- Novo lead quente entrou via WhatsApp: `Luís Felipe`, com `2` a `5` grupos e intencao direta de ativar o Bóris.
+- Cliente ativo `Justa Pena` entrou com demanda operacional via Bernardo Torres Hungaro: boleto do mês não está chegando por email e ele quer a cobrança organizada no início de cada mês.
 - Felippe / GM Promo respondeu no WhatsApp e pediu reenvio da confirmacao/link para o mesmo email `felippe.alves@superaholdings.com.br`.
 - O acesso do Bóris para o Felippe / GM Promo já foi enviado com URL, usuário e senha.
 - André mandou áudio reforçando que precisa do e-mail para liberar o acesso no `Assessoria VIP` e que atualizou um dos grupos para vocês observarem também um caso em fase inicial.
@@ -33,8 +38,16 @@
 - O grupo em comum da Sabrina no WhatsApp aparece como `OUTLIER MENTORING <> Bóris`.
 - Novo lead qualificado registrado: `Guilherme Amorim / contabilidade`, com operação de `200` a `300` grupos de WhatsApp e interesse em reunião preferencialmente presencial.
 - A resposta ao Guilherme Amorim já foi enviada, propondo reunião na semana de `2026-04-20`.
+- A reunião com Guilherme Amorim já está confirmada para `22/04/2026 às 15h`.
 - Foram enviados hoje follow-ups para `Marcos Rocha` e `Richard Ribeiro`.
 - No caso do `Felippe / GM Promo`, foi identificado que o check por WhatsApp saiu para o `Felipe` errado.
+- O telefone correto do `Felippe / GM Promo` foi confirmado no WhatsApp como `+55 11 99422-1361`.
+- O check de acesso do `Felippe / GM Promo` já foi reenviado para o número correto e a API aceitou com status `PENDING`.
+- Marcos Rocha respondeu ao follow-up e abriu uma ponte direta com `Matheus Morato`, telefone `+55 61 9101-7429`.
+- O `Matheus Morato` já foi acionado por WhatsApp usando a indicação do Marcos, com aceite da API em status `PENDING`.
+- O Marcos Rocha já recebeu confirmação e agradecimento pela ponte com o Matheus, também com aceite da API em status `PENDING`.
+- Matheus Morato respondeu com abertura para conversa; o encaminhamento final ficou por link de agendamento para a semana seguinte.
+- Richard Ribeiro respondeu que já resolveu a demanda com outra solução e saiu da fila ativa.
 
 ## Foco Atual
 
@@ -52,13 +65,16 @@
 - [ ] Colocar a Jezilene para observar ao menos uma reunião com lead ou cliente.
 - [ ] Triar as reuniões e conexões de hoje para decidir quais precisam de follow-up, preparo ou registro.
 - [ ] Revisar os grupos e o material do André antes de devolver a leitura e o próximo passo.
-- [ ] Verificar se o Felippe conseguiu entrar com o acesso enviado e destravar rápido se der erro.
+- [ ] Verificar se o Felippe conseguiu entrar com o acesso reenviado no número correto e destravar rápido se der erro.
 - [ ] Seguir com a leitura dos grupos do André e decidir se a continuidade faz mais sentido em `1` grupo ou nos `2`.
 - [ ] Organizar a fila de follow-ups e comunicações para outro momento, sem executá-los hoje.
-- [ ] Agendar conversa com Guilherme Amorim para a semana de `2026-04-20`.
-- [ ] Aguardar o Guilherme Amorim indicar dia e horário para a reunião.
-- [ ] Ver amanhã se Marcos e Richard responderam aos follow-ups enviados hoje.
-- [ ] Confirmar o telefone correto do Felippe / GM Promo antes de novo envio por WhatsApp.
+- [ ] Preparar a reunião presencial com Guilherme Amorim para `22/04/2026 às 15h`.
+- [ ] Consolidar os áudios do Luís Felipe e responder com o melhor próximo passo.
+- [ ] Retomar o caso do Bernardo / Justa Pena como pendência financeira operacional.
+- [ ] Ver amanhã se Marcos respondeu ao follow-up enviado hoje.
+- [ ] Aguardar a resposta do Matheus Morato e entender o contexto do teste mencionado pelo Marcos.
+- [ ] Aguardar o Matheus Morato marcar pelo link ou devolver por mensagem.
+- [ ] Se precisar de novo envio por WhatsApp para o Felippe / GM Promo, usar o número confirmado `+55 11 99422-1361`.
 
 ## Compromissos e Restrições
 
@@ -107,6 +123,9 @@
 - **Data:** 2026-04-09
 - **O que mudou:** Foi sincronizado que a mensagem de retomada para o André já foi enviada e que a Bilheteria Digital já recebeu uma posição clara sobre o Antonio para evitar travar o jurídico.
 - **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** A Bilheteria Digital confirmou que o NDA foi enviado só com os dados do usuário, o documento foi assinado e a conta avançou para a seleção de alguns grupos iniciais para o piloto.
+- **Agente:** kernel
 - **Data:** 2026-04-09
 - **O que mudou:** Marcos Rocha foi registrado como lead novo muito qualificado ligado ao ecossistema Gran Cursos, com tarefa de mensagem ainda hoje.
 - **Agente:** kernel
@@ -121,6 +140,21 @@
 - **Agente:** kernel
 - **Data:** 2026-04-09
 - **O que mudou:** A modelagem anterior da B2Mamy no Stripe foi corrigida. O correto ficou como `1` produto `Bóris` com `2` assinaturas da B2Mamy, ambas a `R$ 250,00/mês`, e os itens criados por engano foram desativados.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** Foi confirmado no painel que a B2Mamy já está com `2` assinaturas ativas e pagas. Os grupos confirmados agora são `Comunidade B2Mamy` e `Cleves`.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** Foi enviada mensagem para a Li confirmando que o pagamento dos dois grupos foi visto e que a continuidade operacional segue para `Comunidade B2Mamy` e `Cleves`.
+- **Agente:** kernel
+- **Data:** 2026-04-15
+- **O que mudou:** O usuário confirmou que a mensagem para a Li foi enviada. A conta segue como cliente ativa com dois grupos pagos e em continuidade operacional.
+- **Agente:** kernel
+- **Data:** 2026-04-15
+- **O que mudou:** Novo lead quente registrado: Luís Felipe, com intenção direta de ativar o Bóris para `2` a `5` grupos. O próximo passo é consolidar os áudios e orientar o avanço por mensagem ou call.
+- **Agente:** kernel
+- **Data:** 2026-04-15
+- **O que mudou:** Cliente ativo `Justa Pena` foi registrado com pendência operacional de cobrança via Bernardo Torres Hungaro: boleto do mês não recebido por email e pedido para que a cobrança passe a vir no início de cada mês.
 - **Agente:** kernel
 - **Data:** 2026-04-09
 - **O que mudou:** Felippe / GM Promo respondeu no WhatsApp pedindo reenvio da confirmação/link para o mesmo email. O próximo passo agora é operacional e objetivo: reenviar o email e aguardar a validação interna.
@@ -149,6 +183,12 @@
 - **Data:** 2026-04-10
 - **O que mudou:** O estado vivo foi virado para `2026-04-10`, removendo da prioridade os itens já resolvidos ontem e puxando para frente os follow-ups maduros de Claudemir, B2Mamy, André, Jezilene, ENAP e lote legado.
 - **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** Foi enviado um ping leve ao Claudemir para acompanhar o andamento do financeiro da renovação, com aceite da API em status `PENDING`.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** Richard Ribeiro informou que já resolveu a demanda com outra solução. A conta saiu da fila ativa e passa a servir como referência de não-fit para casos mais customizados.
+- **Agente:** kernel
 - **Data:** 2026-04-10
 - **O que mudou:** Foi registrada a diretriz operacional do dia: hoje não é dia de follow-up nem de comunicação ativa; a prioridade passa a ser trabalho interno, leitura, organização e avanço estrutural.
 - **Agente:** kernel
@@ -159,8 +199,29 @@
 - **O que mudou:** A resposta ao Guilherme Amorim foi enviada propondo reunião na semana de 2026-04-20. O estado agora é aguardar definição de agenda.
 - **Agente:** kernel
 - **Data:** 2026-04-14
+- **O que mudou:** Guilherme Amorim confirmou a reunião presencial para `22/04/2026 às 15h`.
+- **Agente:** kernel
+- **Data:** 2026-04-14
 - **O que mudou:** Foram enviados follow-ups para Marcos Rocha, Richard Ribeiro e Felippe / GM Promo. O próximo passo agora é revisar as respostas em 2026-04-15.
 - **Agente:** kernel
 - **Data:** 2026-04-14
 - **O que mudou:** Foi identificado que o check por WhatsApp do Felippe / GM Promo saiu para o contato errado. O próximo passo foi corrigido para confirmar o telefone certo antes de novo envio.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** O telefone correto do Felippe / GM Promo foi confirmado no WhatsApp como `+55 11 99422-1361`. O registro operacional agora passa a usar esse número como referência oficial para qualquer novo envio.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** O check de acesso do Felippe / GM Promo foi reenviado para o número correto `+55 11 99422-1361`, com aceite da API em status `PENDING`. O próximo passo agora é confirmar entrada no painel ou destravar erro.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** Marcos Rocha respondeu ao follow-up e indicou o contato `Matheus Morato`, telefone `+55 61 9101-7429`, como próxima ponte quente para avanço comercial.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** O Matheus Morato foi acionado por WhatsApp usando a introdução do Marcos Rocha, com aceite da API em status `PENDING`. O próximo passo agora é aguardar resposta e qualificar o contexto do teste.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** Foi enviado agradecimento ao Marcos Rocha confirmando que o contato com o Matheus já foi feito. O relacionamento com o Marcos segue aquecido como ponte estratégica.
+- **Agente:** kernel
+- **Data:** 2026-04-14
+- **O que mudou:** Matheus Morato respondeu com abertura real para conversa, mas o encaminhamento ficou para a semana seguinte por conta da agenda do usuário. O link oficial de agendamento foi enviado e agora o próximo passo é aguardar marcação.
 - **Agente:** kernel

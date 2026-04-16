@@ -24,10 +24,13 @@
 
 ## Próximo Passo
 
-- aguardar o Guilherme confirmar o horario sugerido
-- preferencia dele: `presencial`
+- call confirmada para `quarta, 22/04/2026, às 15h`
+- formato final confirmado: `online`
 - como hoje e `2026-04-13`, a leitura correta de `semana que vem` passa a ser a semana de `2026-04-20`
 - em `2026-04-14`, foi enviada a preferencia por `quarta, 22/04/2026, às 15h`
+- em `2026-04-14`, Guilherme confirmou com `As 15h então`
+- em `2026-04-15`, a reuniao foi incluida na agenda do usuario para `22/04/2026` de `15h` a `16h`
+- em `2026-04-15`, a agenda foi corrigida de `presencial` para `call`, com link do Google Meet gerado
 - objetivo da reuniao:
 - entender o fluxo atual do atendimento
 - mapear onde o Bóris pode gerar eficiencia
@@ -41,4 +44,5 @@
 - também sinalizou que não está com urgência máxima e que a reunião pode ficar para a semana seguinte
 - em `2026-04-13`, o usuario respondeu propondo marcar a reuniao na semana de `2026-04-20`
 - em `2026-04-14`, o usuario respondeu que a melhor opção é `quarta, 22/04/2026, às 15h`
-- status atual: `aguardando confirmação final do horário`
+- em `2026-04-14`, Guilherme confirmou o horario de `22/04/2026 às 15h`
+- status atual: `reunião confirmada`

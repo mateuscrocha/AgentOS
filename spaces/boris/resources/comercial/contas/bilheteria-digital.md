@@ -106,8 +106,10 @@
 
 ## Proximo Passo Recomendado
 
-- formalizar o NDA antes de subir o piloto
-- receber a lista inicial de grupos escolhidos pela BD
+- em `2026-04-14`, Guilherme confirmou que o NDA foi enviado apenas com os dados do usuário
+- em `2026-04-14`, o usuário confirmou que o NDA foi verificado e assinado
+- em `2026-04-14`, a conversa avançou para a próxima etapa operacional: escolha dos grupos iniciais do piloto
+- receber os links de convite dos grupos escolhidos pela BD
 - cadastrar Bóris em modo `spy`
 - liberar acesso ao painel para avaliacao
 - revisar o que apareceu no piloto:
@@ -122,7 +124,9 @@
 - em `2026-04-09`, Guilherme pediu os dados do Antonio para o juridico
 - em `2026-04-09`, o usuario respondeu com posicao clara para nao travar a operacao: Antonio e socio, mas nao e socio ativo nem participa do dia a dia, e colocar ele para assinar geraria burocracia desnecessaria
 - foi sinalizado que o ideal e seguir a assinatura apenas pelo usuario como representante operacional
-- status atual: `aguardando retorno da Bilheteria Digital sobre o formato de assinatura/NDA`
+- em `2026-04-14`, Guilherme confirmou que o documento foi enviado somente com os dados do usuario
+- em `2026-04-14`, o NDA foi assinado e a conta avancou para a definicao de alguns grupos iniciais
+- status atual: `nda resolvido e piloto em preparacao`
 
 ## Leitura Comercial
 

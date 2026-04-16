@@ -22,8 +22,12 @@
 ## Próximo Passo
 
 - em `2026-04-09`, a mensagem inicial já foi enviada
-- agora o próximo passo é aguardar a resposta
-- se houver abertura, puxar papo curto para entender:
+- em `2026-04-14`, Marcos respondeu ao follow-up, validou o papo e abriu uma ponte direta para `Matheus Morato`
+- o pedido dele foi claro: entrar em contato com o Matheus dizendo que foi o próprio Marcos quem pediu esse contato
+- em `2026-04-14`, o `Matheus Morato` já foi acionado via WhatsApp usando essa introdução, com aceite da API em status `PENDING`
+- em `2026-04-14`, Marcos recebeu mensagem de agradecimento confirmando que o contato com o Matheus já foi feito, com aceite da API em status `PENDING`
+- agora o próximo passo é aguardar a resposta do Matheus e manter o Marcos aquecido como ponte estratégica
+- em paralelo, seguir entendendo com o Marcos:
 - escopo atual dele em CRM/operação
 - se existe camada de WhatsApp, comunidade, suporte ou grupos
 - onde o Bóris poderia gerar valor real
@@ -31,10 +35,12 @@
 ## Atualização Mais Recente
 
 - em `2026-04-09`, o usuário confirmou que a mensagem para o Marcos já foi enviada
-- status atual: `aguardando resposta de lead qualificado`
+- em `2026-04-14`, Marcos respondeu positivamente e indicou o contato `Matheus Morato` como próximo passo
+- status atual: `lead respondeu e gerou introdução quente`
 
 ## Leitura Comercial
 
 - nao tratar como lead frio
 - trata-se de entrada nova por networking com alta qualidade
-- o principal agora e preservar contexto e abrir conversa sem parecer pitch duro
+- o principal agora e aproveitar a ponte aberta pelo Marcos sem transformar isso em pitch duro
+- essa conta ja comecou a gerar rede, o que aumenta bastante o valor estrategico do relacionamento

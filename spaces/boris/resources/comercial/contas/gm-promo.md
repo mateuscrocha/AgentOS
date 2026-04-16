@@ -55,8 +55,9 @@
 - em `2026-04-09`, Felippe respondeu no WhatsApp confirmando que vai olhar isso e pediu reenvio da confirmacao/link para o mesmo email: `felippe.alves@superaholdings.com.br`
 - em `2026-04-09`, o usuario confirmou que enviou o acesso do Bóris com `URL`, usuario e senha
 - em `2026-04-14`, foi identificado que o check de acesso por WhatsApp saiu para o `Felipe` errado
-- o telefone correto do `Felippe / GM Promo` segue nao confirmado neste registro
-- proximo passo imediato: confirmar o numero correto antes de qualquer novo envio por WhatsApp
+- em `2026-04-14`, o telefone correto do `Felippe / GM Promo` foi confirmado no WhatsApp como `+55 11 99422-1361`
+- em `2026-04-14`, o check de acesso foi reenviado para o numero correto `+55 11 99422-1361` e a API aceitou com status `PENDING`
+- proximo passo imediato: aguardar a confirmacao de entrada no painel ou destravar rapido se ele reportar erro
 - depois disso, aguardar a validacao interna com marketing, CS e diretoria
 - em seguida, marcar segunda reuniao com CS, farmer ou outro stakeholder operacional
 - desenhar piloto com grupos iniciais, criterio de sucesso e escopo

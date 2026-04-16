@@ -16,6 +16,7 @@ Herda de `spaces/boris/guidelines/`.
 | Documento | Descrição |
 |---|---|
 | `processo-comercial-boris.md` | Estrutura operacional do comercial do Boris, adaptada da base metodológica da Enkrateia, incluindo a regra de sincronização obrigatória quando o usuário altera leads manualmente |
+| `crm-fonte-oficial.md` | Regra operacional que formaliza o CRM do painel como fonte oficial da operação comercial viva e define os campos mínimos obrigatórios |
 | `cadencia-follow-up.md` | Regras de cadência, timing, gatilhos e critérios para follow-up comercial |
 | `qualificacao-e-avanco.md` | Critérios para qualificar, avançar, pausar ou perder oportunidades no pipeline |
 | `pipeline-oficial-boris.md` | Mapeamento oficial entre pipeline do CRM atual do Boris e vocabulário herdado do legado |

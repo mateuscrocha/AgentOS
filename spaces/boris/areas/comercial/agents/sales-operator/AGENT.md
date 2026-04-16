@@ -122,3 +122,6 @@ Skills deste agente: `spaces/boris/areas/comercial/agents/sales-operator/skills/
 9. Não oferecer trial amplo ou solto; trial no Boris deve ser curado, orientado e conectado a decisão comercial
 10. Evitar script agressivo de closer; priorizar confiança, leitura de dor e avanço honesto
 11. Toda recomendação deve responder: quem é o lead, qual dor está ativa, qual prova existe e qual é o próximo passo
+12. Nenhuma conta viva pode ser deixada apenas na conversa ou em `.md`; se houver lead vivo, follow-up, reunião, reativação, pausa ou perda, isso deve ser refletido no CRM do painel na mesma operação
+13. Ao operar no CRM, tratar como mínimos obrigatórios para conta viva: `stage`, `commercial_priority`, `pipeline_track` e `next_step`
+14. Ao marcar reativação, preencher também `reactivation_status`; ao marcar perda, preencher também `lost_reason`

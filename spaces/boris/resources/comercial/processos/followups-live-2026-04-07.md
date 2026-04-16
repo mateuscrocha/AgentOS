@@ -203,9 +203,9 @@ Sempre que avancar para o proximo lead, informar:
 
 - numero: `+55 13 98232-0028`
 - origem: base legado, `BL-00559`
-- status de hoje: pausado
-- observacao: usuario informou que ja houve quatro tentativas, incluindo hoje, sem resposta
-- proximo passo: tirar da fila ativa e so revisitar se houver novo contexto ou janela futura de reativacao
+- status de hoje: perdido
+- observacao: apos a ultima rodada de contato, o usuario consolidou que este caso deve ser tratado como perdido
+- proximo passo: nao retomar, salvo reentrada futura com contexto novo explicito
 
 #### Li Saito
 
@@ -219,9 +219,9 @@ Sempre que avancar para o proximo lead, informar:
 
 - numero: `+55 11 94142-5555`
 - origem: base legado, `BL-00253`
-- status de hoje: mensagem enviada
-- observacao: existe abordagem antiga visivel em `2026-03-26`, sem resposta aparente no print; follow-up curto enviado em `2026-04-07`
-- proximo passo: revisar resposta amanha antes de qualquer nova insistencia
+- status de hoje: perdido
+- observacao: apos a ultima rodada de contato, o usuario consolidou que este caso deve sair da fila e ser tratado como perdido
+- proximo passo: nao retomar, salvo reentrada futura com contexto novo explicito
 
 #### RodrigoK
 
@@ -236,8 +236,8 @@ Sempre que avancar para o proximo lead, informar:
 - numero: `+55 11 94485-0914`
 - origem: base legado, `BL-00268`
 - status de hoje: perdido
-- observacao: usuario decidiu tirar da fila e tratar como caso perdido
-- proximo passo: nao retomar, salvo reentrada futura
+- observacao: usuario confirmou manter este caso como perdido apos os contatos mais recentes
+- proximo passo: nao retomar, salvo reentrada futura com contexto novo explicito
 
 #### Felipe Oliveira
 

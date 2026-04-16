@@ -13,7 +13,7 @@
 - Li respondeu que esta tudo certo para seguirem
 - ela perguntou se o link enviado cobria os dois grupos
 - foi esclarecido que o link atual cobre somente a comunidade
-- Li confirmou que vao seguir tambem com o `Bakers`
+- Li confirmou que vao seguir tambem com o segundo grupo, que agora fica identificado corretamente como `Cleves`
 - ela pediu que os links separados sejam enviados por email para formalizar com o financeiro
 - em `2026-04-09`, houve uma modelagem errada no Stripe criando produtos separados para `Comunidade B2Mamy` e `Bakers`
 - essa modelagem foi corrigida no mesmo dia
@@ -26,23 +26,30 @@
 - racional comercial: preco oficial `R$ 350,00` com desconto de `R$ 100,00` por assinatura
 - links corretos gerados:
 - comunidade: `https://buy.stripe.com/6oUeVe2Os70Z70fdWz5EY0l`
-- bakers: `https://buy.stripe.com/6oU7sMbkY8534S77yb5EY0k`
+- segundo grupo: `https://buy.stripe.com/6oU7sMbkY8534S77yb5EY0k`
 - preco Stripe correto: `price_1TKPXWLRXw5JdU0Jxerye7kF`
 - produto Stripe oficial usado: `prod_QiBAteKKa8nBDF` (`Bóris`)
 - customer criado no Stripe para a conta: `cus_UJ1TpNt2R31R4Q`
+- em `2026-04-14`, foi confirmado no painel que as `2` assinaturas estao ativas e pagas
+- grupos pagos confirmados:
+- `Comunidade B2Mamy`
+- `Cleves`
+- status operacional atual: `cliente ativo com 2 grupos pagos`
 
 ## Próximo Passo
 
-- enviar hoje por email os links separados:
-- comunidade
-- Bakers
-- depois disso, acompanhar o andamento interno/financeiro da B2Mamy
-- se o financeiro aprovar e pagar, seguir com a continuidade operacional dos dois grupos
+- seguir com a continuidade operacional dos dois grupos pagos
+- garantir que os grupos corretos estejam configurados no Bóris:
+- `Comunidade B2Mamy`
+- `Cleves`
+- acompanhar onboarding/ativacao e qualquer ajuste fino necessario
+- em `2026-04-15`, o usuario confirmou que a mensagem para a Li foi enviada
+- a comunicacao de pos-pagamento agora deve ser tratada como concluida
 
 ## Leitura Comercial
 
 - conta reativada de forma concreta
-- nao esta em fase de convencimento; está em fase de formalizacao
-- o gargalo agora e operacional: mandar os links certos por email e acompanhar a aprovacao
+- nao esta mais em fase de convencimento nem de formalizacao; ja virou conta ativa
+- o gargalo agora e operacional: garantir ativacao/configuracao correta dos dois grupos pagos
 - a condicao comercial aplicada foi `R$ 250,00` por assinatura por mes
 - apesar de existirem dois grupos, o produto comercial continua sendo `Bóris`

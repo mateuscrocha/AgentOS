@@ -17,7 +17,8 @@
 
 ## Próximo Passo
 
-- aguardar a confirmação do pagamento
+- em `2026-04-14`, foi enviado um ping leve de acompanhamento sobre o andamento do financeiro, com aceite da API em status `PENDING`
+- aguardar a posição do Claudemir ou a confirmação do pagamento
 - depois do pagamento, seguir com a ativação/configuração
 
 ## Leitura Comercial

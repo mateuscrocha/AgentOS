@@ -90,6 +90,8 @@ Saida esperada apos analisar uma transcricao:
 - toda oportunidade precisa de um proximo passo claro
 - follow-up frouxo nao conta como processo
 - lead sem resposta nao significa lead sem interesse
+- prospeccao nova so deve sair para lead sem historico de contato registrado no CRM
+- se ja houve contato, o lead nao volta para fila de prospeccao nova; ele entra em follow-up, espera de resposta ou reativacao
 - nao misturar conta estrategica longa com urgencia de caixa
 - nao abrir trial sem tese, criterio e caminho de decisao
 - explicar menos e mostrar mais
@@ -104,6 +106,8 @@ Regra pratica de sincronizacao obrigatoria:
 - atualizar a nota local da conta em `spaces/boris/resources/comercial/contas/` quando o caso tiver relevancia propria
 - atualizar a memoria viva do dia em `spaces/pessoal/areas/dia/memory/` quando a mudanca afetar prioridade, follow-up, espera de resposta ou proximo passo operacional
 - evitar deixar a verdade espalhada ou divergente entre conversa, CRM e arquivos locais
+- qualquer referencia antiga a `Twenty` deve ser tratada como obsoleta
+- o unico CRM oficial da operacao comercial do Bóris e o CRM que vive dentro do painel do Bóris
 
 ## Onde Cada Tipo de Informacao Vai
 
@@ -116,6 +120,8 @@ Regra pratica de sincronizacao obrigatoria:
 ## Regra de Sincronizacao
 
 - o CRM do painel e a fonte oficial da operacao viva
+- a regra detalhada de uso do CRM como fonte oficial vive em `crm-fonte-oficial.md`
+- nao existe mais `CRM Twenty` como sistema ativo da operacao; se houver mencao residual em memoria ou conversa antiga, isso deve ser lido apenas como contexto historico
 - a consultoria da Enkrateia e a fonte metodologica e de contexto legado
 - o AgentOS e a camada de consolidacao entre as duas
 - antes de recomendar acao comercial, conferir CRM atual e materiais operacionais relevantes do legado

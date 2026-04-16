@@ -23,6 +23,9 @@ Dar uma leitura operacional simples dos leads trabalhados hoje, separando:
 - `BL-00222` — `AI ALLIANCE COMMUNITY` — perdido
 - `BL-01782` — `Alessandra` — cancelado / sem interesse
 - `BL-01777` — contexto `Árvore Dos Saberes - Eletrônica e Hardware` — numero invalido no WhatsApp
+- `BL-00559` — `Felipe Lucarelli` — perdido
+- `BL-00253` — `Priscilla Negrao` — perdido
+- `BL-00268` — `Fabiola Oliveira` — perdido
 
 ## Aguardando resposta
 
@@ -35,7 +38,6 @@ Dar uma leitura operacional simples dos leads trabalhados hoje, separando:
 - `BL-00161` — `Lucas Dantas`
 - `BL-00245` — `Li Saito`
 - `BL-01129` — `Felipe Bedin`
-- `BL-00559` — `Felipe Lucarelli`
 - `BL-00841` — `Jefferson Cabral`
 
 ### Lote 2
@@ -60,7 +62,6 @@ Dar uma leitura operacional simples dos leads trabalhados hoje, separando:
 - `BL-00766` — `Daniel Escaleira`
 - `BL-01404` — `Rocha Denis Rocha`
 - `BL-00818` — `Ighor Miranda`
-- `BL-00268` — `Fabiola Oliveira`
 - `BL-01424` — `Denis`
 - `BL-00686` — `Lucas Furlan`
 
@@ -73,7 +74,7 @@ Dar uma leitura operacional simples dos leads trabalhados hoje, separando:
 - `30` leads avaliados para acao imediata
 - `29` mensagens aceitas pela Evolution API
 - `1` falha operacional por numero inexistente
-- `3` leads ja classificados como bloqueados
+- `6` leads ja classificados como bloqueados
 - bloco principal agora e `aguardando_resposta`
 
 ## Observacoes operacionais

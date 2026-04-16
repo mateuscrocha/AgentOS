@@ -205,7 +205,7 @@ Foco: puxar para o CRM apenas leads quentes com contexto claro ou follow-up pend
 - temperatura: `medium`
 - motivo: maior `priority_score` da lista importada
 - contexto: varios grupos ativos e sinais de interesse
-- acao recomendada: puxar para CRM como `new_lead` ou `meeting`, dependendo da confirmacao de contato recente
+- acao recomendada: nao recolocar em fila; tratar como `lost` apos a ultima rodada de contato, salvo reentrada futura com contexto novo explicito
 
 ### Prioridade alta
 
@@ -228,7 +228,7 @@ Foco: puxar para o CRM apenas leads quentes com contexto claro ou follow-up pend
 - trilho: campanha base legado
 - lead_id: `BL-00253`
 - status legado: `qualified`
-- acao recomendada: puxar para CRM como reativacao de lead quente
+- acao recomendada: tratar como `lost`; nao reativar sem reentrada futura com contexto novo explicito
 
 #### RodrigoK
 
@@ -242,7 +242,7 @@ Foco: puxar para o CRM apenas leads quentes com contexto claro ou follow-up pend
 - trilho: campanha base legado
 - lead_id: `BL-00268`
 - status legado: `qualified`
-- acao recomendada: validar timing e puxar para CRM se houver grupo ativo relevante
+- acao recomendada: tratar como `lost`; nao recolocar em fila sem reentrada futura com contexto novo explicito
 
 #### Felipe Oliveira
 
@@ -289,16 +289,13 @@ Foco: puxar para o CRM apenas leads quentes com contexto claro ou follow-up pend
 
 - trilho principal do dia: mistura controlada entre CRM e legado quente
 - Jessica Querentino
-- Felipe Lucarelli
 - U Marcos Personal
 - Li Saito
 
 ### Dia 4
 
 - trilho principal do dia: campanha legado
-- Priscilla Negrao
 - RodrigoK
-- Fabiola Oliveira
 
 ### Dia 5
 
