@@ -92,6 +92,11 @@ Regras:
 - Uso: receber o pedido, classificar em `post`, `campanha` ou `material`, criar a pasta-fonte certa e acionar apenas os skills especialistas necessarios.
 - Regra fixa: este skill nao substitui os outros; ele coordena a execucao e organiza os arquivos.
 
+### Skill de curadoria de temas praticos
+- `curate-practical-boris-topics`
+- Uso: selecionar temas que o Bóris consegue resolver e mostrar na pratica, com prova visual, leitura operacional e acao concreta.
+- Deve entrar quando o usuario pedir ideias de serie, proximos episodios, lista de temas demonstraveis ou quando a pauta estiver abstrata demais.
+
 ### Skill principal de contexto
 - `boris-product-context`
 - Uso: alinhar qualquer saida ao produto, ao publico e ao problema real do Bóris.

@@ -20,10 +20,12 @@ Organiza calendário editorial do Boris com equilíbrio entre educação, dor, p
 
 ## Processo
 
-1. Identificar o objetivo editorial ou comercial do período.
-2. Escolher as dores principais e os pilares editoriais mais adequados.
-3. Distribuir os conteúdos por canal, formato, objetivo e CTA sem perder coerência narrativa.
-4. Entregar um calendário prático, com sequência lógica e foco em impacto operacional.
+1. Ler `spaces/boris/resources/content/strategy/published-topics-registry.md`.
+2. Identificar o objetivo editorial ou comercial do período.
+3. Escolher as dores principais e os pilares editoriais mais adequados.
+4. Distribuir os conteúdos por canal, formato, objetivo e CTA sem perder coerência narrativa.
+5. Evitar concentração excessiva da mesma dor, tese ou ângulo em sequência curta.
+6. Entregar um calendário prático, com sequência lógica e foco em impacto operacional.
 
 ## Inputs
 
@@ -46,3 +48,4 @@ Tabela de calendário com:
 1. Todo calendário deve nascer de dores reais do Boris, não de “ideias de conteúdo” soltas.
 2. Instagram é o canal primário por padrão; LinkedIn vem como adaptação secundária e WhatsApp só quando útil.
 3. Misturar pilares é bom; diluir a tese central do período não é.
+4. Calendário novo deve considerar o histórico publicado antes de repetir dor principal ou tese.

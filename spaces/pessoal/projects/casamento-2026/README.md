@@ -30,6 +30,14 @@ Dar suporte à gestão das duas semanas finais antes do casamento, principalment
 - `custos.md`
 - `checklist-final.md`
 
+## Galeria de Fotos e Vídeos
+
+- Projeto web permanente: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/pessoal/projects/casamento-2026/galeria-web`
+- Entrada clássica: `index.html`
+- Entrada em formato feed: `index-feed.html`
+- Servidor local: `server.js`
+- Acervo: `assets/fotos/`, `assets/videos/` e manifests em `assets/`
+
 ## Referências Legadas Encontradas
 
 - Fonte operacional: `/Users/eu.rochamateus/Documents/Codex/Pessoal - Casamento Geral/README.md`

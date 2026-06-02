@@ -15,12 +15,13 @@ Use this skill together with `boris-image-agent` when the user wants reusable pr
 
 ## Workflow
 1. Also use `boris-image-agent` for canonical character rules.
-2. Start from one of the templates in `assets/prompts/`.
-3. Save the filled prompt into the current workspace, usually under `tmp/imagegen/prompts/`.
-4. Run `scripts/run_boris_template.zsh` with the prompt file and output path.
-5. For transparent assets, pass `transparent` as the optional fifth argument.
-6. Add a pose/action clause when the asset should feel specific or dynamic.
-7. Validate that Bóris keeps the canonical silhouette, thick outline, palette, clean sides with no appendages, and a pose suited to the scene instead of a repeated generic stance.
+2. If the thumbnail belongs to a recurring Boris YouTube series with an approved style, read `../boris-image-agent/references/boris-youtube-thumbnail-style.md` before filling the template.
+3. Start from one of the templates in `assets/prompts/`.
+4. Save the filled prompt into the current workspace, usually under `tmp/imagegen/prompts/`.
+5. Run `scripts/run_boris_template.zsh` with the prompt file and output path.
+6. For transparent assets, pass `transparent` as the optional fifth argument.
+7. Add a pose/action clause when the asset should feel specific or dynamic.
+8. Validate that Bóris keeps the canonical silhouette, thick outline, palette, clean sides with no appendages, and a pose suited to the scene instead of a repeated generic stance.
 
 ## Template Selection
 - `assets/prompts/boris-prompt-base-template.txt`: generic starting point
@@ -37,6 +38,9 @@ Use this skill together with `boris-image-agent` when the user wants reusable pr
 - When text is used, keep it short and secondary to the visual concept.
 - Default to one Bóris per thumbnail unless the concept explicitly requires more than one.
 - Vary the pose and body angle of both Bóris and the human presenter across thumbnails so recurring assets do not feel templated.
+- When the approved series language is Bóris solo, do not reintroduce a human presenter by default.
+- When the concept depends on a product screen, use the `Central de Comando` language as the UI anchor instead of an abstract dashboard.
+- Prefer a clean operational SaaS feel with warm neutral base and restrained orange accents over flashy gradients or startup-generic visuals.
 
 ## Execution
 - Script: `scripts/run_boris_template.zsh`

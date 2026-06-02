@@ -26,6 +26,7 @@ Escopo raiz do space. Estas guidelines são herdadas por todas as areas, times e
 | `language-and-locution.md` | Regra herdável de português brasileiro, acentuação e prosódia nas entregas do Boris |
 | `multimodal-production.md` | Como imagem e áudio das linhas editoriais usam a biblioteca especialista do Boris |
 | `meeting-intelligence.md` | Regra oficial para transformar reuniões, transcrições e calls em memória acionável do Boris |
+| `customer-intelligence-loop.md` | Loop oficial para transformar reuniões, pesquisas e insights em inteligência transversal do Boris |
 | `persona-system.md` | Definição oficial das personas, com aparência, faixa etária, função e encaixe de voz |
 | `../resources/README.md` | Índice da biblioteca operacional do Boris dentro do AgentOS |
 

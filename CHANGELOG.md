@@ -9,6 +9,20 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 ## [Unreleased]
 
 ### Adicionado
+- **Projeto standalone de inteligência do cliente** — criado `spaces/boris/projects/customer-intelligence-dashboard/` como dashboard próprio para visualizar reuniões, sínteses e padrões recorrentes do Bóris fora do `boris-painel`
+- **Área financeira doméstica** — criada `spaces/pessoal/areas/financas/` com memória compartilhada, guideline própria e foco em previsibilidade das contas da casa
+- **Agente de finanças da casa** — criado `spaces/pessoal/areas/financas/agents/household-finance-manager/` com adapters em `.Codex/agents/` e `.gemini/agents/` para consolidar extratos, contas previstas, dívidas e runway
+- **Agente de inteligência do cliente do Bóris** — criado `spaces/boris/areas/produto/agents/customer-intelligence-manager/` com adapters em `.Codex/agents/` e `.gemini/agents/` para consolidar reuniões, pesquisas e insights em leitura acionável
+- **Skill de consolidação de inteligência** — criada `consolidate-customer-intelligence` para transformar transcrições, benchmarks, anotações e sinais de cliente em sínteses com propagação por área
+- **Acervo `inteligencia-cliente`** — criado `spaces/boris/resources/inteligencia-cliente/` com blocos de `pesquisas/` e `sinteses/` para separar matéria-prima de leitura transversal
+- **Guideline de loop de inteligência** — criada `spaces/boris/guidelines/customer-intelligence-loop.md` para formalizar o fluxo entre reuniões, pesquisas e memória acionável
+- **Área de infraestrutura da empresa** — criada `spaces/empresa/areas/infra/` com memória, guidelines e foco operacional em cPanel, DNS, hosting e painéis administrativos
+- **Agente de operação de cPanel** — criado `spaces/empresa/areas/infra/agents/cpanel-operator/` com adapters em `.Codex/agents/` e `.gemini/agents/` para operar cPanel com segurança
+- **Skill de API do cPanel** — criada `cpanel-api-operator` com scripts para guardar perfis no Keychain do macOS, consultar o perfil salvo e executar chamadas autenticadas à API do cPanel
+- **Agente de lives do YouTube** — criado `spaces/boris/areas/conteudo/agents/youtube-live-producer/` com adapters em `.Codex/agents/` e `.gemini/agents/` para estruturar e operar uma série ao vivo com convidados da comunidade Automate
+- **Skills de produção de live** — criadas `shape-live-episode`, `assemble-live-publish-kit` e `run-live-show-flow` para cobrir briefing editorial, pacote de publicação e operação da transmissão
+- **Guideline da série da comunidade** — criada `spaces/boris/areas/conteudo/guidelines/youtube-lives-da-comunidade.md` para formalizar objetivo, princípios e pacote mínimo da frente
+- **Agente da frente ENAP** — criado `spaces/boris/areas/comercial/agents/enap-opportunity-manager/` com adapters em `.Codex/agents/` e `.gemini/agents/` para operar conversas, editais, análises e próximos passos da oportunidade ENAP do Bóris
 - **Memória operacional viva do dia** — criados `spaces/pessoal/areas/dia/memory/agora.md`, `inbox.md` e `follow-ups.md` para persistir contexto cotidiano importante fora do histórico da conversa
 - **Comando `/agora`** — criado slash command no runtime Codex para consultar e atualizar o estado vivo do dia com `mostrar`, `captura`, `check-in` e `fechamento`
 - **Runtime Codex primário** — criado `CODEX.md` e a árvore `.Codex/` (`agents/`, `commands/`, `skills/agent-bootstrap`) para tornar o Codex o runtime principal do AgentOS
@@ -21,6 +35,11 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 - **Memória oficial de reuniões do Bóris** — criada a guideline `spaces/boris/guidelines/meeting-intelligence.md` e o acervo `spaces/boris/resources/reunioes/` para consolidar transcrições, resumos, decisões e próximos passos de calls relevantes
 
 ### Alterado
+- **Space Boris ampliado com projeto ativo** — `spaces/boris/SPACE.md`, `spaces/boris/memory/world.md` e `system/memory/world.md` agora registram explicitamente o `customer-intelligence-dashboard` como projeto standalone da frente de inteligência do cliente
+- **Space pessoal ampliado** — `spaces/pessoal/SPACE.md`, `spaces/pessoal/memory/world.md`, `system/memory/world.md`, `README.md`, `docs/manual-de-bolso.md` e o registry do `agent-manager` agora registram oficialmente a frente `financas` e o agente `household-finance-manager`
+- **Biblioteca operacional do Bóris ampliada** — `spaces/boris/resources/README.md`, `spaces/boris/memory/world.md` e `spaces/boris/areas/produto/memory/world.md` agora registram oficialmente a camada `inteligencia-cliente` e o novo agente transversal de leitura de mercado e cliente
+- **Guidelines do space Boris expandidas** — `spaces/boris/guidelines/GUIDELINES.md` agora referencia explicitamente o loop oficial de inteligência do cliente
+- **Área de conteúdo do Boris ampliada** — `spaces/boris/areas/conteudo/AREA.md`, `memory/world.md` e `guidelines/GUIDELINES.md` agora registram oficialmente a frente de lives no YouTube da comunidade Automate
 - **Regra operacional do Google Calendar** — `KERNEL.md` e `AGENTS.md` agora determinam que tarefas de Google Calendar no AgentOS devem carregar por padrão as credenciais `GOOGLE_CALENDAR_*` do `.env` raiz do projeto principal antes de assumir ausência de configuração
 - **Kernel orientado a contexto vivo** — `KERNEL.md`, o loader `.Codex/agents/pessoal--dia--day-manager.md`, a guideline `spaces/pessoal/guidelines/gestao-do-dia.md` e o agente `day-manager` agora tratam a memória viva da área `pessoal/dia` como fonte operacional primária para rotina, prioridades e follow-ups
 - **Source of truth de runtime** — `KERNEL.md`, `README.md`, `docs/architecture.md`, `system/protocols/sync.md`, `system/scripts/setup.py`, `system/scripts/sync.py`, `system/scripts/validate.py` e hooks agora tratam `.Codex/` como runtime canônico para sync e operação

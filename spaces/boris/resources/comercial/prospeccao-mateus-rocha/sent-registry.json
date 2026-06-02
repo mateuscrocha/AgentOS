@@ -1,0 +1,5847 @@
+{
+  "campaign": "prospeccao_whatsapp_mateus_rocha_2026_04",
+  "updated_at": "2026-06-02",
+  "rules": {
+    "never_resend_same_journey": true,
+    "block_on_any_prior_contact_signal": true,
+    "block_manager_shadow_records_when_canonical_record_exists": true,
+    "write_ahead_lock_before_send": true,
+    "no_reply_gate_for_prospecting": true,
+    "dedupe_key_priority": [
+      "normalized_phone",
+      "trimmed_phone",
+      "first_name_plus_source_context"
+    ]
+  },
+  "dedupe_contract": {
+    "scope": "Esta thread passa a ser a fonte oficial de disparo da jornada atual.",
+    "guarantee_from_now_on": "Nenhum lead reservado ou enviado por esta thread pode voltar para lote futuro de prospecção.",
+    "reservation_rule": "Todo candidato entra primeiro em reserva tecnica antes da aprovacao humana e do envio.",
+    "send_rule": "Ao enviar, o lead sai da reserva e entra definitivamente na blocklist da jornada.",
+    "cadence_rule": "Na prospeccao, o envio segue em lote respeitando os delays operacionais, sem esperar resposta do lead para continuar a cadencia.",
+    "limit": "Isso garante a nao duplicacao dos disparos feitos por esta thread daqui para frente."
+  },
+  "batches": [
+    {
+      "batch_id": "lote_01",
+      "status": "completed_with_incident",
+      "approved_at": "2026-04-28",
+      "sent": [
+        {
+          "first_name": "Bruna",
+          "phone_used": "554791362808",
+          "notes": "Enviado antes da descoberta da falha de deduplicação."
+        },
+        {
+          "first_name": "Amilton",
+          "phone_used": "5516991737022",
+          "notes": "Enviado antes da descoberta da falha de deduplicação."
+        },
+        {
+          "first_name": "Carlos",
+          "phone_used": "5511964107294",
+          "notes": "Enviado com número saneado; depois confirmado que já havia contato anterior no CRM canônico."
+        },
+        {
+          "first_name": "Lucas",
+          "phone_used": "17372174284",
+          "notes": "Enviado com número saneado; depois confirmado que já havia contato anterior no CRM canônico."
+        },
+        {
+          "first_name": "Matteo",
+          "phone_used": "5511941525252",
+          "notes": "Enviado. Ainda sem confirmação de contato anterior no CRM canônico, mas permanece bloqueado para esta jornada."
+        },
+        {
+          "first_name": "Rodrigo",
+          "phone_used": "5511940207654",
+          "notes": "Enviado. Ainda sem confirmação de contato anterior no CRM canônico, mas permanece bloqueado para esta jornada."
+        },
+        {
+          "first_name": "Gleison",
+          "phone_used": "5511975309733",
+          "notes": "Enviado. Ainda sem confirmação de contato anterior no CRM canônico, mas permanece bloqueado para esta jornada."
+        },
+        {
+          "first_name": "Fabiola",
+          "phone_used": "5511944850914",
+          "notes": "Enviado com número saneado; depois confirmado que já havia contato anterior no CRM canônico."
+        },
+        {
+          "first_name": "Giovanne",
+          "phone_used": "5511954957051",
+          "notes": "Enviado com número saneado; depois confirmado que já havia contato anterior no CRM canônico."
+        }
+      ],
+      "failed": [
+        {
+          "first_name": "Roberto",
+          "phone_attempted": "5511976293469",
+          "reason": "Número inexistente segundo a Evolution API."
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_02_partial",
+      "status": "partial_with_transport_incident",
+      "approved_at": "2026-04-28",
+      "sent": [
+        {
+          "first_name": "Adam",
+          "phone_used": "5531991201662",
+          "notes": "Retentativa bem-sucedida. As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": [
+        {
+          "first_name": "Adriano",
+          "phone_attempted": "5521986209995",
+          "reason": "Oscilacao de transporte apos aprovacao do lote; sem confirmacao de aceite da API."
+        },
+        {
+          "first_name": "Amanda",
+          "phone_attempted": "5521967314595",
+          "reason": "Oscilacao de transporte apos aprovacao do lote; sem confirmacao de aceite da API."
+        },
+        {
+          "first_name": "Carla",
+          "phone_attempted": "5519992859218",
+          "reason": "Oscilacao de transporte apos aprovacao do lote; sem confirmacao de aceite da API."
+        },
+        {
+          "first_name": "Diego",
+          "phone_attempted": "5521966832161",
+          "reason": "Oscilacao de transporte apos aprovacao do lote; sem confirmacao de aceite da API."
+        },
+        {
+          "first_name": "Igor",
+          "phone_attempted": "5515997612701",
+          "reason": "Oscilacao de transporte apos aprovacao do lote; sem confirmacao de aceite da API."
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_03_partial",
+      "status": "partial_with_transport_incident",
+      "approved_at": "2026-04-28",
+      "sent": [
+        {
+          "first_name": "Ana",
+          "phone_used": "5567992488616",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Vanessa",
+          "phone_used": "5511947589643",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Amaury",
+          "phone_used": "5516981229333",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Bruno",
+          "phone_used": "5547997128855",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Alexandre",
+          "phone_used": "5521985528570",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Carluan",
+          "phone_used": "5522996097852",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Cely",
+          "phone_used": "5511982804426",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": [
+        {
+          "first_name": "Eduardo",
+          "phone_attempted": "5516993453573",
+          "reason": "Oscilacao de transporte no fim do lote; sem confirmacao de aceite da API."
+        },
+        {
+          "first_name": "Natália",
+          "phone_attempted": "5511983368808",
+          "reason": "Oscilacao de transporte no fim do lote; sem confirmacao de aceite da API."
+        },
+        {
+          "first_name": "André",
+          "phone_attempted": "5561981194732",
+          "reason": "Oscilacao de transporte no fim do lote; sem confirmacao de aceite da API."
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_04",
+      "status": "completed",
+      "approved_at": "2026-04-28",
+      "sent": [
+        {
+          "first_name": "Aline",
+          "phone_used": "5511991727225",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Gabriel",
+          "phone_used": "5545998346739",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Guilherme",
+          "phone_used": "5521993112172",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Leandro",
+          "phone_used": "5511998919064",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Italo",
+          "phone_used": "5561999331023",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Jefferson",
+          "phone_used": "5527981510408",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Jessica",
+          "phone_used": "5511959591779",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Jose",
+          "phone_used": "5511984586099",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Leidervan",
+          "phone_used": "5527995312210",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Robson",
+          "phone_used": "5511963657301",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": []
+    },
+    {
+      "batch_id": "lote_05",
+      "status": "completed",
+      "approved_at": "2026-04-28",
+      "sent": [
+        {
+          "first_name": "Vitor",
+          "phone_used": "5511982023170",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Vinicius",
+          "phone_used": "5563999666557",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Rogerio",
+          "phone_used": "5513991257524",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Tiago",
+          "phone_used": "5541984482510",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Marcus",
+          "phone_used": "5517997275046",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Ismael",
+          "phone_used": "5565992108573",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Alberto",
+          "phone_used": "5511950567256",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Daniel",
+          "phone_used": "5521986663161",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Pedro",
+          "phone_used": "5561998036209",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Renata",
+          "phone_used": "5511964145005",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": []
+    },
+    {
+      "batch_id": "lote_06_partial",
+      "status": "completed_with_invalid_number",
+      "approved_at": "2026-04-28",
+      "sent": [
+        {
+          "first_name": "Sabrina",
+          "phone_used": "5531998023962",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Nicole",
+          "phone_used": "5511975262610",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Norberto",
+          "phone_used": "5544999540456",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Felipe",
+          "phone_used": "5551998671040",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Felippe",
+          "phone_used": "5511992332247",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Phelipe",
+          "phone_used": "5511958727546",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "caroline",
+          "phone_used": "5519991650965",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Carlos",
+          "phone_used": "5564984322861",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Marcelo",
+          "phone_used": "5511991281933",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": [
+        {
+          "first_name": "Eugenio",
+          "phone_attempted": "5585992012711",
+          "reason": "Número inexistente segundo a Evolution API."
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_07",
+      "status": "completed",
+      "approved_at": "2026-04-28",
+      "sent": [
+        {
+          "first_name": "Maikon",
+          "phone_used": "5527988594457",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "José",
+          "phone_used": "5544991751956",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Paula",
+          "phone_used": "5511988872546",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Raphael",
+          "phone_used": "5531992376182",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Fabricio",
+          "phone_used": "5511959286994",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Luis",
+          "phone_used": "5561981611444",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Marcos",
+          "phone_used": "5511913595962",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Layla",
+          "phone_used": "5511965661342",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Rafael",
+          "phone_used": "5511990236859",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Veronica",
+          "phone_used": "5511966075468",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": []
+    }
+  ],
+  "reservations": [
+    {
+      "batch_id": "lote_02_prospeccao_real_pending_review",
+      "status": "approved_but_blocked_by_transport",
+      "reserved_at": "2026-04-28",
+      "approved_at": "2026-04-28",
+      "transport_blocked_at": "2026-04-28",
+      "transport_block_reason": "Evolution API retornando 502 Bad Gateway ate no endpoint de connectionState do perfil pessoal; lote pausado sem novas tentativas para evitar duplicidade.",
+      "attempt_log": [
+        {
+          "lead": "Adam",
+          "normalized_phone": "5531991201662",
+          "attempted_message_count": 3,
+          "result": "accepted_after_retry",
+          "notes": "Na retentativa, as 3 mensagens do Adam foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Adriano",
+          "normalized_phone": "5521986209995",
+          "attempted_message_count": 3,
+          "result": "failed_transport",
+          "notes": "A API oscilou no meio do envio e nao confirmou aceite."
+        },
+        {
+          "lead": "Amanda",
+          "normalized_phone": "5521967314595",
+          "attempted_message_count": 3,
+          "result": "failed_transport",
+          "notes": "A API oscilou no meio do envio e nao confirmou aceite."
+        },
+        {
+          "lead": "Carla",
+          "normalized_phone": "5519992859218",
+          "attempted_message_count": 3,
+          "result": "failed_transport",
+          "notes": "A API oscilou no meio do envio e nao confirmou aceite."
+        },
+        {
+          "lead": "Diego",
+          "normalized_phone": "5521966832161",
+          "attempted_message_count": 3,
+          "result": "failed_transport",
+          "notes": "A API oscilou no meio do envio e nao confirmou aceite."
+        },
+        {
+          "lead": "Igor",
+          "normalized_phone": "5515997612701",
+          "attempted_message_count": 3,
+          "result": "failed_transport",
+          "notes": "A API oscilou no meio do envio e nao confirmou aceite."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Adriano",
+          "full_name": "Adriano da Rocha",
+          "normalized_phone": "5521986209995",
+          "source_context": "todos_v2:385"
+        },
+        {
+          "first_name": "Amanda",
+          "full_name": "Amanda Muller",
+          "normalized_phone": "5521967314595",
+          "source_context": "todos_v2:351"
+        },
+        {
+          "first_name": "Carla",
+          "full_name": "Carla facanali",
+          "normalized_phone": "5519992859218",
+          "source_context": "todos_v2:328"
+        },
+        {
+          "first_name": "Diego",
+          "full_name": "Diego Rodrigues",
+          "normalized_phone": "5521966832161",
+          "source_context": "todos_v2:348"
+        },
+        {
+          "first_name": "Igor",
+          "full_name": "Igor Martello",
+          "normalized_phone": "5515997612701",
+          "source_context": "todos_v2:282"
+        },
+        {
+          "first_name": "Luiz",
+          "full_name": "Luiz Souza",
+          "normalized_phone": "5518998523262",
+          "source_context": "todos_v2:312"
+        },
+        {
+          "first_name": "Marcelo",
+          "full_name": "Marcelo Aguiar",
+          "normalized_phone": "5521964986958",
+          "source_context": "todos_v2:345"
+        },
+        {
+          "first_name": "Tatiana",
+          "full_name": "Tatiana Dotto",
+          "normalized_phone": "5517997353020",
+          "source_context": "todos_v2:306"
+        },
+        {
+          "first_name": "Claudemir",
+          "full_name": "Claudemir Junior",
+          "normalized_phone": "5519999505223",
+          "source_context": "todos_v2:338"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_03_prospeccao_real_pending_review",
+      "status": "partial_after_send_with_transport_block",
+      "reserved_at": "2026-04-28",
+      "approved_at": "2026-04-28",
+      "transport_blocked_at": "2026-04-28",
+      "transport_block_reason": "A Evolution aceitou 7 leads do lote 03 e oscilou nos 3 finais; nomes restantes continuam congelados sem confirmacao de aceite.",
+      "attempt_log": [
+        {
+          "lead": "Ana",
+          "normalized_phone": "5567992488616",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Vanessa",
+          "normalized_phone": "5511947589643",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Amaury",
+          "normalized_phone": "5516981229333",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Bruno",
+          "normalized_phone": "5547997128855",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Alexandre",
+          "normalized_phone": "5521985528570",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Carluan",
+          "normalized_phone": "5522996097852",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Cely",
+          "normalized_phone": "5511982804426",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Eduardo",
+          "normalized_phone": "5516993453573",
+          "attempted_message_count": 3,
+          "result": "failed_transport",
+          "notes": "A API oscilou no fim do lote e nao confirmou aceite."
+        },
+        {
+          "lead": "Natália",
+          "normalized_phone": "5511983368808",
+          "attempted_message_count": 3,
+          "result": "failed_transport",
+          "notes": "A API oscilou no fim do lote e nao confirmou aceite."
+        },
+        {
+          "lead": "André",
+          "normalized_phone": "5561981194732",
+          "attempted_message_count": 3,
+          "result": "failed_transport",
+          "notes": "A API oscilou no fim do lote e nao confirmou aceite."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Eduardo",
+          "full_name": "Contv Eduardo",
+          "normalized_phone": "5516993453573",
+          "source_context": "todos_v2:294"
+        },
+        {
+          "first_name": "Natália",
+          "full_name": "DESENV Natália Palanca",
+          "normalized_phone": "5511983368808",
+          "source_context": "todos_v2:165"
+        },
+        {
+          "first_name": "André",
+          "full_name": "DF André Rosa",
+          "normalized_phone": "5561981194732",
+          "source_context": "todos_v2:732"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_04_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-04-28",
+      "approved_at": "2026-04-28",
+      "sent_at": "2026-04-28",
+      "attempt_log": [
+        {
+          "lead": "Aline",
+          "normalized_phone": "5511991727225",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Gabriel",
+          "normalized_phone": "5545998346739",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Guilherme",
+          "normalized_phone": "5521993112172",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Leandro",
+          "normalized_phone": "5511998919064",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Italo",
+          "normalized_phone": "5561999331023",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jefferson",
+          "normalized_phone": "5527981510408",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jessica",
+          "normalized_phone": "5511959591779",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jose",
+          "normalized_phone": "5511984586099",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Leidervan",
+          "normalized_phone": "5527995312210",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Robson",
+          "normalized_phone": "5511963657301",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        
+        ]
+    },
+    {
+      "batch_id": "lote_05_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-04-28",
+      "approved_at": "2026-04-28",
+      "sent_at": "2026-04-28",
+      "attempt_log": [
+        {
+          "lead": "Vitor",
+          "normalized_phone": "5511982023170",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Vinicius",
+          "normalized_phone": "5563999666557",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rogerio",
+          "normalized_phone": "5513991257524",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Tiago",
+          "normalized_phone": "5541984482510",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Marcus",
+          "normalized_phone": "5517997275046",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ismael",
+          "normalized_phone": "5565992108573",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Alberto",
+          "normalized_phone": "5511950567256",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Daniel",
+          "normalized_phone": "5521986663161",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Pedro",
+          "normalized_phone": "5561998036209",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Renata",
+          "normalized_phone": "5511964145005",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        
+        ]
+    },
+    {
+      "batch_id": "lote_06_prospeccao_real_pending_review",
+      "status": "sent_and_closed_with_invalid_number",
+      "reserved_at": "2026-04-28",
+      "approved_at": "2026-04-28",
+      "sent_at": "2026-04-28",
+      "attempt_log": [
+        {
+          "lead": "Sabrina",
+          "normalized_phone": "5531998023962",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Nicole",
+          "normalized_phone": "5511975262610",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Norberto",
+          "normalized_phone": "5544999540456",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Felipe",
+          "normalized_phone": "5551998671040",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Felippe",
+          "normalized_phone": "5511992332247",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Phelipe",
+          "normalized_phone": "5511958727546",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Eugenio",
+          "normalized_phone": "5585992012711",
+          "attempted_message_count": 3,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "caroline",
+          "normalized_phone": "5519991650965",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Carlos",
+          "normalized_phone": "5564984322861",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Marcelo",
+          "normalized_phone": "5511991281933",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Eugenio",
+          "full_name": "Q Eugenio Ramos",
+          "normalized_phone": "5585992012711",
+          "source_context": "todos_v2:998"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_07_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-04-28",
+      "approved_at": "2026-04-28",
+      "sent_at": "2026-04-28",
+      "attempt_log": [
+        {
+          "lead": "Maikon",
+          "normalized_phone": "5527988594457",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "José",
+          "normalized_phone": "5544991751956",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Paula",
+          "normalized_phone": "5511988872546",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Raphael",
+          "normalized_phone": "5531992376182",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Fabricio",
+          "normalized_phone": "5511959286994",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Luis",
+          "normalized_phone": "5561981611444",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Marcos",
+          "normalized_phone": "5511913595962",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Layla",
+          "normalized_phone": "5511965661342",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rafael",
+          "normalized_phone": "5511990236859",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Veronica",
+          "normalized_phone": "5511966075468",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        
+      ]
+    },
+    {
+      "batch_id": "lote_08_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-12",
+      "approved_at": "2026-05-12",
+      "sent_at": "2026-05-12",
+      "transport_blocked_at": "2026-05-12",
+      "transport_block_reason": "A retentativa do lote 08 em 2026-05-12 tambem falhou: a conexao da instancia voltou para open, mas o envio continuou oscilando entre erro 500 no onWhatsApp e fetch failed, sem aceite confirmavel da API.",
+      "attempt_log": [
+        {
+          "lead": "Ricardo",
+          "normalized_phone": "5531996518807",
+          "attempted_message_count": 3,
+          "result": "failed_api_500",
+          "notes": "As 3 tentativas retornaram erro 500 com a mensagem Cannot read properties of undefined (reading 'onWhatsApp')."
+        },
+        {
+          "lead": "Antonieta",
+          "normalized_phone": "5561981568382",
+          "attempted_message_count": 2,
+          "result": "failed_api_500",
+          "notes": "As 2 primeiras tentativas retornaram erro 500 com a mensagem Cannot read properties of undefined (reading 'onWhatsApp'); o lote foi interrompido antes da terceira."
+        },
+        {
+          "lead": "Ricardo",
+          "normalized_phone": "5531996518807",
+          "attempted_message_count": 3,
+          "result": "failed_fetch",
+          "notes": "Na retentativa com a instancia novamente open, as 3 mensagens retornaram fetch failed, sem aceite confirmavel da API."
+        },
+        {
+          "lead": "Antonieta",
+          "normalized_phone": "5561981568382",
+          "attempted_message_count": 1,
+          "result": "interrupted_before_confirmation",
+          "notes": "A quarta tentativa do lote foi interrompida antes de qualquer confirmacao para evitar propagar a oscilacao ao restante do lote."
+        },
+        {
+          "lead": "Ricardo",
+          "normalized_phone": "5531996518807",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "Na nova retentativa, as 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Antonieta",
+          "normalized_phone": "5561981568382",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "Na nova retentativa, as 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Helton",
+          "normalized_phone": "5585997000026",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Priscilla",
+          "normalized_phone": "5511941425555",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Gabriela",
+          "normalized_phone": "5511954559104",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Bernardo",
+          "normalized_phone": "5561982291951",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Clayton",
+          "normalized_phone": "5516981022011",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Naiara",
+          "normalized_phone": "5567981088819",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Caio",
+          "normalized_phone": "5511913199755",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Carolina",
+          "normalized_phone": "5521981398292",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Ricardo",
+          "full_name": "2.0 Ricardo Monteiro",
+          "normalized_phone": "5531996518807",
+          "source_context": "segment:6"
+        },
+        {
+          "first_name": "Antonieta",
+          "full_name": "3 Antonieta Rocha",
+          "normalized_phone": "5561981568382",
+          "source_context": "segment:7"
+        },
+        {
+          "first_name": "Helton",
+          "full_name": "3 Helton Chagas",
+          "normalized_phone": "5585997000026",
+          "source_context": "segment:8"
+        },
+        {
+          "first_name": "Priscilla",
+          "full_name": "SPPC🥰 Priscilla Negrao",
+          "normalized_phone": "5511941425555",
+          "source_context": "segment:86"
+        },
+        {
+          "first_name": "Gabriela",
+          "full_name": "⚙ Gabriela Alencar",
+          "normalized_phone": "5511954559104",
+          "source_context": "segment:138"
+        },
+        {
+          "first_name": "Bernardo",
+          "full_name": "🔥 Bernardo Boccucci",
+          "normalized_phone": "5561982291951",
+          "source_context": "segment:146"
+        },
+        {
+          "first_name": "Clayton",
+          "full_name": "2024 Clayton Guimaraes",
+          "normalized_phone": "5516981022011",
+          "source_context": "segment:204"
+        },
+        {
+          "first_name": "Naiara",
+          "full_name": "2024 Naiara Freitas",
+          "normalized_phone": "5567981088819",
+          "source_context": "segment:205"
+        },
+        {
+          "first_name": "Caio",
+          "full_name": "Caio Castro",
+          "normalized_phone": "5511913199755",
+          "source_context": "segment:245"
+        },
+        {
+          "first_name": "Carolina",
+          "full_name": "Carolina Delphino",
+          "normalized_phone": "5521981398292",
+          "source_context": "segment:249"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_09_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-13",
+      "approved_at": "2026-05-13",
+      "sent_at": "2026-05-13",
+      "attempt_log": [
+        {
+          "lead": "Denis",
+          "normalized_phone": "5561999827236",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Vítor",
+          "normalized_phone": "5582999256474",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Sócrates",
+          "normalized_phone": "5571986774893",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Cintia",
+          "normalized_phone": "5511991209477",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Patrícia",
+          "normalized_phone": "5554991652190",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Giseli",
+          "normalized_phone": "5565984147402",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rhayane",
+          "normalized_phone": "5531989584058",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Thiago",
+          "normalized_phone": "5561981586629",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ellen",
+          "normalized_phone": "5567996264412",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ryan",
+          "normalized_phone": "5585992064384",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Denis",
+          "full_name": "! Denis",
+          "normalized_phone": "5561999827236",
+          "source_context": "segment:2"
+        },
+        {
+          "first_name": "Vítor",
+          "full_name": "17h30😈 Vítor Lessa",
+          "normalized_phone": "5582999256474",
+          "source_context": "segment:4"
+        },
+        {
+          "first_name": "Sócrates",
+          "full_name": "J Sócrates",
+          "normalized_phone": "5571986774893",
+          "source_context": "segment:51"
+        },
+        {
+          "first_name": "Cintia",
+          "full_name": "e Cintia Cassemiro",
+          "normalized_phone": "5511991209477",
+          "source_context": "segment:110"
+        },
+        {
+          "first_name": "Patrícia",
+          "full_name": "eX Patrícia Janczak",
+          "normalized_phone": "5554991652190",
+          "source_context": "segment:112"
+        },
+        {
+          "first_name": "Giseli",
+          "full_name": "fyA Giseli Rainha",
+          "normalized_phone": "5565984147402",
+          "source_context": "segment:114"
+        },
+        {
+          "first_name": "Rhayane",
+          "full_name": "jQ Rhayane Santos",
+          "normalized_phone": "5531989584058",
+          "source_context": "segment:118"
+        },
+        {
+          "first_name": "Thiago",
+          "full_name": "k Thiago Fernandes",
+          "normalized_phone": "5561981586629",
+          "source_context": "segment:119"
+        },
+        {
+          "first_name": "Ellen",
+          "full_name": "l Ellen Vasconcelos",
+          "normalized_phone": "5567996264412",
+          "source_context": "segment:120"
+        },
+        {
+          "first_name": "Ryan",
+          "full_name": "x Ryan Lavor",
+          "normalized_phone": "5585992064384",
+          "source_context": "segment:135"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_10_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-13",
+      "approved_at": "2026-05-13",
+      "sent_at": "2026-05-13",
+      "attempt_log": [
+        {
+          "lead": "Francisco",
+          "normalized_phone": "5583998569240",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "David",
+          "normalized_phone": "5531982087277",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jorge",
+          "normalized_phone": "5513991953163",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Uerley",
+          "normalized_phone": "5562981449591",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Anthony",
+          "normalized_phone": "5583981881626",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Larissa",
+          "normalized_phone": "5511994724988",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ighor",
+          "normalized_phone": "5521998867022",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Sávio",
+          "normalized_phone": "5575992218483",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Camila",
+          "normalized_phone": "5571991079877",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Alice",
+          "normalized_phone": "5561999765300",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Francisco",
+          "full_name": "FIT HOUSE Francisco",
+          "normalized_phone": "5583998569240",
+          "source_context": "segment:30"
+        },
+        {
+          "first_name": "David",
+          "full_name": "Foguete David Junior",
+          "normalized_phone": "5531982087277",
+          "source_context": "segment:35"
+        },
+        {
+          "first_name": "Jorge",
+          "full_name": "Jorge e Matheus",
+          "normalized_phone": "5513991953163",
+          "source_context": "segment:55"
+        },
+        {
+          "first_name": "Uerley",
+          "full_name": "Xdt Uerley Cunha",
+          "normalized_phone": "5562981449591",
+          "source_context": "segment:97"
+        },
+        {
+          "first_name": "Anthony",
+          "full_name": "Yf Anthony Nichols",
+          "normalized_phone": "5583981881626",
+          "source_context": "segment:99"
+        },
+        {
+          "first_name": "Larissa",
+          "full_name": "e rico Larissa",
+          "normalized_phone": "5511994724988",
+          "source_context": "segment:111"
+        },
+        {
+          "first_name": "Ighor",
+          "full_name": "hWtaNfbd Ighor Miranda",
+          "normalized_phone": "5521998867022",
+          "source_context": "segment:116"
+        },
+        {
+          "first_name": "Sávio",
+          "full_name": "mJ Sávio ribeiro",
+          "normalized_phone": "5575992218483",
+          "source_context": "segment:122"
+        },
+        {
+          "first_name": "Camila",
+          "full_name": "n Camila Blumetti",
+          "normalized_phone": "5571991079877",
+          "source_context": "segment:126"
+        },
+        {
+          "first_name": "Alice",
+          "full_name": "uqVo Alice",
+          "normalized_phone": "5561999765300",
+          "source_context": "segment:134"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_11_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-14",
+      "approved_at": "2026-05-14",
+      "sent_at": "2026-05-14",
+      "attempt_log": [
+        {
+          "lead": "João",
+          "normalized_phone": "5511977768896",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Daniela",
+          "normalized_phone": "5511993357160",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Felippo",
+          "normalized_phone": "5511967110937",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Walfrido",
+          "normalized_phone": "5571992273565",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Andréia",
+          "normalized_phone": "5549991950300",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Laura",
+          "normalized_phone": "5511992512451",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rita",
+          "normalized_phone": "5531988198984",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Samuel",
+          "normalized_phone": "5548996811096",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Aldo",
+          "normalized_phone": "5581997511087",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Cristian",
+          "normalized_phone": "5547991202881",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "João",
+          "full_name": "Santana João Greco",
+          "normalized_phone": "5511977768896",
+          "source_context": "segment:87"
+        },
+        {
+          "first_name": "Daniela",
+          "full_name": "pesados) Daniela Fassa",
+          "normalized_phone": "5511993357160",
+          "source_context": "segment:130"
+        },
+        {
+          "first_name": "Felippo",
+          "full_name": "se Felippo Munck",
+          "normalized_phone": "5511967110937",
+          "source_context": "segment:133"
+        },
+        {
+          "first_name": "Walfrido",
+          "full_name": "🔒🦅 Walfrido Neto",
+          "normalized_phone": "5571992273565",
+          "source_context": "segment:145"
+        },
+        {
+          "first_name": "Andréia",
+          "full_name": "! Andréia Thainara",
+          "normalized_phone": "5549991950300",
+          "source_context": "segment:150"
+        },
+        {
+          "first_name": "Laura",
+          "full_name": "! Laura gianfaldoni",
+          "normalized_phone": "5511992512451",
+          "source_context": "segment:171"
+        },
+        {
+          "first_name": "Rita",
+          "full_name": "! Rita Rievert",
+          "normalized_phone": "5531988198984",
+          "source_context": "segment:179"
+        },
+        {
+          "first_name": "Samuel",
+          "full_name": "? Samuel Ferraz",
+          "normalized_phone": "5548996811096",
+          "source_context": "segment:209"
+        },
+        {
+          "first_name": "Aldo",
+          "full_name": "Aldo Luiz",
+          "normalized_phone": "5581997511087",
+          "source_context": "segment:218"
+        },
+        {
+          "first_name": "Cristian",
+          "full_name": "Cristian Rizzo",
+          "normalized_phone": "5547991202881",
+          "source_context": "segment:258"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_12_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-14",
+      "approved_at": "2026-05-14",
+      "sent_at": "2026-05-14",
+      "attempt_log": [
+        {
+          "lead": "Demétrio",
+          "normalized_phone": "5521996872253",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Tati",
+          "normalized_phone": "5522998021342",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Henrique",
+          "normalized_phone": "5565996190859",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Daniele",
+          "normalized_phone": "5511947539196",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Diana",
+          "normalized_phone": "5527999494267",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Juliana",
+          "normalized_phone": "5511947583346",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Edwin",
+          "normalized_phone": "5521981327734",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Andrey",
+          "normalized_phone": "5549999647460",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Eliana",
+          "normalized_phone": "5511957031031",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Emanuel",
+          "normalized_phone": "5563993049999",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Demétrio",
+          "full_name": "Conectlaw Demétrio Barros",
+          "normalized_phone": "5521996872253",
+          "source_context": "segment:254"
+        },
+        {
+          "first_name": "Tati",
+          "full_name": "Coworking Tati Barros",
+          "normalized_phone": "5522998021342",
+          "source_context": "segment:255"
+        },
+        {
+          "first_name": "Henrique",
+          "full_name": "Cumpadi’ss Henrique Martins",
+          "normalized_phone": "5565996190859",
+          "source_context": "segment:258"
+        },
+        {
+          "first_name": "Daniele",
+          "full_name": "Daniele Amorim",
+          "normalized_phone": "5511947539196",
+          "source_context": "segment:262"
+        },
+        {
+          "first_name": "Diana",
+          "full_name": "Diana Pádua",
+          "normalized_phone": "5527999494267",
+          "source_context": "segment:264"
+        },
+        {
+          "first_name": "Juliana",
+          "full_name": "Dvr Juliana azevedo",
+          "normalized_phone": "5511947583346",
+          "source_context": "segment:267"
+        },
+        {
+          "first_name": "Edwin",
+          "full_name": "ESPECIALISTAS Edwin Junior",
+          "normalized_phone": "5521981327734",
+          "source_context": "segment:268"
+        },
+        {
+          "first_name": "Andrey",
+          "full_name": "Educação Andrey Marcon",
+          "normalized_phone": "5549999647460",
+          "source_context": "segment:270"
+        },
+        {
+          "first_name": "Eliana",
+          "full_name": "Eliana",
+          "normalized_phone": "5511957031031",
+          "source_context": "segment:271"
+        },
+        {
+          "first_name": "Emanuel",
+          "full_name": "Emanuel acaiaba",
+          "normalized_phone": "5563993049999",
+          "source_context": "segment:272"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_13_prospeccao_real_pending_review",
+      "status": "sent_and_closed_with_invalid_number",
+      "reserved_at": "2026-05-15",
+      "approved_at": "2026-05-15",
+      "sent_at": "2026-05-15",
+      "attempt_log": [
+        {
+          "lead": "Valéria",
+          "normalized_phone": "5584987986842",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Alexandro",
+          "normalized_phone": "5571997304709",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Kamila",
+          "normalized_phone": "5561998527409",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Alessandro",
+          "normalized_phone": "5511964335606",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Américo",
+          "normalized_phone": "5511980530048",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Sabrícia",
+          "normalized_phone": "5581994800946",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Emerson",
+          "normalized_phone": "5511992332401",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Cris",
+          "normalized_phone": "5519992764909",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Fernando",
+          "normalized_phone": "5559892799798",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false no primeiro envio; número inválido para esta jornada."
+        },
+        {
+          "lead": "Joelma",
+          "normalized_phone": "5521964644068",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Valéria",
+          "full_name": "2:42 Valéria Santos",
+          "normalized_phone": "5584987986842",
+          "source_context": "segment:205"
+        },
+        {
+          "first_name": "Alexandro",
+          "full_name": "ALIADOS Alexandro Oliveira",
+          "normalized_phone": "5571997304709",
+          "source_context": "segment:210"
+        },
+        {
+          "first_name": "Kamila",
+          "full_name": "APARECIDA Kamila Nunes",
+          "normalized_phone": "5561998527409",
+          "source_context": "segment:211"
+        },
+        {
+          "first_name": "Alessandro",
+          "full_name": "Alessandro",
+          "normalized_phone": "5511964335606",
+          "source_context": "segment:218"
+        },
+        {
+          "first_name": "Américo",
+          "full_name": "Americo Menezes",
+          "normalized_phone": "5511980530048",
+          "source_context": "segment:222"
+        },
+        {
+          "first_name": "Sabrícia",
+          "full_name": "Brasília Sabrícia Andrade",
+          "normalized_phone": "5581994800946",
+          "source_context": "segment:239"
+        },
+        {
+          "first_name": "Emerson",
+          "full_name": "Emerson",
+          "normalized_phone": "5511992332401",
+          "source_context": "segment:273"
+        },
+        {
+          "first_name": "Cris",
+          "full_name": "Exceed Cris Carmo",
+          "normalized_phone": "5519992764909",
+          "source_context": "segment:275"
+        },
+        {
+          "first_name": "Fernando",
+          "full_name": "Fernando Galiano",
+          "normalized_phone": "5559892799798",
+          "source_context": "segment:278"
+        },
+        {
+          "first_name": "Joelma",
+          "full_name": "Futebol Joelma novelli",
+          "normalized_phone": "5521964644068",
+          "source_context": "segment:281"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_14_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-15",
+      "approved_at": "2026-05-15",
+      "sent_at": "2026-05-15",
+      "attempt_log": [
+        {
+          "lead": "Vicente",
+          "normalized_phone": "5575998554106",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Vicky",
+          "normalized_phone": "5561986211697",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Wesley",
+          "normalized_phone": "5569999078599",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Fabiano",
+          "normalized_phone": "5512981198788",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "George",
+          "normalized_phone": "5581993856099",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Kaio",
+          "normalized_phone": "5571992927796",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Giovane",
+          "normalized_phone": "5535998797854",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Gonçalo",
+          "normalized_phone": "5565992561266",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Gustavo",
+          "normalized_phone": "5579991351718",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Isabela",
+          "normalized_phone": "5586988830564",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Vicente",
+          "full_name": "! Vicente Lima",
+          "normalized_phone": "5575998554106",
+          "source_context": "segment:184"
+        },
+        {
+          "first_name": "Vicky",
+          "full_name": "! Vicky",
+          "normalized_phone": "5561986211697",
+          "source_context": "segment:185"
+        },
+        {
+          "first_name": "Wesley",
+          "full_name": "! Wesley Oliveira",
+          "normalized_phone": "5569999078599",
+          "source_context": "segment:187"
+        },
+        {
+          "first_name": "Fabiano",
+          "full_name": "Fabiano Porto",
+          "normalized_phone": "5512981198788",
+          "source_context": "segment:276"
+        },
+        {
+          "first_name": "George",
+          "full_name": "George",
+          "normalized_phone": "5581993856099",
+          "source_context": "segment:284"
+        },
+        {
+          "first_name": "Kaio",
+          "full_name": "Gestão Kaio Bitencourt",
+          "normalized_phone": "5571992927796",
+          "source_context": "segment:287"
+        },
+        {
+          "first_name": "Giovane",
+          "full_name": "Giovane Balbino",
+          "normalized_phone": "5535998797854",
+          "source_context": "segment:290"
+        },
+        {
+          "first_name": "Gonçalo",
+          "full_name": "Gonçalo Júnior",
+          "normalized_phone": "5565992561266",
+          "source_context": "segment:291"
+        },
+        {
+          "first_name": "Gustavo",
+          "full_name": "Gustavo Crisle",
+          "normalized_phone": "5579991351718",
+          "source_context": "segment:293"
+        },
+        {
+          "first_name": "Isabela",
+          "full_name": "IMEDF Isabela Cavalcante",
+          "normalized_phone": "5586988830564",
+          "source_context": "segment:298"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_15_prospeccao_real_pending_review",
+      "status": "sent_and_closed_with_invalid_number",
+      "reserved_at": "2026-05-18",
+      "approved_at": "2026-05-18",
+      "sent_at": "2026-05-18",
+      "attempt_log": [
+        {
+          "lead": "Jaqueline",
+          "normalized_phone": "5565992709554",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Julia",
+          "normalized_phone": "5511965279721",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Laialy",
+          "normalized_phone": "5561965661342",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false no primeiro envio; número inválido para esta jornada."
+        },
+        {
+          "lead": "Leonardo",
+          "normalized_phone": "5561991762331",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rogério",
+          "normalized_phone": "5511960287281",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ivon",
+          "normalized_phone": "5511941906079",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rúblia",
+          "normalized_phone": "5533991278553",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Thallis",
+          "normalized_phone": "5531999714051",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Viviani",
+          "normalized_phone": "5511979501440",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Otávia",
+          "normalized_phone": "5599991458971",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Jaqueline",
+          "full_name": "Jaqueline Appolari",
+          "normalized_phone": "5565992709554",
+          "source_context": "segment:305"
+        },
+        {
+          "first_name": "Julia",
+          "full_name": "Julia camile",
+          "normalized_phone": "5511965279721",
+          "source_context": "segment:310"
+        },
+        {
+          "first_name": "Laialy",
+          "full_name": "Laialy Ghebar",
+          "normalized_phone": "5561965661342",
+          "source_context": "segment:313"
+        },
+        {
+          "first_name": "Leonardo",
+          "full_name": "Leonardo Tavares",
+          "normalized_phone": "5561991762331",
+          "source_context": "segment:316"
+        },
+        {
+          "first_name": "Rogério",
+          "full_name": "Rogério Mamoni",
+          "normalized_phone": "5511960287281",
+          "source_context": "segment:367"
+        },
+        {
+          "first_name": "Ivon",
+          "full_name": "TI Ivon Matos",
+          "normalized_phone": "5511941906079",
+          "source_context": "segment:372"
+        },
+        {
+          "first_name": "Rúblia",
+          "full_name": "Teste Rúblia Verena",
+          "normalized_phone": "5533991278553",
+          "source_context": "segment:381"
+        },
+        {
+          "first_name": "Thallis",
+          "full_name": "Thallis Lasmar",
+          "normalized_phone": "5531999714051",
+          "source_context": "segment:383"
+        },
+        {
+          "first_name": "Viviani",
+          "full_name": "Viviani Moia",
+          "normalized_phone": "5511979501440",
+          "source_context": "segment:392"
+        },
+        {
+          "first_name": "Otávia",
+          "full_name": "Otávia Pyles",
+          "normalized_phone": "5599991458971",
+          "source_context": "segment:433"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_16",
+      "status": "completed",
+      "reserved_at": "2026-05-18",
+      "approved_at": "2026-05-18",
+      "sent_at": "2026-05-18",
+      "sent": [
+        {
+          "first_name": "Sarah",
+          "full_name": "Insiders Sarah melo",
+          "phone_used": "5585999274115",
+          "source_context": "segment:302",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Larisse",
+          "full_name": "MAMATEIA Larisse Gomes",
+          "phone_used": "5547991927810",
+          "source_context": "segment:322",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Ederson",
+          "full_name": "NO-CODE Ederson Manoel",
+          "phone_used": "5511954347340",
+          "source_context": "segment:339",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Ramires",
+          "full_name": "Velha Ramires Navajo",
+          "phone_used": "5521995113377",
+          "source_context": "segment:387",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Yago",
+          "full_name": "Yago Ruan",
+          "phone_used": "5521990354832",
+          "source_context": "segment:393",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Yuri",
+          "full_name": "Yuri Sandro",
+          "phone_used": "5511951941747",
+          "source_context": "segment:394",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Luciane",
+          "full_name": "Luciane Diniz",
+          "phone_used": "5521992986074",
+          "source_context": "segment:405",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Ester",
+          "full_name": "unb Ester Acsa",
+          "phone_used": "5561992159240",
+          "source_context": "segment:425",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Juliano",
+          "full_name": "Juliano Kimura",
+          "phone_used": "5511996936340",
+          "source_context": "segment:439",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Diogenes",
+          "full_name": "Diogenes Monclair",
+          "phone_used": "5581996610386",
+          "source_context": "segment:440",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": []
+    },
+    {
+      "batch_id": "lote_17",
+      "status": "completed_with_invalid_number",
+      "reserved_at": "2026-05-19",
+      "approved_at": "2026-05-19",
+      "sent_at": "2026-05-19",
+      "sent": [
+        {
+          "first_name": "Ariana",
+          "full_name": "Ariana zimmer",
+          "phone_used": "5551999653277",
+          "source_context": "segment:229",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Juliane",
+          "full_name": "Business Juliane Schwartz",
+          "phone_used": "5527998611127",
+          "source_context": "segment:241",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Leonam",
+          "full_name": "CRIATIVA Leonam Seabra",
+          "phone_used": "5521998811777",
+          "source_context": "segment:243",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Fernanda",
+          "full_name": "Equipe Cmb Fernanda",
+          "phone_used": "5511994185491",
+          "source_context": "segment:274",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Luiza",
+          "full_name": "Ana Luiza Rocha",
+          "phone_used": "5521996442118",
+          "source_context": "segment:224",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Lorena",
+          "full_name": "Lorena C Silva",
+          "phone_used": "5514988109869",
+          "source_context": "segment:318",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Helena",
+          "full_name": "Maggiore Helena Falcão",
+          "phone_used": "5521992915660",
+          "source_context": "segment:324",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Karina",
+          "full_name": "NSI Karina Kattan",
+          "phone_used": "5511983231818",
+          "source_context": "segment:340",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Antonio",
+          "full_name": "HUHULULU Antonio Fougo",
+          "phone_used": "5527999422643",
+          "source_context": "segment:295",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": [
+        {
+          "first_name": "Hugo",
+          "phone_attempted": "5521982222126",
+          "reason": "Número inexistente segundo a Evolution API."
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_18",
+      "status": "completed",
+      "reserved_at": "2026-05-19",
+      "approved_at": "2026-05-19",
+      "sent_at": "2026-05-19",
+      "sent": [
+        {
+          "first_name": "Amanda",
+          "full_name": "Amanda Almeida",
+          "phone_used": "5541997316610",
+          "source_context": "segment:220",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Caio",
+          "full_name": "Caio Zarur Campos",
+          "phone_used": "5586988160007",
+          "source_context": "segment:245",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Daniel",
+          "full_name": "Daniel Linhares",
+          "phone_used": "5521986917775",
+          "source_context": "segment:261",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Gabriel",
+          "full_name": "Gabriel Passos",
+          "phone_used": "5541997689818",
+          "source_context": "segment:283",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Ana",
+          "full_name": "Geral Ana Paula",
+          "phone_used": "5541988692906",
+          "source_context": "segment:285",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Thiago",
+          "full_name": "Gordos Thiago Oliveira",
+          "phone_used": "5561992199993",
+          "source_context": "segment:292",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Lia",
+          "full_name": "HOC Lia Pinheiro",
+          "phone_used": "5551993588531",
+          "source_context": "segment:294",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Luci",
+          "full_name": "Luci braghiroli",
+          "phone_used": "5511998119552",
+          "source_context": "segment:319",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Laura",
+          "full_name": "Monitchat Laura Kuntz",
+          "phone_used": "5527998049389",
+          "source_context": "segment:335",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Nathan",
+          "full_name": "Nathan Ranna Oliveira",
+          "phone_used": "5531999108535",
+          "source_context": "segment:342",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": []
+    },
+    {
+      "batch_id": "lote_19",
+      "status": "completed_with_invalid_numbers",
+      "reserved_at": "2026-05-19",
+      "approved_at": "2026-05-19",
+      "sent_at": "2026-05-19",
+      "sent": [
+        {
+          "first_name": "Carlos",
+          "full_name": "Carlos Soares",
+          "phone_used": "5553999924289",
+          "source_context": "segment:247",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Danrlei",
+          "full_name": "Danrlei Carlos",
+          "phone_used": "5532991394238",
+          "source_context": "segment:263",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Francisco",
+          "full_name": "Francisco",
+          "phone_used": "5583998599540",
+          "source_context": "segment:280",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Jorge",
+          "full_name": "Jorge Cury Neto",
+          "phone_used": "5541991115151",
+          "source_context": "segment:306",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "João",
+          "full_name": "João",
+          "phone_used": "5518996168341",
+          "source_context": "segment:308",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Nestor",
+          "full_name": "Nestor",
+          "phone_used": "5561981041465",
+          "source_context": "segment:343",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Nilson",
+          "full_name": "Nilson Pinho",
+          "phone_used": "5569984464600",
+          "source_context": "segment:345",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Rodrigo",
+          "full_name": "Rodrigo Guedes",
+          "phone_used": "5541996999788",
+          "source_context": "segment:366",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": [
+        {
+          "first_name": "Anderson",
+          "phone_attempted": "55913188817",
+          "reason": "Número inexistente segundo a Evolution API."
+        },
+        {
+          "first_name": "Luiz",
+          "phone_attempted": "5518998523262",
+          "reason": "Número inexistente segundo a Evolution API."
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_20",
+      "status": "completed_with_invalid_numbers",
+      "reserved_at": "2026-05-20",
+      "approved_at": "2026-05-20",
+      "sent_at": "2026-05-20",
+      "sent": [
+        {
+          "first_name": "Vivian",
+          "full_name": "Clube 300 Vivian",
+          "phone_used": "5521971957226",
+          "source_context": "segment:251",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Dourado",
+          "full_name": "Colisão Dourado",
+          "phone_used": "5581999284300",
+          "source_context": "segment:252",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "William",
+          "full_name": "MKT LOCAL William",
+          "phone_used": "5534984093795",
+          "source_context": "segment:323",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Rafaela",
+          "full_name": "PMM Rafaela Vigo",
+          "phone_used": "5541999292085",
+          "source_context": "segment:352",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Julio",
+          "full_name": "Premium Julio Bessa",
+          "phone_used": "5511971688808",
+          "source_context": "segment:354",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Kallen",
+          "full_name": "Prática KALLEN CHEN",
+          "phone_used": "5511981110903",
+          "source_context": "segment:355",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Rui",
+          "full_name": "Rui Julio Tomaz",
+          "phone_used": "5565999822480",
+          "source_context": "segment:368",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Loreto",
+          "full_name": "Salvador 🤜🤛 Loreto",
+          "phone_used": "5519993388617",
+          "source_context": "segment:369",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": [
+        {
+          "first_name": "Andréa",
+          "phone_attempted": "55986588058",
+          "reason": "Número inexistente segundo a Evolution API."
+        },
+        {
+          "first_name": "Nuno",
+          "phone_attempted": "5511948413685",
+          "reason": "Número inexistente segundo a Evolution API."
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_21",
+      "status": "completed",
+      "reserved_at": "2026-05-21",
+      "approved_at": "2026-05-21",
+      "sent_at": "2026-05-21",
+      "sent": [
+        {
+          "first_name": "Felipe",
+          "full_name": "Assessoria Felipe Naumann",
+          "phone_used": "5571992812316",
+          "source_context": "segment:231",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Bruno",
+          "full_name": "BANANA Bruno Sarpi",
+          "phone_used": "5511982667563",
+          "source_context": "segment:235",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Pedro",
+          "full_name": "BLUE Pedro franco",
+          "phone_used": "5521969003274",
+          "source_context": "segment:236",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Gabriel",
+          "full_name": "Creators Gabriel Macedo",
+          "phone_used": "5511950959190",
+          "source_context": "segment:256",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Rafael",
+          "full_name": "Imperium Rafael Lanza",
+          "phone_used": "5547992126813",
+          "source_context": "segment:301",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Rogerio",
+          "full_name": "MailerWeb IA Rogerio",
+          "phone_used": "5521985880074",
+          "source_context": "segment:325",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Marcelo",
+          "full_name": "Marcelo Aguiar",
+          "phone_used": "5521964986958",
+          "source_context": "segment:326",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Henrique",
+          "full_name": "Masters Henrique Torres",
+          "phone_used": "5511994975151",
+          "source_context": "segment:330",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Rhayane",
+          "full_name": "Rhayane Santos",
+          "phone_used": "5531975189194",
+          "source_context": "segment:363",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "first_name": "Tatiana",
+          "full_name": "Tatiana Dotto",
+          "phone_used": "5517997353020",
+          "source_context": "segment:376",
+          "attempted_message_count": 3,
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "failed": []
+    },
+    {
+      "batch_id": "lote_22_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-21",
+      "approved_at": "2026-05-21",
+      "sent_at": "2026-05-21",
+      "attempt_log": [
+        {
+          "lead": "Bruno",
+          "normalized_phone": "5531988494923",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Diego",
+          "normalized_phone": "5541997034576",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Felipe",
+          "normalized_phone": "5511998289910",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Gabriel",
+          "normalized_phone": "5561986330535",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Lais",
+          "normalized_phone": "5581996002474",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jeff",
+          "normalized_phone": "5511991062575",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Julio",
+          "normalized_phone": "5561993125369",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Fábio",
+          "normalized_phone": "5531987256130",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ana",
+          "normalized_phone": "5521985474249",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Lucas",
+          "normalized_phone": "5511971869075",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Bruno",
+          "full_name": "Club Bruno Abreu",
+          "normalized_phone": "5531988494923",
+          "source_context": "segment:250"
+        },
+        {
+          "first_name": "Diego",
+          "full_name": "Comercial Diego Loureiro",
+          "normalized_phone": "5541997034576",
+          "source_context": "segment:253"
+        },
+        {
+          "first_name": "Felipe",
+          "full_name": "Hour Felipe Daniel",
+          "normalized_phone": "5511998289910",
+          "source_context": "segment:296"
+        },
+        {
+          "first_name": "Gabriel",
+          "full_name": "Networking Gabriel Borges",
+          "normalized_phone": "5561986330535",
+          "source_context": "segment:344"
+        },
+        {
+          "first_name": "Lais",
+          "full_name": "PMM Lais leon",
+          "normalized_phone": "5581996002474",
+          "source_context": "segment:351"
+        },
+        {
+          "first_name": "Jeff",
+          "full_name": "Prêmio 🥇🍀 Jeff",
+          "normalized_phone": "5511991062575",
+          "source_context": "segment:356"
+        },
+        {
+          "first_name": "Julio",
+          "full_name": "Silveria Julio Costa",
+          "normalized_phone": "5561993125369",
+          "source_context": "segment:370"
+        },
+        {
+          "first_name": "Fábio",
+          "full_name": "tráfego Fábio Junior",
+          "normalized_phone": "5531987256130",
+          "source_context": "segment:423"
+        },
+        {
+          "first_name": "Ana",
+          "full_name": "❤ Ana lima",
+          "normalized_phone": "5521985474249",
+          "source_context": "segment:429"
+        },
+        {
+          "first_name": "Lucas",
+          "full_name": "👅🔥 Lucas Rocha",
+          "normalized_phone": "5511971869075",
+          "source_context": "segment:434"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_23_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-21",
+      "approved_at": "2026-05-21",
+      "sent_at": "2026-05-21",
+      "attempt_log": [
+        {
+          "lead": "Jessica",
+          "normalized_phone": "5581991930351",
+          "attempted_message_count": 3,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Larissa",
+          "normalized_phone": "5563985131822",
+          "attempted_message_count": 3,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Magaly",
+          "normalized_phone": "5511972721401",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Pâmella",
+          "normalized_phone": "5599982342648",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Regiane",
+          "normalized_phone": "5511996394555",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Renan",
+          "normalized_phone": "5588997136860",
+          "attempted_message_count": 3,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Thiago",
+          "normalized_phone": "5511947422418",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Daniel",
+          "normalized_phone": "5533984558282",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Renata",
+          "normalized_phone": "5521951015584",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Paula",
+          "normalized_phone": "5511989690665",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Jessica",
+          "full_name": "! Jessica Vilaça",
+          "normalized_phone": "5581991930351",
+          "source_context": "segment:166"
+        },
+        {
+          "first_name": "Larissa",
+          "full_name": "! Larissa",
+          "normalized_phone": "5563985131822",
+          "source_context": "segment:169"
+        },
+        {
+          "first_name": "Magaly",
+          "full_name": "! Magaly Monteiro",
+          "normalized_phone": "5511972721401",
+          "source_context": "segment:172"
+        },
+        {
+          "first_name": "Pâmella",
+          "full_name": "! Pâmella Cristinny",
+          "normalized_phone": "5599982342648",
+          "source_context": "segment:175"
+        },
+        {
+          "first_name": "Regiane",
+          "full_name": "! Regiane Konopka",
+          "normalized_phone": "5511996394555",
+          "source_context": "segment:176"
+        },
+        {
+          "first_name": "Renan",
+          "full_name": "! Renan",
+          "normalized_phone": "5588997136860",
+          "source_context": "segment:177"
+        },
+        {
+          "first_name": "Thiago",
+          "full_name": "! Thiago Mariano",
+          "normalized_phone": "5511947422418",
+          "source_context": "segment:182"
+        },
+        {
+          "first_name": "Daniel",
+          "full_name": "01 Daniel Ferreira",
+          "normalized_phone": "5533984558282",
+          "source_context": "segment:199"
+        },
+        {
+          "first_name": "Renata",
+          "full_name": "2 Renata Canizares",
+          "normalized_phone": "5521951015584",
+          "source_context": "segment:201"
+        },
+        {
+          "first_name": "Paula",
+          "full_name": "30/07 Paula Olaf",
+          "normalized_phone": "5511989690665",
+          "source_context": "segment:206"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_24_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-21",
+      "approved_at": "2026-05-21",
+      "sent_at": "2026-05-21",
+      "attempt_log": [
+        {
+          "lead": "Lucas",
+          "normalized_phone": "5599981382233",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ivo",
+          "normalized_phone": "5592993775266",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Amanda",
+          "normalized_phone": "5562999077093",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Vanessa",
+          "normalized_phone": "5585985494922",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Luan",
+          "normalized_phone": "5547997709913",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Nicole",
+          "normalized_phone": "5571996956281",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Roberto",
+          "normalized_phone": "5511986544564",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rodrigo",
+          "normalized_phone": "5511984250440",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Bruna",
+          "normalized_phone": "5514996340365",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Tatiana",
+          "normalized_phone": "5521999417666",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Lucas",
+          "full_name": "2023.01 Lucas Santiago",
+          "normalized_phone": "5599981382233",
+          "source_context": "segment:203"
+        },
+        {
+          "first_name": "Ivo",
+          "full_name": "84º📻👔 Ivo Campinas",
+          "normalized_phone": "5592993775266",
+          "source_context": "segment:208"
+        },
+        {
+          "first_name": "Amanda",
+          "full_name": "Ajpv Amanda Israel",
+          "normalized_phone": "5562999077093",
+          "source_context": "segment:217"
+        },
+        {
+          "first_name": "Vanessa",
+          "full_name": "Amigas Vanessa Meneses",
+          "normalized_phone": "5585985494922",
+          "source_context": "segment:224"
+        },
+        {
+          "first_name": "Luan",
+          "full_name": "BRASIL DEZEMBRO Luan",
+          "normalized_phone": "5547997709913",
+          "source_context": "segment:238"
+        },
+        {
+          "first_name": "Nicole",
+          "full_name": "KIRYNURÊ Nicole Saback",
+          "normalized_phone": "5571996956281",
+          "source_context": "segment:312"
+        },
+        {
+          "first_name": "Roberto",
+          "full_name": "Roberto Andrade",
+          "normalized_phone": "5511986544564",
+          "source_context": "segment:365"
+        },
+        {
+          "first_name": "Rodrigo",
+          "full_name": "Rodrigo",
+          "normalized_phone": "5511984250440",
+          "source_context": "segment:366"
+        },
+        {
+          "first_name": "Bruna",
+          "full_name": "TRÁFEGO Bruna Sapiello",
+          "normalized_phone": "5514996340365",
+          "source_context": "segment:375"
+        },
+        {
+          "first_name": "Tatiana",
+          "full_name": "Tatiana",
+          "normalized_phone": "5521999417666",
+          "source_context": "segment:376"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_25_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-22",
+      "approved_at": "2026-05-22",
+      "sent_at": "2026-05-22",
+      "attempt_log": [
+        {
+          "lead": "Fabiano",
+          "normalized_phone": "5547999452513",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Débora",
+          "normalized_phone": "5551997001457",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Lucas",
+          "normalized_phone": "5562982435286",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Mônica",
+          "normalized_phone": "5521996673924",
+          "attempted_message_count": 3,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Andrea",
+          "normalized_phone": "5511994580890",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Leonardo",
+          "normalized_phone": "5511947227300",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jessica",
+          "normalized_phone": "5581991960351",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Juliane",
+          "normalized_phone": "5534991664304",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rosangela",
+          "normalized_phone": "5555996477835",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Saulo",
+          "normalized_phone": "5561998498181",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Fabiano",
+          "full_name": "Alheia Fabiano Borges",
+          "normalized_phone": "5547999452513",
+          "source_context": "segment:220"
+        },
+        {
+          "first_name": "Débora",
+          "full_name": "Ano IV Débora",
+          "normalized_phone": "5551997001457",
+          "source_context": "segment:229"
+        },
+        {
+          "first_name": "Lucas",
+          "full_name": "Arq Lucas Borges",
+          "normalized_phone": "5562982435286",
+          "source_context": "segment:231"
+        },
+        {
+          "first_name": "Mônica",
+          "full_name": "B2Mamy Mônica Mourão",
+          "normalized_phone": "5521996673924",
+          "source_context": "segment:234"
+        },
+        {
+          "first_name": "Andrea",
+          "full_name": "B2mamy Andrea Gouvêa",
+          "normalized_phone": "5511994580890",
+          "source_context": "segment:235"
+        },
+        {
+          "first_name": "Leonardo",
+          "full_name": "Familia grecu Leonardo",
+          "normalized_phone": "5511947227300",
+          "source_context": "segment:278"
+        },
+        {
+          "first_name": "Jessica",
+          "full_name": "Festival Jessica Vilaça",
+          "normalized_phone": "5581991960351",
+          "source_context": "segment:280"
+        },
+        {
+          "first_name": "Juliane",
+          "full_name": "Legacy Juliane santana",
+          "normalized_phone": "5534991664304",
+          "source_context": "segment:316"
+        },
+        {
+          "first_name": "Rosangela",
+          "full_name": "Montanea Rosangela Toffoli",
+          "normalized_phone": "5555996477835",
+          "source_context": "segment:337"
+        },
+        {
+          "first_name": "Saulo",
+          "full_name": "OAB-DF Saulo Michiles",
+          "normalized_phone": "5561998498181",
+          "source_context": "segment:349"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_26_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-22",
+      "approved_at": "2026-05-22",
+      "sent_at": "2026-05-22",
+      "attempt_log": [
+        {
+          "lead": "Marcelo",
+          "normalized_phone": "5548984741454",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Fábio",
+          "normalized_phone": "5542933005185",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Junior",
+          "normalized_phone": "5516997489554",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rafael",
+          "normalized_phone": "5511982814661",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jorge",
+          "normalized_phone": "5532998306744",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Gabriel",
+          "normalized_phone": "5521989962123",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Talles",
+          "normalized_phone": "5532936183561",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Antonio",
+          "normalized_phone": "5521994931832",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Bruno",
+          "normalized_phone": "5521996050589",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Victor",
+          "normalized_phone": "5521972555493",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Marcelo",
+          "full_name": "Ops Marcelo Silva",
+          "normalized_phone": "5548984741454",
+          "source_context": "segment:350"
+        },
+        {
+          "first_name": "Fábio",
+          "full_name": "Pneus Fábio Neves",
+          "normalized_phone": "5542933005185",
+          "source_context": "segment:353"
+        },
+        {
+          "first_name": "Junior",
+          "full_name": "PÓS🚀 junior Ferreira",
+          "normalized_phone": "5516997489554",
+          "source_context": "segment:357"
+        },
+        {
+          "first_name": "Rafael",
+          "full_name": "RAFAEL GAMA",
+          "normalized_phone": "5511982814661",
+          "source_context": "segment:358"
+        },
+        {
+          "first_name": "Jorge",
+          "full_name": "REINO Jorge Marcos",
+          "normalized_phone": "5532998306744",
+          "source_context": "segment:359"
+        },
+        {
+          "first_name": "Gabriel",
+          "full_name": "Raiz Gabriel Leal",
+          "normalized_phone": "5521989962123",
+          "source_context": "segment:360"
+        },
+        {
+          "first_name": "Talles",
+          "full_name": "Restier💝 Talles Lima",
+          "normalized_phone": "5532936183561",
+          "source_context": "segment:362"
+        },
+        {
+          "first_name": "Antonio",
+          "full_name": "Social Antonio Silva",
+          "normalized_phone": "5521994931832",
+          "source_context": "segment:371"
+        },
+        {
+          "first_name": "Bruno",
+          "full_name": "Trabalho bruno barros",
+          "normalized_phone": "5521996050589",
+          "source_context": "segment:385"
+        },
+        {
+          "first_name": "Victor",
+          "full_name": "UnB Victor Hugo",
+          "normalized_phone": "5521972555493",
+          "source_context": "segment:386"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_27_prospeccao_real_pending_review",
+      "status": "completed_with_invalid_numbers",
+      "reserved_at": "2026-05-25",
+      "approved_at": "2026-05-25",
+      "sent_at": "2026-05-25",
+      "attempt_log": [
+        {
+          "lead": "Lucas",
+          "normalized_phone": "5519999580981",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Flavio",
+          "normalized_phone": "5543998307690",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Lucas",
+          "normalized_phone": "5519993278795",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Gleidson",
+          "normalized_phone": "5527999463639",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Diego",
+          "normalized_phone": "5561992044661",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Matheus",
+          "normalized_phone": "5561996559460",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jeison",
+          "normalized_phone": "5521974813274",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Gustavo",
+          "normalized_phone": "5511951929408",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "André",
+          "normalized_phone": "5517996744034",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Gabriel",
+          "normalized_phone": "5511992346246",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Lucas",
+          "full_name": "- Lucas Furlan",
+          "normalized_phone": "5519999580981",
+          "source_context": "segment:2"
+        },
+        {
+          "first_name": "Flavio",
+          "full_name": "2 FLAVIO RENATO",
+          "normalized_phone": "5543998307690",
+          "source_context": "segment:4"
+        },
+        {
+          "first_name": "Lucas",
+          "full_name": "AIC Lucas Bragagnolo",
+          "normalized_phone": "5519993278795",
+          "source_context": "segment:10"
+        },
+        {
+          "first_name": "Gleidson",
+          "full_name": "CgnizXUoe Gleidson Oliveira",
+          "normalized_phone": "5527999463639",
+          "source_context": "segment:19"
+        },
+        {
+          "first_name": "Diego",
+          "full_name": "Diego Alves",
+          "normalized_phone": "5561992044661",
+          "source_context": "segment:25"
+        },
+        {
+          "first_name": "Matheus",
+          "full_name": "Eu Matheus Rauber",
+          "normalized_phone": "5561996559460",
+          "source_context": "segment:28"
+        },
+        {
+          "first_name": "Jeison",
+          "full_name": "FWZ jeison ferreira",
+          "normalized_phone": "5521974813274",
+          "source_context": "segment:31"
+        },
+        {
+          "first_name": "Gustavo",
+          "full_name": "Falando.ai Gustavo",
+          "normalized_phone": "5511951929408",
+          "source_context": "segment:32"
+        },
+        {
+          "first_name": "André",
+          "full_name": "GALoS André Terencio",
+          "normalized_phone": "5517996744034",
+          "source_context": "segment:38"
+        },
+        {
+          "first_name": "Gabriel",
+          "full_name": "Gabriel",
+          "normalized_phone": "5511992346246",
+          "source_context": "segment:39"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_28_prospeccao_real_pending_review",
+      "status": "completed",
+      "reserved_at": "2026-05-25",
+      "approved_at": "2026-05-25",
+      "sent_at": "2026-05-25",
+      "attempt_log": [
+        {
+          "lead": "Bruno",
+          "normalized_phone": "5544997604925",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Matheus",
+          "normalized_phone": "5549999678432",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Lucas",
+          "normalized_phone": "5531998685731",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jefferson",
+          "normalized_phone": "5514991677838",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Felipe",
+          "normalized_phone": "5511947361656",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Lucas",
+          "normalized_phone": "5541995239777",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Renato",
+          "normalized_phone": "5527999692578",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Gabriel",
+          "normalized_phone": "5521999581999",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Diego",
+          "normalized_phone": "5581992982199",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Bruna",
+          "normalized_phone": "5541984052115",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Bruno",
+          "full_name": "Guegue Bruno Conter",
+          "normalized_phone": "5544997604925",
+          "source_context": "segment:42"
+        },
+        {
+          "first_name": "Matheus",
+          "full_name": "HTQ Matheus Maroli",
+          "normalized_phone": "5549999678432",
+          "source_context": "segment:45"
+        },
+        {
+          "first_name": "Lucas",
+          "full_name": "HplvPXm Lucas Lino",
+          "normalized_phone": "5531998685731",
+          "source_context": "segment:47"
+        },
+        {
+          "first_name": "Jefferson",
+          "full_name": "Jefferson",
+          "normalized_phone": "5514991677838",
+          "source_context": "segment:51"
+        },
+        {
+          "first_name": "Felipe",
+          "full_name": "LIMITES Felipe Oliveira",
+          "normalized_phone": "5511947361656",
+          "source_context": "segment:60"
+        },
+        {
+          "first_name": "Lucas",
+          "full_name": "Lucas Grandini",
+          "normalized_phone": "5541995239777",
+          "source_context": "segment:63"
+        },
+        {
+          "first_name": "Renato",
+          "full_name": "OFERTAS VIX💰 Renato",
+          "normalized_phone": "5527999692578",
+          "source_context": "segment:72"
+        },
+        {
+          "first_name": "Gabriel",
+          "full_name": "PRO Gabriel Dias",
+          "normalized_phone": "5521999581999",
+          "source_context": "segment:75"
+        },
+        {
+          "first_name": "Diego",
+          "full_name": "Rni Diego Lilioso",
+          "normalized_phone": "5581992982199",
+          "source_context": "segment:82"
+        },
+        {
+          "first_name": "Bruna",
+          "full_name": "S Bruna Snak",
+          "normalized_phone": "5541984052115",
+          "source_context": "segment:84"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_29_prospeccao_real_pending_review",
+      "status": "completed",
+      "reserved_at": "2026-05-25",
+      "approved_at": "2026-05-25",
+      "sent_at": "2026-05-25",
+      "attempt_log": [
+        {
+          "lead": "Ana",
+          "normalized_phone": "5511982730801",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Guilherme",
+          "normalized_phone": "5531993673022",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Cristiana",
+          "normalized_phone": "5561981020719",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Lyncon",
+          "normalized_phone": "5515997664507",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Pedro",
+          "normalized_phone": "5531971095812",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Bruno",
+          "normalized_phone": "5541991230078",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Raphael",
+          "normalized_phone": "5511982136163",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Vinicius",
+          "normalized_phone": "5561984381366",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Felipe",
+          "normalized_phone": "5513982320028",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Carlos",
+          "normalized_phone": "5516997084503",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Ana",
+          "full_name": "WZon Ana Siqueira",
+          "normalized_phone": "5511982730801",
+          "source_context": "segment:94"
+        },
+        {
+          "first_name": "Guilherme",
+          "full_name": "Wizzia Guilherme Dutra",
+          "normalized_phone": "5531993673022",
+          "source_context": "segment:95"
+        },
+        {
+          "first_name": "Cristiana",
+          "full_name": "Zr Cristiana mendanha",
+          "normalized_phone": "5561981020719",
+          "source_context": "segment:99"
+        },
+        {
+          "first_name": "Lyncon",
+          "full_name": "bgTlK lyncon andrade",
+          "normalized_phone": "5515997664507",
+          "source_context": "segment:100"
+        },
+        {
+          "first_name": "Pedro",
+          "full_name": "c Pedro Lucindo",
+          "normalized_phone": "5531971095812",
+          "source_context": "segment:101"
+        },
+        {
+          "first_name": "Bruno",
+          "full_name": "db Bruno Santos",
+          "normalized_phone": "5541991230078",
+          "source_context": "segment:105"
+        },
+        {
+          "first_name": "Raphael",
+          "full_name": "geJgd Raphael matos",
+          "normalized_phone": "5511982136163",
+          "source_context": "segment:114"
+        },
+        {
+          "first_name": "Vinicius",
+          "full_name": "jB Vinicius Postai",
+          "normalized_phone": "5561984381366",
+          "source_context": "segment:116"
+        },
+        {
+          "first_name": "Felipe",
+          "full_name": "mkgj Felipe Lucarelli",
+          "normalized_phone": "5513982320028",
+          "source_context": "segment:124"
+        },
+        {
+          "first_name": "Carlos",
+          "full_name": "o Carlos Depetri",
+          "normalized_phone": "5516997084503",
+          "source_context": "segment:126"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_30_prospeccao_real_pending_review",
+      "status": "completed_with_invalid_numbers",
+      "reserved_at": "2026-05-26",
+      "approved_at": "2026-05-26",
+      "sent_at": "2026-05-26",
+      "attempt_log": [
+        {
+          "lead": "Rogerio",
+          "normalized_phone": "5511972568660",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Pedro",
+          "normalized_phone": "5581987919696",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Aquiles",
+          "normalized_phone": "5511972206131",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Luiz",
+          "normalized_phone": "5541995167525",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Marcos",
+          "normalized_phone": "5592999810256",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Bruno",
+          "normalized_phone": "5581988440860",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "José",
+          "normalized_phone": "5584999999299",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Adriano",
+          "normalized_phone": "5521964298307",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Lucas",
+          "normalized_phone": "5561983356276",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Matheus",
+          "normalized_phone": "5581993887294",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Rogerio",
+          "full_name": "Xl Rogerio Almeida",
+          "normalized_phone": "5511972568660",
+          "source_context": "segment:97"
+        },
+        {
+          "first_name": "Pedro",
+          "full_name": "cdg Pedro Antunes",
+          "normalized_phone": "5581987919696",
+          "source_context": "segment:103"
+        },
+        {
+          "first_name": "Aquiles",
+          "full_name": "paga Aquiles Filho",
+          "normalized_phone": "5511972206131",
+          "source_context": "segment:128"
+        },
+        {
+          "first_name": "Luiz",
+          "full_name": "⛓ Luiz Ribeiro",
+          "normalized_phone": "5541995167525",
+          "source_context": "segment:138"
+        },
+        {
+          "first_name": "Marcos",
+          "full_name": "🏀 Marcos Barbosa",
+          "normalized_phone": "5592999810256",
+          "source_context": "segment:140"
+        },
+        {
+          "first_name": "Bruno",
+          "full_name": "🏆🏆 Bruno Coutinho",
+          "normalized_phone": "5581988440860",
+          "source_context": "segment:141"
+        },
+        {
+          "first_name": "José",
+          "full_name": "💜✅ José Haureliano",
+          "normalized_phone": "5584999999299",
+          "source_context": "segment:142"
+        },
+        {
+          "first_name": "Adriano",
+          "full_name": "🚀 Adriano Rocha",
+          "normalized_phone": "5521964298307",
+          "source_context": "segment:146"
+        },
+        {
+          "first_name": "Lucas",
+          "full_name": "Lucas Azevedo",
+          "normalized_phone": "5561983356276",
+          "source_context": "segment:62"
+        },
+        {
+          "first_name": "Matheus",
+          "full_name": "❤💸 Matheus Wesley",
+          "normalized_phone": "5581993887294",
+          "source_context": "segment:139"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_31_prospeccao_real_pending_review",
+      "status": "completed_with_invalid_numbers",
+      "reserved_at": "2026-05-26",
+      "approved_at": "2026-05-26",
+      "sent_at": "2026-05-26",
+      "attempt_log": [
+        {
+          "lead": "Aline",
+          "normalized_phone": "5511980514631",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Antônio",
+          "normalized_phone": "5511974851324",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Bruno",
+          "normalized_phone": "5584991450334",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Carlos",
+          "normalized_phone": "5511914525522",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Fabricio",
+          "normalized_phone": "5547989264442",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Jessica",
+          "normalized_phone": "5581991930351",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Magaly",
+          "normalized_phone": "5511972721401",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Regiane",
+          "normalized_phone": "5511996394555",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Thiago",
+          "normalized_phone": "5511947422418",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Henrique",
+          "normalized_phone": "5547991531894",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Aline",
+          "full_name": "! Aline Caio",
+          "normalized_phone": "5511980514631",
+          "source_context": "segment:p2-2"
+        },
+        {
+          "first_name": "Antônio",
+          "full_name": "! Antônio",
+          "normalized_phone": "5511974851324",
+          "source_context": "segment:p2-4"
+        },
+        {
+          "first_name": "Bruno",
+          "full_name": "! Bruno Stainen",
+          "normalized_phone": "5584991450334",
+          "source_context": "segment:p2-6"
+        },
+        {
+          "first_name": "Carlos",
+          "full_name": "! Carlos luis",
+          "normalized_phone": "5511914525522",
+          "source_context": "segment:p2-7"
+        },
+        {
+          "first_name": "Fabricio",
+          "full_name": "! Fabricio Padrin",
+          "normalized_phone": "5547989264442",
+          "source_context": "segment:p2-12"
+        },
+        {
+          "first_name": "Jessica",
+          "full_name": "! Jessica Vilaça",
+          "normalized_phone": "5581991930351",
+          "source_context": "segment:p2-20"
+        },
+        {
+          "first_name": "Magaly",
+          "full_name": "! Magaly Monteiro",
+          "normalized_phone": "5511972721401",
+          "source_context": "segment:p2-26"
+        },
+        {
+          "first_name": "Regiane",
+          "full_name": "! Regiane Konopka",
+          "normalized_phone": "5511996394555",
+          "source_context": "segment:p2-30"
+        },
+        {
+          "first_name": "Thiago",
+          "full_name": "! Thiago Mariano",
+          "normalized_phone": "5511947422418",
+          "source_context": "segment:p2-36"
+        },
+        {
+          "first_name": "Henrique",
+          "full_name": "! Henrique",
+          "normalized_phone": "5547991531894",
+          "source_context": "segment:p2-18"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_32_prospeccao_real_pending_review",
+      "status": "completed_with_invalid_numbers",
+      "reserved_at": "2026-05-26",
+      "approved_at": "2026-05-26",
+      "sent_at": "2026-05-26",
+      "attempt_log": [
+        {
+          "lead": "Marcelino",
+          "normalized_phone": "5543999300726",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Bruno",
+          "normalized_phone": "5521981417629",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ana",
+          "normalized_phone": "5519982937979",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Diego",
+          "normalized_phone": "5537998723411",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Eduardo",
+          "normalized_phone": "5598985777830",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Guilherme",
+          "normalized_phone": "5511975245479",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jose",
+          "normalized_phone": "5517991906726",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Larissa",
+          "normalized_phone": "5563985131822",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Pâmella",
+          "normalized_phone": "5599982342648",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Vitor",
+          "normalized_phone": "5534999742534",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Marcelino",
+          "full_name": "! 1Marcelino",
+          "normalized_phone": "5543999300726",
+          "source_context": "segment:p2-1"
+        },
+        {
+          "first_name": "Bruno",
+          "full_name": "! Bruno",
+          "normalized_phone": "5521981417629",
+          "source_context": "segment:p2-5"
+        },
+        {
+          "first_name": "Ana",
+          "full_name": "! Comercial Ana",
+          "normalized_phone": "5519982937979",
+          "source_context": "segment:p2-8"
+        },
+        {
+          "first_name": "Diego",
+          "full_name": "! Diego",
+          "normalized_phone": "5537998723411",
+          "source_context": "segment:p2-10"
+        },
+        {
+          "first_name": "Eduardo",
+          "full_name": "! Eduardo",
+          "normalized_phone": "5598985777830",
+          "source_context": "segment:p2-11"
+        },
+        {
+          "first_name": "Guilherme",
+          "full_name": "! Guilherme",
+          "normalized_phone": "5511975245479",
+          "source_context": "segment:p2-17"
+        },
+        {
+          "first_name": "Jose",
+          "full_name": "! Jose riba",
+          "normalized_phone": "5517991906726",
+          "source_context": "segment:p2-21"
+        },
+        {
+          "first_name": "Larissa",
+          "full_name": "! Larissa",
+          "normalized_phone": "5563985131822",
+          "source_context": "segment:p2-23"
+        },
+        {
+          "first_name": "Pâmella",
+          "full_name": "! Pâmella Cristinny",
+          "normalized_phone": "5599982342648",
+          "source_context": "segment:p2-29"
+        },
+        {
+          "first_name": "Vitor",
+          "full_name": "! Vitor",
+          "normalized_phone": "5534999742534",
+          "source_context": "segment:p2-40"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_33_prospeccao_real_pending_review",
+      "status": "completed_with_invalid_numbers",
+      "reserved_at": "2026-05-27",
+      "approved_at": "2026-05-27",
+      "sent_at": "2026-05-27",
+      "attempt_log": [
+        {
+          "lead": "Girese",
+          "normalized_phone": "5554992663910",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Hromeu",
+          "normalized_phone": "5511985624785",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Lucio",
+          "normalized_phone": "5521996025210",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Maycon",
+          "normalized_phone": "5532999399124",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Renan",
+          "normalized_phone": "5588997136860",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Teresinha",
+          "normalized_phone": "5561999837477",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Tico",
+          "normalized_phone": "5551965781245",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Mônica",
+          "normalized_phone": "5521996673924",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Andrea",
+          "normalized_phone": "5511994580890",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Roberto",
+          "normalized_phone": "5511986544564",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Girese",
+          "full_name": "! Girese Lazaretti",
+          "normalized_phone": "5554992663910",
+          "source_context": "segment:p2-33"
+        },
+        {
+          "first_name": "Hromeu",
+          "full_name": "! Hromeu Pinto",
+          "normalized_phone": "5511985624785",
+          "source_context": "segment:p2-34"
+        },
+        {
+          "first_name": "Lucio",
+          "full_name": "! Lucio",
+          "normalized_phone": "5521996025210",
+          "source_context": "segment:p2-35"
+        },
+        {
+          "first_name": "Maycon",
+          "full_name": "! Maycon",
+          "normalized_phone": "5532999399124",
+          "source_context": "segment:p2-36"
+        },
+        {
+          "first_name": "Renan",
+          "full_name": "! Renan",
+          "normalized_phone": "5588997136860",
+          "source_context": "segment:p2-37"
+        },
+        {
+          "first_name": "Teresinha",
+          "full_name": "! Teresinha",
+          "normalized_phone": "5561999837477",
+          "source_context": "segment:p2-38"
+        },
+        {
+          "first_name": "Tico",
+          "full_name": "! Tico Cruz",
+          "normalized_phone": "5551965781245",
+          "source_context": "segment:p2-39"
+        },
+        {
+          "first_name": "Mônica",
+          "full_name": "B2Mamy Mônica Mourão",
+          "normalized_phone": "5521996673924",
+          "source_context": "segment:p2-40"
+        },
+        {
+          "first_name": "Andrea",
+          "full_name": "B2mamy Andrea Gouvêa",
+          "normalized_phone": "5511994580890",
+          "source_context": "segment:p2-41"
+        },
+        {
+          "first_name": "Roberto",
+          "full_name": "Roberto Andrade",
+          "normalized_phone": "5511986544564",
+          "source_context": "segment:p2-42"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_34_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-05-27",
+      "approved_at": "2026-05-27",
+      "sent_at": "2026-05-27",
+      "attempt_log": [
+        {
+          "lead": "Débora",
+          "normalized_phone": "5551997001457",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Claudemir",
+          "normalized_phone": "5519999505223",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Priscila",
+          "normalized_phone": "5561995291154",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Sheila",
+          "normalized_phone": "5542999776578",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rosangela",
+          "normalized_phone": "5555996477835",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rafaele",
+          "normalized_phone": "5519987390743",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Saulo",
+          "normalized_phone": "5561998498181",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jeff",
+          "normalized_phone": "5511991062575",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Silveria",
+          "normalized_phone": "5561993125369",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Juan",
+          "normalized_phone": "5565981383340",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Débora",
+          "full_name": "Ano IV Débora",
+          "normalized_phone": "5551997001457",
+          "source_context": "segment:p2-43"
+        },
+        {
+          "first_name": "Claudemir",
+          "full_name": "Claudemir Junior",
+          "normalized_phone": "5519999505223",
+          "source_context": "segment:p2-44"
+        },
+        {
+          "first_name": "Priscila",
+          "full_name": "Inteligentes Priscila Quintiere",
+          "normalized_phone": "5561995291154",
+          "source_context": "segment:p2-45"
+        },
+        {
+          "first_name": "Sheila",
+          "full_name": "Mendanha Sheila Lopes",
+          "normalized_phone": "5542999776578",
+          "source_context": "segment:p2-46"
+        },
+        {
+          "first_name": "Rosangela",
+          "full_name": "Montanea Rosangela Toffoli",
+          "normalized_phone": "5555996477835",
+          "source_context": "segment:p2-47"
+        },
+        {
+          "first_name": "Rafaele",
+          "full_name": "Moça Rafaele",
+          "normalized_phone": "5519987390743",
+          "source_context": "segment:p2-48"
+        },
+        {
+          "first_name": "Saulo",
+          "full_name": "OAB-DF Saulo Michiles",
+          "normalized_phone": "5561998498181",
+          "source_context": "segment:p2-49"
+        },
+        {
+          "first_name": "Jeff",
+          "full_name": "Prêmio Jeff",
+          "normalized_phone": "5511991062575",
+          "source_context": "segment:p2-50"
+        },
+        {
+          "first_name": "Silveria",
+          "full_name": "Silveria Julio Costa",
+          "normalized_phone": "5561993125369",
+          "source_context": "segment:p2-51"
+        },
+        {
+          "first_name": "Juan",
+          "full_name": "Mate Juan Carlos",
+          "normalized_phone": "5565981383340",
+          "source_context": "segment:p2-52"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_35_prospeccao_real_pending_review",
+      "status": "completed_with_invalid_numbers",
+      "reserved_at": "2026-05-29",
+      "approved_at": "2026-05-29",
+      "sent_at": "2026-05-29",
+      "attempt_log": [
+        {
+          "lead": "Elisa",
+          "normalized_phone": "5511984678193",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Luis",
+          "normalized_phone": "5547996697636",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ivo",
+          "normalized_phone": "5592993775266",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Carla",
+          "normalized_phone": "5519992859218",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Igor",
+          "normalized_phone": "5515997612701",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Branda",
+          "normalized_phone": "5511998701084",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Lais",
+          "normalized_phone": "5581996002474",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Giovanni",
+          "normalized_phone": "5511960787336",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Valdir",
+          "normalized_phone": "5565999957525",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Diego",
+          "normalized_phone": "5521973110611",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Elisa",
+          "full_name": "! hermanas Elisa",
+          "normalized_phone": "5511984678193",
+          "source_context": "segment:p2-53"
+        },
+        {
+          "first_name": "Luis",
+          "full_name": "! luis",
+          "normalized_phone": "5547996697636",
+          "source_context": "segment:p2-54"
+        },
+        {
+          "first_name": "Ivo",
+          "full_name": "Ivo Campinas",
+          "normalized_phone": "5592993775266",
+          "source_context": "segment:p2-55"
+        },
+        {
+          "first_name": "Carla",
+          "full_name": "Carla facanali",
+          "normalized_phone": "5519992859218",
+          "source_context": "segment:p2-56"
+        },
+        {
+          "first_name": "Igor",
+          "full_name": "Igor Martello",
+          "normalized_phone": "5515997612701",
+          "source_context": "segment:p2-57"
+        },
+        {
+          "first_name": "Branda",
+          "full_name": "Branda Benicio",
+          "normalized_phone": "5511998701084",
+          "source_context": "segment:p2-58"
+        },
+        {
+          "first_name": "Lais",
+          "full_name": "Lais leon",
+          "normalized_phone": "5581996002474",
+          "source_context": "segment:p2-59"
+        },
+        {
+          "first_name": "Giovanni",
+          "full_name": "Giovanni",
+          "normalized_phone": "5511960787336",
+          "source_context": "segment:p2-60"
+        },
+        {
+          "first_name": "Valdir",
+          "full_name": "Valdir Moreira",
+          "normalized_phone": "5565999957525",
+          "source_context": "segment:p2-61"
+        },
+        {
+          "first_name": "Diego",
+          "full_name": "Diego Braga",
+          "normalized_phone": "5521973110611",
+          "source_context": "segment:p2-62"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_36_prospeccao_real_pending_review",
+      "status": "completed_with_invalid_numbers",
+      "reserved_at": "2026-05-29",
+      "approved_at": "2026-05-29",
+      "sent_at": "2026-05-29",
+      "attempt_log": [
+        {
+          "lead": "Erick",
+          "normalized_phone": "554588032464",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Fulvio",
+          "normalized_phone": "5564981194088",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Luan",
+          "normalized_phone": "5547997709913",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Pedro",
+          "normalized_phone": "5541999955588",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Sidney",
+          "normalized_phone": "5571999268713",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Silvio",
+          "normalized_phone": "5521975485127",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Mateus",
+          "normalized_phone": "5582993274360",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Patricia",
+          "normalized_phone": "5599984943604",
+          "attempted_message_count": 1,
+          "result": "invalid_number",
+          "notes": "A Evolution retornou exists:false para o número."
+        },
+        {
+          "lead": "Mike",
+          "normalized_phone": "5516991591471",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Laura",
+          "normalized_phone": "5599992243717",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Erick",
+          "full_name": "Erick Maldonado",
+          "normalized_phone": "554588032464",
+          "source_context": "segment:p2-63"
+        },
+        {
+          "first_name": "Fulvio",
+          "full_name": "FULVIO DANTAS",
+          "normalized_phone": "5564981194088",
+          "source_context": "segment:p2-64"
+        },
+        {
+          "first_name": "Luan",
+          "full_name": "Luan",
+          "normalized_phone": "5547997709913",
+          "source_context": "segment:p2-65"
+        },
+        {
+          "first_name": "Pedro",
+          "full_name": "pedro",
+          "normalized_phone": "5541999955588",
+          "source_context": "segment:p2-66"
+        },
+        {
+          "first_name": "Sidney",
+          "full_name": "sidney Simões",
+          "normalized_phone": "5571999268713",
+          "source_context": "segment:p2-67"
+        },
+        {
+          "first_name": "Silvio",
+          "full_name": "Silvio ribeiro",
+          "normalized_phone": "5521975485127",
+          "source_context": "segment:p2-68"
+        },
+        {
+          "first_name": "Mateus",
+          "full_name": "Mateus Magalhães",
+          "normalized_phone": "5582993274360",
+          "source_context": "segment:p2-69"
+        },
+        {
+          "first_name": "Patricia",
+          "full_name": "Patricia Costa",
+          "normalized_phone": "5599984943604",
+          "source_context": "segment:p2-70"
+        },
+        {
+          "first_name": "Mike",
+          "full_name": "Mike Marçal",
+          "normalized_phone": "5516991591471",
+          "source_context": "segment:p2-71"
+        },
+        {
+          "first_name": "Laura",
+          "full_name": "laura maria",
+          "normalized_phone": "5599992243717",
+          "source_context": "segment:p2-72"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_37_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-06-02",
+      "approved_at": "2026-06-02",
+      "sent_at": "2026-06-02",
+      "attempt_log": [
+        {
+          "lead": "Alex",
+          "normalized_phone": "5511988842881",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Wesley",
+          "normalized_phone": "5511988718190",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Alexandre",
+          "normalized_phone": "5511934165086",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ricardo",
+          "normalized_phone": "5511967901940",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Rodrigo",
+          "normalized_phone": "5521991861006",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Daniella",
+          "normalized_phone": "5521986946689",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Fábio",
+          "normalized_phone": "5531987256130",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Matheus",
+          "normalized_phone": "5585981112421",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Ana",
+          "normalized_phone": "5521985474249",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Leandro",
+          "normalized_phone": "5521970531596",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Alex",
+          "full_name": "Alex Ribeiro",
+          "normalized_phone": "5511988842881",
+          "source_context": "segment:p2-73"
+        },
+        {
+          "first_name": "Wesley",
+          "full_name": "Wesley Mendes",
+          "normalized_phone": "5511988718190",
+          "source_context": "segment:p2-74"
+        },
+        {
+          "first_name": "Alexandre",
+          "full_name": "Alexandre Batista",
+          "normalized_phone": "5511934165086",
+          "source_context": "segment:p2-75"
+        },
+        {
+          "first_name": "Ricardo",
+          "full_name": "Ricardo Silvestre",
+          "normalized_phone": "5511967901940",
+          "source_context": "segment:p2-76"
+        },
+        {
+          "first_name": "Rodrigo",
+          "full_name": "Rodrigo Gomes",
+          "normalized_phone": "5521991861006",
+          "source_context": "segment:p2-77"
+        },
+        {
+          "first_name": "Daniella",
+          "full_name": "Daniella Monassa",
+          "normalized_phone": "5521986946689",
+          "source_context": "segment:p2-78"
+        },
+        {
+          "first_name": "Fábio",
+          "full_name": "Fábio Junior",
+          "normalized_phone": "5531987256130",
+          "source_context": "segment:p2-79"
+        },
+        {
+          "first_name": "Matheus",
+          "full_name": "Matheus Loureiro",
+          "normalized_phone": "5585981112421",
+          "source_context": "segment:p2-80"
+        },
+        {
+          "first_name": "Ana",
+          "full_name": "Ana Lima",
+          "normalized_phone": "5521985474249",
+          "source_context": "segment:p2-81"
+        },
+        {
+          "first_name": "Leandro",
+          "full_name": "Leandro Guerra",
+          "normalized_phone": "5521970531596",
+          "source_context": "segment:p2-82"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_38_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-06-02",
+      "approved_at": "2026-06-02",
+      "sent_at": "2026-06-02",
+      "attempt_log": [
+        {
+          "lead": "Priscila",
+          "normalized_phone": "5594984429567",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Daniel",
+          "normalized_phone": "5533984558282",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Marcos",
+          "normalized_phone": "5585996137007",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Renata",
+          "normalized_phone": "5521951015584",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Lucas",
+          "normalized_phone": "5599981382233",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Paula",
+          "normalized_phone": "5511989690665",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Amanda",
+          "normalized_phone": "5562999077093",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Fabiano",
+          "normalized_phone": "5547999452513",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Amanda",
+          "normalized_phone": "5521967314595",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Vanessa",
+          "normalized_phone": "5585985494922",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Priscila",
+          "full_name": "Priscila Fernandes",
+          "normalized_phone": "5594984429567",
+          "source_context": "segment:p2-83"
+        },
+        {
+          "first_name": "Daniel",
+          "full_name": "Daniel Ferreira",
+          "normalized_phone": "5533984558282",
+          "source_context": "segment:p2-84"
+        },
+        {
+          "first_name": "Marcos",
+          "full_name": "Marcos Messias",
+          "normalized_phone": "5585996137007",
+          "source_context": "segment:p2-85"
+        },
+        {
+          "first_name": "Renata",
+          "full_name": "Renata Canizares",
+          "normalized_phone": "5521951015584",
+          "source_context": "segment:p2-86"
+        },
+        {
+          "first_name": "Lucas",
+          "full_name": "Lucas Santiago",
+          "normalized_phone": "5599981382233",
+          "source_context": "segment:p2-87"
+        },
+        {
+          "first_name": "Paula",
+          "full_name": "Paula Olaf",
+          "normalized_phone": "5511989690665",
+          "source_context": "segment:p2-88"
+        },
+        {
+          "first_name": "Amanda",
+          "full_name": "Amanda Israel",
+          "normalized_phone": "5562999077093",
+          "source_context": "segment:p2-89"
+        },
+        {
+          "first_name": "Fabiano",
+          "full_name": "Fabiano Borges",
+          "normalized_phone": "5547999452513",
+          "source_context": "segment:p2-90"
+        },
+        {
+          "first_name": "Amanda",
+          "full_name": "Amanda Muller",
+          "normalized_phone": "5521967314595",
+          "source_context": "segment:p2-91"
+        },
+        {
+          "first_name": "Vanessa",
+          "full_name": "Vanessa Meneses",
+          "normalized_phone": "5585985494922",
+          "source_context": "segment:p2-92"
+        }
+      ]
+    },
+    {
+      "batch_id": "lote_39_prospeccao_real_pending_review",
+      "status": "sent_and_closed",
+      "reserved_at": "2026-06-02",
+      "approved_at": "2026-06-02",
+      "sent_at": "2026-06-02",
+      "attempt_log": [
+        {
+          "lead": "Alec",
+          "normalized_phone": "5513996681573",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Luiz",
+          "normalized_phone": "5519982715360",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Bruno",
+          "normalized_phone": "5531988494923",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Diego",
+          "normalized_phone": "5541997034576",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Bruno",
+          "normalized_phone": "5517981011234",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Diego",
+          "normalized_phone": "5521966832161",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Jessica",
+          "normalized_phone": "5581991960351",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Marcelo",
+          "normalized_phone": "5561992713552",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Felipe",
+          "normalized_phone": "5511998289910",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        },
+        {
+          "lead": "Nicole",
+          "normalized_phone": "5571996956281",
+          "attempted_message_count": 3,
+          "result": "accepted",
+          "notes": "As 3 mensagens foram aceitas pela API com status PENDING."
+        }
+      ],
+      "candidates": [
+        {
+          "first_name": "Alec",
+          "full_name": "Alec Yoshikawa",
+          "normalized_phone": "5513996681573",
+          "source_context": "segment:p2-93"
+        },
+        {
+          "first_name": "Luiz",
+          "full_name": "Luiz Fernando",
+          "normalized_phone": "5519982715360",
+          "source_context": "segment:p2-94"
+        },
+        {
+          "first_name": "Bruno",
+          "full_name": "Bruno Abreu",
+          "normalized_phone": "5531988494923",
+          "source_context": "segment:p2-95"
+        },
+        {
+          "first_name": "Diego",
+          "full_name": "Diego Loureiro",
+          "normalized_phone": "5541997034576",
+          "source_context": "segment:p2-96"
+        },
+        {
+          "first_name": "Bruno",
+          "full_name": "Bruno Espanha",
+          "normalized_phone": "5517981011234",
+          "source_context": "segment:p2-97"
+        },
+        {
+          "first_name": "Diego",
+          "full_name": "Diego Rodrigues",
+          "normalized_phone": "5521966832161",
+          "source_context": "segment:p2-98"
+        },
+        {
+          "first_name": "Jessica",
+          "full_name": "Jessica Vilaça",
+          "normalized_phone": "5581991960351",
+          "source_context": "segment:p2-99"
+        },
+        {
+          "first_name": "Marcelo",
+          "full_name": "Marcelo Ottoni",
+          "normalized_phone": "5561992713552",
+          "source_context": "segment:p2-100"
+        },
+        {
+          "first_name": "Felipe",
+          "full_name": "Felipe Daniel",
+          "normalized_phone": "5511998289910",
+          "source_context": "segment:p2-101"
+        },
+        {
+          "first_name": "Nicole",
+          "full_name": "Nicole Saback",
+          "normalized_phone": "5571996956281",
+          "source_context": "segment:p2-102"
+        }
+      ]
+    }
+  ],
+  "blocklist": {
+    "phones": [
+      "554791362808",
+      "5516991737022",
+      "5511964107294",
+      "17372174284",
+      "5511941525252",
+      "5511940207654",
+      "5511975309733",
+      "5511944850914",
+      "5511954957051",
+      "5511976293469",
+      "5531991201662",
+      "5567992488616",
+      "5511947589643",
+      "5516981229333",
+      "5547997128855",
+      "5521985528570",
+      "5522996097852",
+      "5511982804426",
+      "5511991727225",
+      "5545998346739",
+      "5521993112172",
+      "5511998919064",
+      "5561999331023",
+      "5527981510408",
+      "5511959591779",
+      "5511984586099",
+      "5527995312210",
+      "5511963657301",
+      "5511982023170",
+      "5563999666557",
+      "5513991257524",
+      "5541984482510",
+      "5517997275046",
+      "5565992108573",
+      "5511950567256",
+      "5521986663161",
+      "5561998036209",
+      "5511964145005",
+      "5527988594457",
+      "5544991751956",
+      "5511988872546",
+      "5531992376182",
+      "5511959286994",
+      "5561981611444",
+      "5511913595962",
+      "5511965661342",
+      "5511990236859",
+      "5511966075468"
+      ,
+      "5531996518807",
+      "5561981568382",
+      "5585997000026",
+      "5511941425555",
+      "5511954559104",
+      "5561982291951",
+      "5516981022011",
+      "5567981088819",
+      "5511913199755",
+      "5521981398292"
+      ,
+      "5561999827236",
+      "5582999256474",
+      "5571986774893",
+      "5511991209477",
+      "5554991652190",
+      "5565984147402",
+      "5531989584058",
+      "5561981586629",
+      "5567996264412",
+      "5585992064384"
+      ,
+      "5583998569240",
+      "5531982087277",
+      "5513991953163",
+      "5562981449591",
+      "5583981881626",
+      "5511994724988",
+      "5521998867022",
+      "5575992218483",
+      "5571991079877",
+      "5561999765300",
+      "5511977768896",
+      "5511993357160",
+      "5511967110937",
+      "5571992273565",
+      "5549991950300",
+      "5511992512451",
+      "5531988198984",
+      "5548996811096",
+      "5581997511087",
+      "5547991202881",
+      "5521996872253",
+      "5522998021342",
+      "5565996190859",
+      "5511947539196",
+      "5527999494267",
+      "5511947583346",
+      "5521981327734",
+      "5549999647460",
+      "5511957031031",
+      "5563993049999",
+      "5584987986842",
+      "5571997304709",
+      "5561998527409",
+      "5511964335606",
+      "5511980530048",
+      "5581994800946",
+      "5548984741454",
+      "5542933005185",
+      "5516997489554",
+      "5511982814661",
+      "5532998306744",
+      "5521989962123",
+      "5532936183561",
+      "5521994931832",
+      "5521996050589",
+      "5521972555493",
+      "5511992332401",
+      "5519992764909",
+      "5559892799798",
+      "5521964644068",
+      "5575998554106",
+      "5561986211697",
+      "5569999078599",
+      "5512981198788",
+      "5581993856099",
+      "5571992927796",
+      "5535998797854",
+      "5565992561266",
+      "5579991351718",
+      "5586988830564",
+      "5565992709554",
+      "5511965279721",
+      "5561965661342",
+      "5561991762331",
+      "5511960287281",
+      "5511941906079",
+      "5533991278553",
+      "5531999714051",
+      "5511979501440",
+      "5599991458971",
+      "5585999274115",
+      "5547991927810",
+      "5511954347340",
+      "5521995113377",
+      "5521990354832",
+      "5511951941747",
+      "5521992986074",
+      "5561992159240",
+      "5511996936340",
+      "5581996610386",
+      "5551999653277",
+      "5527998611127",
+      "5521998811777",
+      "5511994185491",
+      "5521996442118",
+      "5514988109869",
+      "5521992915660",
+      "5511983231818",
+      "5521982222126",
+      "5527999422643",
+      "5541997316610",
+      "5586988160007",
+      "5521986917775",
+      "5541997689818",
+      "5541988692906",
+      "5561992199993",
+      "5551993588531",
+      "5511998119552",
+      "5527998049389",
+      "5531999108535",
+      "55913188817",
+      "5553999924289",
+      "5532991394238",
+      "5583998599540",
+      "5541991115151",
+      "5518996168341",
+      "5518998523262",
+      "5561981041465",
+      "5569984464600",
+      "5541996999788",
+      "55986588058",
+      "5521971957226",
+      "5581999284300",
+      "5534984093795",
+      "5511948413685",
+      "5541999292085",
+      "5511971688808",
+      "5511981110903",
+      "5565999822480",
+      "5519993388617",
+      "5571992812316",
+      "5511982667563",
+      "5521969003274",
+      "5511950959190",
+      "5547992126813",
+      "5521985880074",
+      "5521964986958",
+      "5511994975151",
+      "5531975189194",
+      "5517997353020",
+      "5519999580981",
+      "5543998307690",
+      "5519993278795",
+      "5527999463639",
+      "5561992044661",
+      "5561996559460",
+      "5521974813274",
+      "5511951929408",
+      "5517996744034",
+      "5511992346246",
+      "5544997604925",
+      "5549999678432",
+      "5531998685731",
+      "5514991677838",
+      "5511947361656",
+      "5541995239777",
+      "5527999692578",
+      "5521999581999",
+      "5581992982199",
+      "5541984052115",
+      "5511982730801",
+      "5531993673022",
+      "5561981020719",
+      "5515997664507",
+      "5531971095812",
+      "5541991230078",
+      "5511982136163",
+      "5561984381366",
+      "5513982320028",
+      "5516997084503",
+      "5511972568660",
+      "5581987919696",
+      "5511972206131",
+      "5541995167525",
+      "5592999810256",
+      "5581988440860",
+      "5584999999299",
+      "5521964298307",
+      "5561983356276",
+      "5581993887294",
+      "5511980514631",
+      "5511974851324",
+      "5584991450334",
+      "5511914525522",
+      "5547989264442",
+      "5581991930351",
+      "5511972721401",
+      "5511996394555",
+      "5511947422418",
+      "5547991531894",
+      "5543999300726",
+      "5521981417629",
+      "5519982937979",
+      "5537998723411",
+      "5598985777830",
+      "5511975245479",
+      "5517991906726",
+      "5563985131822",
+      "5599982342648",
+      "5534999742534",
+      "5554992663910",
+      "5511985624785",
+      "5521996025210",
+      "5532999399124",
+      "5588997136860",
+      "5561999837477",
+      "5551965781245",
+      "5521996673924",
+      "5511994580890",
+      "5511986544564",
+      "5551997001457",
+      "5519999505223",
+      "5561995291154",
+      "5542999776578",
+      "5555996477835",
+      "5519987390743",
+      "5561998498181",
+      "5511991062575",
+      "5561993125369",
+      "5565981383340",
+      "5511984678193",
+      "5547996697636",
+      "5592993775266",
+      "5519992859218",
+      "5515997612701",
+      "5511998701084",
+      "5581996002474",
+      "5511960787336",
+      "5565999957525",
+      "5521973110611",
+      "554588032464",
+      "5564981194088",
+      "5547997709913",
+      "5541999955588",
+      "5571999268713",
+      "5521975485127",
+      "5582993274360",
+      "5599984943604",
+      "5516991591471",
+      "5599992243717",
+      "5511988842881",
+      "5511988718190",
+      "5511934165086",
+      "5511967901940",
+      "5521991861006",
+      "5521986946689",
+      "5531987256130",
+      "5585981112421",
+      "5521985474249",
+      "5521970531596",
+      "5594984429567",
+      "5533984558282",
+      "5585996137007",
+      "5521951015584",
+      "5599981382233",
+      "5511989690665",
+      "5562999077093",
+      "5547999452513",
+      "5521967314595",
+      "5585985494922",
+      "5513996681573",
+      "5519982715360",
+      "5531988494923",
+      "5541997034576",
+      "5517981011234",
+      "5521966832161",
+      "5581991960351",
+      "5561992713552",
+      "5511998289910",
+      "5571996956281"
+    ],
+    "names": [
+      "Bruna",
+      "Amilton",
+      "Carlos",
+      "Lucas",
+      "Matteo",
+      "Rodrigo",
+      "Gleison",
+      "Fabiola",
+      "Giovanne",
+      "Roberto",
+      "Adam",
+      "Ana",
+      "Vanessa",
+      "Amaury",
+      "Bruno",
+      "Alexandre",
+      "Carluan",
+      "Cely",
+      "Aline",
+      "Gabriel",
+      "Guilherme",
+      "Leandro",
+      "Italo",
+      "Jefferson",
+      "Jessica",
+      "Jose",
+      "Leidervan",
+      "Robson",
+      "Vitor",
+      "Vinicius",
+      "Rogerio",
+      "Tiago",
+      "Marcus",
+      "Ismael",
+      "Alberto",
+      "Daniel",
+      "Pedro",
+      "Renata",
+      "Sabrina",
+      "Nicole",
+      "Norberto",
+      "Felipe",
+      "Felippe",
+      "Phelipe",
+      "caroline",
+      "Carlos",
+      "Marcelo",
+      "Maikon",
+      "José",
+      "Paula",
+      "Raphael",
+      "Fabricio",
+      "Luis",
+      "Marcos",
+      "Layla",
+      "Rafael",
+      "Veronica",
+      "Ricardo",
+      "Antonieta",
+      "Helton",
+      "Priscilla",
+      "Gabriela",
+      "Bernardo",
+      "Clayton",
+      "Naiara",
+      "Caio",
+      "Carolina"
+      ,
+      "Denis",
+      "Vítor",
+      "Sócrates",
+      "Cintia",
+      "Patrícia",
+      "Giseli",
+      "Rhayane",
+      "Thiago",
+      "Ellen",
+      "Ryan"
+      ,
+      "Francisco",
+      "David",
+      "Jorge",
+      "Uerley",
+      "Anthony",
+      "Larissa",
+      "Ighor",
+      "Sávio",
+      "Camila",
+      "Alice",
+      "João",
+      "Daniela",
+      "Felippo",
+      "Walfrido",
+      "Andréia",
+      "Laura",
+      "Rita",
+      "Samuel",
+      "Aldo",
+      "Cristian",
+      "Demétrio",
+      "Tati",
+      "Henrique",
+      "Daniele",
+      "Diana",
+      "Juliana",
+      "Edwin",
+      "Andrey",
+      "Eliana",
+      "Emanuel",
+      "Valéria",
+      "Alexandro",
+      "Kamila",
+      "Alessandro",
+      "Américo",
+      "Sabrícia",
+      "Emerson",
+      "Cris",
+      "Fernando",
+      "Joelma",
+      "Vicente",
+      "Vicky",
+      "Wesley",
+      "Fabiano",
+      "George",
+      "Kaio",
+      "Giovane",
+      "Gonçalo",
+      "Gustavo",
+      "Isabela",
+      "Jaqueline",
+      "Julia",
+      "Laialy",
+      "Leonardo",
+      "Rogério",
+      "Ivon",
+      "Rúblia",
+      "Thallis",
+      "Viviani",
+      "Otávia",
+      "Sarah",
+      "Larisse",
+      "Ederson",
+      "Ramires",
+      "Yago",
+      "Yuri",
+      "Luciane",
+      "Ester",
+      "Juliano",
+      "Diogenes",
+      "Ariana",
+      "Juliane",
+      "Leonam",
+      "Fernanda",
+      "Luiza",
+      "Lorena",
+      "Helena",
+      "Karina",
+      "Hugo",
+      "Antonio",
+      "Amanda",
+      "Caio",
+      "Daniel",
+      "Gabriel",
+      "Ana",
+      "Thiago",
+      "Lia",
+      "Luci",
+      "Laura",
+      "Nathan",
+      "Anderson",
+      "Carlos",
+      "Danrlei",
+      "Francisco",
+      "Jorge",
+      "João",
+      "Luiz",
+      "Nestor",
+      "Nilson",
+      "Rodrigo",
+      "Andréa",
+      "Vivian",
+      "Dourado",
+      "William",
+      "Nuno",
+      "Rafaela",
+      "Julio",
+      "Kallen",
+      "Rui",
+      "Loreto",
+      "Felipe",
+      "Bruno",
+      "Pedro",
+      "Gabriel",
+      "Rafael",
+      "Rogerio",
+      "Marcelo",
+      "Henrique",
+      "Rhayane",
+      "Tatiana",
+      "Marcelo",
+      "Fábio",
+      "Junior",
+      "Rafael",
+      "Jorge",
+      "Gabriel",
+      "Talles",
+      "Antonio",
+      "Bruno",
+      "Victor",
+      "Flavio",
+      "Gleidson",
+      "Jeison",
+      "Gustavo",
+      "André",
+      "Matheus",
+      "Jefferson",
+      "Felipe",
+      "Renato",
+      "Diego",
+      "Bruna",
+      "Cristiana",
+      "Lyncon",
+      "Pedro",
+      "Bruno",
+      "Raphael",
+      "Vinicius",
+      "Felipe",
+      "Carlos",
+      "Rogerio",
+      "Pedro",
+      "Aquiles",
+      "Luiz",
+      "Marcos",
+      "José",
+      "Adriano",
+      "Lucas",
+      "Matheus",
+      "Aline",
+      "Antônio",
+      "Bruno",
+      "Carlos",
+      "Fabricio",
+      "Jessica",
+      "Magaly",
+      "Regiane",
+      "Thiago",
+      "Henrique",
+      "Marcelino",
+      "Bruno",
+      "Ana",
+      "Diego",
+      "Eduardo",
+      "Guilherme",
+      "Jose",
+      "Larissa",
+      "Pâmella",
+      "Vitor",
+      "Girese",
+      "Hromeu",
+      "Lucio",
+      "Maycon",
+      "Renan",
+      "Teresinha",
+      "Tico",
+      "Mônica",
+      "Andrea",
+      "Roberto",
+      "Débora",
+      "Claudemir",
+      "Priscila",
+      "Sheila",
+      "Rosangela",
+      "Rafaele",
+      "Saulo",
+      "Jeff",
+      "Silveria",
+      "Juan",
+      "Elisa",
+      "Luis",
+      "Ivo",
+      "Carla",
+      "Igor",
+      "Branda",
+      "Lais",
+      "Giovanni",
+      "Valdir",
+      "Diego",
+      "Erick",
+      "Fulvio",
+      "Luan",
+      "Pedro",
+      "Sidney",
+      "Silvio",
+      "Mateus",
+      "Patricia",
+      "Mike",
+      "Laura",
+      "Alex",
+      "Wesley",
+      "Alexandre",
+      "Ricardo",
+      "Rodrigo",
+      "Daniella",
+      "Fábio",
+      "Matheus",
+      "Ana",
+      "Leandro",
+      "Priscila",
+      "Daniel",
+      "Marcos",
+      "Renata",
+      "Lucas",
+      "Paula",
+      "Amanda",
+      "Fabiano",
+      "Amanda",
+      "Vanessa",
+      "Alec",
+      "Luiz",
+      "Bruno",
+      "Diego",
+      "Bruno",
+      "Diego",
+      "Jessica",
+      "Marcelo",
+      "Felipe",
+      "Nicole"
+    ]
+  }
+}

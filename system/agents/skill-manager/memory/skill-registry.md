@@ -47,3 +47,7 @@
 | run-daily-checkin | day-manager | Organiza um check-in diário com prioridades, compromissos, capturas e próximo passo |
 | review-calendar-day | day-manager | Lê o Google Calendar do dia e transforma eventos em visão prática de agenda, conflitos e janelas úteis |
 | send-personal-whatsapp | whatsapp-manager | Opera o WhatsApp pessoal com estrutura local do AgentOS, via workspace evolution-api-agent e perfil padrão pessoal |
+| consolidate-customer-intelligence | customer-intelligence-manager | Consolida transcrições, pesquisas, anotações e insights do Bóris em memória acionável com implicações para produto, comercial, conteúdo, suporte e operações |
+| shape-live-episode | youtube-live-producer | Estrutura o episódio ao vivo antes da produção, definindo promessa, convidado, pauta, blocos e CTA |
+| assemble-live-publish-kit | youtube-live-producer | Monta o pacote de publicação da live com título, descrição, briefing de capa e elementos de conversão |
+| run-live-show-flow | youtube-live-producer | Prepara a execução da transmissão com roteiro de host, checklist de live e desdobramentos pós-evento |

@@ -11,6 +11,10 @@ owner: Mateus
 
 Centralizar a operação do Boris no Codex, com áreas separadas para estratégia de produto, crescimento comercial, produção de conteúdo, operação interna e suporte.
 
+## Projetos Ativos
+
+- `customer-intelligence-dashboard` — Dashboard standalone para visualizar reuniões, sínteses e padrões recorrentes da inteligência do cliente do Bóris.
+
 ## Areas
 
 | Area | Propósito | Agentes | Times |

@@ -39,10 +39,10 @@
 ## Estatísticas
 
 - Spaces: 3
-- Areas: 7
-- Agentes do usuário: 7
+- Areas: 9
+- Agentes do usuário: 12
 - Times: 0
-- Skills do usuário: 27
+- Skills do usuário: 31
 
 ## Hooks
 
@@ -70,13 +70,31 @@ O sistema agora formaliza uma camada de memória viva para o cotidiano no space 
 
 Essa camada existe para reduzir dependência do histórico de conversa em assuntos operacionais recorrentes.
 
+## Gestão Financeira Doméstica
+
+O space `pessoal` agora também formaliza uma frente simples de finanças da casa:
+- `spaces/pessoal/areas/financas/agents/household-finance-manager/` — agente para consolidar extratos, contas previstas, dívidas e runway
+- `spaces/pessoal/areas/financas/memory/resumo-atual.md` — snapshot financeiro corrente
+- `spaces/pessoal/areas/financas/memory/contas-previstas.md` — compromissos e vencimentos futuros
+- `spaces/pessoal/areas/financas/memory/dividas.md` — pendências e parcelamentos visíveis
+
 ## Integrações Operacionais
 
 - Google Calendar deve usar por padrão as credenciais `GOOGLE_CALENDAR_*` carregadas do `.env` raiz do projeto principal.
 - O calendário principal da conta é o default operacional; calendários alternativos só entram quando o pedido explicitar esse destino.
+- O space `empresa/infra` agora concentra operação segura de cPanel com token em Keychain do macOS e fallback por interface web quando necessário.
+
+## Frentes Editoriais Oficiais
+
+- `boris/conteudo/youtube-live-producer` formaliza a produção de séries ao vivo no YouTube com convidados da comunidade Automate, incluindo pauta, pacote de publicação e operação de transmissão.
+
+## Camadas de Inteligência do Boris
+
+- `boris/produto/customer-intelligence-manager` formaliza a consolidação de reuniões, pesquisas e insights do cliente em memória acionável para decisões técnicas e estratégicas.
+- `spaces/boris/projects/customer-intelligence-dashboard/` passa a ser o projeto standalone inicial de visualização dessa camada em formato de dashboard próprio.
 
 ## Última Alteração
 
-- **Data:** 2026-04-09
-- **O que mudou:** O sistema passou a formalizar que integrações com Google Calendar devem usar por padrão as credenciais `GOOGLE_CALENDAR_*` do `.env` raiz do projeto principal.
+- **Data:** 2026-05-24
+- **O que mudou:** Criado o projeto standalone `spaces/boris/projects/customer-intelligence-dashboard/` para visualizar a inteligência do cliente do Bóris fora do `boris-painel`, mantendo o acervo oficial em `resources/`.
 - **Agente:** kernel

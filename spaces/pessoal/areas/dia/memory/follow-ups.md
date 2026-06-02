@@ -4,6 +4,7 @@ Use este arquivo para tudo que depende de terceiros, resposta pendente, retorno 
 
 ## Itens Ativos
 
+- 2026-06-02 | Churrasco 06/06 | Planejar convidados, compras, bebidas, itens de apoio, logística e preparo do churrasco de `06/06`.
 - 2026-04-15 | Justa Pena / Bernardo Torres Hungaro | Cliente ativo pedindo boleto do mês e ajuste para cobrança no início do mês. Aguardar retorno prometido por ele ou regularização do fluxo de cobrança.
 - 2026-04-15 | Luís Felipe / comunidade | Lead novo quente via WhatsApp. Consolidar contexto dos áudios e responder orientando se seguimos por mensagem ou call.
 - 2026-04-22 | Guilherme Amorim / contabilidade | Reunião presencial confirmada para quarta, 22/04/2026, às 15h.

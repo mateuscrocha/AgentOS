@@ -31,12 +31,16 @@
 | Agente | Escopo | Descrição | Status |
 |---|---|---|---|
 | product-manager | boris/produto | Lidera estratégia, discovery, priorização e estrutura de produto do Boris | Ativo |
+| customer-intelligence-manager | boris/produto | Consolida reuniões, pesquisas e insights do Bóris em inteligência acionável para decisões técnicas e estratégicas | Ativo |
 | sales-operator | boris/comercial | Conduz operação comercial, pipeline e execução de follow-ups do Boris | Ativo |
+| enap-opportunity-manager | boris/comercial | Organiza a frente ENAP e transforma conversas, editais e sinais institucionais em decisões práticas para o Bóris | Ativo |
 | editorial-strategist | boris/conteudo | Lidera estratégia editorial, calendário e alinhamento de conteúdo do Boris | Ativo |
+| youtube-live-producer | boris/conteudo | Orquestra a produção editorial e operacional de séries ao vivo no YouTube com convidados da comunidade Automate | Ativo |
 | operations-manager | boris/operacoes | Organiza processos, rituais e execução operacional do Boris | Ativo |
 | support-manager | boris/suporte | Estrutura atendimento, base de conhecimento e resolução de demandas do Boris | Ativo |
 | day-manager | pessoal/dia | Organiza prioridades, agenda operacional e fechamento do dia pessoal | Ativo |
 | whatsapp-manager | pessoal/comunicacao | Opera o WhatsApp pessoal via Evolution API e centraliza esse canal no AgentOS | Ativo |
+| household-finance-manager | pessoal/financas | Organiza as finanças da casa com foco em previsibilidade, dívidas e runway do caixa | Ativo |
 
 ## Spaces do Usuário
 
@@ -44,7 +48,7 @@
 |---|---|---|---|
 | boris | produto, comercial, conteudo, operacoes, suporte | Operação principal do Boris no AgentOS | Ativo |
 | empresa | — | Informações institucionais, legais e operacionais da empresa | Ativo |
-| pessoal | dia | Projetos pessoais e gestão do dia a dia | Ativo |
+| pessoal | dia, comunicacao, financas | Projetos pessoais, rotina, comunicação e gestão financeira doméstica | Ativo |
 
 ## Áreas do Usuário
 
@@ -57,3 +61,4 @@
 | boris | suporte | Atendimento, base de conhecimento e resolução de demandas | Ativo |
 | pessoal | dia | Planejamento diário, prioridades, foco e fechamento do dia | Ativo |
 | pessoal | comunicacao | WhatsApp pessoal, Evolution API e rotinas de comunicação | Ativo |
+| pessoal | financas | Previsibilidade das contas da casa, dívidas e controle financeiro simples | Ativo |

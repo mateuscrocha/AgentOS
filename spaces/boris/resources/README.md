@@ -9,6 +9,7 @@ Este diretório concentra a biblioteca operacional do `boris` dentro do AgentOS.
 - `editorial/`
 - `audio/`
 - `comercial/`
+- `inteligencia-cliente/`
 - `leads/`
 - `reunioes/`
 - `skills/`
@@ -26,6 +27,7 @@ Tudo que antes estava espalhado em pastas externas foi consolidado aqui, preserv
 - Linha editorial: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/editorial`
 - Áudios: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/audio`
 - Comercial: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/comercial`
+- Inteligência do cliente: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/inteligencia-cliente`
 - Leads: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/leads`
 - Reuniões: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/reunioes`
 - Skills especialistas: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/skills`
@@ -37,6 +39,7 @@ Tudo que antes estava espalhado em pastas externas foi consolidado aqui, preserv
 - `editorial/`: estratégia, pain library, assets editoriais, calendários e source of truth
 - `audio/`: sistema de vozes, scripts, campanhas e saídas de áudio
 - `comercial/`: metodologia, playbooks, checklist de migração, contas e organização comercial específica do Boris
+- `inteligencia-cliente/`: pesquisas, memos e sínteses transversais que ajudam decisões técnicas e estratégicas
 - `leads/`: base comercial, propostas, segmentos e arquivos de apoio
 - `reunioes/`: transcrições, resumos, decisões e próximos passos de calls que alimentam comercial, produto, suporte, operação e conteúdo
 - `skills/`: biblioteca especializada reutilizável do Boris para imagem, áudio, estratégia, produto, comercial e orquestração

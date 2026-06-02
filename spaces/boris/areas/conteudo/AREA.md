@@ -16,6 +16,7 @@ Planejar, produzir e adaptar conteúdo editorial, campanhas e materiais de comun
 | Agente | Papel | Status |
 |---|---|---|
 | editorial-strategist | Estratégia editorial e campanhas | Ativo |
+| youtube-live-producer | Produção editorial e operacional de séries ao vivo no YouTube | Ativo |
 
 ## Times
 

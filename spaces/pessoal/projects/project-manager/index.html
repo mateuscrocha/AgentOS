@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Project Manager</title>
+    <link rel="stylesheet" href="./vendor/frappe-gantt.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="masthead">
+        <div class="brand-block">
+          <p class="kicker">Project Manager</p>
+          <h1 id="page-title">Linha viva dos seus projetos</h1>
+          <p id="focus-summary" class="lede"></p>
+        </div>
+
+        <div class="ritual-card">
+          <span>ritual</span>
+          <strong id="next-check-in"></strong>
+          <p id="last-updated"></p>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="timeline-stage">
+          <div class="toolbar">
+            <div>
+              <p class="kicker">Visão temporal</p>
+              <h2>Timeline operacional</h2>
+            </div>
+
+            <div class="toolbar-actions">
+              <button type="button" data-view="Day" class="toolbar-chip is-active">Dia</button>
+              <button type="button" data-view="Week" class="toolbar-chip">Semana</button>
+              <button type="button" data-view="Month" class="toolbar-chip">Mês</button>
+            </div>
+          </div>
+
+          <div class="timeline-frame">
+            <svg id="gantt"></svg>
+          </div>
+
+          <div class="snapshot-grid" id="metrics"></div>
+        </section>
+
+        <aside class="side-rail">
+          <section class="panel current-panel">
+            <p class="kicker">Agora</p>
+            <h3 id="current-mode"></h3>
+            <p id="focus-title" class="focus-text"></p>
+          </section>
+
+          <section class="panel inspector-panel">
+            <div class="panel-head">
+              <p class="kicker">Leitura do evento</p>
+              <span id="selected-tag" class="pill">selecione um ponto</span>
+            </div>
+            <h3 id="selected-title">Nenhum evento selecionado</h3>
+            <p id="selected-description" class="muted">
+              Clique em um item da timeline para ver contexto, decisões e próximos passos.
+            </p>
+            <div class="inspector-meta" id="selected-meta"></div>
+          </section>
+
+          <section class="panel list-panel">
+            <div class="panel-head">
+              <p class="kicker">Prioridades</p>
+            </div>
+            <ul class="clean-list" id="priorities-list"></ul>
+          </section>
+
+          <section class="panel list-panel">
+            <div class="panel-head">
+              <p class="kicker">Bloqueios</p>
+            </div>
+            <ul class="clean-list" id="blockers-list"></ul>
+          </section>
+        </aside>
+      </main>
+
+      <section class="bottom-grid">
+        <section class="panel projects-panel">
+          <div class="panel-head spread">
+            <div>
+              <p class="kicker">Mapa de projetos</p>
+              <h3>Frentes ativas</h3>
+            </div>
+            <div class="mini-command">
+              <span>Use comigo:</span>
+              <code>"Hoje o projeto X travou por causa Y"</code>
+            </div>
+          </div>
+          <div class="project-deck" id="projects-grid"></div>
+        </section>
+
+        <section class="panel actions-panel">
+          <div class="panel-head">
+            <div>
+              <p class="kicker">Próximos passos</p>
+              <h3>Manutenção diária</h3>
+            </div>
+          </div>
+          <div class="next-actions-list" id="next-actions-list"></div>
+        </section>
+      </section>
+    </div>
+
+    <script src="./vendor/frappe-gantt.umd.js"></script>
+    <script src="./state.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

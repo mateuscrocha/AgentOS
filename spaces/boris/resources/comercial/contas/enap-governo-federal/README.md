@@ -15,8 +15,9 @@ Organizar, no mesmo lugar:
 
 ## Estrutura
 
+- `00-links-uteis.md`: URLs de referência da frente
 - `00-visao-geral/`: base estratégica da oportunidade
-- `01-pre-proposta/`: materiais de apresentação e narrativa
+- `01-pre-proposta/`: materiais de apresentação, narrativa e projetos de entrada
 - `02-proximas-acoes/`: plano operacional e prioridades do ciclo
 - `03-reunioes/`: transcrições e resumos das conversas
 - `04-editais/`: PDFs, resumos e fichas por edital
@@ -32,6 +33,7 @@ Organizar, no mesmo lugar:
 
 ## Uso prático
 
+- se quiser pegar links rápidos: `00-links-uteis.md`
 - se quiser entender a frente: `00-visao-geral/`
 - se quiser apresentar a frente: `01-pre-proposta/`
 - se quiser executar: `02-proximas-acoes/`

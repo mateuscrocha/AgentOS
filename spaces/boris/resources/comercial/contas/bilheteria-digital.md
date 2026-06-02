@@ -109,6 +109,9 @@
 - em `2026-04-14`, Guilherme confirmou que o NDA foi enviado apenas com os dados do usuário
 - em `2026-04-14`, o usuário confirmou que o NDA foi verificado e assinado
 - em `2026-04-14`, a conversa avançou para a próxima etapa operacional: escolha dos grupos iniciais do piloto
+- em `2026-05-26`, o usuário enviou um vídeo com overview do painel do Bóris em um grupo da BD
+- em `2026-05-28`, houve feedback explícito de que a ferramenta parece muito boa e abre várias possibilidades úteis para a operação
+- em `2026-05-29`, Matheus Prado aprofundou perguntas objetivas sobre o resumo/contexto das tratativas e o período analisado
 - receber os links de convite dos grupos escolhidos pela BD
 - cadastrar Bóris em modo `spy`
 - liberar acesso ao painel para avaliacao
@@ -126,10 +129,25 @@
 - foi sinalizado que o ideal e seguir a assinatura apenas pelo usuario como representante operacional
 - em `2026-04-14`, Guilherme confirmou que o documento foi enviado somente com os dados do usuario
 - em `2026-04-14`, o NDA foi assinado e a conta avancou para a definicao de alguns grupos iniciais
-- status atual: `nda resolvido e piloto em preparacao`
+- em `2026-05-26`, o usuario enviou um video de overview do painel para o time da Bilheteria Digital
+- em `2026-05-28`, o time devolveu feedback positivo dizendo que a ferramenta parecia muito boa e que havia uma infinidade de usos internos possiveis
+- em `2026-05-29`, Matheus Prado perguntou explicitamente sobre contexto e resumo das tratativas, e validou o modelo diario do resumo
+- status atual: `feedback positivo recebido e piloto voltando para a mesa`
+
+## Leitura de Interesse Mais Recente
+
+- o video ajudou a reaquecer a conta em um momento em que o time estava enrolado internamente
+- o feedback nao foi superficial:
+  - houve elogio direto
+  - houve leitura de valor pratico
+  - houve pergunta especifica sobre resumo/contexto das tratativas
+- a pergunta sobre periodo mostra que o time ja esta tentando encaixar o Bóris no uso real
+- isso indica que a conta nao morreu; ela estava sem capacidade de avancar e voltou a olhar com atencao
 
 ## Leitura Comercial
 
 - nao tratar como demo generica
 - essa conta pede piloto orientado por volume, operacao e regra de negocio
 - o argumento mais forte nao e resumo puro; e inteligencia operacional de atendimento
+- o resumo diario apareceu como ponto de interesse concreto para uso gerencial
+- vale retomar a conversa puxando o proximo passo de implantacao, e nao mais apresentacao

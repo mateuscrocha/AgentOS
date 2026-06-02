@@ -4,6 +4,7 @@ Use este arquivo para capturas rápidas, entradas brutas, ideias, preocupações
 
 ## Entradas
 
+- 2026-06-02 | usuário | Quer usar esta thread como ajudante para planejar um churrasco no dia `06/06`.
 - 2026-04-07 | inicialização | Inbox vivo criado. Próximas capturas do cotidiano devem entrar aqui antes de serem estruturadas.
 - 2026-04-07 | usuário | Já há coisas planejadas para amanhã, mas sem detalhes informados nesta conversa.
 - 2026-04-07 | usuário | Quer apenas que, ao puxar as tarefas de amanhã, os itens da Jezilene no painel e no CRM apareçam registrados.

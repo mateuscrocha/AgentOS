@@ -1,0 +1,15 @@
+{
+  "categoryRules": {
+    "porks aguas claras": "Lazer",
+    "ticketmais": "Lazer",
+    "marcilea back da silva": "Lazer"
+  },
+  "applicabilityOverrides": {
+    "mai-alice-01": true,
+    "mai-alice-17": false,
+    "mai-alice-19": false,
+    "mai-alice-20": false,
+    "mai-alice-21": false,
+    "mai-alice-58": true
+  }
+}

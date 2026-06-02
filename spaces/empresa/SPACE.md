@@ -15,7 +15,7 @@ Centralizar no AgentOS as informações oficiais da empresa por trás do Bóris,
 
 | Area | Propósito | Agentes | Times |
 |---|---|---|---|
-| — | Escopo criado sem áreas iniciais; abrir conforme a operação pedir | — | — |
+| infra | Operar infraestrutura externa, painéis administrativos e integrações operacionais da empresa | cpanel-operator | — |
 
 ## Memória
 

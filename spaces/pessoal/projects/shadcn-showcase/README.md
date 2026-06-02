@@ -1,0 +1,94 @@
+# AgentOS Shadcn Showcase
+
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+Workspace de referência do AgentOS para novos projetos web com **`shadcn/ui`**.
+Ele reaproveita uma base técnica compatível com `shadcn/ui` e funciona como base prática para iniciar interfaces
+com componentes de chat, suporte, threads e tickets antes de cair para UI customizada.
+
+![shadcn showcase](screenshots/main.png)
+
+## Themes
+
+<table>
+  <tr>
+    <td><img src="screenshots/messaging_auora.png" alt="Aurora theme" width="400" /></td>
+    <td><img src="screenshots/support_ember.png" alt="Ember theme" width="400" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Aurora</strong> — Messaging</td>
+    <td align="center"><strong>Ember</strong> — Support</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><img src="screenshots/code_preview.png" alt="Code blocks and file attachments" width="400" /></td>
+    <td><img src="screenshots/thread_midnight.png" alt="Threads Midnight" width="400" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Lunar</strong> — Code blocks, file attachments, link previews</td>
+    <td align="center"><strong>Midnight</strong> — Threads</td>
+  </tr>
+</table>
+
+## Features
+
+- **Messages** — Bubbles, grouping, replies, reactions, read receipts
+- **Composer** — Rich input with drag-and-drop file upload, voice recording
+- **Media** — Images, files, voice messages, code blocks, link previews
+- **Threads** — Flat and nested threading
+- **Conversations** — Sidebar with search, unread counts, presence
+- **4 Themes** — Lunar, Aurora, Ember, Midnight
+- **5 Layouts** — FullMessenger, ChatWidget, InlineChat, ChatBoard, LiveChat
+- **Accessible** — Keyboard navigation, screen reader support, reduced motion
+- **TypeScript** — Fully typed props and exports
+
+## Uso no AgentOS
+
+- Quando um novo projeto web não trouxer outra stack explícita, esta é a referência padrão.
+- Priorize os componentes e layouts do ecossistema `shadcn/ui` antes de criar blocos próprios.
+- Use este workspace para consultar composição, temas, layouts e patterns de interação.
+
+## Como rodar
+
+```bash
+npm install
+npm run dev
+```
+
+Abra `http://localhost:3000`.
+
+## Registry oficial atual
+
+```bash
+npx shadcn@latest add https://raw.githubusercontent.com/leonickson1/chatcn/main/public/r/chat.json
+```
+
+Then import and use:
+
+```tsx
+import { ChatProvider, ChatMessages, ChatComposer } from "@/components/ui/chat"
+import type { ChatUser } from "@/components/ui/chat"
+
+const currentUser: ChatUser = { id: "user-1", name: "You", status: "online" }
+
+export default function Chat() {
+  return (
+    <ChatProvider currentUser={currentUser} theme="lunar">
+      <div className="h-screen flex flex-col">
+        <ChatMessages messages={messages} />
+        <ChatComposer onSend={(text) => console.log(text)} />
+      </div>
+    </ChatProvider>
+  )
+}
+```
+
+## Documentação
+
+Referência técnica pública atual: [chatcn-iota.vercel.app/docs](https://chatcn-iota.vercel.app/docs).
+
+## License
+
+[MIT](LICENSE)

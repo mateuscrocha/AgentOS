@@ -140,12 +140,14 @@ Desenha uma interface para o painel
 Hoje, olhando o runtime atual, você já tem pelo menos estes agentes de negócio registrados:
 
 - `boris--comercial--sales-operator`
+- `boris--comercial--enap-opportunity-manager`
 - `boris--conteudo--editorial-strategist`
 - `boris--operacoes--operations-manager`
 - `boris--produto--product-manager`
 - `boris--suporte--support-manager`
 - `pessoal--comunicacao--whatsapp-manager`
 - `pessoal--dia--day-manager`
+- `pessoal--financas--household-finance-manager`
 
 Isso significa que você pode pedir coisas como:
 
@@ -154,6 +156,7 @@ Usa o product-manager do Bóris para pensar a estrutura de uma tela
 Usa o editorial-strategist para transformar isso em pauta
 Usa o whatsapp-manager para preparar uma mensagem
 Usa o day-manager para me ajudar com organização do dia
+Usa o household-finance-manager para consolidar minhas contas da casa
 Usa /agora captura preciso decidir o pagamento do casamento
 ```
 

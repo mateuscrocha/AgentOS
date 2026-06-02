@@ -1,5 +1,19 @@
 # CRM Como Fonte Oficial
 
+## Regra Permanente
+
+O Twenty nao e mais parte da operacao do Bóris.
+
+O CRM oficial agora existe dentro do painel do Bóris e deve ser tratado como unica fonte oficial da operacao comercial viva.
+
+Sempre que houver conflito entre memoria antiga, documentos legados, scripts antigos ou referencias ao Twenty, vale esta regra:
+
+- o Twenty esta descontinuado para o CRM do Bóris
+- o painel do Bóris e a fonte oficial atual
+- nao orientar operacao nova assumindo Twenty
+- nao diagnosticar casos comerciais partindo do Twenty como sistema principal
+- qualquer referencia ao Twenty deve ser tratada como contexto historico ou legado
+
 ## Objetivo
 
 Formalizar que o CRM do painel do Bóris e a fonte oficial da operacao comercial viva.

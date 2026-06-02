@@ -20,10 +20,12 @@ Estrutura um brief de post do Boris com dor principal, pilar editorial, formato,
 
 ## Processo
 
-1. Identificar a dor principal e o objetivo do conteúdo.
-2. Escolher o melhor pilar e formato para sustentar a mensagem.
-3. Definir hook, sequência de argumento, CTA e canal principal.
-4. Entregar um brief que já deixe clara a próxima etapa de copy, roteiro ou produção.
+1. Ler `spaces/boris/resources/content/strategy/published-topics-registry.md` antes de fechar o tema.
+2. Identificar a dor principal e o objetivo do conteúdo.
+3. Escolher o melhor pilar e formato para sustentar a mensagem.
+4. Verificar se a tese ou o ângulo repetem algo recente; se repetir, ajustar o recorte antes de seguir.
+5. Definir hook, sequência de argumento, CTA e canal principal.
+6. Entregar um brief que já deixe clara a próxima etapa de copy, roteiro ou produção.
 
 ## Inputs
 
@@ -46,3 +48,4 @@ Brief editorial com:
 1. Escolher uma dor principal e no máximo uma secundária.
 2. O post deve gerar leitura, decisão, reconhecimento ou ação concreta; nunca só presença vaga.
 3. Evitar hype, abstração e tese que não se conecte com operação real de grupos e WhatsApp.
+4. Antes de aprovar a pauta, comparar a tese com o registro de temas publicados para evitar repetição disfarçada.

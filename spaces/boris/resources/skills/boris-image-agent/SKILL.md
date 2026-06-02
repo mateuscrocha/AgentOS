@@ -39,13 +39,24 @@ Practical meaning:
 7. Read `references/mateus-raised-eyebrow-reference-pack.md` when Mateus should appear curious, intrigued, skeptical in a lighter way, surprised in a controlled way, or with one eyebrow raised for thumbnail emphasis.
 8. Read `references/boris-pose-variation.md` when the request benefits from a new pose, gesture, prop, or more dynamism.
 9. If the request involves a screen, dashboard, panel, admin, SaaS, or interface, also read `references/boris-admin-ui-reference.md`.
-10. If the request includes an official editorial persona or named recurring character, read `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/audio/referencias/boris-character-voice-system.md` to keep character identity aligned across image and audio systems.
-11. Confirm all required reference images are attached and available locally.
-12. If any required reference is missing, ask for it before generating.
-13. Build a prompt spec with scene, style, framing, lighting, constraints, and avoid list.
-14. Repeat invariants explicitly in every generation/edit run.
-15. For edits, change only requested items and preserve subject identity.
-16. Validate output against the identity checklist before final delivery.
+10. If the request is for a recurring Boris YouTube thumbnail or the user says to keep the approved thumbnail style, also read `references/boris-youtube-thumbnail-style.md`.
+11. If the request includes an official editorial persona or named recurring character, read `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/audio/referencias/boris-character-voice-system.md` to keep character identity aligned across image and audio systems.
+12. Confirm all required reference images are attached and available locally.
+13. If any required reference is missing, ask for it before generating.
+14. Build a prompt spec with scene, style, framing, lighting, constraints, and avoid list.
+15. Repeat invariants explicitly in every generation/edit run.
+16. For edits, change only requested items and preserve subject identity.
+17. Validate output against the identity checklist before final delivery.
+
+## Approved YouTube thumbnail series rule
+
+When the user approves a Boris YouTube thumbnail style for a recurring series:
+
+- treat `references/boris-youtube-thumbnail-style.md` as the default composition/style anchor for subsequent thumbnails in that line
+- keep Bóris as the protagonist when that file says the approved line is Boris solo
+- preserve the `Central de Comando` visual language as the interface anchor instead of reverting to generic tech dashboards
+- vary only the mechanism, pose, and topic emphasis from episode to episode
+- if a new request in the same series drifts toward a human presenter lead or dashboard-generic aesthetic, treat that as off-pattern unless the user explicitly asks for the change
 
 ## Persona-to-voice alignment
 

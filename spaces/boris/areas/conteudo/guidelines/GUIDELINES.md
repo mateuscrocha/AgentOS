@@ -15,7 +15,10 @@ Herda de `spaces/boris/guidelines/`.
 
 | Documento | Descrição |
 |---|---|
-| _Nenhum documento adicionado ainda_ | _Adicione arquivos .md neste diretório_ |
+| `youtube-lives-da-comunidade.md` | Direção editorial e operacional da série de lives no YouTube com convidados da comunidade Automate |
+| `mateus-rocha-thumbnail-references.md` | Referências visuais aprovadas de Mateus Rocha para uso recorrente como host nas thumbnails da série |
+| `leandro-guerra-thumbnail-references.md` | Leitura visual inicial e regras de uso de Leandro Guerra como convidado nas thumbnails da série |
+| `nicolas-cellani-thumbnail-references.md` | Leitura visual inicial e regras de uso de Nicolas Cellani como convidado nas thumbnails da série |
 
 ## Cross-References
 

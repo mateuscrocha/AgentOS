@@ -9,6 +9,7 @@ Este diretorio concentra a metodologia herdada da Enkrateia, os materiais adapta
 - `processos/`: playbooks, imports do legado, templates e checklist de migracao
 - `leads/`: listas, exports, snapshots de pipeline e organizacao de base
 - `contas/`: notas por empresa, oportunidade, reunioes e proximos passos
+- `prospeccao-mateus-rocha/`: projeto operacional da prospeccao atual via WhatsApp, com regra de lotes, copy viva e referencia do painel simples
 
 ## Regra de Organizacao
 

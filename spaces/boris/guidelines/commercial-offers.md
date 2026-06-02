@@ -20,7 +20,6 @@ Atualize este arquivo sempre que mudar:
 
 - nome de uma oferta
 - faixa de preco
-- setup
 - mensalidade
 - criterio de desconto
 - custo importante de operacao
@@ -34,9 +33,10 @@ Os nomes podem evoluir, mas esta estrutura vira a referencia compartilhada.
 | Oferta | ICP principal | Entrega | Modelo de cobranca | Faixa de preco | Status | Observacoes |
 |---|---|---|---|---|---|---|
 | Trial seletivo de 7 dias | Leads qualificados com dor clara e contexto real de grupo | Acesso guiado, demonstracao contextual e acompanhamento orientado para decisao | gratuito e curado | definir se existe limite ou criterio adicional | ativo | Nao e trial aberto. Deve sempre servir ao fechamento. |
-| Implantacao inicial Boris | Operacoes que ja enxergam valor e precisam entrar em uso real | Alinhamento inicial, definicao de grupos prioritarios, configuracao inicial e calibracao | setup unico | ainda nao definido neste arquivo | ativo | Usar como base para proposta de entrada. |
-| Acompanhamento mensal Boris | Clientes em operacao apos fase inicial | Acompanhamento da camada Boris, leitura operacional e ajustes da primeira fase ou rotina recorrente | mensalidade recorrente | R$ 350 por grupo por mes | ativo | Mensalidade padrao atual do Boris. Registrar excecoes comerciais quando existirem. |
-| Conta estrategica customizada | Franquias, operadores com varios grupos, ecossistemas parceiros e contas com efeito multiplicador | Escopo adaptado por conta, com proposta customizada | sob proposta | preencher regra oficial | ativo | Nao tratar como oferta padrao de caixa rapido. |
+| Boris Essencial | Operacoes pequenas ou primeiras entradas com poucos grupos | Acompanhamento direto do Boris em grupos prioritarios com leitura operacional recorrente | mensalidade recorrente por grupo | R$ 350 por grupo por mes | ativo | Faixa padrao para 1 a 9 grupos. E a ancora principal de valor do produto. |
+| Boris Escala | Operacoes com varios grupos, maior volume e necessidade de previsibilidade | Mesma logica do Boris, com desconto progressivo por volume e leitura em escala | mensalidade recorrente por grupo | R$ 320 a R$ 250 por grupo por mes | ativo | Usar a regua oficial de volume. Nao tratar como outro produto; e o mesmo Boris em escala. |
+| Boris Patrocinado | Grupos selecionados em que uma marca parceira subsidia a operacao | Resumo e leitura do Boris com insercoes contextuais curtas e controladas | cota mensal de patrocinio | R$ 750 a R$ 1.500 por grupo patrocinado por mes | ativo | Nao comunicar como gratis. E modelo subsidiado, seletivo e dependente de fit entre grupo, contexto e patrocinador. |
+| Conta estrategica customizada | Franquias, operadores com varios grupos, ecossistemas parceiros e contas com efeito multiplicador | Escopo adaptado por conta, com proposta customizada | sob proposta | a partir da regua oficial, com excecoes justificadas | ativo | Nao tratar como oferta padrao de caixa rapido. |
 
 ## Custos
 
@@ -45,8 +45,8 @@ Registrar aqui apenas custos que impactam decisao comercial, margem ou precifica
 | Item de custo | Tipo | Valor | Periodicidade | Relacao com a oferta | Observacoes |
 |---|---|---|---|---|---|
 | Infra ou ferramentas essenciais do Boris | fixo | preencher | mensal | todas | Usar esta linha para os custos-base que sustentam a operacao. |
-| Custo operacional de onboarding ou implantacao | variavel | preencher | por entrada | implantacao inicial | Se variar por conta, deixar a regra descrita. |
-| Custo operacional recorrente por grupo | variavel | R$ 100 por grupo | mensal | acompanhamento mensal | Lastro operacional adotado como referencia oficial atual. |
+| Custo operacional recorrente por grupo | variavel | R$ 100 por grupo | mensal | Boris Essencial e Boris Escala | Lastro operacional adotado como referencia oficial atual. |
+| Custo operacional do patrocinado | variavel | usar como minimo a cobertura do equivalente a 1 grupo mensal | mensal | Boris Patrocinado | O patrocinio nao deve nascer abaixo da sustentabilidade da operacao equivalente. |
 
 ## Premissas de custo atuais
 
@@ -59,6 +59,7 @@ Registrar aqui apenas custos que impactam decisao comercial, margem ou precifica
 - preco padrao atual: R$ 350 por grupo por mes
 - custo de referencia atual: R$ 100 por grupo por mes
 - sobra bruta de referencia por grupo: R$ 250 por grupo por mes
+- modelo patrocinado: deve nascer acima da assinatura direta, porque embute distribuicao contextual e presenca qualificada da marca
 - sempre que houver proposta fora da logica por grupo, registrar como excecao explicitamente
 
 ## Regua de desconto por volume
@@ -82,6 +83,36 @@ Objetivo: manter simplicidade comercial, previsibilidade e margem saudavel mesmo
 - abaixo de R$ 250 por grupo, tratar como excecao que exige justificativa comercial explicita
 - contas estrategicas com pedido fora desta regua devem ser registradas como proposta customizada
 
+## Regua do patrocinado
+
+Regra recomendada atual para o modelo subsidiado por marca.
+Objetivo: impedir que o patrocinado ensine o mercado a ler Boris como "gratis" e preservar a logica de midia contextual.
+
+| Faixa patrocinada | Preco sugerido | Leitura comercial |
+|---|---|---|
+| Entrada / piloto estrategico | R$ 750 por grupo por mes | Ancora oficial inicial para teste, piloto ou entrada estrategica. |
+| Preco padrao recomendado | R$ 900 por grupo por mes | Referencia principal de venda do patrocinado. |
+| Grupo premium ou nicho muito valioso | R$ 1.200 a R$ 1.500 por grupo por mes | Usar quando houver alta aderencia, nicho valioso e maior valor comercial para o patrocinador. |
+
+### Pacotes sugeridos do patrocinado
+
+| Escala patrocinada | Preco sugerido | Leitura comercial |
+|---|---|---|
+| 1 grupo patrocinado | R$ 900 por mes | Pacote base recomendado para venda recorrente. |
+| 3 grupos patrocinados | R$ 2.400 a R$ 2.700 por mes | Pacote com leve ganho de escala, mantendo premio de contexto. |
+| 5 grupos patrocinados | R$ 3.750 a R$ 4.250 por mes | Pacote comercial mais robusto para presenca em varios grupos aderentes. |
+| 10+ grupos patrocinados | sob proposta | Negociacao customizada conforme nicho, aderencia e volume. |
+
+### Regra de leitura do patrocinado
+
+- o patrocinado nao deve ser apresentado como plano gratis
+- o patrocinado deve valer mais que a assinatura direta equivalente, porque inclui distribuicao contextual
+- usar R$ 750 apenas como ancora de entrada, piloto ou excecao estrategica
+- usar R$ 900 por grupo como referencia principal de venda
+- reservar a faixa de R$ 1.200 a R$ 1.500 para grupos premium ou nichos muito valiosos
+- usar o patrocinado apenas quando houver aderencia clara entre audiencia, tema do grupo e interesse do patrocinador
+- se o patrocinador pedir escala acima de 5 grupos, tratar como proposta mais estruturada; acima de 10 grupos, sempre customizada
+
 ## Quando usar oferta padrao
 
 Usar oferta padrao quando:
@@ -97,68 +128,37 @@ Tratar como proposta customizada quando:
 
 - a conta pedir integracoes, fluxo especial ou camada extra de servico
 - houver muitos grupos com perfis muito diferentes entre si
-- a operacao exigir onboarding mais pesado ou desenho por fases
 - a conta quiser excecao forte de preco fora da regua
 - a oportunidade tiver peso estrategico relevante para prova, marca ou distribuicao
-
-## Regra simples de setup
-
-Enquanto nao houver outra definicao oficial, usar esta logica:
-
-- contas pequenas e diretas: setup opcional, caso a implantacao seja muito leve
-- contas com onboarding real, organizacao inicial e calibracao: cobrar setup separado
-- contas estrategicas ou com muitos grupos: setup recomendado como padrao
-
-## Regra de decisao sobre setup
-
-- se a venda envolver apenas entrada simples em poucos grupos, avaliar fechar sem setup
-- se houver trabalho claro de alinhamento, priorizacao, configuracao e calibracao inicial, cobrar setup
-- se a conta tiver 10 grupos ou mais, o setup deve ser considerado na proposta
-- se a conta for customizada, registrar o racional do setup na pasta da proposta
-
-## Regua objetiva de setup
-
-Usar esta regua como ancora comercial inicial:
-
-| Faixa de grupos | Setup recomendado | Leitura comercial |
-|---|---|---|
-| 1 a 9 grupos | R$ 0 a R$ 1.500 | Pode entrar sem setup se a implantacao for muito leve. Se houver onboarding real, usar setup enxuto. |
-| 10 a 19 grupos | R$ 3.000 | Ja existe organizacao inicial suficiente para justificar setup separado. |
-| 20 a 49 grupos | R$ 6.000 | Conta com onboarding relevante, priorizacao e calibracao mais robusta. |
-| 50 a 99 grupos | R$ 12.000 | Implantacao com peso operacional alto e necessidade de desenho mais cuidadoso. |
-| 100 grupos ou mais | R$ 20.000+ | Tratar como conta estrategica com setup sob proposta. |
-
-### Regra de uso do setup
-
-- usar o valor da faixa como ponto de partida, nao como teto absoluto
-- se a conta exigir muito menos esforco que a faixa sugere, justificar reducao na proposta
-- se a conta exigir muito mais esforco, tratar como proposta customizada
-- em contas de 100 grupos ou mais, o setup deve ser tratado como negociacao estrategica e nunca como automatismo
 
 ## Tabela comercial pronta para proposta
 
 Usar esta tabela quando for preciso responder rapido com uma ancora comercial completa.
 
-| Faixa de grupos | Mensalidade por grupo | Total mensal de referencia | Setup de referencia | Modelo recomendado |
+| Modelo | Faixa de grupos | Mensalidade ou cota | Total mensal de referencia | Modelo recomendado |
 |---|---|---|---|---|
-| 1 grupo | R$ 350 | R$ 350 | R$ 0 a R$ 1.500 | oferta padrao |
-| 10 grupos | R$ 320 | R$ 3.200 | R$ 3.000 | oferta padrao com volume |
-| 20 grupos | R$ 300 | R$ 6.000 | R$ 6.000 | oferta padrao com volume |
-| 30 grupos | R$ 285 | R$ 8.550 | R$ 6.000 | oferta padrao com volume |
-| 50 grupos | R$ 270 | R$ 13.500 | R$ 12.000 | proposta ampliada |
-| 100 grupos | R$ 250 | R$ 25.000 | R$ 20.000+ | proposta customizada estrategica |
+| Boris Essencial | 1 grupo | R$ 350 por grupo | R$ 350 | oferta padrao |
+| Boris Escala | 10 grupos | R$ 320 por grupo | R$ 3.200 | oferta padrao com volume |
+| Boris Escala | 20 grupos | R$ 300 por grupo | R$ 6.000 | oferta padrao com volume |
+| Boris Escala | 30 grupos | R$ 285 por grupo | R$ 8.550 | oferta padrao com volume |
+| Boris Escala | 50 grupos | R$ 270 por grupo | R$ 13.500 | proposta ampliada |
+| Boris Estrategico | 100 grupos | R$ 250 por grupo | R$ 25.000 | proposta customizada estrategica |
+| Boris Patrocinado | 1 grupo patrocinado | R$ 900 por grupo patrocinado | R$ 900 | patrocinado seletivo |
+| Boris Patrocinado | 3 grupos patrocinados | cota mensal de R$ 2.400 a R$ 2.700 | R$ 2.400 a R$ 2.700 | patrocinado seletivo |
+| Boris Patrocinado | 5 grupos patrocinados | cota mensal de R$ 3.750 a R$ 4.250 | R$ 3.750 a R$ 4.250 | patrocinado seletivo |
 
 ### Como apresentar
 
 - primeiro ancorar pelo numero de grupos
 - depois mostrar o valor por grupo
 - em seguida mostrar o total mensal
-- por fim explicar o setup como custo de entrada e organizacao inicial
+- se for patrocinado, explicar que a logica e de cota de patrocinio e nao de assinatura simples do operador
 
 ### Exemplo de leitura
 
-- conta pequena: pode entrar no plano padrao, com ou sem setup leve
-- conta media: entra em desconto por volume com setup separado
+- conta pequena: entra no Boris Essencial, com mensalidade direta por grupo
+- conta media: entra no Boris Escala, com desconto progressivo por volume
+- conta com patrocinador aderente: entra no Boris Patrocinado, desde que preserve a experiencia do grupo
 - conta grande: pede proposta mais estruturada, mesmo que a logica por grupo continue servindo de ancora
 
 ## Regras comerciais
@@ -171,7 +171,11 @@ Usar esta tabela quando for preciso responder rapido com uma ancora comercial co
 ## Estado atual
 
 Hoje este arquivo define o local canonico.
-Os valores oficiais ainda precisam ser preenchidos manualmente com base na operacao real.
+Os valores abaixo passam a valer como referencia comercial oficial atual:
+
+- Boris Essencial: R$ 350 por grupo por mes
+- Boris Escala: R$ 320 a R$ 250 por grupo por mes, conforme volume
+- Boris Patrocinado: R$ 750 por grupo patrocinado por mes como ancora de entrada, R$ 900 por grupo como referencia principal, e R$ 1.200 a R$ 1.500 para grupos premium ou nichos muito valiosos
 
 ## Observacao pratica
 

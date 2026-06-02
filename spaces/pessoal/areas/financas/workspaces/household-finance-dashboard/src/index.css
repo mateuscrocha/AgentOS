@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #f4f1ea;
+  --color-foreground: #1d241e;
+  --color-card: #ffffff;
+  --color-card-foreground: #1d241e;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #1d241e;
+  --color-primary: #244936;
+  --color-primary-foreground: #f8f7f2;
+  --color-secondary: #ebe6dc;
+  --color-secondary-foreground: #1d241e;
+  --color-muted: #efeae0;
+  --color-muted-foreground: #667069;
+  --color-accent: #efeae0;
+  --color-accent-foreground: #1d241e;
+  --color-destructive: #b74c37;
+  --color-destructive-foreground: #fff8f3;
+  --color-border: rgba(35, 52, 42, 0.1);
+  --color-input: rgba(35, 52, 42, 0.1);
+  --color-ring: rgba(36, 73, 54, 0.22);
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+}
+
+:root {
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--color-foreground);
+  background: var(--color-background);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(211, 226, 207, 0.7), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(228, 216, 197, 0.65), transparent 22%),
+    var(--color-background);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}

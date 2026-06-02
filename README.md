@@ -54,16 +54,20 @@ Se você abrir este repositório para se reorientar rápido, use este bloco como
 - `boris/suporte`
 - `pessoal/comunicacao`
 - `pessoal/dia`
+- `pessoal/financas`
 
 **Agentes de negócio já registrados**
 
 - `boris--comercial--sales-operator`
+- `boris--comercial--enap-opportunity-manager`
 - `boris--conteudo--editorial-strategist`
+- `boris--conteudo--youtube-live-producer`
 - `boris--operacoes--operations-manager`
 - `boris--produto--product-manager`
 - `boris--suporte--support-manager`
 - `pessoal--comunicacao--whatsapp-manager`
 - `pessoal--dia--day-manager`
+- `pessoal--financas--household-finance-manager`
 
 ### Quero exemplos práticos de pedidos
 
@@ -75,6 +79,7 @@ Usa o product-manager do Bóris para estruturar essa tela
 Usa o editorial-strategist para transformar isso em pauta
 Usa o whatsapp-manager para preparar essa mensagem
 Usa /agora captura preciso lembrar de fechar orçamento do casamento
+Usa o household-finance-manager para organizar as contas da casa
 Me ajuda a planejar essa operação antes de executar
 ```
 

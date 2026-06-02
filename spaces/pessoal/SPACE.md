@@ -9,7 +9,7 @@ owner: Mateus
 
 ## Propósito
 
-Centralizar projetos pessoais no AgentOS sem misturar com o Boris, começando por uma área dedicada à gestão do dia a dia, prioridades, capturas rápidas e organização da rotina.
+Centralizar projetos pessoais no AgentOS sem misturar com o Boris, cobrindo rotina, comunicação e agora também a organização financeira da casa.
 
 ## Projetos Ativos
 
@@ -21,6 +21,7 @@ Centralizar projetos pessoais no AgentOS sem misturar com o Boris, começando po
 |---|---|---|---|
 | dia | Planejamento diário, prioridades, foco e fechamento do dia | 1 | — |
 | comunicacao | Operação do WhatsApp pessoal e rotinas ligadas à Evolution API | 1 | — |
+| financas | Previsibilidade das contas da casa, visão de dívidas e controle financeiro simples | 1 | — |
 
 ## Memória
 

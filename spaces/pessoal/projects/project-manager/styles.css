@@ -1,0 +1,463 @@
+:root {
+  color-scheme: dark;
+  --bg: #08111f;
+  --bg-2: #0f1d32;
+  --panel: rgba(11, 20, 34, 0.82);
+  --panel-2: rgba(16, 29, 49, 0.92);
+  --line: rgba(160, 194, 255, 0.14);
+  --text: #eef4ff;
+  --muted: #93a6c7;
+  --blue: #5f8cff;
+  --cyan: #65d8ff;
+  --amber: #f7b955;
+  --coral: #ff7c66;
+  --green: #73d6ab;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  --radius-xl: 30px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  font-family: "Suisse Intl", "Avenir Next", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(95, 140, 255, 0.22), transparent 28%),
+    radial-gradient(circle at 100% 20%, rgba(101, 216, 255, 0.16), transparent 24%),
+    radial-gradient(circle at 80% 100%, rgba(255, 124, 102, 0.12), transparent 26%),
+    linear-gradient(180deg, #08111f 0%, #091625 42%, #050b14 100%);
+}
+
+.app-shell {
+  width: min(1480px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 28px 0 44px;
+}
+
+.masthead,
+.toolbar,
+.layout,
+.bottom-grid,
+.panel-head,
+.project-meta,
+.snapshot-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.masthead {
+  grid-template-columns: minmax(0, 1.3fr) 320px;
+  align-items: end;
+  margin-bottom: 22px;
+}
+
+.kicker {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.brand-block h1,
+.toolbar h2,
+.panel h3 {
+  margin: 0;
+  font-family: "Ivar Display", "Iowan Old Style", serif;
+  letter-spacing: -0.03em;
+}
+
+.brand-block h1 {
+  font-size: clamp(3rem, 5vw, 5.6rem);
+  line-height: 0.95;
+  max-width: 10ch;
+}
+
+.lede,
+.ritual-card p,
+.muted,
+.project-card p,
+.next-action p,
+.clean-list li {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.ritual-card,
+.timeline-frame,
+.panel,
+.metric-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.ritual-card {
+  border-radius: 24px;
+  padding: 20px;
+}
+
+.ritual-card span {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--cyan);
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+}
+
+.ritual-card strong {
+  display: block;
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+}
+
+.layout {
+  grid-template-columns: minmax(0, 1.6fr) 360px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+
+.timeline-stage {
+  min-width: 0;
+}
+
+.toolbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.toolbar h2 {
+  font-size: clamp(2rem, 3vw, 3rem);
+}
+
+.toolbar-actions,
+.project-meta,
+.inspector-meta,
+.mini-command {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.toolbar-chip,
+.pill {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.toolbar-chip.is-active,
+.toolbar-chip:hover {
+  background: linear-gradient(120deg, rgba(95, 140, 255, 0.28), rgba(101, 216, 255, 0.2));
+  border-color: rgba(101, 216, 255, 0.28);
+}
+
+.timeline-frame {
+  border-radius: var(--radius-xl);
+  padding: 18px;
+  overflow: hidden;
+}
+
+#gantt {
+  width: 100%;
+  min-height: 520px;
+}
+
+.snapshot-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.metric-card,
+.panel {
+  border-radius: var(--radius-lg);
+}
+
+.metric-card {
+  padding: 18px;
+}
+
+.metric-card strong {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 2.1rem;
+  font-family: "Ivar Display", "Iowan Old Style", serif;
+}
+
+.metric-card p {
+  margin: 0;
+}
+
+.metric-line {
+  width: 42px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.side-rail {
+  display: grid;
+  gap: 16px;
+}
+
+.panel {
+  padding: 20px;
+}
+
+.focus-text {
+  margin-top: 12px;
+}
+
+.panel-head {
+  align-items: start;
+}
+
+.panel-head.spread {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.clean-list,
+.next-actions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.clean-list li,
+.next-action,
+.project-card {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.clean-list li {
+  padding: 14px 16px;
+}
+
+.inspector-meta span,
+.project-meta span,
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.bottom-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.8fr);
+}
+
+.project-deck {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.project-card {
+  padding: 18px;
+}
+
+.project-card h4 {
+  margin: 12px 0 8px;
+  font-size: 1.2rem;
+}
+
+.project-progress {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 16px 0;
+}
+
+.project-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--blue), var(--coral));
+}
+
+.next-action {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+}
+
+.next-action input {
+  margin-top: 4px;
+  accent-color: var(--cyan);
+}
+
+.mini-command {
+  align-items: center;
+  color: var(--muted);
+}
+
+.mini-command code {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.gantt .grid-background,
+.gantt .grid-row,
+.gantt .row-line,
+.gantt .tick {
+  stroke: rgba(160, 194, 255, 0.12);
+}
+
+.gantt .grid-background {
+  fill: rgba(10, 19, 33, 0.96);
+}
+
+.gantt .grid-header {
+  fill: rgba(255, 255, 255, 0.04);
+}
+
+.gantt .weekend {
+  fill: rgba(255, 255, 255, 0.025);
+}
+
+.gantt .today-highlight {
+  fill: rgba(95, 140, 255, 0.06);
+}
+
+.gantt .bar-label,
+.gantt .lower-text,
+.gantt .upper-text,
+.gantt .date,
+.gantt .day-of-week {
+  fill: var(--text);
+  font-family: inherit;
+}
+
+.gantt .bar-label {
+  font-weight: 600;
+}
+
+.gantt .bar {
+  rx: 14px;
+  ry: 14px;
+}
+
+.gantt .bar-progress {
+  rx: 14px;
+  ry: 14px;
+}
+
+.gantt .bar-wrapper.task-execution .bar {
+  fill: rgba(101, 216, 255, 0.22);
+  stroke: rgba(101, 216, 255, 0.45);
+}
+
+.gantt .bar-wrapper.task-execution .bar-progress {
+  fill: rgba(101, 216, 255, 0.78);
+}
+
+.gantt .bar-wrapper.task-milestone .bar {
+  fill: rgba(95, 140, 255, 0.22);
+  stroke: rgba(95, 140, 255, 0.42);
+}
+
+.gantt .bar-wrapper.task-milestone .bar-progress {
+  fill: rgba(95, 140, 255, 0.72);
+}
+
+.gantt .bar-wrapper.task-risk .bar {
+  fill: rgba(255, 124, 102, 0.2);
+  stroke: rgba(255, 124, 102, 0.42);
+}
+
+.gantt .bar-wrapper.task-risk .bar-progress {
+  fill: rgba(247, 185, 85, 0.85);
+}
+
+.gantt .arrow {
+  stroke: rgba(238, 244, 255, 0.45);
+}
+
+.gantt-container .popup-wrapper,
+.gantt-popup {
+  background: rgba(8, 17, 31, 0.96);
+  color: var(--text);
+  border: 1px solid rgba(160, 194, 255, 0.16);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.gantt-popup {
+  padding: 12px 14px;
+}
+
+.gantt-popup strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.gantt-popup p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.status-planejado {
+  color: var(--blue);
+}
+
+.status-andamento {
+  color: var(--cyan);
+}
+
+.status-atencao {
+  color: var(--amber);
+}
+
+.status-concluido {
+  color: var(--green);
+}
+
+@media (max-width: 1180px) {
+  .masthead,
+  .layout,
+  .bottom-grid,
+  .snapshot-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    width: min(100% - 24px, 1480px);
+    padding-top: 20px;
+  }
+
+  .toolbar,
+  .panel-head.spread {
+    grid-template-columns: 1fr;
+  }
+
+  #gantt {
+    height: 460px;
+  }
+}

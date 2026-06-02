@@ -56,6 +56,24 @@ Scripts em `system/scripts/hooks/`. Caminhos em `system/` que **são** editávei
 - Use o calendário principal da conta por padrão. Calendários alternativos definidos no `.env` só devem ser usados quando o pedido mencionar explicitamente outro calendário.
 - Não conclua que faltam credenciais antes de verificar o `.env` raiz do projeto.
 
+## Stack Padrão para Projetos Web
+
+- Sempre que o AgentOS for criar **um novo projeto web** e o usuário não exigir outra stack, priorize como padrão de interface a stack **`shadcn/ui`**.
+- **`shadcn/ui` é o nome oficial de uso dentro do AgentOS** para essa base de componentes e layouts.
+- O `shadcn/ui` deve ser tratado como a camada preferencial de interface, com prioridade para reaproveitar componentes, blocos e padrões prontos antes de criar UI customizada.
+- Em projetos com interface de chat, suporte, threads, tickets ou mensageria, priorize componentes compatíveis com `shadcn/ui`, incluindo `ChatProvider`, `ChatMessages`, `ChatComposer`, `ChatNestedThread`, `SupportTickets`, `FullMessenger`, `ChatWidget`, `InlineChat`, `ChatBoard` e `LiveChat`.
+- Em projetos novos, só fuja desse padrão quando:
+  - o usuário pedir explicitamente outra biblioteca, design system ou framework visual;
+  - o requisito não for bem atendido pelos componentes do `shadcn/ui`;
+  - houver restrição técnica incompatível com React + Tailwind + `shadcn/ui`.
+- Quando precisar instalar uma base de chat sobre `shadcn/ui`, use como referência o registry técnico atualmente publicado em:
+
+```bash
+npx shadcn@latest add https://raw.githubusercontent.com/leonickson1/chatcn/main/public/r/chat.json
+```
+
+- O workspace de referência dessa stack dentro do AgentOS fica em `spaces/pessoal/projects/shadcn-showcase/`.
+
 ---
 
 ## Sync de Runtimes

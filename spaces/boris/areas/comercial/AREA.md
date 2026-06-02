@@ -18,6 +18,7 @@ Esta area absorve a metodologia comercial herdada da Enkrateia como base de proc
 | Agente | Papel | Status |
 |---|---|---|
 | sales-operator | Operação comercial e pipeline | Ativo |
+| enap-opportunity-manager | Frente ENAP, editais, inovação pública e próximos passos institucionais | Ativo |
 
 ## Times
 
@@ -42,3 +43,4 @@ Esta area absorve a metodologia comercial herdada da Enkrateia como base de proc
 - Processos e migração: `spaces/boris/resources/comercial/processos/`
 - Leads e pipeline: `spaces/boris/resources/comercial/leads/`
 - Contas estratégicas e notas por oportunidade: `spaces/boris/resources/comercial/contas/`
+- Projeto operacional da prospecção ativa: `spaces/boris/resources/comercial/prospeccao-mateus-rocha/`
