@@ -9,6 +9,7 @@ Este diretório concentra a biblioteca operacional do `boris` dentro do AgentOS.
 - `editorial/`
 - `audio/`
 - `comercial/`
+- `legal/`
 - `inteligencia-cliente/`
 - `leads/`
 - `reunioes/`
@@ -27,6 +28,7 @@ Tudo que antes estava espalhado em pastas externas foi consolidado aqui, preserv
 - Linha editorial: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/editorial`
 - Áudios: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/audio`
 - Comercial: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/comercial`
+- Jurídico: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/legal`
 - Inteligência do cliente: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/inteligencia-cliente`
 - Leads: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/leads`
 - Reuniões: `/Users/eu.rochamateus/Documents/Codex/AgentOS/spaces/boris/resources/reunioes`
@@ -39,6 +41,7 @@ Tudo que antes estava espalhado em pastas externas foi consolidado aqui, preserv
 - `editorial/`: estratégia, pain library, assets editoriais, calendários e source of truth
 - `audio/`: sistema de vozes, scripts, campanhas e saídas de áudio
 - `comercial/`: metodologia, playbooks, checklist de migração, contas e organização comercial específica do Boris
+- `legal/`: política de privacidade, termos, checklists de publicação e materiais-base de prontidão jurídico-operacional
 - `inteligencia-cliente/`: pesquisas, memos e sínteses transversais que ajudam decisões técnicas e estratégicas
 - `leads/`: base comercial, propostas, segmentos e arquivos de apoio
 - `reunioes/`: transcrições, resumos, decisões e próximos passos de calls que alimentam comercial, produto, suporte, operação e conteúdo
